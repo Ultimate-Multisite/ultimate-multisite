@@ -1,0 +1,49 @@
+Starting simplified performance benchmarks...
+✓ Dashboard loading benchmark completed
+✓ Checkout process benchmark completed
+✓ Site creation validation benchmark completed
+✓ Membership operations benchmark completed
+✓ API endpoints benchmark completed
+✓ Database queries benchmark completed
+{
+    "test_run": "2025-11-15 20:22:14",
+    "php_version": "8.4.12",
+    "wordpress_version": "6.4.3",
+    "plugin_version": "2.4.7",
+    "dashboard_loading": {
+        "execution_time_ms": 1.09,
+        "memory_usage_mb": 0,
+        "peak_memory_mb": 2,
+        "database_queries": 0
+    },
+    "checkout_process": {
+        "execution_time_ms": 0.6,
+        "memory_usage_mb": 0,
+        "peak_memory_mb": 2,
+        "database_queries": 0
+    },
+    "site_creation_validation": {
+        "execution_time_ms": 0.59,
+        "memory_usage_mb": 0,
+        "peak_memory_mb": 2,
+        "database_queries": 0
+    },
+    "membership_operations": {
+        "execution_time_ms": 0.01,
+        "memory_usage_mb": 0,
+        "peak_memory_mb": 2,
+        "database_queries": 0
+    },
+    "api_endpoints": {
+        "execution_time_ms": 0.89,
+        "memory_usage_mb": 0,
+        "peak_memory_mb": 2,
+        "database_queries": 0
+    },
+    "database_queries": {
+        "execution_time_ms": 0.26,
+        "memory_usage_mb": 0,
+        "peak_memory_mb": 2,
+        "database_queries": 5
+    }
+}Results saved to: /home/dave/multisite/ultimate-multisite/tests/simple-performance-results-2025-11-15-20-22-14.json

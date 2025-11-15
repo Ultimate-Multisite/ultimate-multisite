@@ -1,0 +1,191 @@
+name: Performance Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+jobs:
+  performance:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports: [3306]
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    
+    container:
+      image: cimg/php:8.1
+      options: --user root
+    
+    steps:
+      - name: Checkout PR Branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Checkout Base Branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          path: baseline
+          fetch-depth: 0
+      
+      - name: Set up Composer global bin path
+        run: |
+          mkdir -p "$HOME/.config/composer/vendor/bin"
+          echo "PATH=$HOME/.config/composer/vendor/bin:$PATH" >> $GITHUB_ENV
+      
+      - name: Install System Dependencies
+        run: |
+          apt-get update && apt-get install -y subversion mariadb-client
+      
+      - name: Install PHP Extensions
+        run: |
+          install-php-extensions mysqli gd bcmath || echo "Extensions may already be installed."
+      
+      - name: Self-update Composer
+        run: |
+          composer self-update || echo "Composer update skipped due to permission issue."
+      
+      - name: Install PHP Dependencies (PR Branch)
+        run: |
+          composer install --no-interaction --prefer-dist
+      
+      - name: Install PHP Dependencies (Baseline)
+        run: |
+          cd baseline && composer install --no-interaction --prefer-dist
+      
+      - name: Wait for MySQL to be ready
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h mysql --silent; then
+              echo "MySQL is up"
+              break
+            fi
+            echo "Waiting for MySQL..."
+            sleep 2
+          done
+      
+      - name: Prepare WordPress Tests
+        run: |
+          rm -rf /tmp/wordpress-tests-lib /tmp/wordpress/
+          bash bin/install-wp-tests.sh wordpress_test root root mysql latest
+      
+      - name: Run Baseline Performance Tests
+        run: |
+          cd baseline
+          php tests/performance-benchmark.php > ../baseline-results.json
+          echo "Baseline results:"
+          cat ../baseline-results.json | jq '.'
+      
+      - name: Run Current Branch Performance Tests
+        run: |
+          php tests/performance-benchmark.php > current-results.json
+          echo "Current results:"
+          cat current-results.json | jq '.'
+      
+      - name: Compare Performance Results
+        run: |
+          php tests/performance-comparator.php baseline-results.json current-results.json > performance-report.md
+          echo "Performance comparison:"
+          cat performance-report.md
+      
+      - name: Upload Performance Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-results-${{ github.run_number }}
+          path: |
+            baseline-results.json
+            current-results.json
+            performance-report.md
+          retention-days: 30
+      
+      - name: Comment PR with Performance Results
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            
+            try {
+              const report = fs.readFileSync('performance-report.md', 'utf8');
+              
+              // Find previous performance comment
+              const { data: comments } = await github.rest.issues.listComments({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+              
+              const existingComment = comments.find(comment => 
+                comment.user.type === 'Bot' && 
+                comment.body.includes('Performance Test Results')
+              );
+              
+              if (existingComment) {
+                // Update existing comment
+                await github.rest.issues.updateComment({
+                  comment_id: existingComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: report
+                });
+              } else {
+                // Create new comment
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: report
+                });
+              }
+            } catch (error) {
+              console.log('Error posting performance comment:', error);
+            }
+      
+      - name: Check for Performance Regressions
+        run: |
+          # Check if performance report contains critical regressions
+          if grep -q "Critical Regressions.*[1-9]" performance-report.md; then
+            echo "🚨 Critical performance regressions detected!"
+            echo "Please review the performance report and optimize before merging."
+            exit 1
+          fi
+          
+          # Check if performance report contains any regressions
+          if grep -q "Regressions.*[1-9]" performance-report.md; then
+            echo "⚠️ Performance regressions detected."
+            echo "Consider optimizing before merging, but not blocking."
+          fi
+          
+          echo "✅ Performance tests passed!"
+      
+      - name: Performance Summary
+        if: always()
+        run: |
+          echo "## Performance Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "performance-report.md" ]; then
+            # Extract summary from performance report
+            sed -n '/## Summary/,/## Detailed Results/p' performance-report.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Performance report not available." >> $GITHUB_STEP_SUMMARY
+          fi
