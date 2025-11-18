@@ -11,6 +11,8 @@ class SSO_Functional_Test extends \WP_UnitTestCase {
 
 	protected function setUp(): void {
 		parent::setUp();
+		// Flush caches to ensure clean state
+		wp_cache_flush();
 		// Ensure SSO is available.
 		SSO::get_instance();
 		// Default enable SSO during these tests.
@@ -28,6 +30,7 @@ class SSO_Functional_Test extends \WP_UnitTestCase {
 		remove_all_filters('wu_sso_enabled');
 		remove_all_filters('wu_sso_get_url_path');
 		remove_all_filters('wu_sso_salt');
+		remove_all_filters('network_home_url');
 		parent::tearDown();
 	}
 
@@ -86,7 +89,21 @@ class SSO_Functional_Test extends \WP_UnitTestCase {
 		$this->assertNull($sso->get_broker_by_id('invalid'));
 	}
 
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
 	public function test_get_final_return_url_builds_login_url_with_done_and_redirect(): void {
+		// Mock network_home_url to avoid database calls
+		add_filter(
+			'network_home_url',
+			function ($url, $path) {
+				return 'https://example.com' . $path;
+			},
+			10,
+			2
+		);
+
 		$sso  = SSO::get_instance();
 		$base = network_home_url('/some/path');
 		$url  = add_query_arg(

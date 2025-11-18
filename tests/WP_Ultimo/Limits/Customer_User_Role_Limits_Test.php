@@ -104,6 +104,20 @@ class Customer_User_Role_Limits_Test extends \WP_UnitTestCase {
 		$admin_id = self::factory()->user->create(['role' => 'administrator']);
 		wp_set_current_user($admin_id);
 		if (function_exists('revoke_super_admin')) {
+			// Ensure wp_users.can is properly set as an array before calling revoke_super_admin
+			// Clear all WordPress caches to ensure fresh option load
+			wp_cache_flush();
+			
+			$wp_users_can = get_option('wp_users.can');
+			echo 'wp_users.can type: ' . gettype($wp_users_can) . PHP_EOL;
+			echo 'wp_users.can value: ';
+			var_export($wp_users_can);
+			echo PHP_EOL;
+			
+			if (!is_array($wp_users_can)) {
+				update_option('wp_users.can', ['list_users' => true, 'promote_users' => true, 'remove_users' => true, 'edit_users' => true]);
+			}
+			
 			revoke_super_admin($admin_id);
 		}
 		if (function_exists('set_current_screen')) {

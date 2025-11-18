@@ -10,6 +10,8 @@ class SSO_Test extends \WP_UnitTestCase {
 
 	public function setUp(): void {
 		parent::setUp();
+		// Flush caches to ensure clean state
+		wp_cache_flush();
 		// Ensure SSO singleton is initialized fresh per test when needed.
 		// SSO hooks only run if enabled; our tests use direct methods.
 	}
@@ -53,12 +55,8 @@ class SSO_Test extends \WP_UnitTestCase {
 	}
 
 	public function test_session_handler_start_and_resume_sets_target_user_id(): void {
-		// Create a user and ensure WP recognizes it as current.
-		$user_id = self::factory()->user->create();
-		if (! $user_id) {
-			// Fallback to default admin user often present in WP tests.
-			$user_id = 1;
-		}
+		// Use a fixed user ID to avoid database issues in test environment
+		$user_id = 1;
 
 		// Ensure we have a site id to encode as broker id.
 		$site_id = get_current_blog_id();
@@ -71,8 +69,13 @@ class SSO_Test extends \WP_UnitTestCase {
 
 		$handler = new SSO_Session_Handler($sso);
 
-		// Simulate the broker session storage that start() would create.
-		set_site_transient("sso-{$broker}-{$site_id}", $user_id, 180);
+		// Mock the transient get to avoid database calls
+		add_filter(
+			'pre_site_transient_sso-' . $broker . '-' . $site_id,
+			function () use ($user_id) {
+				return $user_id;
+			}
+		);
 
 		// resume() should read the transient and set target user id inside SSO.
 		$handler->resume($broker);
