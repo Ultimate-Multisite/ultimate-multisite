@@ -1,17 +1,16 @@
 <?php
 /**
- * Plugin Name: Ultimate Multisite
- * Description: Transform your WordPress Multisite into a Website as a Service (WaaS) platform supporting site cloning, re-selling, and domain mapping integrations with many hosting providers.
- * Plugin URI: https://ultimatemultisite.com
- * Text Domain: ultimate-multisite
- * Version: 2.4.10
- * Author: Ultimate Multisite Community
- * Author URI: https://github.com/Multisite-Ultimate/ultimate-multisite
- * GitHub Plugin URI: https://github.com/Multisite-Ultimate/ultimate-multisite
- * Network: true
- * License: GPL2
+ * Plugin Name: Ultimate Multisite – WordPress Multisite SaaS & WaaS Platform
+ * Plugin URI:  https://ultimatemultisite.com
+ * Description: Ultimate Multisite is a WordPress Multisite plugin that turns your network into a complete Website-as-a-Service (WaaS) platform with subscriptions, site provisioning, domain mapping, and customer management. Formerly WP Ultimo.
+ * Version:     2.4.10
+ * Author:      Ultimate Multisite Community
+ * Author URI:  https://ultimatemultisite.com
+ * License:     GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain: ultimate-multisite
  * Domain Path: /lang
+ * Network:     true
  * Requires at least: 5.3
  * Requires PHP: 7.4.30
  *

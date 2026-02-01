@@ -1,242 +1,227 @@
-=== Ultimate Multisite ===
+=== Ultimate Multisite – WordPress Multisite SaaS & WaaS Platform ===
 Contributors: aanduque, superdav42, vvwb, surferking
 Donate link: https://github.com/sponsors/superdav42/
-Tags: multisite, waas, membership, domain-mapping, subscription
+Tags: ultimate multisite, wordpress multisite, multisite plugin, multisite saas, waas, domain mapping, wp ultimo
 Requires at least: 5.3
 Requires PHP: 7.4.30
 Tested up to: 6.9
 Stable tag: 2.4.10
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
-The Complete Network Solution for transforming your WordPress Multisite into a Website as a Service (WaaS) platform.
+
+Ultimate Multisite is a WordPress Multisite plugin that turns your network into a complete Website-as-a-Service (WaaS) platform with subscriptions, site provisioning, domain mapping, and customer management.
 
 == Description ==
 
-**Ultimate Multisite** turns your WordPress Multisite into a full WaaS (Website as a Service) platform—so you can sell plans, provision new sites from templates, map custom domains, and manage customers and billing with confidence.
+**Ultimate Multisite** is a WordPress Multisite plugin designed to help you build, sell, and manage a Website-as-a-Service (WaaS) platform on your own infrastructure.
 
-Launch niche site builders, productized services, or large, branded networks without stitching together dozens of tools. From checkout to provisioning to ongoing management, Ultimate Multisite gives you the building blocks to create a modern, scalable website platform on top of WordPress.
+With Ultimate Multisite, you can create subscription plans, provision new sites from templates, map custom domains, and manage customers across your WordPress Multisite network — all from one integrated system built specifically for Multisite.
 
-Formerly known as WP Ultimo, now community‑maintained and actively improved.
+Launch niche site builders, productized services, franchise networks, or internal platforms without stitching together dozens of plugins. From checkout to provisioning to ongoing management, Ultimate Multisite provides the core building blocks for running a modern, scalable WordPress multisite platform.
+
+Formerly known as **WP Ultimo**, Ultimate Multisite is now community-maintained and actively improved.
+
+= Also Known As =
+
+Ultimate Multisite is commonly searched for as:
+
+- Ultimate Multisite plugin
+- Ultimate Multisite WordPress
+- Multisite Ultimate
+- WP Ultimo
+
+If you are looking for **WP Ultimo**, this is the community-maintained successor.
 
 = Key Features =
 
-Build, sell, and scale with a feature set designed for WaaS operators:
+Everything you need to build and scale a WordPress Multisite SaaS platform:
 
-- **Fast Site Creation** – Self‑serve signup that provisions new sites instantly from templates
-- **Domain Mapping** – Custom domains with automated DNS verification and clear guidance
-- **Payments & Subscriptions** – Stripe and PayPal support for recurring plans and one‑time fees
-- **Flexible Plans & Limits** – Package features and enforce quotas/limitations across your network
-- **Template Library** – Create high‑converting templates your customers can launch in minutes
-- **Customer Dashboard** – Clean, branded UI for managing billing, sites, domains, and settings
-- **White‑Label Ready** – Rename, rebrand, and tailor the experience to your business
+- **Fast Site Creation** – Self-serve signup that provisions new sites instantly from templates
+- **Domain Mapping** – Custom domains with automated DNS verification and guided setup
+- **Payments & Subscriptions** – Stripe and PayPal support for recurring plans and one-time fees
+- **Flexible Plans & Limits** – Package features and enforce quotas across your multisite network
+- **Template Library** – High-converting site templates customers can launch in minutes
+- **Customer Dashboard** – Branded UI for managing billing, sites, domains, and settings
+- **White-Label Ready** – Rename, rebrand, and customize the experience
 - **Hosting Integrations** – Cloudflare, GridPane, Cloudways, WPMU DEV, and more
-- **Developer‑Friendly** – Hooks, filters, and an add‑on system for deep customization
+- **Developer-Friendly** – Hooks, filters, and an extensible add-on system
 
-= Who Is It For? =
+= Who Is Ultimate Multisite For? =
 
-- Agencies productizing WordPress into packages and recurring plans
-- Creators launching niche site builders (local business sites, portfolios, courses, communities)
-- Hosts and MSPs offering white‑label WordPress at scale
-- Franchises, universities, and multi‑location brands with many similar sites
-- Internal teams rolling out microsites and campaigns on shared infrastructure
+- Agencies productizing WordPress into recurring plans
+- Creators launching niche or industry-specific site builders
+- Hosts and MSPs offering white-label WordPress platforms
+- Franchises and multi-location brands managing many similar sites
+- Universities and organizations provisioning sites at scale
+- Internal teams deploying microsites and campaigns
 
 = Popular Use Cases =
 
-- Productized website services with recurring billing and templates
-- Franchise and multi‑location networks with brand‑consistent starter sites
-- “Site builder” offerings for a specific industry or niche
-- Private networks for internal departments, events, or communities
-- Educational institutions provisioning class, club, or program sites
+- Productized website services with recurring billing
+- Franchise and multi-location networks with brand-consistent sites
+- Industry-specific “site builder” platforms
+- Private networks for events, departments, or communities
+- Educational institutions provisioning program or class sites
 
-= Why Ultimate Multisite =
+= Why Choose Ultimate Multisite =
 
-- **Open & Community‑Maintained** – Transparent development, active updates
-- **WordPress‑Native** – Built specifically for Multisite; no heavy SaaS lock‑in
-- **Proven Architecture** – Templates, plans, and domain mapping built‑in
-- **Extensible** – Add‑on system, actions/filters, and hosting integrations
-- **Owned Infrastructure** – Run your WaaS on your stack, your way
+- **Built for WordPress Multisite** – Not retrofitted from single-site assumptions
+- **Open & Community-Maintained** – Transparent development and frequent updates
+- **Proven Architecture** – Templates, plans, and domain mapping built-in
+- **Extensible by Design** – Add-ons, actions, filters, and hosting integrations
+- **You Own the Stack** – No forced SaaS lock-in or proprietary hosting
 
-= Try It In Minutes =
+If you searched for “Ultimate Multisite” on the WordPress plugin directory, this plugin provides the full multisite SaaS and WaaS functionality you are looking for.
 
-1. Enable WordPress Multisite on a staging site
-2. Install and Network Activate Ultimate Multisite
-3. Run the setup wizard, create a plan, and add a template
-4. Share your signup page and start selling
+= Get Started in Minutes =
 
-Ready to build your WaaS? Install the plugin and launch your first customer site today.
+1. Enable WordPress Multisite on a staging or production site
+2. Install and **Network Activate Ultimate Multisite**
+3. Run the setup wizard and create your first plan and template
+4. Share your signup page and start provisioning sites
 
-= Where to find help =
+== Documentation ==
 
-* [Issue Tracker](https://github.com/Multisite-Ultimate/multisite-ultimate/issues)
-* Paid support at [the official Ultimate Multisite website](https://ultimatemultisite.com)
-
-= Contributing =
-
-We welcome contributions to Ultimate Multisite! To contribute see the [GitHub repository](https://github.com/Multisite-Ultimate/multisite-ultimate).
-
-== Requirements ==
-
-* WordPress Multisite 5.3 or higher
-* PHP 7.4.30 or higher
-* MySQL 5.6 or higher
+1. [Ultimate Multisite Getting Started Guide](https://ultimatemultisite.com/2026/01/27/getting-started-ultimate-multisite-guide/)
+2. [Full Ultimate Multisite Documentation](https://ultimatemultisite.com/docs/)
 
 == Frequently Asked Questions ==
 
-= Can I use this plugin with a regular WordPress installation? =
+= Can I use Ultimate Multisite on a regular WordPress site? =
 
-No, this plugin specifically requires WordPress Multisite to function properly. It transforms your Multisite network into a platform for hosting multiple customer websites.
+No. Ultimate Multisite requires **WordPress Multisite** and is designed specifically for network installations.
 
-= Does this plugin support custom domains? =
+= Does Ultimate Multisite support custom domains? =
 
-Yes, Ultimate Multisite includes robust domain mapping functionality that allows your customers to use their own domains for their websites within your network.
+Yes. Ultimate Multisite includes robust domain mapping with automated DNS verification and guided setup for end users.
 
 = Which payment gateways are supported? =
 
-The plugin supports multiple payment gateways including Stripe, PayPal, and manually handled payments.
+Stripe, PayPal, and manual payments are supported out of the box.
 
-= Can I migrate from WP Ultimo to this plugin? =
+= Can I migrate from WP Ultimo? =
 
-Yes, Ultimate Multisite is a community-maintained fork of WP Ultimo. Migration will happen automatically from WP Ultimo 2.X when this plugin is activated.
+Yes. Ultimate Multisite is a community-maintained fork of WP Ultimo 2.x. Migration happens automatically when the plugin is activated.
 
-== External Services ==
+= Will Ultimate Multisite work with Multisite with Subdirectories? =
 
-This plugin connects to several external services to provide its functionality. Below is a detailed list of all external services used, what data is sent, and when:
+Yes. Ultimate Multisite supports both subdirectory installs and subdirectory installs.
 
-= Geolocation Services =
+= Will Ultimate Multisite work with Multisite with Subdomains? =
 
-**MaxMind GeoLite2 Database**
-- Service: Geolocation database for determining user location based on IP address
-- Data sent: No personal data is sent - only downloads the database file
-- When: Downloaded periodically when geolocation features are enabled
-- Service URL: http://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.tar.gz
-- Terms of Service: https://www.maxmind.com/en/terms-of-service
-- Privacy Policy: https://www.maxmind.com/en/privacy-policy
+Yes. Ultimate Multisite supports both subdirectory installs and subdomain installs.
 
-**IP Lookup Services**
-- Service: External APIs to determine the user's public IP address
-- Data sent: HTTP request to determine IP address (no personal data stored)
-- When: When geolocation features are enabled and user IP needs to be determined
-- Services used:
-  - IPify API (http://api.ipify.org/) - Terms: https://www.ipify.org/
-  - IP Echo (http://ipecho.net/plain)
-  - Ident.me (http://ident.me)
-  - WhatIsMyIPAddress (http://bot.whatismyipaddress.com)
-  - IPinfo.io (https://ipinfo.io/) - Terms: https://ipinfo.io/terms
-  - IP-API.com (http://ip-api.com/) - Terms: https://ip-api.com/docs/legal
+= Can I use Ultimate Multisite to limit which Plugins and Themes users can use? =
 
-= Plugin Updates and Add-ons =
+Yes. With Ultimate Multisite you can select which plugins and themes are available to each plan on your network.
 
-**Ultimate Multisite Update Server**
-- Service: Official update server for the plugin and its add-ons (ultimatemultisite.com)
-- Data sent: Site URL, plugin version, license keys, authentication tokens
-- When: During plugin/add-on updates and license checks
-- Terms of Service: https://ultimatemultisite.com/terms-of-service/
-- Privacy Policy: https://ultimatemultisite.com/privacy-policy/
+= Can I use Ultimate Multisite to limit the number of posts a user can create on their site?=
 
-= Payment Processing Services =
+Yes. With Ultimate Multisite you can establish post quotas for every available post type on your network. You can also limit the number of users the admin can invite, the amount of disk space, and much more.
 
-**PayPal**
-- Service: PayPal payment processing for subscription payments
-- Data sent: Customer email, payment amounts, subscription details, transaction IDs
-- When: During checkout process and subscription management
-- Terms of Service: https://www.paypal.com/us/legalhub/useragreement-full
-- Privacy Policy: https://www.paypal.com/us/legalhub/privacy-full
+= Does Ultimate Multisite support Site Templates? =
 
-**Stripe**
-- Service: Stripe payment processing for credit card payments and subscriptions
-- Data sent: Customer payment information, email addresses, subscription data
-- When: During checkout process and recurring billing
-- Terms of Service: https://stripe.com/legal/ssa
-- Privacy Policy: https://stripe.com/privacy
+Yes. With Ultimate Multisite you can create as many Site Templates as you want. Site Templates are not themes, they are normal sites on your network. You can activate plugins, themes, and customize that Site Template in any way you want. If a user selects that template, his or her site will be created as a copy of that template, with all the customizations in place.
+You can also set a particular template for a plan. By doing that, every user that signs up on that plan will have his or her site created as a duplicate of that Site Template.
 
-= Hosting Provider Integrations =
+= Does Ultimate Multisite integrate with WooCommerce? =
 
-**Cloudflare**
-- Service: DNS management and domain configuration
-- Data sent: Domain names, DNS records, API authentication tokens
-- When: When customers add custom domains or manage DNS settings
-- Terms of Service: https://www.cloudflare.com/terms/
-- Privacy Policy: https://www.cloudflare.com/privacypolicy/
+Yes!
+If you want your network users to have WooCommerce available for them, allowing them to set up stores, that is possible using Ultimate Multisite. You can even limit the number of products your clients will be able to create on each plan tier.
+In terms of subscription payments for Ultimate Multisite, you can use the [Ultimate Multisite: WooCommerce Integration Add-on](https://ultimatemultisite.com/product/woocommerce-integration/) to allow your Ultimate Multisite clients to pay using WooCommerce gateways on your main site. In that way, you can tap into the huge library of payment gateways developed for WooCommerce and use them to bill your Ultimate Multisite clients.
 
-**Closte Hosting API**
-- Service: Integration with Closte hosting provider for automated site management
-- Data sent: Site configuration data, API credentials
-- When: Only when Closte integration is enabled and configured
-- Service URL: https://app.closte.com/api/client
-- Terms of Service: https://closte.com/terms-of-service/
-- Privacy Policy: https://closte.com/privacy-policy/
+= Is there a way to migrate subscriptions from WPMUDEV Pro Sites? =
 
-**Cloudways Hosting API**
-- Service: Integration with Cloudways hosting provider for automated site management
-- Data sent: Site configuration data, API credentials, authentication tokens
-- When: Only when Cloudways integration is enabled and configured
-- Service URL: https://api.cloudways.com/api/v1/oauth/access_token
-- Terms of Service: https://www.cloudways.com/en/terms.php
-- Privacy Policy: https://www.cloudways.com/en/privacy.php
+Yes, Ultimate Multisite now offers you a helpful tool to get you to migrate your Pro Sites network.
 
-**GridPane**
-- Service: Server management and site provisioning
-- Data sent: Site configuration data, domain information
-- When: When sites are created or managed on GridPane hosting
-- Terms of Service: https://gridpane.com/terms-of-service/
-- Privacy Policy: https://gridpane.com/privacy-policy/
+= Why is the “Allowed Plugins” tab empty on my Plan Edit Page? =
 
-**WPMU DEV Hosting**
-- Service: Hosting management and domain configuration
-- Data sent: Site IDs, domain information, API keys
-- When: When managing sites on WPMU DEV hosting platform
-- Terms of Service: https://wpmudev.com/terms-of-service/
-- Privacy Policy: https://incsub.com/privacy-policy/
+Ultimate Multisite only lets you allow or deny access to plugins not network-activated on your network. When a plugin is network-activated, by its very nature, it will be loaded by default on every site of your network.
+If you do not see any plugins listed on the “Allowed Plugins” tab, check if the desired plugin is network-active or not.
 
-= DNS and Domain Services =
+= Can I use my own Pricing Table design? =
 
-**Google DNS Resolution**
-- Service: DNS lookup service for domain verification
-- Data sent: Domain names for DNS lookup (no personal data)
-- When: During domain mapping setup and verification
-- Service URL: https://dns.google/resolve
-- Terms of Service: https://developers.google.com/terms/
-- Privacy Policy: https://policies.google.com/privacy
+Yes. Since version 1.4.0, Ultimate Multisite supports template overrides.
 
-= Newsletter and Analytics =
+= Does Ultimate Multisite work with WP Engine? =
 
-**Ultimate Multisite Newsletter Service**
-- Service: Newsletter subscription for product updates (ultimatemultisite.com)
-- Data sent: Company email, name, country information
-- When: During initial plugin setup (optional)
-- This is our own service for providing plugin updates and announcements
-- You can opt out of this service during setup
-- Terms of Service: https://ultimatemultisite.com/terms-of-service/
-- Privacy Policy: https://ultimatemultisite.com/privacy-policy/
+Yes. Ultimate Multisite was always supported by WP Engine, but getting domain mapping to work required manual extra steps from the admin (adding the domain to the WP Engine panel). This is no longer the case since version 1.6.0. Ultimate Multisite integrates directly with the WP Engine API and domains get added to the panel automatically after mapping.
 
-All external service connections are clearly disclosed to users during setup, and most services are optional or can be configured based on your chosen hosting provider and payment methods.
+= Which hosting provider do you recommend? =
 
-= Usage Tracking (Opt-In) =
+Ultimate Multisite should work with any hosting provider. The only difference is that some hosting company like Closte, Serverpilot, WPMUDEV, WP Engine, Cloudways, Gridpane and Runcloud.io has a tighter integration for domain mapping capabilities so they work out of the box. For other hosts that don't use cpanel, you may need to set up domain mapping manually.
+For a private server with a dedicated IP, the webserver can be setup to serve the wordpress install by default and no extra steps are required for domain mapping.
 
-**Ultimate Multisite Anonymous Telemetry**
-- This feature is DISABLED by default and requires explicit opt-in
-- You can enable or disable this at any time in Settings > Other > Help Improve Ultimate Multisite
-- Service: Anonymous usage data collection to improve the plugin
-- Data sent: PHP version, WordPress version, MySQL version, server type, plugin version, active addon slugs, network type (subdomain/subdirectory), anonymized usage counts (ranges only, e.g., "11-50 sites"), active payment gateways, and sanitized error logs
-- Data NOT sent: Domain names, URLs, customer information, personal data, payment amounts, API keys, IP addresses, or exact counts
-- When: Weekly (if enabled) and when errors occur (if enabled)
-- Service URL: https://ultimatemultisite.com/wp-json/wu-telemetry/v1/track
-- Privacy Policy: https://ultimatemultisite.com/privacy-policy/
+== Requirements ==
+
+- WordPress Multisite 5.3 or higher
+- PHP 7.4.30 or higher
+- MySQL 5.6 or higher
 
 == Screenshots ==
 
-1. One of many settings pages.
-2. Setting up products and plans.
-3. Listing sites on the network.
-4. Registration Form builder.
+1. Ultimate Multisite settings pages.
+2. Creating products and subscription plans.
+3. Managing sites across the multisite network.
+4. Registration and checkout form builder.
 
 == Support ==
 
 For support, please open an issue on the [GitHub repository](https://github.com/superdav42/wp-multisite-waas/issues).
 
-== Upgrade Notice ==
+== External Services ==
 
-We recommend running this in a staging environment before updating your production environment.
+This plugin connects to external services to provide optional functionality. All services are disclosed during setup and can be enabled or disabled as needed.
+
+= Geolocation Services =
+
+**MaxMind GeoLite2**
+- Downloads a geolocation database (no personal data sent)
+- Used only when geolocation features are enabled
+- https://www.maxmind.com/en/privacy-policy
+
+**IP Lookup APIs**
+- Used to determine public IP address (no data stored)
+- Services include IPify, IPinfo.io, IP-API, and others
+
+= Plugin Updates and Add-ons =
+
+**Ultimate Multisite Update Server**
+- Sends site URL, plugin version, and license metadata
+- Used for plugin and add-on updates
+- https://ultimatemultisite.com/privacy-policy/
+
+= Payment Processing =
+
+**Stripe**
+- Processes card payments and subscriptions
+- https://stripe.com/privacy
+
+**PayPal**
+- Processes PayPal payments
+- https://www.paypal.com/us/legalhub/privacy-full
+
+= Hosting Integrations =
+
+Integrations may send site configuration data and API credentials only when explicitly enabled.
+
+Supported providers include:
+- Cloudflare
+- Closte
+- Cloudways
+- GridPane
+- WPMU DEV
+
+= Usage Tracking (Opt-In) =
+
+Anonymous telemetry is **disabled by default** and requires explicit opt-in.
+
+Data collected includes:
+- WordPress and PHP versions
+- Plugin version and enabled add-ons
+- Anonymized usage ranges
+
+No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
 

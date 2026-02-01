@@ -199,6 +199,37 @@ function wu_is_plan_type(string $type): bool {
 }
 
 /**
+ * Checks if a product type has an independent billing cycle.
+ *
+ * Products with independent billing cycles keep their own duration
+ * and duration unit regardless of the plan's billing period.
+ * They are not subject to price variation lookups in the cart.
+ *
+ * @since 2.5.0
+ *
+ * @param string $type The product type to check.
+ * @return bool
+ */
+function wu_has_independent_billing_cycle(string $type): bool {
+
+	/**
+	 * Filter the product types that have independent billing cycles.
+	 *
+	 * Products with independent billing cycles are not forced to match the
+	 * plan's billing period in the cart. This is useful for products like
+	 * domain registrations that always bill yearly regardless of whether
+	 * the plan is monthly or annual.
+	 *
+	 * @since 2.5.0
+	 * @param array $types Array of product types with independent billing cycles.
+	 * @return array
+	 */
+	$types = apply_filters('wu_independent_billing_cycle_product_types', []);
+
+	return in_array($type, $types, true);
+}
+
+/**
  * Takes a list of product objects and separates them into plan and addons.
  *
  * @since 2.0.0

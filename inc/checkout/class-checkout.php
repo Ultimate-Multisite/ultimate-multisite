@@ -875,6 +875,21 @@ class Checkout {
 		$this->order->set_membership($this->membership);
 		$this->order->set_payment($this->payment);
 
+		/**
+		 * Fires after the checkout order is fully assembled.
+		 *
+		 * Addons can use this to create secondary memberships
+		 * for products with independent billing cycles.
+		 *
+		 * @since 2.5.0
+		 *
+		 * @param \WP_Ultimo\Checkout\Cart           $order      The cart/order object.
+		 * @param \WP_Ultimo\Models\Customer          $customer   The customer.
+		 * @param \WP_Ultimo\Models\Membership        $membership The primary membership.
+		 * @param \WP_Ultimo\Models\Payment           $payment    The payment.
+		 */
+		do_action('wu_checkout_order_created', $this->order, $this->customer, $this->membership, $this->payment);
+
 		$gateway->set_order($this->order);
 
 		/*

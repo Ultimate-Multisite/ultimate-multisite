@@ -39,16 +39,11 @@ defined('ABSPATH') || exit;
 
 	<span class="wu-self-center wu-content-center">
 
-	<button name="submit" value="0" class="button button-large">
-		<?php esc_html_e('Add manually', 'ultimate-multisite'); ?>
-	</button>
-
 	<button name="submit" value="1" class="wu-ml-2 button button-primary button-large" data-testid="button-primary">
-		<?php esc_html_e('Add automatically', 'ultimate-multisite'); ?>
+		<?php esc_html_e('Test Configuration &rarr;', 'ultimate-multisite'); ?>
 	</button>
 
 	</span>
 
 </div>
 <!-- End Submit Box -->
-

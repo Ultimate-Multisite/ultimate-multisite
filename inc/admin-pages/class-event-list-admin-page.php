@@ -64,7 +64,7 @@ class Event_List_Admin_Page extends List_Admin_Page {
 	 */
 	public function init(): void {
 
-		add_action('init', [$this, 'set_badge_count']);
+		add_action('admin_init', [$this, 'set_badge_count']);
 	}
 
 	/**

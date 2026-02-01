@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9fb68694be4c15723454e7249de18483",
+    "content-hash": "4bb21993bc3865c098634b155018ca44",
     "packages": [
         {
             "name": "amphp/amp",
@@ -4770,16 +4770,16 @@
         },
         {
             "name": "wordpress/abilities-api",
-            "version": "v0.1.1",
+            "version": "v0.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/WordPress/abilities-api.git",
-                "reference": "21af812bc2dc3677aa71b3a6875dc5407a477adf"
+                "reference": "0759075aed37c4247adbf273bdebec096d52e825"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/WordPress/abilities-api/zipball/21af812bc2dc3677aa71b3a6875dc5407a477adf",
-                "reference": "21af812bc2dc3677aa71b3a6875dc5407a477adf",
+                "url": "https://api.github.com/repos/WordPress/abilities-api/zipball/0759075aed37c4247adbf273bdebec096d52e825",
+                "reference": "0759075aed37c4247adbf273bdebec096d52e825",
                 "shasum": ""
             },
             "require": {
@@ -4788,7 +4788,6 @@
             "require-dev": {
                 "automattic/vipwpcs": "^3.0",
                 "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
-                "php-coveralls/php-coveralls": "^2.5",
                 "phpcompatibility/php-compatibility": "10.x-dev as 9.99.99",
                 "phpcompatibility/phpcompatibility-wp": "^2.1",
                 "phpstan/extension-installer": "^1.3",
@@ -4840,20 +4839,20 @@
                 "issues": "https://github.com/WordPress/abilities-api/issues",
                 "source": "https://github.com/WordPress/abilities-api"
             },
-            "time": "2025-09-05T07:28:21+00:00"
+            "time": "2025-10-29T05:35:31+00:00"
         },
         {
             "name": "wordpress/mcp-adapter",
-            "version": "dev-trunk",
+            "version": "v0.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/WordPress/mcp-adapter.git",
-                "reference": "7a2d22cff92328bc94f5b1648a66ae4273e949c5"
+                "reference": "1a0f9ab868e34b4375be42e873f60765e6632505"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/WordPress/mcp-adapter/zipball/7a2d22cff92328bc94f5b1648a66ae4273e949c5",
-                "reference": "7a2d22cff92328bc94f5b1648a66ae4273e949c5",
+                "url": "https://api.github.com/repos/WordPress/mcp-adapter/zipball/1a0f9ab868e34b4375be42e873f60765e6632505",
+                "reference": "1a0f9ab868e34b4375be42e873f60765e6632505",
                 "shasum": ""
             },
             "require": {
@@ -4875,7 +4874,6 @@
                 "wpackagist-plugin/plugin-check": "^1.6",
                 "yoast/phpunit-polyfills": "^4.0"
             },
-            "default-branch": true,
             "type": "library",
             "extra": {
                 "installer-paths": {
@@ -4915,7 +4913,7 @@
                 "issues": "https://github.com/wordpress/mcp-adapter/issues",
                 "source": "https://github.com/wordpress/mcp-adapter"
             },
-            "time": "2025-12-20T12:06:33+00:00"
+            "time": "2025-12-09T06:56:51+00:00"
         },
         {
             "name": "wp-cli/process",
@@ -12181,7 +12179,6 @@
     "stability-flags": {
         "rakit/validation": 20,
         "rpnzl/arrch": 20,
-        "wordpress/mcp-adapter": 20,
         "wp-ultimo/autoloader-plugin": 20
     },
     "prefer-stable": false,

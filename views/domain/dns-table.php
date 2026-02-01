@@ -77,6 +77,35 @@ defined('ABSPATH') || exit;
 
 	</tbody>
 
+	<tbody v-if="!loading && !error && results.www_entries && results.www_entries.length">
+
+		<tr>
+		<td colspan="4" class="wu-font-bold wu-bg-gray-100">
+			<?php esc_html_e('www Subdomain Records', 'ultimate-multisite'); ?>
+		</td>
+		</tr>
+
+		<tr v-for="dns in results.www_entries">
+		<td>{{ dns.host }}<span v-html="dns.tag" v-if="dns.tag"></span></td>
+		<td>{{ dns.type }}</td>
+		<td>{{ dns.data }}</td>
+		<td>{{ dns.ttl }}</td>
+		</tr>
+
+	</tbody>
+
 	</table>
+
+	<div v-if="!loading && !error && results.warnings && results.warnings.length" v-cloak>
+
+		<div
+			v-for="warning in results.warnings"
+			class="wu-p-4 wu-m-0 wu-mt-0 wu-bg-yellow-100 wu-text-yellow-700 wu-border-0 wu-border-t wu-border-solid wu-border-yellow-300"
+		>
+			<span class="dashicons dashicons-warning wu-mr-1"></span>
+			{{ warning }}
+		</div>
+
+	</div>
 
 </div>

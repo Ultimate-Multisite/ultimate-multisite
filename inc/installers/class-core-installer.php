@@ -9,8 +9,6 @@
 
 namespace WP_Ultimo\Installers;
 
-use WP_Ultimo\Integrations\Host_Providers\Closte_Host_Provider;
-
 // Exit if accessed directly
 defined('ABSPATH') || exit;
 

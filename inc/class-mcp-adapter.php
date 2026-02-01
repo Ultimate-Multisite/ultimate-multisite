@@ -130,7 +130,7 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 		 *
 		 * @see https://github.com/WordPress/mcp-adapter/issues/47
 		 */
-		add_filter('mcp_validation_enabled', '__return_false', 999);
+		add_filter('mcp_adapter_validation_enabled', '__return_false', 999);
 
 		try {
 			// Create MCP server.
@@ -157,7 +157,7 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 			);
 		} finally {
 			// Re-enable MCP validation immediately after server creation.
-			remove_filter('mcp_validation_enabled', '__return_false', 999);
+			remove_filter('mcp_adapter_validation_enabled', '__return_false', 999);
 		}
 	}
 

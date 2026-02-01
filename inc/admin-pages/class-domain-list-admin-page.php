@@ -187,6 +187,17 @@ class Domain_List_Admin_Page extends List_Admin_Page {
 			],
 		];
 
+		/**
+		 * Filters the fields for the add new domain modal.
+		 *
+		 * Allows addons (e.g. Domain Seller) to modify or replace
+		 * the domain registration fields.
+		 *
+		 * @since 2.1.0
+		 * @param array $fields The form fields.
+		 */
+		$fields = apply_filters('wu_add_new_domain_modal_fields', $fields);
+
 		$form = new \WP_Ultimo\UI\Form(
 			'add_new_domain',
 			$fields,

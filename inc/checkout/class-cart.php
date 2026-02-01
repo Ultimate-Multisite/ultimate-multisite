@@ -1398,6 +1398,12 @@ class Cart implements \JsonSerializable {
 				continue;
 			}
 
+			$product = $line_item->get_product();
+
+			if ($product && wu_has_independent_billing_cycle($product->get_type())) {
+				continue;
+			}
+
 			/*
 			 * Create a key that will tell us if something changes.
 			 *
@@ -1424,6 +1430,27 @@ class Cart implements \JsonSerializable {
 		}
 
 		return $is_valid;
+	}
+
+	/**
+	 * Returns line items whose product type has an independent billing cycle.
+	 *
+	 * @since 2.5.0
+	 * @return array
+	 */
+	public function get_independent_line_items(): array {
+
+		$items = [];
+
+		foreach ($this->line_items as $line_item) {
+			$product = $line_item->get_product();
+
+			if ($product && wu_has_independent_billing_cycle($product->get_type())) {
+				$items[] = $line_item;
+			}
+		}
+
+		return $items;
 	}
 
 	/**
@@ -1594,8 +1621,9 @@ class Cart implements \JsonSerializable {
 			}
 		}
 
-		// Here we check if the product is recurring and if so, get the correct variation
-		if ($product->is_recurring() && ! empty($this->duration) && ($product->get_duration() !== $this->duration || $product->get_duration_unit() !== $this->duration_unit)) {
+		// Here we check if the product is recurring and if so, get the correct variation.
+		// Products with independent billing cycles (e.g. domain registrations) are skipped.
+		if ($product->is_recurring() && ! wu_has_independent_billing_cycle($product->get_type()) && ! empty($this->duration) && ($product->get_duration() !== $this->duration || $product->get_duration_unit() !== $this->duration_unit)) {
 			$product = $product->get_as_variation($this->duration, $this->duration_unit);
 
 			if ( ! $product) {
@@ -1665,7 +1693,7 @@ class Cart implements \JsonSerializable {
 		 * If a price variation doesn't exist, we add an error to
 		 * the cart.
 		 */
-		if ($product->is_free() === false) {
+		if ($product->is_free() === false && ! wu_has_independent_billing_cycle($product->get_type())) {
 			if (absint($this->duration) !== $product->get_duration() || $product->get_duration_unit() !== $this->duration_unit) {
 				$price_variation = $product->get_price_variation($this->duration, $this->duration_unit);
 
@@ -2542,6 +2570,12 @@ class Cart implements \JsonSerializable {
 		$addon_list = [];
 
 		foreach ($all_additional_products as $line_item) {
+			$product = $line_item->get_product();
+
+			if ($product && wu_has_independent_billing_cycle($product->get_type())) {
+				continue;
+			}
+
 			$addon_list[ $line_item->get_product_id() ] = $line_item->get_quantity();
 		}
 
