@@ -388,10 +388,9 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 								'wrapper_classes' => 'wu-w-1/2',
 								'min'             => 1,
 								'html_attr'       => [
-									'v-model'       => 'duration',
-									'v-bind:name'   => '""',
-									'steps'         => 1,
-									'v-on:keypress' => 'numeric_only',
+									'v-model'     => 'duration',
+									'v-bind:name' => '""',
+									'steps'       => 1,
 								],
 							],
 							'duration_unit' => [
