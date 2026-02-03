@@ -1868,6 +1868,7 @@ class Checkout {
 			'city'               => $this->request_or_session('billing_city'),
 			'duration'           => $duration,
 			'duration_unit'      => $duration_unit,
+			'site_title'         => $this->request_or_session('site_title'),
 			'site_url'           => $this->request_or_session('site_url') === 'autogenerate' ? '' : $this->request_or_session('site_url'),
 			'site_domain'        => $this->request_or_session('site_domain', preg_replace('#^https?://#', '', $site_domain)),
 			'is_subdomain'       => is_subdomain_install(),
