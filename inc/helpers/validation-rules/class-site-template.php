@@ -92,7 +92,7 @@ class Site_Template extends Rule {
 
 			[$plan, $additional_products] = wu_segregate_products($products);
 
-			$products = array_merge([$plan], $additional_products);
+			$products = array_filter(array_merge([$plan], $additional_products));
 
 			foreach ($products as $product) {
 				$limits = $limits->merge($product->get_limitations());

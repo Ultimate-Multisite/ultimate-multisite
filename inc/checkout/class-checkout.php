@@ -763,6 +763,13 @@ class Checkout {
 		$this->gateway_id = $gateway->get_id();
 
 		/*
+		 * Set the order early so that validation_rules()
+		 * can check should_collect_payment() to skip
+		 * billing field requirements for free trials.
+		 */
+		$this->order = $cart;
+
+		/*
 		 * Now we need to validate the form.
 		 *
 		 * Here we use the validation rules set.
@@ -776,13 +783,6 @@ class Checkout {
 		if (is_wp_error($validation)) {
 			return $validation;
 		}
-
-		/*
-		 * From now on, logic can be delegated to
-		 * special methods, so we need to set
-		 * the order as globally accessible.
-		 */
-		$this->order = $cart;
 
 		/*
 		 * Handles display names, if needed.
@@ -1868,7 +1868,7 @@ class Checkout {
 			'city'               => $this->request_or_session('billing_city'),
 			'duration'           => $duration,
 			'duration_unit'      => $duration_unit,
-			'site_url'           => $this->request_or_session('site_url'),
+			'site_url'           => $this->request_or_session('site_url') === 'autogenerate' ? '' : $this->request_or_session('site_url'),
 			'site_domain'        => $this->request_or_session('site_domain', preg_replace('#^https?://#', '', $site_domain)),
 			'is_subdomain'       => is_subdomain_install(),
 			'gateway'            => wu_request('gateway', $default_gateway),
@@ -2067,6 +2067,17 @@ class Checkout {
 			if (wu_get_isset($field, 'id') && in_array($field['id'], $product_fields, true)) {
 				$validation_rules['products'] = 'products|required';
 			}
+		}
+
+		/*
+		 * Remove billing field requirements when payment is not needed
+		 * (e.g. free trials with allow_trial_without_payment_method enabled).
+		 */
+		if ($this->order && $this->order->should_collect_payment() === false) {
+			$validation_rules['billing_country']  = '';
+			$validation_rules['billing_zip_code'] = '';
+			$validation_rules['billing_state']    = '';
+			$validation_rules['billing_city']     = '';
 		}
 
 		/**

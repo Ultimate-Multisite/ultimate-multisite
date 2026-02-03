@@ -267,7 +267,9 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 		}
 
 		foreach ($fields as &$field) {
-			$field['wrapper_classes'] = trim(wu_get_isset($field, 'wrapper_classes', '') . ' ' . $attributes['element_classes']);
+			$field['wrapper_classes']              = trim(wu_get_isset($field, 'wrapper_classes', '') . ' ' . $attributes['element_classes']);
+			$field['wrapper_html_attr']['v-show']  = 'order.should_collect_payment';
+			$field['wrapper_html_attr']['v-cloak'] = 1;
 		}
 
 		uasort($fields, 'wu_sort_by_order');
