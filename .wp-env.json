@@ -23,8 +23,7 @@
     "tests": {
       "multisite": true,
       "plugins": [
-        ".",
-        "../addons/ultimate-multisite-woocommerce"
+        "."
       ],
       "mappings": {
         "wp-content/mu-plugins/email-smtp-test.php": "./mu-plugins/email-smtp-test/email-smtp-test.php",

@@ -1,10 +1,40 @@
 import "./login";
 import "./wizard";
-import "./checkout";
 import "./domain-mapping";
 
 Cypress.Commands.add("wpCli", (command, options = {}) => {
-  cy.exec(`npm run env run tests-cli wp ${command}`, options);
+  cy.exec(`npx wp-env run tests-cli wp ${command}`, {
+    ...options,
+    timeout: options.timeout || 60000,
+  });
+});
+
+/**
+ * Run a PHP file inside the wp-env container via WP-CLI eval-file.
+ * Path is relative to the plugin root inside the container.
+ */
+Cypress.Commands.add("wpCliFile", (filePath, options = {}) => {
+  const containerPath = `/var/www/html/wp-content/plugins/ultimate-multisite/${filePath}`;
+
+  cy.exec(`npx wp-env run tests-cli wp eval-file ${containerPath}`, {
+    ...options,
+    timeout: options.timeout || 60000,
+  });
+});
+
+Cypress.Commands.add("loginByApi", (username, password) => {
+  cy.request({
+    method: "POST",
+    url: "/wp-login.php",
+    form: true,
+    body: {
+      log: username,
+      pwd: password,
+      "wp-submit": "Log In",
+      redirect_to: "/wp-admin/",
+      testcookie: 1,
+    },
+  });
 });
 
 Cypress.Commands.overwrite("type", (originalFn, subject, string, options) =>
