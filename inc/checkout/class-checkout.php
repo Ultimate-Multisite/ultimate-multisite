@@ -1095,16 +1095,14 @@ class Checkout {
 		$billing_address->load_attributes_from_post($session);
 
 		/*
-		 * Validates the address.
+		 * Validates the address when payment is being collected.
 		 */
-		$valid_address = $billing_address->validate();
+		if ($this->should_collect_payment()) {
+			$valid_address = $billing_address->validate();
 
-		/*
-		 * There's something invalid on the address,
-		 * bail with the errors.
-		 */
-		if (is_wp_error($valid_address)) {
-			return $valid_address;
+			if (is_wp_error($valid_address)) {
+				return $valid_address;
+			}
 		}
 
 		$customer->set_billing_address($billing_address);
@@ -1958,6 +1956,41 @@ class Checkout {
 	}
 
 	/**
+	 * Determines whether payment should be collected for the current checkout.
+	 *
+	 * Uses $this->order if available, otherwise builds a temporary Cart
+	 * from the request/session data to check.
+	 *
+	 * @since 2.0.20
+	 * @return bool
+	 */
+	public function should_collect_payment(): bool {
+
+		if ($this->order) {
+			return $this->order->should_collect_payment();
+		}
+
+		$products = $this->request_or_session('products', []);
+
+		if (empty($products)) {
+			return true;
+		}
+
+		try {
+			$cart = new Cart(
+				[
+					'products' => (array) $products,
+					'country'  => $this->request_or_session('billing_country'),
+				]
+			);
+
+			return $cart->should_collect_payment();
+		} catch (\Throwable $e) {
+			return true;
+		}
+	}
+
+	/**
 	 * Returns the validation rules for the fields.
 	 *
 	 * @todo The fields needs to declare this themselves.
@@ -2073,7 +2106,7 @@ class Checkout {
 		 * Remove billing field requirements when payment is not needed
 		 * (e.g. free trials with allow_trial_without_payment_method enabled).
 		 */
-		if ($this->order && $this->order->should_collect_payment() === false) {
+		if ( ! $this->should_collect_payment()) {
 			$validation_rules['billing_country']  = '';
 			$validation_rules['billing_zip_code'] = '';
 			$validation_rules['billing_state']    = '';

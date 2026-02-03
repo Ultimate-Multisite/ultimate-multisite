@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-02-02T16:16:01+00:00\n"
+"POT-Creation-Date: 2026-02-03T06:01:34+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: ultimate-multisite\n"
@@ -359,7 +359,7 @@ msgstr ""
 #: inc/admin-pages/class-broadcast-edit-admin-page.php:370
 #: inc/admin-pages/class-edit-admin-page.php:489
 #: inc/admin-pages/class-tax-rates-admin-page.php:193
-#: inc/checkout/class-checkout.php:1812
+#: inc/checkout/class-checkout.php:1810
 #: views/base/edit/widget-tabs.php:106
 #: views/dashboard-statistics/filter.php:28
 #: views/dashboard-statistics/widget-mrr-growth.php:16
@@ -3053,7 +3053,7 @@ msgstr ""
 #: inc/admin-pages/class-product-list-admin-page.php:98
 #: inc/admin-pages/class-product-list-admin-page.php:109
 #: inc/admin-pages/class-top-admin-nav-menu.php:103
-#: inc/checkout/class-checkout.php:2127
+#: inc/checkout/class-checkout.php:2171
 #: inc/checkout/signup-fields/class-signup-field-pricing-table.php:170
 #: inc/checkout/signup-fields/class-signup-field-products.php:149
 #: inc/checkout/signup-fields/class-signup-field-products.php:150
@@ -7136,8 +7136,8 @@ msgstr ""
 
 #: inc/checkout/class-checkout.php:752
 #: inc/checkout/class-checkout.php:760
-#: inc/checkout/class-checkout.php:2351
-#: inc/checkout/class-checkout.php:2357
+#: inc/checkout/class-checkout.php:2395
+#: inc/checkout/class-checkout.php:2401
 msgid "Payment gateway not registered."
 msgstr ""
 
@@ -7145,103 +7145,103 @@ msgstr ""
 msgid "The email address you entered is already in use."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1119
+#: inc/checkout/class-checkout.php:1117
 msgid "Something wrong happened while attempting to save the customer billing address"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1676
+#: inc/checkout/class-checkout.php:1674
 msgid "Invalid request"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1688
+#: inc/checkout/class-checkout.php:1686
 msgid "Too many requests. Please try again later."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1730
+#: inc/checkout/class-checkout.php:1728
 msgid "Please provide both username/email and password."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1743
+#: inc/checkout/class-checkout.php:1741
 msgid "Too many login attempts. Please try again in a few minutes."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1772
+#: inc/checkout/class-checkout.php:1770
 msgid "Invalid username or password."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1790
+#: inc/checkout/class-checkout.php:1788
 msgid "Login successful!"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1813
+#: inc/checkout/class-checkout.php:1811
 msgid "The item was added!"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1814
+#: inc/checkout/class-checkout.php:1812
 msgid "The Password entered is too weak."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1815
+#: inc/checkout/class-checkout.php:1813
 msgid "Password is required"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1816
+#: inc/checkout/class-checkout.php:1814
 msgid "Login failed. Please try again."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1817
+#: inc/checkout/class-checkout.php:1815
 msgid "Logging in..."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1818
+#: inc/checkout/class-checkout.php:1816
 #: views/checkout/partials/inline-login-prompt.php:17
 msgid "Already have an account?"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1819
+#: inc/checkout/class-checkout.php:1817
 #: views/checkout/partials/inline-login-prompt.php:59
 msgid "Sign in"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1820
+#: inc/checkout/class-checkout.php:1818
 #: views/checkout/partials/inline-login-prompt.php:51
 msgid "Forgot password?"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1821
+#: inc/checkout/class-checkout.php:1819
 #: inc/list-tables/class-payment-list-table.php:111
 #: views/dashboard-widgets/current-membership.php:315
 msgid "Cancel"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:2123
+#: inc/checkout/class-checkout.php:2167
 msgid "Password confirmation"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:2124
+#: inc/checkout/class-checkout.php:2168
 msgid "Email confirmation"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:2125
+#: inc/checkout/class-checkout.php:2169
 msgid "Template ID"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:2126
+#: inc/checkout/class-checkout.php:2170
 msgid "Valid password"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:2128
+#: inc/checkout/class-checkout.php:2172
 msgid "Payment Gateway"
 msgstr ""
 
 #. translators: %s payment id.
-#: inc/checkout/class-checkout.php:2320
+#: inc/checkout/class-checkout.php:2364
 #, php-format
 msgid "Payment (%s) not found."
 msgstr ""
 
 #. translators: %s is the membership ID
-#: inc/checkout/class-checkout.php:2455
+#: inc/checkout/class-checkout.php:2499
 #, php-format
 msgid "Checkout failed for customer %s: "
 msgstr ""

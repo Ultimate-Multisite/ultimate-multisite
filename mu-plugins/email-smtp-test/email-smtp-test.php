@@ -21,7 +21,7 @@ function TestConfigMailpit($phpmailer) {
 	$phpmailer->From     = 'test@example.local';
 	$phpmailer->FromName = 'Test Site';
 
-	// Uncomment to enable SMTP debug output (helpful for troubleshooting)
-	$phpmailer->SMTPDebug = 2;
+	// SMTP debug output disabled to prevent corruption of AJAX responses
+	$phpmailer->SMTPDebug = 0;
 }
 add_action('phpmailer_init', 'TestConfigMailpit', 10, 1);

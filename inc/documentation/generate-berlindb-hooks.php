@@ -24,7 +24,7 @@ $plugin_root = dirname(__DIR__, 2); // ultimate-multisite/
 // We need the autoloader to resolve class references.
 $autoloader = $plugin_root . '/vendor/autoload.php';
 
-if (!file_exists($autoloader)) {
+if (! file_exists($autoloader)) {
 	fwrite(STDERR, "Composer autoloader not found at {$autoloader}\n");
 	fwrite(STDERR, "Run `composer install` inside {$plugin_root} first.\n");
 	exit(1);
@@ -33,7 +33,7 @@ if (!file_exists($autoloader)) {
 require_once $autoloader;
 
 // Minimal stubs so schema classes can load outside of WordPress.
-if (!defined('ABSPATH')) {
+if (! defined('ABSPATH')) {
 	define('ABSPATH', '/');
 }
 
@@ -89,9 +89,12 @@ if (empty($query_files)) {
 }
 
 // Skip the engine base class.
-$query_files = array_filter($query_files, function ($file) {
-	return strpos($file, '/engine/') === false;
-});
+$query_files = array_filter(
+	$query_files,
+	function ($file) {
+		return strpos($file, '/engine/') === false;
+	}
+);
 
 // ── Extract metadata from each query class ──────────────────────────────────
 
@@ -109,19 +112,19 @@ function extract_class_properties(string $file, array $properties): array {
 
 	foreach ($properties as $prop) {
 		// Match:  protected $prop = 'value';
-		//         protected $prop = SomeClass::class;
+		// protected $prop = SomeClass::class;
 		if (preg_match('/protected\s+\$' . preg_quote($prop, '/') . '\s*=\s*(.+?);/s', $source, $m)) {
 			$raw = trim($m[1]);
 
 			// String literal
 			if (preg_match("/^['\"](.+?)['\"]$/", $raw, $sm)) {
-				$result[$prop] = $sm[1];
+				$result[ $prop ] = $sm[1];
 			}
 			// Class reference (Foo::class or \Foo\Bar::class)
 			elseif (preg_match('/^(.+?)::class$/', $raw, $cm)) {
-				$result[$prop] = trim($cm[1], '\\');
+				$result[ $prop ] = trim($cm[1], '\\');
 			} else {
-				$result[$prop] = $raw;
+				$result[ $prop ] = $raw;
 			}
 		}
 	}
@@ -140,14 +143,14 @@ function extract_schema_columns(string $file): array {
 	$source = file_get_contents($file);
 
 	// Extract the $columns array block.
-	if (!preg_match('/\$columns\s*=\s*\[(.+)\];/s', $source, $m)) {
+	if (! preg_match('/\$columns\s*=\s*\[(.+)\];/s', $source, $m)) {
 		return [];
 	}
 
-	$columns_block = $m[1];
-	$all_columns   = [];
+	$columns_block      = $m[1];
+	$all_columns        = [];
 	$transition_columns = [];
-	$seen_names    = [];
+	$seen_names         = [];
 
 	// Split into individual column arrays.
 	// Each column is delimited by [ ... ],
@@ -171,12 +174,12 @@ function extract_schema_columns(string $file): array {
 		}
 
 		// Deduplicate columns (some schemas define the same column twice).
-		if (isset($seen_names[$col['name']])) {
+		if (isset($seen_names[ $col['name'] ])) {
 			continue;
 		}
 
-		$seen_names[$col['name']] = true;
-		$all_columns[] = $col;
+		$seen_names[ $col['name'] ] = true;
+		$all_columns[]              = $col;
 
 		// Check for transition => true
 		if (preg_match("/'transition'\s*=>\s*true/", $entry)) {
@@ -201,7 +204,7 @@ function resolve_schema_file(string $class_fqn, string $plugin_root): ?string {
 
 	// WP_Ultimo\Database\Memberships\Memberships_Schema
 	// → inc/database/memberships/class-memberships-schema.php
-	$parts     = explode('\\', $class_fqn);
+	$parts      = explode('\\', $class_fqn);
 	$class_name = array_pop($parts); // Memberships_Schema
 
 	// Convert class name to filename: Memberships_Schema → class-memberships-schema.php
@@ -209,7 +212,7 @@ function resolve_schema_file(string $class_fqn, string $plugin_root): ?string {
 
 	// Build the directory path from namespace parts after WP_Ultimo
 	// WP_Ultimo\Database\Memberships → inc/database/memberships
-	$ns_path = '';
+	$ns_path    = '';
 	$found_root = false;
 
 	foreach ($parts as $part) {
@@ -274,12 +277,15 @@ function humanize(string $item_name): string {
 $models = [];
 
 foreach ($query_files as $query_file) {
-	$props = extract_class_properties($query_file, [
-		'item_name',
-		'item_name_plural',
-		'table_name',
-		'table_schema',
-	]);
+	$props = extract_class_properties(
+		$query_file,
+		[
+			'item_name',
+			'item_name_plural',
+			'table_name',
+			'table_schema',
+		]
+	);
 
 	if (empty($props['item_name']) || empty($props['item_name_plural'])) {
 		fwrite(STDERR, "Skipping {$query_file}: missing item_name or item_name_plural\n");
@@ -287,9 +293,12 @@ foreach ($query_files as $query_file) {
 	}
 
 	$schema_file = null;
-	$columns     = ['all' => [], 'transition' => []];
+	$columns     = [
+		'all'        => [],
+		'transition' => [],
+	];
 
-	if (!empty($props['table_schema'])) {
+	if (! empty($props['table_schema'])) {
 		$schema_file = resolve_schema_file($props['table_schema'], $plugin_root);
 
 		if ($schema_file) {
@@ -304,11 +313,11 @@ foreach ($query_files as $query_file) {
 	// Deduplicate: Broadcast_Query, Email_Query, and Post_Query all share
 	// item_name = 'post'. We only need one set of hooks per unique
 	// item_name/item_name_plural combination.
-	if (isset($models[$key])) {
+	if (isset($models[ $key ])) {
 		continue;
 	}
 
-	$models[$key] = [
+	$models[ $key ] = [
 		'item_name'        => $props['item_name'],
 		'item_name_plural' => $props['item_name_plural'],
 		'table_name'       => $props['table_name'] ?? $props['item_name_plural'],
@@ -321,12 +330,21 @@ foreach ($query_files as $query_file) {
 // Sort by item name for consistent output.
 ksort($models);
 
-fwrite(STDERR, sprintf("Found %d unique models with %d total transition columns\n",
-	count($models),
-	array_sum(array_map(function ($m) {
-		return count($m['transition_cols']);
-	}, $models))
-));
+fwrite(
+	STDERR,
+	sprintf(
+		"Found %d unique models with %d total transition columns\n",
+		count($models),
+		array_sum(
+			array_map(
+				function ($m) {
+					return count($m['transition_cols']);
+				},
+				$models
+			)
+		)
+	)
+);
 
 // ── Generate the output file ────────────────────────────────────────────────
 
@@ -341,7 +359,7 @@ echo "<?php\n";
 // Build the @see line for transition hooks.
 $transition_see = $hook_lines['transition'] ? "see {$src}:{$hook_lines['transition']}" : "see {$src}";
 
-echo <<<HEADER
+echo <<<'HEADER'
 /**
  * BerlinDB Dynamic Hooks Reference
  *
@@ -363,25 +381,25 @@ defined('ABSPATH') || exit;
 // phpcs:disable -- This file is never executed; it only carries docblocks.
 
 // Variable declarations to keep static analysers and editors happy.
-\$old_value      = null;
-\$new_value      = null;
-\$item_id        = 0;
-\$query          = null;
-\$clauses        = [];
-\$search_columns = [];
-\$search         = '';
-\$items          = [];
-\$item           = [];
-\$sql            = '';
+$old_value      = null;
+$new_value      = null;
+$item_id        = 0;
+$query          = null;
+$clauses        = [];
+$search_columns = [];
+$search         = '';
+$items          = [];
+$item           = [];
+$sql            = '';
 
 HEADER;
 
 foreach ($models as $model) {
-	$item     = $model['item_name'];
-	$items    = $model['item_name_plural'];
-	$label    = humanize($item);
-	$labels   = humanize($items);
-	$section  = ucwords($label);
+	$item    = $model['item_name'];
+	$items   = $model['item_name_plural'];
+	$label   = humanize($item);
+	$labels  = humanize($items);
+	$section = ucwords($label);
 
 	echo "\n// ─── {$section} " . str_repeat('─', max(1, 72 - strlen($section))) . "\n";
 
@@ -415,13 +433,13 @@ HOOK;
 
 	// ── Query hooks ─────────────────────────────────────────────────────
 
-	$see_pre_get       = $hook_lines['pre_get']        ? "see {$src}:{$hook_lines['pre_get']}" : "see {$src}";
-	$see_parse_query   = $hook_lines['parse_query']    ? "see {$src}:{$hook_lines['parse_query']}" : "see {$src}";
-	$see_query_clauses = $hook_lines['query_clauses']  ? "see {$src}:{$hook_lines['query_clauses']}" : "see {$src}";
+	$see_pre_get       = $hook_lines['pre_get'] ? "see {$src}:{$hook_lines['pre_get']}" : "see {$src}";
+	$see_parse_query   = $hook_lines['parse_query'] ? "see {$src}:{$hook_lines['parse_query']}" : "see {$src}";
+	$see_query_clauses = $hook_lines['query_clauses'] ? "see {$src}:{$hook_lines['query_clauses']}" : "see {$src}";
 	$see_search_cols   = $hook_lines['search_columns'] ? "see {$src}:{$hook_lines['search_columns']}" : "see {$src}";
-	$see_the_items     = $hook_lines['the_items']      ? "see {$src}:{$hook_lines['the_items']}" : "see {$src}";
-	$see_filter_item   = $hook_lines['filter_item']    ? "see {$src}:{$hook_lines['filter_item']}" : "see {$src}";
-	$see_found_query   = $hook_lines['found_query']    ? "see {$src}:{$hook_lines['found_query']}" : "see {$src}";
+	$see_the_items     = $hook_lines['the_items'] ? "see {$src}:{$hook_lines['the_items']}" : "see {$src}";
+	$see_filter_item   = $hook_lines['filter_item'] ? "see {$src}:{$hook_lines['filter_item']}" : "see {$src}";
+	$see_found_query   = $hook_lines['found_query'] ? "see {$src}:{$hook_lines['found_query']}" : "see {$src}";
 
 	echo <<<HOOK
 
