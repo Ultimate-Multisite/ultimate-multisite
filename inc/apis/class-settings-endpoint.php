@@ -9,6 +9,9 @@
 
 namespace WP_Ultimo\API;
 
+use WP_Ultimo\Settings;
+use WP_Ultimo\UI\Field;
+
 // Exit if accessed directly
 defined('ABSPATH') || exit;
 
@@ -216,35 +219,27 @@ class Settings_Endpoint {
 			);
 		}
 
-		// Validate and filter out sensitive settings
-		$errors            = [];
-		$filtered_settings = [];
+		// Validate, filter, and save settings
+		$errors  = [];
+		$updated = [];
+		$failed  = [];
 
 		foreach ($settings_to_update as $key => $value) {
-			if ($this->is_sensitive_setting($key)) {
-				$errors[] = sprintf(
-					/* translators: %s is the setting key */
-					__('Setting "%s" is protected and cannot be modified via the API.', 'ultimate-multisite'),
-					$key
-				);
+			$result = $this->save_setting($key, $value);
+
+			if (is_wp_error($result)) {
+				$errors[] = $result->get_error_message();
 				continue;
 			}
 
-			// Validate setting key format
-			$sanitized_key = sanitize_key($key);
-			if ($sanitized_key !== $key) {
-				$errors[] = sprintf(
-					/* translators: %s is the setting key */
-					__('Invalid setting key format: "%s".', 'ultimate-multisite'),
-					$key
-				);
-				continue;
+			if ($result) {
+				$updated[] = $key;
+			} else {
+				$failed[] = $key;
 			}
-
-			$filtered_settings[ $key ] = $value;
 		}
 
-		if (empty($filtered_settings)) {
+		if (empty($updated) && ! empty($errors)) {
 			return new \WP_Error(
 				'no_valid_settings',
 				__('No valid settings to update after filtering.', 'ultimate-multisite'),
@@ -253,20 +248,6 @@ class Settings_Endpoint {
 					'errors' => $errors,
 				]
 			);
-		}
-
-		// Save each setting
-		$updated = [];
-		$failed  = [];
-
-		foreach ($filtered_settings as $key => $value) {
-			$result = wu_save_setting($key, $value);
-
-			if ($result) {
-				$updated[] = $key;
-			} else {
-				$failed[] = $key;
-			}
 		}
 
 		$response_data = [
@@ -299,22 +280,11 @@ class Settings_Endpoint {
 
 		$setting_key = $request->get_param('setting_key');
 
-		// Check if this is a sensitive setting
-		if ($this->is_sensitive_setting($setting_key)) {
-			return new \WP_Error(
-				'setting_protected',
-				__('This setting is protected and cannot be modified via the API.', 'ultimate-multisite'),
-				['status' => 403]
-			);
-		}
-
 		$params = $request->get_json_params();
 
 		if (empty($params)) {
 			$params = $request->get_body_params();
 		}
-
-		$value = wu_get_isset($params, 'value');
 
 		if (! isset($params['value'])) {
 			return new \WP_Error(
@@ -324,7 +294,12 @@ class Settings_Endpoint {
 			);
 		}
 
-		$result = wu_save_setting($setting_key, $value);
+		$value  = wu_get_isset($params, 'value');
+		$result = $this->save_setting($setting_key, $value);
+
+		if (is_wp_error($result)) {
+			return $result;
+		}
 
 		if (! $result) {
 			return new \WP_Error(
@@ -345,6 +320,115 @@ class Settings_Endpoint {
 				'value'       => wu_get_setting($setting_key),
 			]
 		);
+	}
+
+	/**
+	 * Save a single setting with validation and sanitization.
+	 *
+	 * This method handles the common logic for saving settings:
+	 * - Validates the setting key format
+	 * - Checks if the setting is sensitive/protected
+	 * - Sanitizes the value using the Field API if a field definition exists
+	 * - Saves the setting to the database
+	 *
+	 * @since 2.4.0
+	 *
+	 * @param string $key   The setting key.
+	 * @param mixed  $value The value to save.
+	 * @return bool|\WP_Error True on success, false on save failure, WP_Error on validation failure.
+	 */
+	protected function save_setting(string $key, $value) {
+
+		// Check if this is a sensitive setting
+		if ($this->is_sensitive_setting($key)) {
+			return new \WP_Error(
+				'setting_protected',
+				sprintf(
+					/* translators: %s is the setting key */
+					__('Setting "%s" is protected and cannot be modified via the API.', 'ultimate-multisite'),
+					$key
+				),
+				['status' => 403]
+			);
+		}
+
+		// Validate setting key format
+		$sanitized_key = sanitize_key($key);
+
+		if ($sanitized_key !== $key) {
+			return new \WP_Error(
+				'invalid_key_format',
+				sprintf(
+					/* translators: %s is the setting key */
+					__('Invalid setting key format: "%s".', 'ultimate-multisite'),
+					$key
+				),
+				['status' => 400]
+			);
+		}
+
+		// Sanitize the value using Field API if field definition exists
+		$sanitized_value = $this->sanitize_setting_value($key, $value);
+
+		return wu_save_setting($key, $sanitized_value);
+	}
+
+	/**
+	 * Sanitize a setting value using the Field API.
+	 *
+	 * Looks up the field definition from Settings and uses the Field class
+	 * to apply appropriate sanitization based on field type.
+	 *
+	 * @since 2.4.0
+	 *
+	 * @param string $key   The setting key.
+	 * @param mixed  $value The raw value to sanitize.
+	 * @return mixed The sanitized value, or the original value if no field definition exists.
+	 */
+	protected function sanitize_setting_value(string $key, $value) {
+
+		$field_definition = $this->get_field_definition($key);
+
+		if (empty($field_definition)) {
+			// No field definition found, apply basic sanitization based on value type
+			if (is_string($value)) {
+				return sanitize_text_field($value);
+			}
+
+			return $value;
+		}
+
+		// Create a Field instance and use its sanitization
+		$field = new Field($key, $field_definition);
+		$field->set_value($value);
+
+		return $field->get_value();
+	}
+
+	/**
+	 * Get the field definition for a setting key.
+	 *
+	 * Searches through all settings sections to find the field definition
+	 * that matches the given setting key.
+	 *
+	 * @since 2.4.0
+	 *
+	 * @param string $key The setting key to look up.
+	 * @return array|null The field definition array, or null if not found.
+	 */
+	protected function get_field_definition(string $key): ?array {
+
+		$sections = Settings::get_instance()->get_sections();
+
+		foreach ($sections as $section) {
+			$fields = $section['fields'] ?? [];
+
+			if (isset($fields[ $key ])) {
+				return $fields[ $key ];
+			}
+		}
+
+		return null;
 	}
 
 	/**
@@ -406,7 +490,7 @@ class Settings_Endpoint {
 	 */
 	protected function filter_sensitive_settings(array $settings): array {
 
-		foreach ($settings as $key => $value) {
+		foreach ($settings as $key => $_) {
 			if ($this->is_sensitive_setting($key)) {
 				unset($settings[ $key ]);
 			}
@@ -418,6 +502,9 @@ class Settings_Endpoint {
 	/**
 	 * Log API call if logging is enabled.
 	 *
+	 * Note: Request body is intentionally not logged to avoid
+	 * accidentally storing sensitive data like passwords or API keys.
+	 *
 	 * @since 2.4.0
 	 *
 	 * @param \WP_REST_Request $request The request object.
@@ -427,10 +514,9 @@ class Settings_Endpoint {
 
 		if (\WP_Ultimo\API::get_instance()->should_log_api_calls()) {
 			$payload = [
-				'route'       => $request->get_route(),
-				'method'      => $request->get_method(),
-				'url_params'  => $request->get_url_params(),
-				'body_params' => $request->get_body(),
+				'route'      => $request->get_route(),
+				'method'     => $request->get_method(),
+				'url_params' => $request->get_url_params(),
 			];
 
 			wu_log_add('api-calls', wp_json_encode($payload, JSON_PRETTY_PRINT));

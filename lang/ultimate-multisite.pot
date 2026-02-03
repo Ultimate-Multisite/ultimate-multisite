@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-02-03T06:01:34+00:00\n"
+"POT-Creation-Date: 2026-02-03T18:06:12+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: ultimate-multisite\n"
@@ -359,7 +359,7 @@ msgstr ""
 #: inc/admin-pages/class-broadcast-edit-admin-page.php:370
 #: inc/admin-pages/class-edit-admin-page.php:489
 #: inc/admin-pages/class-tax-rates-admin-page.php:193
-#: inc/checkout/class-checkout.php:1810
+#: inc/checkout/class-checkout.php:1812
 #: views/base/edit/widget-tabs.php:106
 #: views/dashboard-statistics/filter.php:28
 #: views/dashboard-statistics/widget-mrr-growth.php:16
@@ -411,7 +411,7 @@ msgstr ""
 #: inc/admin-pages/class-event-view-admin-page.php:253
 #: inc/admin-pages/class-membership-edit-admin-page.php:997
 #: inc/admin-pages/class-payment-edit-admin-page.php:1225
-#: inc/admin-pages/class-product-edit-admin-page.php:1093
+#: inc/admin-pages/class-product-edit-admin-page.php:1091
 #: inc/admin-pages/class-site-edit-admin-page.php:678
 #: inc/admin-pages/class-view-logs-admin-page.php:281
 #: inc/admin-pages/class-webhook-edit-admin-page.php:343
@@ -864,8 +864,8 @@ msgstr ""
 #: inc/admin-pages/class-domain-edit-admin-page.php:388
 #: inc/admin-pages/class-email-edit-admin-page.php:279
 #: inc/admin-pages/class-email-edit-admin-page.php:283
-#: inc/admin-pages/class-product-edit-admin-page.php:598
-#: inc/admin-pages/class-product-edit-admin-page.php:602
+#: inc/admin-pages/class-product-edit-admin-page.php:596
+#: inc/admin-pages/class-product-edit-admin-page.php:600
 #: inc/admin-pages/class-site-edit-admin-page.php:543
 #: inc/admin-pages/class-site-edit-admin-page.php:547
 #: inc/admin-pages/class-template-previewer-customize-admin-page.php:106
@@ -1152,7 +1152,7 @@ msgid "Value"
 msgstr ""
 
 #: inc/admin-pages/class-customer-edit-admin-page.php:592
-#: inc/admin-pages/class-product-edit-admin-page.php:845
+#: inc/admin-pages/class-product-edit-admin-page.php:843
 #: inc/checkout/signup-fields/class-signup-field-period-selection.php:216
 #: inc/checkout/signup-fields/class-signup-field-select.php:179
 #: inc/class-settings.php:1153
@@ -1264,7 +1264,7 @@ msgstr ""
 #: inc/admin-pages/class-email-edit-admin-page.php:298
 #: inc/admin-pages/class-invoice-template-customize-admin-page.php:193
 #: inc/admin-pages/class-membership-edit-admin-page.php:431
-#: inc/admin-pages/class-product-edit-admin-page.php:706
+#: inc/admin-pages/class-product-edit-admin-page.php:704
 #: inc/admin-pages/class-template-previewer-customize-admin-page.php:132
 #: inc/class-settings.php:550
 #: inc/class-settings.php:551
@@ -1907,9 +1907,9 @@ msgstr ""
 
 #: inc/admin-pages/class-discount-code-edit-admin-page.php:603
 #: inc/admin-pages/class-membership-edit-admin-page.php:701
-#: inc/admin-pages/class-product-edit-admin-page.php:491
-#: inc/admin-pages/class-product-edit-admin-page.php:545
-#: inc/admin-pages/class-product-edit-admin-page.php:872
+#: inc/admin-pages/class-product-edit-admin-page.php:489
+#: inc/admin-pages/class-product-edit-admin-page.php:543
+#: inc/admin-pages/class-product-edit-admin-page.php:870
 #: inc/checkout/signup-fields/class-signup-field-period-selection.php:242
 #: inc/functions/date.php:115
 msgid "Days"
@@ -1921,9 +1921,9 @@ msgstr ""
 
 #: inc/admin-pages/class-discount-code-edit-admin-page.php:607
 #: inc/admin-pages/class-membership-edit-admin-page.php:702
-#: inc/admin-pages/class-product-edit-admin-page.php:492
-#: inc/admin-pages/class-product-edit-admin-page.php:546
-#: inc/admin-pages/class-product-edit-admin-page.php:873
+#: inc/admin-pages/class-product-edit-admin-page.php:490
+#: inc/admin-pages/class-product-edit-admin-page.php:544
+#: inc/admin-pages/class-product-edit-admin-page.php:871
 #: inc/checkout/signup-fields/class-signup-field-period-selection.php:243
 msgid "Weeks"
 msgstr ""
@@ -1935,9 +1935,9 @@ msgstr ""
 
 #: inc/admin-pages/class-discount-code-edit-admin-page.php:611
 #: inc/admin-pages/class-membership-edit-admin-page.php:703
-#: inc/admin-pages/class-product-edit-admin-page.php:493
-#: inc/admin-pages/class-product-edit-admin-page.php:547
-#: inc/admin-pages/class-product-edit-admin-page.php:874
+#: inc/admin-pages/class-product-edit-admin-page.php:491
+#: inc/admin-pages/class-product-edit-admin-page.php:545
+#: inc/admin-pages/class-product-edit-admin-page.php:872
 #: inc/checkout/signup-fields/class-signup-field-period-selection.php:244
 #: inc/functions/date.php:118
 msgid "Months"
@@ -1950,9 +1950,9 @@ msgstr ""
 
 #: inc/admin-pages/class-discount-code-edit-admin-page.php:615
 #: inc/admin-pages/class-membership-edit-admin-page.php:704
-#: inc/admin-pages/class-product-edit-admin-page.php:494
-#: inc/admin-pages/class-product-edit-admin-page.php:548
-#: inc/admin-pages/class-product-edit-admin-page.php:875
+#: inc/admin-pages/class-product-edit-admin-page.php:492
+#: inc/admin-pages/class-product-edit-admin-page.php:546
+#: inc/admin-pages/class-product-edit-admin-page.php:873
 #: inc/checkout/signup-fields/class-signup-field-period-selection.php:245
 #: inc/functions/date.php:121
 msgid "Years"
@@ -1964,14 +1964,14 @@ msgstr ""
 
 #: inc/admin-pages/class-discount-code-edit-admin-page.php:675
 #: inc/admin-pages/class-discount-code-edit-admin-page.php:697
-#: inc/admin-pages/class-product-edit-admin-page.php:658
-#: inc/admin-pages/class-product-edit-admin-page.php:680
+#: inc/admin-pages/class-product-edit-admin-page.php:656
+#: inc/admin-pages/class-product-edit-admin-page.php:678
 msgid "Legacy Options"
 msgstr ""
 
 #. translators: %s is the comma-separated list of legacy add-ons.
 #: inc/admin-pages/class-discount-code-edit-admin-page.php:677
-#: inc/admin-pages/class-product-edit-admin-page.php:660
+#: inc/admin-pages/class-product-edit-admin-page.php:658
 #, php-format
 msgid "Options for %s, and others."
 msgstr ""
@@ -3053,7 +3053,7 @@ msgstr ""
 #: inc/admin-pages/class-product-list-admin-page.php:98
 #: inc/admin-pages/class-product-list-admin-page.php:109
 #: inc/admin-pages/class-top-admin-nav-menu.php:103
-#: inc/checkout/class-checkout.php:2171
+#: inc/checkout/class-checkout.php:2178
 #: inc/checkout/signup-fields/class-signup-field-pricing-table.php:170
 #: inc/checkout/signup-fields/class-signup-field-products.php:149
 #: inc/checkout/signup-fields/class-signup-field-products.php:150
@@ -3146,7 +3146,7 @@ msgstr ""
 #: inc/admin-pages/class-membership-edit-admin-page.php:626
 #: inc/admin-pages/class-payment-edit-admin-page.php:746
 #: inc/admin-pages/class-payment-edit-admin-page.php:764
-#: inc/admin-pages/class-product-edit-admin-page.php:578
+#: inc/admin-pages/class-product-edit-admin-page.php:576
 #, php-format
 msgid "E.g. %s"
 msgstr ""
@@ -3169,13 +3169,13 @@ msgstr ""
 
 #. translators: placeholder %1$s is the amount, %2$s is the duration (such as 1, 2, 3), and %3$s is the unit (such as month, year, week)
 #: inc/admin-pages/class-membership-edit-admin-page.php:665
-#: inc/admin-pages/class-product-edit-admin-page.php:453
+#: inc/admin-pages/class-product-edit-admin-page.php:451
 #, php-format
 msgid "The customer will be charged %1$s every %2$s %3$s(s)."
 msgstr ""
 
 #: inc/admin-pages/class-membership-edit-admin-page.php:737
-#: inc/admin-pages/class-product-edit-admin-page.php:501
+#: inc/admin-pages/class-product-edit-admin-page.php:499
 msgid "Billing Cycles"
 msgstr ""
 
@@ -3184,7 +3184,7 @@ msgid "E.g. 0"
 msgstr ""
 
 #: inc/admin-pages/class-membership-edit-admin-page.php:739
-#: inc/admin-pages/class-product-edit-admin-page.php:503
+#: inc/admin-pages/class-product-edit-admin-page.php:501
 msgid "How many times should we bill this customer. Leave 0 to charge until cancelled."
 msgstr ""
 
@@ -3290,7 +3290,7 @@ msgstr ""
 
 #: inc/admin-pages/class-membership-edit-admin-page.php:993
 #: inc/admin-pages/class-payment-edit-admin-page.php:1221
-#: inc/admin-pages/class-product-edit-admin-page.php:1089
+#: inc/admin-pages/class-product-edit-admin-page.php:1087
 msgid "This name will be used on pricing tables, invoices, and more."
 msgstr ""
 
@@ -3639,7 +3639,7 @@ msgid "Item quantity."
 msgstr ""
 
 #: inc/admin-pages/class-payment-edit-admin-page.php:725
-#: inc/admin-pages/class-product-edit-admin-page.php:502
+#: inc/admin-pages/class-product-edit-admin-page.php:500
 msgid "E.g. 1"
 msgstr ""
 
@@ -3665,7 +3665,7 @@ msgid "Refund, credit or fee amount."
 msgstr ""
 
 #: inc/admin-pages/class-payment-edit-admin-page.php:779
-#: inc/admin-pages/class-product-edit-admin-page.php:929
+#: inc/admin-pages/class-product-edit-admin-page.php:927
 msgid "Is Taxable?"
 msgstr ""
 
@@ -4039,33 +4039,33 @@ msgstr ""
 msgid "The billing period for recurring PWYW payments. Only applies when recurring is enabled."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:406
+#: inc/admin-pages/class-product-edit-admin-page.php:404
 msgid "Day(s)"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:407
+#: inc/admin-pages/class-product-edit-admin-page.php:405
 msgid "Week(s)"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:408
+#: inc/admin-pages/class-product-edit-admin-page.php:406
 msgid "Month(s)"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:409
+#: inc/admin-pages/class-product-edit-admin-page.php:407
 msgid "Year(s)"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:416
+#: inc/admin-pages/class-product-edit-admin-page.php:414
 msgid "Is Recurring?"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:417
+#: inc/admin-pages/class-product-edit-admin-page.php:415
 msgid "Check this if this product has a recurring charge."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:435
-#: inc/admin-pages/class-product-edit-admin-page.php:436
-#: inc/admin-pages/class-product-edit-admin-page.php:451
+#: inc/admin-pages/class-product-edit-admin-page.php:433
+#: inc/admin-pages/class-product-edit-admin-page.php:434
+#: inc/admin-pages/class-product-edit-admin-page.php:449
 #: inc/list-tables/class-membership-list-table-widget.php:265
 #: inc/list-tables/class-membership-list-table.php:180
 #: inc/list-tables/class-product-list-table.php:256
@@ -4073,171 +4073,171 @@ msgstr ""
 msgid "Price"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:513
+#: inc/admin-pages/class-product-edit-admin-page.php:511
 msgid "Offer Trial"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:514
+#: inc/admin-pages/class-product-edit-admin-page.php:512
 msgid "Check if you want to add a trial period to this product."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:526
+#: inc/admin-pages/class-product-edit-admin-page.php:524
 msgid "Trial"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:555
+#: inc/admin-pages/class-product-edit-admin-page.php:553
 msgid "Add Setup Fee?"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:556
+#: inc/admin-pages/class-product-edit-admin-page.php:554
 msgid "Check if you want to add a setup fee."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:575
+#: inc/admin-pages/class-product-edit-admin-page.php:573
 #: inc/list-tables/class-product-list-table.php:257
 msgid "Setup Fee"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:576
+#: inc/admin-pages/class-product-edit-admin-page.php:574
 msgid "The setup fee will be added to the first charge, in addition to the regular price of the product."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:603
+#: inc/admin-pages/class-product-edit-admin-page.php:601
 msgid "Use this option to manually enable or disable this product for new sign-ups."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:613
-#: inc/admin-pages/class-product-edit-admin-page.php:618
+#: inc/admin-pages/class-product-edit-admin-page.php:611
+#: inc/admin-pages/class-product-edit-admin-page.php:616
 msgid "Product Image"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:619
+#: inc/admin-pages/class-product-edit-admin-page.php:617
 msgid "This image is used on product list tables and other places."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:707
+#: inc/admin-pages/class-product-edit-admin-page.php:705
 msgid "General product options such as product slug, type, etc."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:716
+#: inc/admin-pages/class-product-edit-admin-page.php:714
 #: inc/list-tables/class-membership-line-item-list-table.php:115
 msgid "Product Slug"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:717
+#: inc/admin-pages/class-product-edit-admin-page.php:715
 msgid "e.g. premium"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:718
+#: inc/admin-pages/class-product-edit-admin-page.php:716
 msgid "This serves as a id to the product in a number of different contexts."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:720
+#: inc/admin-pages/class-product-edit-admin-page.php:718
 msgid "Lowercase alpha-numeric characters with dashes or underlines. No spaces allowed."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:729
-#: inc/admin-pages/class-product-edit-admin-page.php:730
+#: inc/admin-pages/class-product-edit-admin-page.php:727
+#: inc/admin-pages/class-product-edit-admin-page.php:728
 msgid "Product Type"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:731
+#: inc/admin-pages/class-product-edit-admin-page.php:729
 msgid "Different product types have different options."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:740
+#: inc/admin-pages/class-product-edit-admin-page.php:738
 msgid "Customer Role"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:741
+#: inc/admin-pages/class-product-edit-admin-page.php:739
 msgid "Select the role Ultimate Multisite should use when adding the user to their newly created site."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:758
+#: inc/admin-pages/class-product-edit-admin-page.php:756
 msgid "Up & Downgrades"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:759
+#: inc/admin-pages/class-product-edit-admin-page.php:757
 msgid "Settings related to upgrade and downgrade flows."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:765
+#: inc/admin-pages/class-product-edit-admin-page.php:763
 msgid "Plan Group"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:766
+#: inc/admin-pages/class-product-edit-admin-page.php:764
 msgid "Add related plans to the same group to have them show up as upgrade/downgrade paths."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:767
-#: inc/admin-pages/class-product-edit-admin-page.php:779
+#: inc/admin-pages/class-product-edit-admin-page.php:765
+#: inc/admin-pages/class-product-edit-admin-page.php:777
 msgid "Type and press enter to search and/or add."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:770
+#: inc/admin-pages/class-product-edit-admin-page.php:768
 msgid "Select Group"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:777
+#: inc/admin-pages/class-product-edit-admin-page.php:775
 msgid "Product Order"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:778
+#: inc/admin-pages/class-product-edit-admin-page.php:776
 msgid "Plans are shown in the order determined by this parameter, from the lowest to the highest."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:785
+#: inc/admin-pages/class-product-edit-admin-page.php:783
 msgid "Offer Add-ons"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:786
+#: inc/admin-pages/class-product-edit-admin-page.php:784
 msgid "Search for a package or service"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:787
-msgid "This products will be offered inside upgrade/downgrade forms as order bumps."
+#: inc/admin-pages/class-product-edit-admin-page.php:785
+msgid "These products will be offered inside upgrade/downgrade forms as order bumps."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:809
+#: inc/admin-pages/class-product-edit-admin-page.php:807
 msgid "Price Variations"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:810
+#: inc/admin-pages/class-product-edit-admin-page.php:808
 msgid "Discounts for longer membership commitments."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:819
+#: inc/admin-pages/class-product-edit-admin-page.php:817
 msgid "Enable Price Variations"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:820
+#: inc/admin-pages/class-product-edit-admin-page.php:818
 msgid "Price Variations are an easy way to offer discounted prices for longer subscription commitments."
 msgstr ""
 
 #. translators: 1 is the price, 2 is the duration and 3 the duration unit
-#: inc/admin-pages/class-product-edit-admin-page.php:829
+#: inc/admin-pages/class-product-edit-admin-page.php:827
 #, php-format
 msgid "A discounted price of %1$s will be used when memberships are created with the recurrence of %2$s %3$s(s) instead of the regular period."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:852
+#: inc/admin-pages/class-product-edit-admin-page.php:850
 #: inc/checkout/signup-fields/class-signup-field-period-selection.php:222
 msgid "Duration"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:864
+#: inc/admin-pages/class-product-edit-admin-page.php:862
 msgid "Period"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:888
+#: inc/admin-pages/class-product-edit-admin-page.php:886
 msgid "New Price"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:901
+#: inc/admin-pages/class-product-edit-admin-page.php:899
 msgid "Add new Price Variation"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:920
+#: inc/admin-pages/class-product-edit-admin-page.php:918
 #: inc/list-tables/class-line-item-list-table.php:216
 #: inc/tax/class-dashboard-taxes-tab.php:63
 #: inc/tax/class-dashboard-taxes-tab.php:151
@@ -4247,102 +4247,102 @@ msgstr ""
 msgid "Taxes"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:921
+#: inc/admin-pages/class-product-edit-admin-page.php:919
 msgid "Tax settings for your products."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:930
+#: inc/admin-pages/class-product-edit-admin-page.php:928
 msgid "Enable this if you plan to collect taxes for this product."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:938
+#: inc/admin-pages/class-product-edit-admin-page.php:936
 msgid "Tax Category"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:939
+#: inc/admin-pages/class-product-edit-admin-page.php:937
 msgid "Select the product tax category."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:951
-#: inc/admin-pages/class-product-edit-admin-page.php:994
+#: inc/admin-pages/class-product-edit-admin-page.php:949
+#: inc/admin-pages/class-product-edit-admin-page.php:992
 msgid "Site Templates"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:952
+#: inc/admin-pages/class-product-edit-admin-page.php:950
 msgid "Limit which site templates are available for this particular template."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:963
+#: inc/admin-pages/class-product-edit-admin-page.php:961
 msgid "Allow Site Templates"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:964
+#: inc/admin-pages/class-product-edit-admin-page.php:962
 msgid "Toggle this option on to allow this plan to use Site Templates. If this option is disabled, sign-ups on this plan will get a default WordPress site."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:974
-#: inc/admin-pages/class-product-edit-admin-page.php:975
+#: inc/admin-pages/class-product-edit-admin-page.php:972
+#: inc/admin-pages/class-product-edit-admin-page.php:973
 msgid "Site Template Selection Mode"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:976
+#: inc/admin-pages/class-product-edit-admin-page.php:974
 msgid "Select the type of limitation you want to apply."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:977
+#: inc/admin-pages/class-product-edit-admin-page.php:975
 msgid "\"Default\" will follow the settings of the checkout form: if you have a template selection field in there, all the templates selected will show up. If no field is present, then a default WordPress site will be created. <br><br>\"Assign Site Template\" forces new accounts with this plan to use a particular template site (this option removes the template selection field from the signup, if one exists). <br><br>Finally, \"Choose Available Site Templates\", overrides the templates selected on the checkout form with the templates selected here, while also giving you the chance of pre-select a template to be used as default."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:980
+#: inc/admin-pages/class-product-edit-admin-page.php:978
 msgid "Default - Allow All Site Templates"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:981
+#: inc/admin-pages/class-product-edit-admin-page.php:979
 msgid "Assign Site Template"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:982
+#: inc/admin-pages/class-product-edit-admin-page.php:980
 msgid "Choose Available Site Templates"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:995
+#: inc/admin-pages/class-product-edit-admin-page.php:993
 msgid "Select the Site Template to assign."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:995
+#: inc/admin-pages/class-product-edit-admin-page.php:993
 msgid "Customize the access level of each Site Template below."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:1037
-#: inc/admin-pages/class-product-edit-admin-page.php:1048
-#: inc/admin-pages/class-product-edit-admin-page.php:1085
+#: inc/admin-pages/class-product-edit-admin-page.php:1035
+#: inc/admin-pages/class-product-edit-admin-page.php:1046
+#: inc/admin-pages/class-product-edit-admin-page.php:1083
 msgid "Edit Product"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:1037
-#: inc/admin-pages/class-product-edit-admin-page.php:1086
+#: inc/admin-pages/class-product-edit-admin-page.php:1035
+#: inc/admin-pages/class-product-edit-admin-page.php:1084
 #: views/memberships/product-list.php:17
 #: views/memberships/product-list.php:21
 msgid "Add new Product"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:1066
+#: inc/admin-pages/class-product-edit-admin-page.php:1064
 msgid "Click to copy Shareable Link"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:1087
+#: inc/admin-pages/class-product-edit-admin-page.php:1085
 msgid "Product updated with success!"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:1088
+#: inc/admin-pages/class-product-edit-admin-page.php:1086
 msgid "Enter Product Name"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:1090
+#: inc/admin-pages/class-product-edit-admin-page.php:1088
 msgid "Save Product"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:1092
+#: inc/admin-pages/class-product-edit-admin-page.php:1090
 msgid "Delete Product"
 msgstr ""
 
@@ -5723,63 +5723,59 @@ msgstr ""
 msgid "The customer id sent does not correspond to a valid customer."
 msgstr ""
 
-#: inc/apis/class-settings-endpoint.php:70
+#: inc/apis/class-settings-endpoint.php:73
 msgid "The setting key to retrieve."
 msgstr ""
 
-#: inc/apis/class-settings-endpoint.php:101
+#: inc/apis/class-settings-endpoint.php:104
 msgid "The setting key to update."
 msgstr ""
 
-#: inc/apis/class-settings-endpoint.php:107
+#: inc/apis/class-settings-endpoint.php:110
 msgid "The new value for the setting."
 msgstr ""
 
-#: inc/apis/class-settings-endpoint.php:158
+#: inc/apis/class-settings-endpoint.php:161
 msgid "This setting is protected and cannot be retrieved via the API."
 msgstr ""
 
 #. translators: %s is the setting key
-#: inc/apis/class-settings-endpoint.php:174
+#: inc/apis/class-settings-endpoint.php:177
 #, php-format
 msgid "Setting \"%s\" not found."
 msgstr ""
 
-#: inc/apis/class-settings-endpoint.php:214
+#: inc/apis/class-settings-endpoint.php:217
 msgid "No valid settings provided. Please provide a \"settings\" object with key-value pairs."
 msgstr ""
 
+#: inc/apis/class-settings-endpoint.php:245
+msgid "No valid settings to update after filtering."
+msgstr ""
+
+#: inc/apis/class-settings-endpoint.php:292
+msgid "The \"value\" parameter is required."
+msgstr ""
+
 #. translators: %s is the setting key
-#: inc/apis/class-settings-endpoint.php:227
+#: inc/apis/class-settings-endpoint.php:309
+#, php-format
+msgid "Failed to update setting \"%s\"."
+msgstr ""
+
+#. translators: %s is the setting key
+#: inc/apis/class-settings-endpoint.php:348
 #, php-format
 msgid "Setting \"%s\" is protected and cannot be modified via the API."
 msgstr ""
 
 #. translators: %s is the setting key
-#: inc/apis/class-settings-endpoint.php:238
+#: inc/apis/class-settings-endpoint.php:363
 #, php-format
 msgid "Invalid setting key format: \"%s\"."
 msgstr ""
 
-#: inc/apis/class-settings-endpoint.php:250
-msgid "No valid settings to update after filtering."
-msgstr ""
-
-#: inc/apis/class-settings-endpoint.php:306
-msgid "This setting is protected and cannot be modified via the API."
-msgstr ""
-
-#: inc/apis/class-settings-endpoint.php:322
-msgid "The \"value\" parameter is required."
-msgstr ""
-
-#. translators: %s is the setting key
-#: inc/apis/class-settings-endpoint.php:334
-#, php-format
-msgid "Failed to update setting \"%s\"."
-msgstr ""
-
-#: inc/apis/class-settings-endpoint.php:360
+#: inc/apis/class-settings-endpoint.php:444
 msgid "An object containing setting key-value pairs to update."
 msgstr ""
 
@@ -7042,7 +7038,7 @@ msgstr ""
 #. translators: %s is the coupon code being used, all-caps. e.g. PROMO10OFF
 #: inc/checkout/class-cart.php:1369
 #, php-format
-msgid "The code %s do not exist or is no longer valid."
+msgid "The code %s does not exist or is no longer valid."
 msgstr ""
 
 #. translators: two intervals
@@ -7134,114 +7130,114 @@ msgstr ""
 msgid "Ultimate Multisite - New Site Page"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:752
-#: inc/checkout/class-checkout.php:760
-#: inc/checkout/class-checkout.php:2395
-#: inc/checkout/class-checkout.php:2401
+#: inc/checkout/class-checkout.php:754
+#: inc/checkout/class-checkout.php:762
+#: inc/checkout/class-checkout.php:2402
+#: inc/checkout/class-checkout.php:2408
 msgid "Payment gateway not registered."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1067
+#: inc/checkout/class-checkout.php:1069
 msgid "The email address you entered is already in use."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1117
+#: inc/checkout/class-checkout.php:1119
 msgid "Something wrong happened while attempting to save the customer billing address"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1674
+#: inc/checkout/class-checkout.php:1676
 msgid "Invalid request"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1686
+#: inc/checkout/class-checkout.php:1688
 msgid "Too many requests. Please try again later."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1728
+#: inc/checkout/class-checkout.php:1730
 msgid "Please provide both username/email and password."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1741
+#: inc/checkout/class-checkout.php:1743
 msgid "Too many login attempts. Please try again in a few minutes."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1770
+#: inc/checkout/class-checkout.php:1772
 msgid "Invalid username or password."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1788
+#: inc/checkout/class-checkout.php:1790
 msgid "Login successful!"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1811
+#: inc/checkout/class-checkout.php:1813
 msgid "The item was added!"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1812
+#: inc/checkout/class-checkout.php:1814
 msgid "The Password entered is too weak."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1813
+#: inc/checkout/class-checkout.php:1815
 msgid "Password is required"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1814
+#: inc/checkout/class-checkout.php:1816
 msgid "Login failed. Please try again."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1815
+#: inc/checkout/class-checkout.php:1817
 msgid "Logging in..."
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1816
+#: inc/checkout/class-checkout.php:1818
 #: views/checkout/partials/inline-login-prompt.php:17
 msgid "Already have an account?"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1817
+#: inc/checkout/class-checkout.php:1819
 #: views/checkout/partials/inline-login-prompt.php:59
 msgid "Sign in"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1818
+#: inc/checkout/class-checkout.php:1820
 #: views/checkout/partials/inline-login-prompt.php:51
 msgid "Forgot password?"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:1819
+#: inc/checkout/class-checkout.php:1821
 #: inc/list-tables/class-payment-list-table.php:111
 #: views/dashboard-widgets/current-membership.php:315
 msgid "Cancel"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:2167
+#: inc/checkout/class-checkout.php:2174
 msgid "Password confirmation"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:2168
+#: inc/checkout/class-checkout.php:2175
 msgid "Email confirmation"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:2169
+#: inc/checkout/class-checkout.php:2176
 msgid "Template ID"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:2170
+#: inc/checkout/class-checkout.php:2177
 msgid "Valid password"
 msgstr ""
 
-#: inc/checkout/class-checkout.php:2172
+#: inc/checkout/class-checkout.php:2179
 msgid "Payment Gateway"
 msgstr ""
 
 #. translators: %s payment id.
-#: inc/checkout/class-checkout.php:2364
+#: inc/checkout/class-checkout.php:2371
 #, php-format
 msgid "Payment (%s) not found."
 msgstr ""
 
 #. translators: %s is the membership ID
-#: inc/checkout/class-checkout.php:2499
+#: inc/checkout/class-checkout.php:2506
 #, php-format
 msgid "Checkout failed for customer %s: "
 msgstr ""
@@ -8923,7 +8919,7 @@ msgstr ""
 #. translators: %s is a link to the privacy policy
 #: inc/class-settings.php:718
 #, php-format
-msgid "Allow Ultimate Multisite to collect anonymous usage data and error reports to help us improve the plugin. We collect: PHP version, WordPress version, plugin version, network type (subdomain/subdirectory), aggregate counts (sites, memberships), active gateways, and error logs. We never collect personal data, customer information, or domain names. <a href=\"%s\" target=\"_blank\">Learn more</a>."
+msgid "Allow Ultimate Multisite to collect anonymous usage data and error reports to help us improve the plugin. We collect: PHP version, WordPress version, plugin version, network type (subdomain/subdirectory), aggregate counts (sites, memberships), active gateways, and error logs. We never collect personal data, customer information, or domain names. <a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">Learn more</a>."
 msgstr ""
 
 #: inc/class-settings.php:735
@@ -9017,7 +9013,7 @@ msgid "Toggle this option to replace the WordPress logo on the sub-site login pa
 msgstr ""
 
 #: inc/class-settings.php:875
-msgid "Force Synchronous Site Publication "
+msgid "Force Synchronous Site Publication"
 msgstr ""
 
 #: inc/class-settings.php:876

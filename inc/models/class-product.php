@@ -1022,12 +1022,39 @@ class Product extends Base_Model implements Limitable {
 	/**
 	 * Get is this product recurring?
 	 *
+	 * For PWYW products, recurring is determined by pwyw_recurring_mode:
+	 * - 'force_recurring': always recurring
+	 * - 'force_one_time': never recurring
+	 * - 'customer_choice': depends on customer selection (treated as potentially recurring)
+	 *
 	 * @since 2.0.0
 	 * @return boolean
 	 */
 	public function is_recurring() {
 
-		return (bool) $this->recurring && (float) $this->get_amount() > 0;
+		$is_recurring = (bool) $this->recurring && (float) $this->get_amount() > 0;
+
+		// PWYW products determine recurring status via pwyw_recurring_mode
+		if ($this->is_pay_what_you_want()) {
+			$pwyw_mode = $this->get_pwyw_recurring_mode();
+
+			if ('force_recurring' === $pwyw_mode) {
+				$is_recurring = true;
+			} elseif ('force_one_time' === $pwyw_mode) {
+				$is_recurring = false;
+			}
+			// 'customer_choice' uses the base $is_recurring value
+		}
+
+		/**
+		 * Filter whether a product is considered recurring.
+		 *
+		 * @since 2.4.0
+		 *
+		 * @param bool    $is_recurring Whether the product is recurring.
+		 * @param Product $product      The product instance.
+		 */
+		return apply_filters('wu_product_is_recurring', $is_recurring, $this);
 	}
 
 	/**

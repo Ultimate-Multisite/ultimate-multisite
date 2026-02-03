@@ -388,9 +388,8 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 								'wrapper_classes' => 'wu-w-1/2',
 								'min'             => 1,
 								'html_attr'       => [
-									'v-model'     => 'duration',
-									'v-bind:name' => '""',
-									'steps'       => 1,
+									'v-model' => 'duration',
+									'steps'   => 1,
 								],
 							],
 							'duration_unit' => [
@@ -399,8 +398,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 								'placeholder'     => '',
 								'wrapper_classes' => 'wu-w-1/2 wu-ml-2',
 								'html_attr'       => [
-									'v-model'     => 'duration_unit',
-									'v-bind:name' => '""',
+									'v-model' => 'duration_unit',
 								],
 								'options'         => [
 									'day'   => __('Day(s)', 'ultimate-multisite'),
@@ -784,7 +782,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 					'type'        => 'model',
 					'title'       => __('Offer Add-ons', 'ultimate-multisite'),
 					'placeholder' => __('Search for a package or service', 'ultimate-multisite'),
-					'desc'        => __('This products will be offered inside upgrade/downgrade forms as order bumps.', 'ultimate-multisite'),
+					'desc'        => __('These products will be offered inside upgrade/downgrade forms as order bumps.', 'ultimate-multisite'),
 					'html_attr'   => [
 						'data-exclude'      => implode(',', array_keys($plans_as_options)),
 						'data-model'        => 'product',

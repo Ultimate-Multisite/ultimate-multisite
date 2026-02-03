@@ -1366,7 +1366,7 @@ class Cart implements \JsonSerializable {
 		if (empty($discount_code)) {
 
 			// translators: %s is the coupon code being used, all-caps. e.g. PROMO10OFF
-			$this->errors->add('discount_code', sprintf(__('The code %s do not exist or is no longer valid.', 'ultimate-multisite'), $code));
+			$this->errors->add('discount_code', sprintf(__('The code %s does not exist or is no longer valid.', 'ultimate-multisite'), $code));
 
 			return false;
 		}

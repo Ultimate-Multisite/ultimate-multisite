@@ -695,17 +695,19 @@ class Checkout {
 			apply_filters(
 				'wu_cart_parameters',
 				[
-					'products'      => $this->request_or_session('products', []),
-					'discount_code' => $this->request_or_session('discount_code'),
-					'country'       => $this->request_or_session('billing_country'),
-					'state'         => $this->request_or_session('billing_state'),
-					'city'          => $this->request_or_session('billing_city'),
-					'membership_id' => $this->request_or_session('membership_id'),
-					'payment_id'    => $this->request_or_session('payment_id'),
-					'auto_renew'    => $this->request_or_session('auto_renew', false),
-					'duration'      => $this->request_or_session('duration'),
-					'duration_unit' => $this->request_or_session('duration_unit'),
-					'cart_type'     => $this->request_or_session('cart_type', 'new'),
+					'products'       => $this->request_or_session('products', []),
+					'discount_code'  => $this->request_or_session('discount_code'),
+					'country'        => $this->request_or_session('billing_country'),
+					'state'          => $this->request_or_session('billing_state'),
+					'city'           => $this->request_or_session('billing_city'),
+					'membership_id'  => $this->request_or_session('membership_id'),
+					'payment_id'     => $this->request_or_session('payment_id'),
+					'auto_renew'     => $this->request_or_session('auto_renew', false),
+					'duration'       => $this->request_or_session('duration'),
+					'duration_unit'  => $this->request_or_session('duration_unit'),
+					'cart_type'      => $this->request_or_session('cart_type', 'new'),
+					'custom_amounts' => $this->request_or_session('custom_amounts', []),
+					'pwyw_recurring' => $this->request_or_session('pwyw_recurring', []),
 				],
 				$this
 			)
@@ -1979,8 +1981,13 @@ class Checkout {
 		try {
 			$cart = new Cart(
 				[
-					'products' => (array) $products,
-					'country'  => $this->request_or_session('billing_country'),
+					'products'       => (array) $products,
+					'country'        => $this->request_or_session('billing_country'),
+					'discount_code'  => $this->request_or_session('discount_code'),
+					'duration'       => $this->request_or_session('duration'),
+					'duration_unit'  => $this->request_or_session('duration_unit'),
+					'custom_amounts' => $this->request_or_session('custom_amounts', []),
+					'pwyw_recurring' => $this->request_or_session('pwyw_recurring', []),
 				]
 			);
 

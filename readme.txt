@@ -240,10 +240,12 @@ We recommend running this in a staging environment before updating your producti
 
 == Changelog ==
 
-Version [2.4.10] - Released on 2026-XX-XX
-- New: Settings API
-- Fix: Problems with choosing country and state
-
+Version [2.4.11] - Released on 2026-XX-XX
+- New: Settings API for remote settings management.
+- New: Pay-What-You-Want (PWYW) pricing with per-product custom amounts and recurring options.
+- New: Billing-period controls for discount codes and membership creation.
+- New: Better error page for customers and admins.
+- Fix: Problems with choosing country and state in checkout.
 
 Version [2.4.10] - Released on 2026-01-23
 - New: Configurable minimum password strength setting with Medium, Strong, and Super Strong options.
@@ -251,11 +253,9 @@ Version [2.4.10] - Released on 2026-01-23
 - New: Real-time password requirement hints during checkout with translatable strings.
 - New: Themed password field styling with visibility toggle and color fallbacks for page builders (Elementor, Kadence, Beaver Builder).
 - New: Opt-in anonymous usage tracking to help improve the plugin.
-- New: Better error page for customers and admins.
 - New: Rating reminder notice after 30 days of installation.
 - New: WooCommerce Subscriptions compatibility layer for site duplication.
 - Improved: JSON response handling for pending site creation in non-FastCGI environments.
-
 
 Version [2.4.9] - Released on 2025-12-23
 - New: Inline login prompt at checkout for existing users - returning customers can sign in directly without leaving the checkout flow.
