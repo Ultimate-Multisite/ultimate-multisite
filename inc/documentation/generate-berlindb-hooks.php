@@ -51,32 +51,24 @@ $query_php_absolute = $plugin_root . '/' . $query_php_relative;
  */
 function find_line_number(string $file, string $pattern): int {
 
-	static $lines = null;
+    static $cache = [];
 
-	if ($lines === null) {
-		$lines = file($file);
-	}
+    if (! is_readable($file)) {
+        return 0;
+    }
 
-	foreach ($lines as $i => $line) {
-		if (preg_match($pattern, $line)) {
-			return $i + 1;
-		}
-	}
+    if (! isset($cache[$file])) {
+        $cache[$file] = file($file, FILE_IGNORE_NEW_LINES);
+    }
 
-	return 0;
+    foreach ($cache[$file] as $i => $line) {
+        if (preg_match($pattern, $line)) {
+            return $i + 1;
+        }
+    }
+
+    return 0;
 }
-
-// Pre-compute line numbers for each hook pattern in Query.php.
-$hook_lines = [
-	'transition'     => find_line_number($query_php_absolute, '/do_action\(\s*\$key_action/'),
-	'pre_get'        => find_line_number($query_php_absolute, '/pre_get_.*item_name_plural/'),
-	'parse_query'    => find_line_number($query_php_absolute, '/parse_.*item_name_plural.*_query/'),
-	'query_clauses'  => find_line_number($query_php_absolute, '/item_name_plural.*_query_clauses/'),
-	'search_columns' => find_line_number($query_php_absolute, '/item_name_plural.*_search_columns/'),
-	'the_items'      => find_line_number($query_php_absolute, '/the_.*item_name_plural/'),
-	'filter_item'    => find_line_number($query_php_absolute, '/filter_.*item_name.*_item/'),
-	'found_query'    => find_line_number($query_php_absolute, '/found_.*item_name_plural.*_query/'),
-];
 
 // ── Discover query classes ──────────────────────────────────────────────────
 
