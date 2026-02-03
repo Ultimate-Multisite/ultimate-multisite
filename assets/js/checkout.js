@@ -1,1216 +1,1219 @@
-/* global Vue, moment, _, wu_checkout, wu_checkout_form, wu_create_cookie, wu_listen_to_cookie_change */
+/* global Vue, moment, _, wu_checkout, wu_checkout_form, wu_create_cookie, wu_listen_to_cookie_change, wu_initialize_tooltip */
 (function ($, hooks, _) {
 
-  /*
+	/*
    * Remove the pre-flight parameter.
    */
-  if (window.history.replaceState) {
+	if (window.history.replaceState) {
 
-    window.history.replaceState(null, null, wu_checkout.baseurl);
+		window.history.replaceState(null, null, wu_checkout.baseurl);
 
-  } // end if;
+	} // end if;
 
-  /*
+	/*
    * Sets default template.
    */
-  hooks.addAction('wu_on_create_order', 'nextpress/wp-ultimo', function (checkout, data) {
+	hooks.addAction('wu_on_create_order', 'nextpress/wp-ultimo', function (checkout, data) {
 
-    if (typeof data.order.extra.template_id !== 'undefined' && data.order.extra.template_id) {
+		if (typeof data.order.extra.template_id !== 'undefined' && data.order.extra.template_id) {
 
-      checkout.template_id = data.order.extra.template_id;
+			checkout.template_id = data.order.extra.template_id;
 
-    } // end if;
+		} // end if;
 
-  });
+	});
 
-  /*
+	/*
    * Handle auto-submittable fields.
    *
    * Some fields are auto-submittable if they are the one relevant
    * field on a checkout step.
    */
-  hooks.addAction('wu_checkout_loaded', 'nextpress/wp-ultimo', function (checkout) {
+	hooks.addAction('wu_checkout_loaded', 'nextpress/wp-ultimo', function (checkout) {
 
-    /*
+		/*
      * The checkout sets the auto submittable field as a global variable
      */
-    if (typeof window.wu_auto_submittable_field !== 'undefined' && window.wu_auto_submittable_field) {
+		if (typeof window.wu_auto_submittable_field !== 'undefined' && window.wu_auto_submittable_field) {
 
-      const options = {
-        deep: true,
-      };
+			const options = {
+				deep: true,
+			};
 
-      checkout.$watch(window.wu_auto_submittable_field, function () {
+			checkout.$watch(window.wu_auto_submittable_field, function () {
 
-        jQuery(this.$el).submit();
+				jQuery(this.$el).submit();
 
-      }, options);
+			}, options);
 
-    } // end if;
+		} // end if;
 
-  });
+	});
 
-  /*
+	/*
    * Sets up the cookie listener for template selection.
    */
-  hooks.addAction('wu_checkout_loaded', 'nextpress/wp-ultimo', function (checkout) {
+	hooks.addAction('wu_checkout_loaded', 'nextpress/wp-ultimo', function (checkout) {
 
-    /*
+		/*
      * Resets the template selection cookie.
      */
-    wu_create_cookie('wu_template', '');
+		wu_create_cookie('wu_template', '');
 
-    /*
+		/*
      * Resets the selected products cookie.
      */
-    wu_create_cookie('wu_selected_products', '');
-    /*
+		wu_create_cookie('wu_selected_products', '');
+		/*
      * Listens for changes and set the template if one is detected.
      */
-    wu_listen_to_cookie_change('wu_template', function (value) {
-        if (value) {
-            checkout.template_id = value;
-        }
-    });
+		wu_listen_to_cookie_change('wu_template', function (value) {
+			if (value) {
+				checkout.template_id = value;
+			}
+		});
 
-  });
+	});
 
-  /**
-   * Allows for cross-sells
-   */
-  $(document).on('click', '[href|="#wu-checkout-add"]', function (event) {
+	/**
+	 * Allows for cross-sells
+	 */
+	$(document).on('click', '[href|="#wu-checkout-add"]', function (event) {
 
-    event.preventDefault();
+		event.preventDefault();
 
-    const el = $(this);
+		const el = $(this);
 
-    const product_slug = el.attr('href').split('#').pop().replace('wu-checkout-add-', '');
+		const product_slug = el.attr('href').split('#').pop().replace('wu-checkout-add-', '');
 
-    if (typeof wu_checkout_form !== 'undefined') {
+		if (typeof wu_checkout_form !== 'undefined') {
 
-      if (wu_checkout_form.products.indexOf(product_slug) === -1) {
+			if (wu_checkout_form.products.indexOf(product_slug) === -1) {
 
-        wu_checkout_form.add_product(product_slug);
+				wu_checkout_form.add_product(product_slug);
 
-        el.html(wu_checkout.i18n.added_to_order);
+				el.html(wu_checkout.i18n.added_to_order);
 
-      } // end if;
+			} // end if;
 
-    } // end if;
+		} // end if;
 
-  });
+	});
 
-  /**
-   * Reload page when history back button was pressed
-   */
-  window.addEventListener('pageshow', function (event) {
+	/**
+	 * Reload page when history back button was pressed
+	 */
+	window.addEventListener('pageshow', function (event) {
 
-    if (event.persisted && this.window.wu_checkout_form) {
+		if (event.persisted && this.window.wu_checkout_form) {
 
-      this.window.wu_checkout_form.unblock();
+			this.window.wu_checkout_form.unblock();
 
-    } // end if;
+		} // end if;
 
-  });
+	});
 
-  /**
-   * Setup
-   */
-  $(document).ready(function () {
+	/**
+	 * Setup
+	 */
+	$(document).ready(function () {
 
-    /*
+		/*
      * Prevent app creation when vue is not available.
      */
-    if (typeof window.Vue === 'undefined') {
-
-      return;
-
-    } // end if;
-
-    Object.defineProperty(Vue.prototype, '$moment', { value: moment });
-
-    const maybe_cast_to_int = function (value) {
-
-      return isNaN(value) ? value : parseInt(value, 10);
-
-    };
-
-    const initial_data = {
-      plan: maybe_cast_to_int(wu_checkout.plan),
-      errors: [],
-      order: wu_checkout.order,
-      products: _.map(wu_checkout.products, maybe_cast_to_int),
-      template_id: wu_checkout.template_id,
-      template_category: '',
-      gateway: wu_checkout.gateway,
-      request_billing_address: wu_checkout.request_billing_address,
-      country: wu_checkout.country,
-      state: '',
-      city: '',
-      site_url: wu_checkout.site_url,
-      site_domain: wu_checkout.site_domain,
-      is_subdomain: wu_checkout.is_subdomain,
-      discount_code: wu_checkout.discount_code,
-      toggle_discount_code: 0,
-      payment_method: '',
-      username: '',
-      email_address: '',
-      payment_id: wu_checkout.payment_id,
-      membership_id: wu_checkout.membership_id,
-      cart_type: 'new',
-      auto_renew: 1,
-      duration: wu_checkout.duration,
-      duration_unit: wu_checkout.duration_unit,
-      prevent_submission: false,
-      valid_password: true,
-      stored_templates: {},
-      state_list: [],
-      city_list: [],
-      labels: {},
-      show_login_prompt: false,
-      login_prompt_field: '',
-      checking_user_exists: false,
-      logging_in: false,
-      login_error: '',
-      inline_login_password: '',
-      custom_amounts: wu_checkout.custom_amounts || {},
-      pwyw_recurring: wu_checkout.pwyw_recurring || {},
-    };
-
-    hooks.applyFilters('wu_before_form_init', initial_data);
-
-    if (!jQuery('#wu_form').length) {
-
-      return;
-
-    } // end if;
-
-    /**
-     * ColorPicker Component
-     */
-    Vue.component('colorPicker', {
-      props: ['value'],
-      template: '<input type="text">',
-      mounted() {
-
-        const vm = this;
-
-        $(this.$el)
-          .val(this.value)
-          // WordPress color picker
-          .wpColorPicker({
-            width: 200,
-            defaultColor: this.value,
-            change(event, ui) {
-
-              // emit change event on color change using mouse
-              vm.$emit('input', ui.color.toString());
+		if (typeof window.Vue === 'undefined') {
+
+			return;
+
+		} // end if;
+
+		Object.defineProperty(Vue.prototype, '$moment', { value: moment });
+
+		const maybe_cast_to_int = function (value) {
+
+			return isNaN(value) ? value : parseInt(value, 10);
+
+		};
+
+		const initial_data = {
+			plan: maybe_cast_to_int(wu_checkout.plan),
+			errors: [],
+			order: wu_checkout.order,
+			products: _.map(wu_checkout.products, maybe_cast_to_int),
+			template_id: wu_checkout.template_id,
+			template_category: '',
+			gateway: wu_checkout.gateway,
+			request_billing_address: wu_checkout.request_billing_address,
+			country: wu_checkout.country,
+			state: '',
+			city: '',
+			site_url: wu_checkout.site_url,
+			site_domain: wu_checkout.site_domain,
+			is_subdomain: wu_checkout.is_subdomain,
+			discount_code: wu_checkout.discount_code,
+			toggle_discount_code: 0,
+			payment_method: '',
+			username: '',
+			email_address: '',
+			payment_id: wu_checkout.payment_id,
+			membership_id: wu_checkout.membership_id,
+			cart_type: 'new',
+			auto_renew: 1,
+			duration: wu_checkout.duration,
+			duration_unit: wu_checkout.duration_unit,
+			prevent_submission: false,
+			valid_password: true,
+			stored_templates: {},
+			state_list: [],
+			city_list: [],
+			labels: {},
+			show_login_prompt: false,
+			login_prompt_field: '',
+			checking_user_exists: false,
+			logging_in: false,
+			login_error: '',
+			inline_login_password: '',
+			custom_amounts: wu_checkout.custom_amounts || {},
+			pwyw_recurring: wu_checkout.pwyw_recurring || {},
+		};
+
+		hooks.applyFilters('wu_before_form_init', initial_data);
+
+		if (! jQuery('#wu_form').length) {
+
+			return;
+
+		} // end if;
+
+		/**
+		 * ColorPicker Component
+		 */
+		Vue.component('colorPicker', {
+			props: [ 'value' ],
+			template: '<input type="text">',
+			mounted() {
+
+				const vm = this;
+
+				$(this.$el)
+					.val(this.value)
+				// WordPress color picker
+					.wpColorPicker({
+						width: 200,
+						defaultColor: this.value,
+						change(event, ui) {
+
+							// emit change event on color change using mouse
+							vm.$emit('input', ui.color.toString());
 
-            },
-          });
+						},
+					});
 
-      },
-      watch: {
-        value(value) {
+			},
+			watch: {
+				value(value) {
 
-          // update value
-          $(this.$el).wpColorPicker('color', value);
+					// update value
+					$(this.$el).wpColorPicker('color', value);
 
-        },
-      },
-      destroyed() {
+				},
+			},
+			destroyed() {
 
-        $(this.$el).off().wpColorPicker('destroy'); // (!) Not tested
+				$(this.$el).off().wpColorPicker('destroy'); // (!) Not tested
 
-      },
-    });
+			},
+		});
 
-    /**
-     * Declare the dynamic content for Vue.
-     */
-    const dynamic = {
-      functional: true,
-      template: '#dynamic',
-      props: ['template'],
-      render(h, context) {
+		/**
+		 * Declare the dynamic content for Vue.
+		 */
+		const dynamic = {
+			functional: true,
+			template: '#dynamic',
+			props: [ 'template' ],
+			render(h, context) {
 
-        const template = context.props.template;
+				const template = context.props.template;
 
-        const component = template ? { template } : '<div>nbsp;</div>';
+				const component = template ? { template } : '<div>nbsp;</div>';
 
-        return h(component);
+				return h(component);
 
-      },
-    };
+			},
+		};
 
-    // eslint-disable-next-line no-unused-vars
-    window.wu_checkout_form = new Vue({
-      el: '#wu_form',
-      data: initial_data,
-      directives: {
-        init: {
-          bind(el, binding, vnode) {
+		// eslint-disable-next-line no-unused-vars
+		window.wu_checkout_form = new Vue({
+			el: '#wu_form',
+			data: initial_data,
+			directives: {
+				init: {
+					bind(el, binding, vnode) {
 
-            vnode.context[binding.arg] = binding.value;
+						vnode.context[ binding.arg ] = binding.value;
 
-          },
-        },
-      },
-      components: {
-        dynamic,
-      },
-      computed: {
-        hooks() {
+					},
+				},
+			},
+			components: {
+				dynamic,
+			},
+			computed: {
+				hooks() {
 
-          return wp.hooks;
+					return wp.hooks;
 
-        },
-        unique_products() {
+				},
+				unique_products() {
 
-          return _.uniq(this.products, false, (item) => parseInt(item, 10));
+					return _.uniq(this.products, false, (item) => parseInt(item, 10));
 
-        },
-      },
-      methods: {
-        debounce(fn) {
+				},
+			},
+			methods: {
+				debounce(fn) {
 
-          return _.debounce(fn, 200, true);
+					return _.debounce(fn, 200, true);
 
-        },
-        open_url(url, target = '_blank') {
+				},
+				open_url(url, target = '_blank') {
 
-          window.open(url, target);
+					window.open(url, target);
 
-        },
-        get_template(template, data) {
+				},
+				get_template(template, data) {
 
-          if (typeof data.id === 'undefined') {
+					if (typeof data.id === 'undefined') {
 
-            data.id = 'default';
+						data.id = 'default';
 
-          } // end if;
+					} // end if;
 
-          const template_name = template + '/' + data.id;
+					const template_name = template + '/' + data.id;
 
-          if (typeof this.stored_templates[template_name] !== 'undefined') {
+					if (typeof this.stored_templates[ template_name ] !== 'undefined') {
 
-            return this.stored_templates[template_name];
+						return this.stored_templates[ template_name ];
 
-          } // end if;
+					} // end if;
 
-          const template_data = this.hooks.applyFilters('wu_before_template_fetch', {
-            duration: this.duration,
-            duration_unit: this.duration_unit,
-            products: this.products,
-            ...data,
-          }, this);
+					const template_data = this.hooks.applyFilters('wu_before_template_fetch', {
+						duration: this.duration,
+						duration_unit: this.duration_unit,
+						products: this.products,
+						...data,
+					}, this);
 
-          this.fetch_template(template, template_data);
+					this.fetch_template(template, template_data);
 
-          return '<div class="wu-p-4 wu-bg-gray-100 wu-text-center wu-my-2 wu-rounded">' + wu_checkout.i18n.loading + '</div>';
+					return '<div class="wu-p-4 wu-bg-gray-100 wu-text-center wu-my-2 wu-rounded">' + wu_checkout.i18n.loading + '</div>';
 
-        },
-        reset_templates(to_clear) {
+				},
+				reset_templates(to_clear) {
 
-          if (typeof to_clear === 'undefined') {
+					if (typeof to_clear === 'undefined') {
 
-            this.stored_templates = {};
+						this.stored_templates = {};
 
-            return;
+						return;
 
-          }
+					}
 
-          const new_list = {};
+					const new_list = {};
 
-          _.forEach(this.stored_templates, function (item, key) {
+					_.forEach(this.stored_templates, function (item, key) {
 
-            const type = key.toString().substr(0, key.toString().indexOf('/'));
+						const type = key.toString().substr(0, key.toString().indexOf('/'));
 
-            if (_.contains(to_clear, type) === false) {
+						if (_.contains(to_clear, type) === false) {
 
-              new_list[key] = item;
+							new_list[ key ] = item;
 
-            } // end if;
+						} // end if;
 
-          });
+					});
 
-          this.stored_templates = new_list;
+					this.stored_templates = new_list;
 
-        },
-        fetch_template(template, data) {
+				},
+				fetch_template(template, data) {
 
-          const that = this;
+					const that = this;
 
-          if (typeof data.id === 'undefined') {
+					if (typeof data.id === 'undefined') {
 
-            data.id = 'default';
+						data.id = 'default';
 
-          } // end if;
+					} // end if;
 
-          this.request('wu_render_field_template', {
-            template,
-            attributes: data,
-          }, function (results) {
+					this.request('wu_render_field_template', {
+						template,
+						attributes: data,
+					}, function (results) {
 
-            const template_name = template + '/' + data.id;
+						const template_name = template + '/' + data.id;
 
-            if (results.success) {
+						if (results.success) {
 
-              Vue.set(that.stored_templates, template_name, results.data.html);
+							Vue.set(that.stored_templates, template_name, results.data.html);
 
-            } else {
+						} else {
 
-              Vue.set(that.stored_templates, template_name, '<div>' + results.data[0].message + '</div>');
+							Vue.set(that.stored_templates, template_name, '<div>' + results.data[ 0 ].message + '</div>');
 
-            } // end if;
+						} // end if;
 
-          });
+					});
 
-        },
-        go_back() {
+				},
+				go_back() {
 
-          this.block();
+					this.block();
 
-          window.history.back();
+					window.history.back();
 
-        },
-        set_prevent_submission(value) {
+				},
+				set_prevent_submission(value) {
 
-          this.$nextTick(function () {
+					this.$nextTick(function () {
 
-            this.prevent_submission = value;
+						this.prevent_submission = value;
 
-          });
+					});
 
-        },
-        remove_product(product_id, product_slug) {
+				},
+				remove_product(product_id, product_slug) {
 
-          this.products = _.filter(this.products, function (item) {
+					this.products = _.filter(this.products, function (item) {
 
-            // eslint-disable-next-line eqeqeq
-            return item != product_id && item != product_slug;
+						// eslint-disable-next-line eqeqeq
+						return item != product_id && item != product_slug;
 
-          });
+					});
 
-        },
-        add_plan(product_id) {
+				},
+				add_plan(product_id) {
 
-          if (this.plan) {
+					if (this.plan) {
 
-            this.remove_product(this.plan);
+						this.remove_product(this.plan);
 
-          } // end if;
+					} // end if;
 
-          this.plan = product_id;
+					this.plan = product_id;
 
-          this.add_product(product_id);
+					this.add_product(product_id);
 
-        },
-        add_product(product_id) {
+				},
+				add_product(product_id) {
 
-          this.products.push(product_id);
+					this.products.push(product_id);
 
-        },
-        has_product(product_id) {
+				},
+				has_product(product_id) {
 
-          return this.products.indexOf(product_id) > -1 || this.products.indexOf(parseInt(product_id, 10)) > -1;
+					return this.products.indexOf(product_id) > -1 || this.products.indexOf(parseInt(product_id, 10)) > -1;
 
-        },
-        set_custom_amount(product_id, amount) {
+				},
+				set_custom_amount(product_id, amount) {
 
-          Vue.set(this.custom_amounts, product_id, parseFloat(amount) || 0);
+					Vue.set(this.custom_amounts, product_id, parseFloat(amount) || 0);
 
-          this.create_order();
+					this.create_order();
 
-        },
-        get_custom_amount(product_id) {
+				},
+				get_custom_amount(product_id) {
 
-          return this.custom_amounts[product_id] || null;
+					return this.custom_amounts[ product_id ] || null;
 
-        },
-        set_pwyw_recurring(product_id, is_recurring) {
+				},
+				set_pwyw_recurring(product_id, is_recurring) {
 
-          Vue.set(this.pwyw_recurring, product_id, Boolean(is_recurring));
+					Vue.set(this.pwyw_recurring, product_id, Boolean(is_recurring));
 
-          this.create_order();
+					this.create_order();
 
-        },
-        get_pwyw_recurring(product_id) {
+				},
+				get_pwyw_recurring(product_id) {
 
-          return this.pwyw_recurring[product_id] || false;
+					return this.pwyw_recurring[ product_id ] || false;
 
-        },
-        wu_format_money(value) {
+				},
+				wu_format_money(value) {
 
-          return window.wu_format_money(value);
+					return window.wu_format_money(value);
 
-        },
-        filter_for_request(data, request_type = '') {
+				},
+				filter_for_request(data, request_type = '') {
 
-          const filter_list = this.hooks.doAction('wu_filter_for_request', [
-            'stored_templates',
-          ], data, request_type);
+					const filter_list = this.hooks.doAction('wu_filter_for_request', [
+						'stored_templates',
+					], data, request_type);
 
-          const filtered_list = _.omit(data, filter_list);
+					const filtered_list = _.omit(data, filter_list);
 
-          return filtered_list;
+					return filtered_list;
 
-        },
-        create_order() {
+				},
+				create_order() {
 
-          /*
+					/*
            * Bail if there is no order summary to update.
            */
-          if (!jQuery('#wu-order-summary-content').length) {
+					if (! jQuery('#wu-order-summary-content').length) {
 
-            return;
+						return;
 
-          } // end if;
+					} // end if;
 
-          this.block();
+					this.block();
 
-          this.order = false;
+					this.order = false;
 
-          const that = this;
+					const that = this;
 
-          const _request = this.debounce(this.request);
+					const _request = this.debounce(this.request);
 
-          const data = { ...this.$data };
+					const data = { ...this.$data };
 
-          delete data.stored_templates;
-          delete data.state_list;
-          delete data.city_list;
-          delete data.labels;
+					delete data.stored_templates;
+					delete data.state_list;
+					delete data.city_list;
+					delete data.labels;
 
-          _request('wu_create_order', this.filter_for_request(data, 'wu_create_order'), function (results) {
+					_request('wu_create_order', this.filter_for_request(data, 'wu_create_order'), function (results) {
 
-            that.order = results.data.order;
+						that.order = results.data.order;
 
-            that.state_list = results.data.states;
+						that.state_list = results.data.states;
 
-            that.city_list = results.data.cities;
+						that.city_list = results.data.cities;
 
-            that.labels = results.data.labels;
+						that.labels = results.data.labels;
 
-            that.cart_type = results.data.order.type;
+						that.cart_type = results.data.order.type;
 
-            that.errors = results.data.order.errors;
+						that.errors = results.data.order.errors;
 
-            that.hooks.doAction('wu_on_create_order', that, results.data);
+						that.hooks.doAction('wu_on_create_order', that, results.data);
 
-            if (results.data.order.url) {
+						if (results.data.order.url) {
 
-              try {
+							try {
 
-                // history.pushState({}, null, wu_checkout.baseurl + results.data.order.url);
+								// history.pushState({}, null, wu_checkout.baseurl + results.data.order.url);
 
-              } catch (err) {
+							} catch (err) {
 
-                // eslint-disable-next-line no-console
-                console.warn('Browser does not support pushState.', err);
+								// eslint-disable-next-line no-console
+								console.warn('Browser does not support pushState.', err);
 
-              } // end try;
+							} // end try;
 
-            } // ed if;
+						} // ed if;
 
-            that.unblock();
+						that.unblock();
 
-          }, this.handle_errors);
+					}, this.handle_errors);
 
-        },
-        get_errors() {
+				},
+				get_errors() {
 
-          const result = this.errors.map(function (e) {
+					const result = this.errors.map(function (e) {
 
-            return e.message;
+						return e.message;
 
-          });
+					});
 
-          return result.length > 0 ? result : false;
+					return result.length > 0 ? result : false;
 
-        },
-        get_error(field) {
+				},
+				get_error(field) {
 
-          const result = this.errors.filter(function (e) {
+					const result = this.errors.filter(function (e) {
 
-            return e.code === field;
+						return e.code === field;
 
-          });
+					});
 
-          return result.length > 0 ? result[0] : false;
+					return result.length > 0 ? result[ 0 ] : false;
 
-        },
-        form_success(results) {
+				},
+				form_success(results) {
 
-          if (!_.isEmpty(results.data)) {
+					if (! _.isEmpty(results.data)) {
 
-            this.hooks.doAction('wu_on_form_success', this, results.data);
+						this.hooks.doAction('wu_on_form_success', this, results.data);
 
-            const fields = results.data.gateway.data;
+						const fields = results.data.gateway.data;
 
-            fields.payment_id = results.data.payment_id;
+						fields.payment_id = results.data.payment_id;
 
-            fields.membership_id = results.data.membership_id;
+						fields.membership_id = results.data.membership_id;
 
-            fields.cart_type = results.data.cart_type;
+						fields.cart_type = results.data.cart_type;
 
-            // Append the hidden fields
-            jQuery.each(Object.assign({}, fields), function (index, value) {
+						// Append the hidden fields
+						jQuery.each(Object.assign({}, fields), function (index, value) {
 
-              const hidden = document.createElement('input');
+							const hidden = document.createElement('input');
 
-              hidden.type = 'hidden';
+							hidden.type = 'hidden';
 
-              hidden.name = index;
+							hidden.name = index;
 
-              hidden.value = value;
+							hidden.value = value;
 
-              jQuery('#wu_form').append(hidden);
+							jQuery('#wu_form').append(hidden);
 
-            });
+						});
 
-          } // end if;
+					} // end if;
 
-        },
-        validate_form() {
+				},
+				validate_form() {
 
-          this.errors = [];
+					this.errors = [];
 
-          const form_data_obj = jQuery('#wu_form').serializeArray().reduce(function (json, { name, value }) {
+					const form_data_obj = jQuery('#wu_form').serializeArray().reduce(function (json, { name, value }) {
 
-            // Get products from this
-            if (name !== 'products[]') {
+						// Get products from this
+						if (name !== 'products[]') {
 
-              json[name] = value;
+							json[ name ] = value;
 
-            }
+						}
 
-            return json;
+						return json;
 
-          }, {});
+					}, {});
 
-          const form_data = jQuery.param({
-            ...form_data_obj,
-            products: this.products,
-            membership_id: this.membership_id,
-            payment_id: this.payment_id,
-            auto_renew: this.auto_renew,
-            cart_type: this.type,
-            valid_password: this.valid_password,
-            duration: this.duration,
-            duration_unit: this.duration_unit,
-          });
+					const form_data = jQuery.param({
+						...form_data_obj,
+						products: this.products,
+						membership_id: this.membership_id,
+						payment_id: this.payment_id,
+						auto_renew: this.auto_renew,
+						cart_type: this.type,
+						valid_password: this.valid_password,
+						duration: this.duration,
+						duration_unit: this.duration_unit,
+					});
 
-          const that = this;
+					const that = this;
 
-          this.request('wu_validate_form', form_data, function (results) {
+					this.request('wu_validate_form', form_data, function (results) {
 
-            if (!that.valid_password) {
+						if (! that.valid_password) {
 
-              that.errors.push({
-                code: 'password',
-                message: wu_checkout.i18n.weak_password,
-              });
+							that.errors.push({
+								code: 'password',
+								message: wu_checkout.i18n.weak_password,
+							});
 
-            } // end if;
+						} // end if;
 
-            if (results.success === false) {
+						if (results.success === false) {
 
-              that.errors = [].concat(that.errors, results.data);
+							that.errors = [].concat(that.errors, results.data);
 
-              that.unblock();
+							that.unblock();
 
-              return;
+							return;
 
-            } // end if;
+						} // end if;
 
-            if (!that.errors.length) {
+						if (! that.errors.length) {
 
-              that.form_success(results);
+							that.form_success(results);
 
-              if (that.prevent_submission === false) {
+							if (that.prevent_submission === false) {
 
-                that.resubmit();
+								that.resubmit();
 
-              } // end if;
+							} // end if;
 
-            } else {
+						} else {
 
-              that.unblock();
+							that.unblock();
 
-            } // end if;
+						} // end if;
 
-          }, this.handle_errors);
+					}, this.handle_errors);
 
-        },
-        resubmit() {
+				},
+				resubmit() {
 
-          jQuery('#wu_form').get(0).submit();
+					jQuery('#wu_form').get(0).submit();
 
-        },
-        handle_errors(errors) {
+				},
+				handle_errors(errors) {
 
-          this.unblock();
+					this.unblock();
 
-          // eslint-disable-next-line no-console
-          console.error(errors);
+					// eslint-disable-next-line no-console
+					console.error(errors);
 
-        },
-        on_submit(event) {
+				},
+				on_submit(event) {
 
-          event.preventDefault();
+					event.preventDefault();
 
-        },
-        on_change_product(new_value, old_value) {
+				},
+				on_change_product(new_value, old_value) {
 
-          window.wu_create_cookie('wu_selected_products', new_value.join(','), 0.5) // Save it for 12 hours max.
+					window.wu_create_cookie('wu_selected_products', new_value.join(','), 0.5) // Save it for 12 hours max.
 
-          this.reset_templates(['template-selection']);
+					this.reset_templates([ 'template-selection' ]);
 
-          hooks.doAction('wu_on_change_product', new_value, old_value, this);
+					hooks.doAction('wu_on_change_product', new_value, old_value, this);
 
-          this.create_order();
+					this.create_order();
 
-        },
-        on_change_gateway(new_value, old_value) {
+				},
+				on_change_gateway(new_value, old_value) {
 
-          hooks.doAction('wu_on_change_gateway', new_value, old_value, this);
+					hooks.doAction('wu_on_change_gateway', new_value, old_value, this);
 
-        },
-        on_change_country(new_value, old_value) {
+				},
+				on_change_country(new_value, old_value) {
 
-          hooks.doAction('wu_on_change_country', new_value, old_value, this);
+					hooks.doAction('wu_on_change_country', new_value, old_value, this);
 
-          this.create_order();
+					this.create_order();
 
-        },
-        on_change_state(new_value, old_value) {
+				},
+				on_change_state(new_value, old_value) {
 
-          hooks.doAction('wu_on_change_state', new_value, old_value, this);
+					hooks.doAction('wu_on_change_state', new_value, old_value, this);
 
-          this.create_order();
+					this.create_order();
 
-        },
-        on_change_city(new_value, old_value) {
+				},
+				on_change_city(new_value, old_value) {
 
-          hooks.doAction('wu_on_change_city', new_value, old_value, this);
+					hooks.doAction('wu_on_change_city', new_value, old_value, this);
 
-          this.create_order();
+					this.create_order();
 
-        },
-        on_change_duration(new_value, old_value) {
+				},
+				on_change_duration(new_value, old_value) {
 
-          this.reset_templates();
+					this.reset_templates();
 
-          hooks.doAction('wu_on_change_duration', new_value, old_value, this);
+					hooks.doAction('wu_on_change_duration', new_value, old_value, this);
 
-          this.create_order();
+					this.create_order();
 
-        },
-        on_change_duration_unit(new_value, old_value) {
+				},
+				on_change_duration_unit(new_value, old_value) {
 
-          this.reset_templates();
+					this.reset_templates();
 
-          hooks.doAction('wu_on_change_duration_unit', new_value, old_value, this);
+					hooks.doAction('wu_on_change_duration_unit', new_value, old_value, this);
 
-          this.create_order();
+					this.create_order();
 
-        },
-        on_change_discount_code(new_value, old_value) {
+				},
+				on_change_discount_code(new_value, old_value) {
 
-          hooks.doAction('wu_on_change_discount_code', new_value, old_value, this);
+					hooks.doAction('wu_on_change_discount_code', new_value, old_value, this);
 
-          this.create_order();
+					this.create_order();
 
-        },
-        block() {
+				},
+				block() {
 
-          /*
+					/*
            * Get the first bg color from a parent.
            */
-          const bg_color = jQuery(this.$el).parents().filter(function () {
+					const bg_color = jQuery(this.$el).parents().filter(function () {
 
-            return $(this).css('backgroundColor') !== 'rgba(0, 0, 0, 0)';
+						return $(this).css('backgroundColor') !== 'rgba(0, 0, 0, 0)';
 
-          }).first().css('backgroundColor');
+					}).first().css('backgroundColor');
 
-          jQuery(this.$el).wu_block({
-            message: '<div class="spinner is-active wu-float-none" style="float: none !important;"></div>',
-            overlayCSS: {
-              backgroundColor: bg_color ? bg_color : '#ffffff',
-              opacity: 0.6,
-            },
-            css: {
-              padding: 0,
-              margin: 0,
-              width: '50%',
-              fontSize: '14px !important',
-              top: '40%',
-              left: '35%',
-              textAlign: 'center',
-              color: '#000',
-              border: 'none',
-              backgroundColor: 'none',
-              cursor: 'wait',
-            },
-          });
+					jQuery(this.$el).wu_block({
+						message: '<div class="spinner is-active wu-float-none" style="float: none !important;"></div>',
+						overlayCSS: {
+							backgroundColor: bg_color ? bg_color : '#ffffff',
+							opacity: 0.6,
+						},
+						css: {
+							padding: 0,
+							margin: 0,
+							width: '50%',
+							fontSize: '14px !important',
+							top: '40%',
+							left: '35%',
+							textAlign: 'center',
+							color: '#000',
+							border: 'none',
+							backgroundColor: 'none',
+							cursor: 'wait',
+						},
+					});
 
-        },
-        unblock() {
+				},
+				unblock() {
 
-          jQuery(this.$el).wu_unblock();
+					jQuery(this.$el).wu_unblock();
 
-        },
-        request(action, data, success_handler, error_handler) {
+				},
+				request(action, data, success_handler, error_handler) {
 
-          const actual_ajax_url = (action === 'wu_validate_form' || action === 'wu_create_order' || action === 'wu_render_field_template' || action === 'wu_check_user_exists' || action === 'wu_inline_login') ? wu_checkout.late_ajaxurl : wu_checkout.ajaxurl;
+					const actual_ajax_url = (action === 'wu_validate_form' || action === 'wu_create_order' || action === 'wu_render_field_template' || action === 'wu_check_user_exists' || action === 'wu_inline_login') ? wu_checkout.late_ajaxurl : wu_checkout.ajaxurl;
 
-          jQuery.ajax({
-            method: 'POST',
-            url: actual_ajax_url + '&action=' + action,
-            data,
-            success: success_handler,
-            error: error_handler,
-          });
+					jQuery.ajax({
+						method: 'POST',
+						url: actual_ajax_url + '&action=' + action,
+						data,
+						success: success_handler,
+						error: error_handler,
+					});
 
-        },
-        init_password_strength() {
+				},
+				init_password_strength() {
 
-          const that = this;
-          const pass1_el = jQuery('#field-password');
+					const that = this;
+					const pass1_el = jQuery('#field-password');
 
-          if (!pass1_el.length) {
+					if (! pass1_el.length) {
 
-            return;
+						return;
 
-          } // end if;
+					} // end if;
 
-          // Use the shared WU_PasswordStrength utility
-          if (typeof window.WU_PasswordStrength !== 'undefined') {
+					// Use the shared WU_PasswordStrength utility
+					if (typeof window.WU_PasswordStrength !== 'undefined') {
 
-            this.password_strength_checker = new window.WU_PasswordStrength({
-              pass1: pass1_el,
-              result: jQuery('#pass-strength-result'),
-              minStrength: 3,
-              onValidityChange: function(isValid) {
+						// Set valid_password to false initially since password field exists and needs validation
+						this.valid_password = false;
 
-                that.valid_password = isValid;
+						this.password_strength_checker = new window.WU_PasswordStrength({
+							pass1: pass1_el,
+							result: jQuery('#pass-strength-result'),
+							minStrength: 3,
+							onValidityChange(isValid) {
 
-              }
-            });
+								that.valid_password = isValid;
 
-          } // end if;
+							}
+						});
 
-        },
-        check_user_exists_debounced: _.debounce(function(field_type, value) {
+					} // end if;
 
-          this.check_user_exists(field_type, value);
+				},
+				check_user_exists_debounced: _.debounce(function(field_type, value) {
 
-        }, 500),
-        check_user_exists(field_type, value) {
+					this.check_user_exists(field_type, value);
 
-          // Don't check if value is too short
-          if (!value || value.length < 3) {
+				}, 500),
+				check_user_exists(field_type, value) {
 
-            this.show_login_prompt = false;
+					// Don't check if value is too short
+					if (! value || value.length < 3) {
 
-            return;
+						this.show_login_prompt = false;
 
-          }
+						return;
 
-          this.checking_user_exists = true;
-          this.login_error = '';
+					}
 
-          const that = this;
+					this.checking_user_exists = true;
+					this.login_error = '';
 
-          this.request('wu_check_user_exists', {
-            field_type: field_type,
-            value: value,
-            _wpnonce: jQuery('[name="_wpnonce"]').val()
-          }, function(results) {
+					const that = this;
 
-            that.checking_user_exists = false;
+					this.request('wu_check_user_exists', {
+						field_type,
+						value,
+						_wpnonce: jQuery('[name="_wpnonce"]').val()
+					}, function(results) {
 
-            if (results.success && results.data.exists) {
+						that.checking_user_exists = false;
 
-              that.show_login_prompt = true;
-              that.login_prompt_field = field_type;
+						if (results.success && results.data.exists) {
 
-            } else {
+							that.show_login_prompt = true;
+							that.login_prompt_field = field_type;
 
-              that.show_login_prompt = false;
+						} else {
 
-            }
+							that.show_login_prompt = false;
 
-          }, function(error) {
+						}
 
-            that.checking_user_exists = false;
-            that.show_login_prompt = false;
+					}, function(error) {
 
-          });
+						that.checking_user_exists = false;
+						that.show_login_prompt = false;
 
-        },
-        handle_inline_login(event) {
+					});
 
-          console.log('handle_inline_login called', event);
+				},
+				handle_inline_login(event) {
 
-          // Prevent any default behavior or form submission
-          if (event) {
+					// Prevent any default behavior or form submission
+					if (event) {
 
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
+						event.preventDefault();
+						event.stopPropagation();
+						event.stopImmediatePropagation();
 
-          }
+					}
 
-          if (!this.inline_login_password) {
+					if (! this.inline_login_password) {
 
-            this.login_error = wu_checkout.i18n.password_required || 'Password is required';
+						this.login_error = wu_checkout.i18n.password_required || 'Password is required';
 
-            return false;
+						return false;
 
-          }
+					}
 
-          this.logging_in = true;
-          this.login_error = '';
+					this.logging_in = true;
+					this.login_error = '';
 
-          const that = this;
-          const username_or_email = this.login_prompt_field === 'email'
-            ? this.email_address || ''
-            : this.username || '';
+					const that = this;
+					const username_or_email = this.login_prompt_field === 'email'
+						? this.email_address || ''
+						: this.username || '';
 
-          this.request('wu_inline_login', {
-            username_or_email: username_or_email,
-            password: this.inline_login_password,
-            _wpnonce: jQuery('[name="_wpnonce"]').val()
-          }, function(results) {
+					this.request('wu_inline_login', {
+						username_or_email,
+						password: this.inline_login_password,
+						_wpnonce: jQuery('[name="_wpnonce"]').val()
+					}, function(results) {
 
-            that.logging_in = false;
+						that.logging_in = false;
 
-            if (results.success) {
+						if (results.success) {
 
-              // Login successful - reload page to show logged-in state
-              window.location.reload();
+							// Login successful - reload page to show logged-in state
+							window.location.reload();
 
-            }
+						}
 
-          }, function(error) {
+					}, function(error) {
 
-            that.logging_in = false;
+						that.logging_in = false;
 
-            if (error.responseJSON && error.responseJSON.data && error.responseJSON.data.message) {
+						if (error.responseJSON && error.responseJSON.data && error.responseJSON.data.message) {
 
-              that.login_error = error.responseJSON.data.message;
+							that.login_error = error.responseJSON.data.message;
 
-            } else {
+						} else {
 
-              that.login_error = wu_checkout.i18n.login_failed || 'Login failed. Please try again.';
+							that.login_error = wu_checkout.i18n.login_failed || 'Login failed. Please try again.';
 
-            }
+						}
 
-          });
+					});
 
-          return false;
+					return false;
 
-        },
-        dismiss_login_prompt() {
+				},
+				dismiss_login_prompt() {
 
-          this.show_login_prompt = false;
-          this.inline_login_password = '';
-          this.login_error = '';
+					this.show_login_prompt = false;
+					this.inline_login_password = '';
+					this.login_error = '';
 
-        },
-        setup_inline_login_handlers() {
+				},
+				setup_inline_login_handlers() {
 
-          const that = this;
+					const that = this;
 
-          // Setup handlers for both email and username field types
-          ['email', 'username'].forEach(function(fieldType) {
+					// Setup handlers for both email and username field types
+					[ 'email', 'username' ].forEach(function(fieldType) {
 
-            const passwordField = document.getElementById('wu-inline-login-password-' + fieldType);
-            const submitButton = document.getElementById('wu-inline-login-submit-' + fieldType);
-            const dismissButton = document.getElementById('wu-dismiss-login-prompt-' + fieldType);
-            const errorDiv = document.getElementById('wu-login-error-' + fieldType);
-            const loginPromptContainer = document.getElementById('wu-inline-login-prompt-' + fieldType);
+						const passwordField = document.getElementById('wu-inline-login-password-' + fieldType);
+						const submitButton = document.getElementById('wu-inline-login-submit-' + fieldType);
 
-            if (!passwordField || !submitButton) return;
+						if (! passwordField || ! submitButton) {
+							return;
+						}
 
-            // Remove any existing listeners to avoid duplicates
-            const newSubmitButton = submitButton.cloneNode(true);
-            submitButton.parentNode.replaceChild(newSubmitButton, submitButton);
+						const dismissButton = document.getElementById('wu-dismiss-login-prompt-' + fieldType);
+						const errorDiv = document.getElementById('wu-login-error-' + fieldType);
+						const loginPromptContainer = document.getElementById('wu-inline-login-prompt-' + fieldType);
 
-            const newPasswordField = passwordField.cloneNode(true);
-            passwordField.parentNode.replaceChild(newPasswordField, passwordField);
-			function handleError(error) {
+						// Remove any existing listeners to avoid duplicates
+						const newSubmitButton = submitButton.cloneNode(true);
+						submitButton.parentNode.replaceChild(newSubmitButton, submitButton);
 
-				newSubmitButton.disabled = false;
-				newSubmitButton.textContent = wu_checkout.i18n.sign_in || 'Sign in';
+						const newPasswordField = passwordField.cloneNode(true);
+						passwordField.parentNode.replaceChild(newPasswordField, passwordField);
+						function handleError(error) {
 
-				if (error.data && error.data.message) {
+							newSubmitButton.disabled = false;
+							newSubmitButton.textContent = wu_checkout.i18n.sign_in || 'Sign in';
 
-					errorDiv.textContent = error.data.message;
+							if (error.data && error.data.message) {
 
-				} else {
+								errorDiv.textContent = error.data.message;
 
-					errorDiv.textContent = wu_checkout.i18n.login_failed || 'Login failed. Please try again.';
+							} else {
 
-				}
+								errorDiv.textContent = wu_checkout.i18n.login_failed || 'Login failed. Please try again.';
 
-				errorDiv.style.display = 'block';
+							}
 
+							errorDiv.style.display = 'block';
 
-			}
+						}
 
-            function handleLogin(e) {
+						function handleLogin(e) {
 
-              e.preventDefault();
-              e.stopPropagation();
-              e.stopImmediatePropagation();
+							e.preventDefault();
+							e.stopPropagation();
+							e.stopImmediatePropagation();
 
-              const password = newPasswordField.value;
+							const password = newPasswordField.value;
 
-              if (!password) {
+							if (! password) {
 
-                errorDiv.textContent = wu_checkout.i18n.password_required || 'Password is required';
-                errorDiv.style.display = 'block';
+								errorDiv.textContent = wu_checkout.i18n.password_required || 'Password is required';
+								errorDiv.style.display = 'block';
 
-                return false;
+								return false;
 
-              }
+							}
 
-              newSubmitButton.disabled = true;
-              newSubmitButton.innerHTML = '<span class="spinner is-active wu-inline-block" style="float: none; width: 16px; height: 16px; margin: 0 4px 0 0;"></span>' + (wu_checkout.i18n.logging_in || 'Logging in...');
-              errorDiv.style.display = 'none';
+							newSubmitButton.disabled = true;
+							newSubmitButton.innerHTML = '<span class="spinner is-active wu-inline-block" style="float: none; width: 16px; height: 16px; margin: 0 4px 0 0;"></span>' + (wu_checkout.i18n.logging_in || 'Logging in...');
+							errorDiv.style.display = 'none';
 
-              const username_or_email = fieldType === 'email' ? that.email_address : that.username;
+							const username_or_email = fieldType === 'email' ? that.email_address : that.username;
 
-              jQuery.ajax({
-                method: 'POST',
-                url: wu_checkout.late_ajaxurl + '&action=wu_inline_login',
-                data: {
-                  username_or_email: username_or_email,
-                  password: password,
-                  _wpnonce: jQuery('[name="_wpnonce"]').val()
-                },
-                success: function(results) {
+							jQuery.ajax({
+								method: 'POST',
+								url: wu_checkout.late_ajaxurl + '&action=wu_inline_login',
+								data: {
+									username_or_email,
+									password,
+									_wpnonce: jQuery('[name="_wpnonce"]').val()
+								},
+								success(results) {
 
-                  if (results.success) {
+									if (results.success) {
 
-                    window.location.reload();
+										window.location.reload();
 
-                  } else {
-					  handleError(results);
-				  }
+									} else {
+										handleError(results);
+									}
 
-                },
-                error: handleError
-              });
+								},
+								error: handleError
+							});
 
-              return false;
+							return false;
 
-            }
+						}
 
-            // Stop all events from bubbling out of the login prompt
-            if (loginPromptContainer) {
+						// Stop all events from bubbling out of the login prompt
+						if (loginPromptContainer) {
 
-              loginPromptContainer.addEventListener('click', function(e) {
+							loginPromptContainer.addEventListener('click', function(e) {
 
-                e.stopPropagation();
+								e.stopPropagation();
 
-              });
+							});
 
-              loginPromptContainer.addEventListener('keydown', function(e) {
+							loginPromptContainer.addEventListener('keydown', function(e) {
 
-                e.stopPropagation();
+								e.stopPropagation();
 
-              });
+							});
 
-              loginPromptContainer.addEventListener('keyup', function(e) {
+							loginPromptContainer.addEventListener('keyup', function(e) {
 
-                e.stopPropagation();
+								e.stopPropagation();
 
-              });
+							});
 
-            }
+						}
 
-            newSubmitButton.addEventListener('click', handleLogin);
+						newSubmitButton.addEventListener('click', handleLogin);
 
-            newPasswordField.addEventListener('keydown', function(e) {
+						newPasswordField.addEventListener('keydown', function(e) {
 
-              if (e.key === 'Enter') {
+							if (e.key === 'Enter') {
 
-                handleLogin(e);
+								handleLogin(e);
 
-              }
+							}
 
-            });
+						});
 
-            if (dismissButton) {
+						if (dismissButton) {
 
-              dismissButton.addEventListener('click', function(e) {
+							dismissButton.addEventListener('click', function(e) {
 
-                e.preventDefault();
-                e.stopPropagation();
-                that.show_login_prompt = false;
-                that.inline_login_password = '';
-                newPasswordField.value = '';
+								e.preventDefault();
+								e.stopPropagation();
+								that.show_login_prompt = false;
+								that.inline_login_password = '';
+								newPasswordField.value = '';
 
-              });
+							});
 
-            }
+						}
 
-          });
+					});
 
-        },
-      },
-      updated() {
+				},
+			},
+			updated() {
 
-        this.$nextTick(function () {
+				this.$nextTick(function () {
 
-          hooks.doAction('wu_on_form_updated', this);
+					hooks.doAction('wu_on_form_updated', this);
 
-          wu_initialize_tooltip();
+					wu_initialize_tooltip();
 
-          // Setup inline login handlers if prompt is visible
-          this.setup_inline_login_handlers();
+					// Setup inline login handlers if prompt is visible
+					this.setup_inline_login_handlers();
 
-        });
+				});
 
-      },
-      mounted() {
+			},
+			mounted() {
 
-        const that = this;
+				const that = this;
 
-        jQuery(this.$el).on('click', function (e) {
+				jQuery(this.$el).on('click', function (e) {
 
-          $(this).data('submited_via', $(e.target));
+					$(this).data('submited_via', $(e.target));
 
-        });
+				});
 
-        jQuery(this.$el).on('submit', async function (e) {
+				jQuery(this.$el).on('submit', async function (e) {
 
-          e.preventDefault();
+					e.preventDefault();
 
-          /**
-           * Handle button submission.
-           */
-          const submit_el = jQuery(this).data('submited_via');
+					/**
+					 * Handle button submission.
+					 */
+					const submit_el = jQuery(this).data('submited_via');
 
-          if (submit_el) {
+					if (submit_el) {
 
-            const new_input = jQuery('<input>');
+						const new_input = jQuery('<input>');
 
-            new_input.attr('type', 'hidden');
+						new_input.attr('type', 'hidden');
 
-            new_input.attr('name', submit_el.attr('name'));
+						new_input.attr('name', submit_el.attr('name'));
 
-            new_input.attr('value', submit_el.val());
+						new_input.attr('value', submit_el.val());
 
-            jQuery(this).append(new_input);
+						jQuery(this).append(new_input);
 
-          } // end if;
+					} // end if;
 
-          that.block();
+					that.block();
 
-          try {
+					try {
 
-            const promises = [];
+						const promises = [];
 
-            // Here we use filter to return possible promises to await
-            await Promise.all(hooks.applyFilters("wu_before_form_submitted", promises, that, that.gateway));
+						// Here we use filter to return possible promises to await
+						await Promise.all(hooks.applyFilters("wu_before_form_submitted", promises, that, that.gateway));
 
-          } catch (error) {
+					} catch (error) {
 
-            that.errors = [];
+						that.errors = [];
 
-            that.errors.push({
-              code: 'before-submit-error',
-              message: error.message,
-            });
+						that.errors.push({
+							code: 'before-submit-error',
+							message: error.message,
+						});
 
-            that.unblock();
+						that.unblock();
 
-            that.handle_errors(error);
+						that.handle_errors(error);
 
-            return;
+						return;
 
-          } // end try;
+					} // end try;
 
-          that.validate_form();
+					that.validate_form();
 
-          hooks.doAction('wu_on_form_submitted', that, that.gateway);
+					hooks.doAction('wu_on_form_submitted', that, that.gateway);
 
-        });
+				});
 
-        this.create_order();
+				this.create_order();
 
-        hooks.doAction('wu_checkout_loaded', this);
+				hooks.doAction('wu_checkout_loaded', this);
 
-        hooks.doAction('wu_on_change_gateway', this.gateway, this.gateway);
+				hooks.doAction('wu_on_change_gateway', this.gateway, this.gateway);
 
-        // Initialize password strength checker using the shared utility
-        this.init_password_strength();
+				// Initialize password strength checker using the shared utility
+				this.init_password_strength();
 
-        wu_initialize_tooltip();
+				wu_initialize_tooltip();
 
-      },
-      watch: {
-        products(new_value, old_value) {
+			},
+			watch: {
+				products(new_value, old_value) {
 
-          this.on_change_product(new_value, old_value);
+					this.on_change_product(new_value, old_value);
 
-        },
-        toggle_discount_code(new_value) {
+				},
+				toggle_discount_code(new_value) {
 
-          if (!new_value) {
+					if (! new_value) {
 
-            this.discount_code = '';
+						this.discount_code = '';
 
-          } // end if;
+					} // end if;
 
-        },
-        discount_code(new_value, old_value) {
+				},
+				discount_code(new_value, old_value) {
 
-          this.on_change_discount_code(new_value, old_value);
+					this.on_change_discount_code(new_value, old_value);
 
-        },
-        gateway(new_value, old_value) {
+				},
+				gateway(new_value, old_value) {
 
-          this.on_change_gateway(new_value, old_value);
+					this.on_change_gateway(new_value, old_value);
 
-        },
-        country(new_value, old_value) {
+				},
+				country(new_value, old_value) {
 
-          this.state = '';
+					this.state = '';
 
-          this.on_change_country(new_value, old_value);
+					this.on_change_country(new_value, old_value);
 
-        },
-        state(new_value, old_value) {
+				},
+				state(new_value, old_value) {
 
-          this.city = '';
+					this.city = '';
 
-          this.on_change_state(new_value, old_value);
+					this.on_change_state(new_value, old_value);
 
-        },
-        city(new_value, old_value) {
+				},
+				city(new_value, old_value) {
 
-          this.on_change_city(new_value, old_value);
+					this.on_change_city(new_value, old_value);
 
-        },
-        duration(new_value, old_value) {
+				},
+				duration(new_value, old_value) {
 
-          this.on_change_duration(new_value, old_value);
+					this.on_change_duration(new_value, old_value);
 
-        },
-        duration_unit(new_value, old_value) {
+				},
+				duration_unit(new_value, old_value) {
 
-          this.on_change_duration_unit(new_value, old_value);
+					this.on_change_duration_unit(new_value, old_value);
 
-        },
-      },
-    });
+				},
+			},
+		});
 
-  });
+	});
 
 }(jQuery, wp.hooks, _));
