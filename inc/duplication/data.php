@@ -229,12 +229,29 @@ if ( ! class_exists('MUCD_Data') ) {
 			$from_site_prefix = $wpdb->get_blog_prefix($from_site_id);
 			$to_site_prefix   = $wpdb->get_blog_prefix($to_site_id);
 
+			$from_upload_url_clean           = wu_replace_scheme($from_upload_url);
+			$to_upload_url_clean             = wu_replace_scheme($to_upload_url);
+			$from_upload_url_w_network_clean = wu_replace_scheme($from_upload_url_w_network);
+			$to_upload_url_w_network_clean   = wu_replace_scheme($to_upload_url_w_network);
+			$from_blog_url_clean             = wu_replace_scheme($from_blog_url);
+			$to_blog_url_clean               = wu_replace_scheme($to_blog_url);
+
 			$string_to_replace = [
-				wu_replace_scheme($from_upload_url) => wu_replace_scheme($to_upload_url),
-				wu_replace_scheme($from_upload_url_w_network) => wu_replace_scheme($to_upload_url_w_network),
-				wu_replace_scheme($from_blog_url)   => wu_replace_scheme($to_blog_url),
-				$from_site_prefix                   => $to_site_prefix,
+				$from_upload_url_clean           => $to_upload_url_clean,
+				$from_upload_url_w_network_clean => $to_upload_url_w_network_clean,
+				$from_blog_url_clean             => $to_blog_url_clean,
+				$from_site_prefix                => $to_site_prefix,
 			];
+
+			// Add JSON-escaped versions of URLs (forward slashes escaped as \/).
+			// Page builders like Elementor store URLs in JSON where / becomes \/.
+			$json_replacements = [
+				str_replace('/', '\\/', $from_upload_url_clean)           => str_replace('/', '\\/', $to_upload_url_clean),
+				str_replace('/', '\\/', $from_upload_url_w_network_clean) => str_replace('/', '\\/', $to_upload_url_w_network_clean),
+				str_replace('/', '\\/', $from_blog_url_clean)             => str_replace('/', '\\/', $to_blog_url_clean),
+			];
+
+			$string_to_replace = array_merge($string_to_replace, $json_replacements);
 
 			$string_to_replace = apply_filters('mucd_string_to_replace', $string_to_replace, $from_site_id, $to_site_id);
 
@@ -313,7 +330,6 @@ if ( ! class_exists('MUCD_Data') ) {
 
 		/**
 		 * Replace $from_string with $to_string in $val
-		 * Warning : if $to_string already in $val, no replacement is made
 		 *
 		 * @since 0.2.0
 		 * @param  string $val         Original value to modify.
@@ -322,15 +338,11 @@ if ( ! class_exists('MUCD_Data') ) {
 		 * @return string The new string.
 		 */
 		public static function replace($val, $from_string, $to_string) {
-			$new = $val;
 			if (is_string($val)) {
-				$pos = strpos($val, $to_string);
-				if (false === $pos) {
-					$new = str_replace($from_string, $to_string, $val);
-				}
+				return str_replace($from_string, $to_string, $val);
 			}
 
-			return $new;
+			return $val;
 		}
 
 		/**
@@ -401,6 +413,18 @@ if ( ! class_exists('MUCD_Data') ) {
 				// Pour des options comme wp_carousel...
 				if ($double_serialize) {
 					$row[ $field ] = serialize($row[ $field ]);
+				}
+			} elseif (is_array($row[ $field ])) {
+				$row[ $field ] = self::replace_recursive($row[ $field ], $from_string, $to_string);
+			} elseif (is_object($row[ $field ])) {
+				$array_object = (array) $row[ $field ];
+				$array_object = self::replace_recursive($array_object, $from_string, $to_string);
+				foreach ($array_object as $key => $value) {
+					try {
+						$row[ $field ]->$key = $value;
+					} catch (\Throwable $exception) {
+						// ...nothing
+					}
 				}
 			} else {
 				$row[ $field ] = self::replace($row[ $field ], $from_string, $to_string);

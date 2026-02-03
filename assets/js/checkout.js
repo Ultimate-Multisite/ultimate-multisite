@@ -147,6 +147,7 @@
       country: wu_checkout.country,
       state: '',
       city: '',
+      site_title: wu_checkout.site_title || '',
       site_url: wu_checkout.site_url,
       site_domain: wu_checkout.site_domain,
       is_subdomain: wu_checkout.is_subdomain,
