@@ -3,12 +3,17 @@
  * Create a checkout form and registration page for e2e testing.
  * Idempotent: skips creation if the form already exists.
  */
-$existing = WP_Ultimo\Models\Checkout_Form::query( [ 'search' => 'main-form', 'number' => 1 ] );
+$existing = WP_Ultimo\Models\Checkout_Form::query(
+	[
+		'search' => 'main-form',
+		'number' => 1,
+	]
+);
 
 if ( $existing ) {
 	$form    = $existing[0];
-	$page_id = wu_get_setting( 'default_registration_page', 0 );
-	echo 'form:' . $form->get_id() . ',page:' . $page_id;
+	$page_id = wu_get_setting('default_registration_page', 0);
+	echo 'form:' . esc_html($form->get_id()) . ',page:' . esc_html($page_id);
 	return;
 }
 
@@ -18,14 +23,14 @@ $form_data = [
 	'settings' => [],
 ];
 
-$form = wu_create_checkout_form( $form_data );
+$form = wu_create_checkout_form($form_data);
 
-if ( is_wp_error( $form ) ) {
-	echo 'error:' . $form->get_error_message();
+if ( is_wp_error($form) ) {
+	echo 'error:' . esc_html($form->get_error_message());
 	return;
 }
 
-$form->use_template( 'single-step' );
+$form->use_template('single-step');
 $form->save();
 
 $page_id = wp_insert_post(
@@ -39,6 +44,6 @@ $page_id = wp_insert_post(
 	]
 );
 
-wu_save_setting( 'default_registration_page', $page_id );
+wu_save_setting('default_registration_page', $page_id);
 
-echo 'form:' . $form->get_id() . ',page:' . $page_id;
+echo 'form:' . esc_html($form->get_id()) . ',page:' . esc_html($page_id);
