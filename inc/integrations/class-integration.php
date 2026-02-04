@@ -569,10 +569,10 @@ class Integration {
 			sprintf('// Ultimate Multisite - Domain Mapping - %s', $this->get_title()),
 		];
 
-		$constant_values = shortcode_atts(array_flip($this->get_all_constants()), $constant_values);
+		$constant_values = shortcode_atts(array_fill_keys($this->get_all_constants(), ''), $constant_values);
 
 		foreach ($constant_values as $constant => $value) {
-			$content[] = sprintf("define( '%s', '%s' );", $constant, $value);
+			$content[] = sprintf('define( %s, %s );', var_export($constant, true), var_export($value, true)); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_var_export
 		}
 
 		$content[] = sprintf('// Ultimate Multisite - Domain Mapping - %s - End', $this->get_title());
