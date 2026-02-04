@@ -50,7 +50,7 @@ if ( ! isset($signup->step)) {
 
 		<a href="<?php echo esc_attr($link); ?>">
 
-		<?php echo esc_html($label); ?>
+		<?php echo wp_kses_post($label); ?>
 
 		</a>
 

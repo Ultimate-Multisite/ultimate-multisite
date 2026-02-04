@@ -10,6 +10,6 @@ if ( ! $loader->is_installed() ) {
 	$installer->_install_database_tables();
 }
 
-update_network_option( null, WP_Ultimo::NETWORK_OPTION_SETUP_FINISHED, time() );
+update_network_option(null, WP_Ultimo::NETWORK_OPTION_SETUP_FINISHED, time());
 
 echo $loader->is_installed() ? 'installed' : 'failed';
