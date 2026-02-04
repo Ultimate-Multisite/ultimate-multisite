@@ -1064,7 +1064,9 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 				'label'   => __('Click to copy Shareable Link', 'ultimate-multisite'),
 				'icon'    => 'wu-attachment',
 				'classes' => 'wu-copy',
-				'attrs'   => 'data-clipboard-text="' . esc_attr($shareable_link) . '"',
+				'attrs'   => [
+					'data-clipboard-text' => $shareable_link,
+				],
 			];
 		}
 

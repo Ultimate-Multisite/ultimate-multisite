@@ -736,12 +736,9 @@ abstract class Base_Model implements \JsonSerializable {
 		}
 
 		$meta_type = $this->get_meta_type_name();
+		$value     = get_metadata_raw($meta_type, $this->get_id(), $key, $single);
 
-		if (metadata_exists($meta_type, $this->get_id(), $key)) {
-			return get_metadata($meta_type, $this->get_id(), $key, $single);
-		}
-
-		return $default_value;
+		return ! is_null($value) ? $value : $default_value;
 	}
 
 	/**

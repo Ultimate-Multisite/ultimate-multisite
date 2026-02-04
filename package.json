@@ -49,7 +49,7 @@
     "cleancss": "node scripts/cleancss.js",
     "makepot": "node scripts/makepot.js",
     "test": "vendor/bin/phpunit",
-    "test:coverage": "vendor/bin/phpunit --coverage-html=coverage-html --coverage-clover=coverage.xml",
+    "test:coverage": "php -d zend_extension=xdebug -d xdebug.mode=coverage vendor/bin/phpunit --coverage-html=coverage-html --coverage-clover=coverage.xml --coverage-text",
     "test:watch": "vendor/bin/phpunit --watch",
     "lint": "run-p lint:php lint:js lint:css",
     "lint:php": "vendor/bin/phpcs",

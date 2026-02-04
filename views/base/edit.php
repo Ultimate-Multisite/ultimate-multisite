@@ -13,7 +13,19 @@ defined('ABSPATH') || exit;
 		<?php echo esc_html($page->edit ? $labels['edit_label'] : $labels['add_new_label']); ?>
 
 		<?php foreach ($page->get_title_links() as $action_link) : ?>
-			<a title="<?php echo esc_attr($action_link['label']); ?>" href="<?php echo esc_url($action_link['url']); ?>" class="page-title-action <?php echo esc_attr($action_link['classes'] ?? ''); ?>" <?php echo esc_attr($action_link['attrs'] ?? ''); ?>>
+			<a title="<?php echo esc_attr($action_link['label']); ?>" href="<?php echo esc_url($action_link['url']); ?>" class="page-title-action <?php echo esc_attr($action_link['classes'] ?? ''); ?>"
+			<?php
+			if (! empty($action_link['attrs'])) {
+				if (is_array($action_link['attrs'])) {
+					foreach ($action_link['attrs'] as $attr_name => $attr_value) {
+						printf(' %s="%s"', esc_attr($attr_name), esc_attr($attr_value));
+					}
+				} else {
+					echo ' ' . $action_link['attrs']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped attributes
+				}
+			}
+			?>
+		>
 				<?php if ($action_link['icon']) : ?>
 					<span class="dashicons dashicons-<?php echo esc_attr($action_link['icon']); ?> wu-text-sm wu-align-middle wu-h-4 wu-w-4">&nbsp;</span>
 				<?php endif; ?>

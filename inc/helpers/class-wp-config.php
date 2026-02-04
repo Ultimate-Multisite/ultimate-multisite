@@ -105,8 +105,16 @@ class WP_Config {
 		} elseif (@file_exists(dirname(ABSPATH) . '/wp-config.php') && ! @file_exists(dirname(ABSPATH) . '/wp-settings.php')) {
 			return (dirname(ABSPATH) . '/wp-config.php');
 		} elseif (defined('WP_TESTS_MULTISITE') && constant('WP_TESTS_MULTISITE') === true) {
-			return '/tmp/wordpress-tests-lib/wp-tests-config.php';
+			$tests_dir = getenv('WP_TESTS_DIR');
+
+			if (! $tests_dir) {
+				$tests_dir = rtrim(sys_get_temp_dir(), '/\\') . '/wordpress-tests-lib';
+			}
+
+			return $tests_dir . '/wp-tests-config.php';
 		}
+
+		return ABSPATH . 'wp-config.php';
 	}
 
 	/**

@@ -675,167 +675,119 @@ final class WP_Ultimo {
 	 */
 	protected function load_admin_pages(): void {
 		/*
-		 * Migration Wizard Alert
-		 */
-		new WP_Ultimo\Admin_Pages\Migration_Alert_Admin_Page();
-
-		/*
-		 * Loads the Dashboard admin page.
-		 */
-		new WP_Ultimo\Admin_Pages\Dashboard_Admin_Page();
-
-		/*
-		 * The top admin navigation bar.
+		 * These classes register hooks that fire on both frontend and admin
+		 * (admin bar menus, nav menu filters), so they must always be loaded.
 		 */
 		new WP_Ultimo\Admin_Pages\Top_Admin_Nav_Menu();
 
-		/*
-		 * Initialize magic links for admin bar My Sites menu.
-		 */
 		\WP_Ultimo\SSO\Admin_Bar_Magic_Links::get_instance();
 
-		/*
-		 * Initialize subsite links for nav menus.
-		 */
 		\WP_Ultimo\SSO\Nav_Menu_Subsite_Links::get_instance();
 
 		/*
-		 * Loads the Checkout Form admin page.
+		 * My_Sites registers an admin_bar_menu hook for customer-owned sites,
+		 * which fires on frontend for logged-in users.
 		 */
+		new WP_Ultimo\Admin_Pages\Customer_Panel\My_Sites_Admin_Page();
+
+		/*
+		 * The remaining admin pages only register admin menu items,
+		 * admin-only forms, and wp_ajax_ handlers. They are not needed
+		 * on frontend requests.
+		 */
+		if (is_admin() || wp_doing_ajax()) {
+			$this->load_admin_only_pages();
+		}
+
+		do_action('wp_ultimo_admin_pages');
+	}
+
+	/**
+	 * Loads admin pages that are only needed on admin or AJAX requests.
+	 *
+	 * @since 2.5.0
+	 * @return void
+	 */
+	protected function load_admin_only_pages(): void {
+
+		new WP_Ultimo\Admin_Pages\Migration_Alert_Admin_Page();
+
+		new WP_Ultimo\Admin_Pages\Dashboard_Admin_Page();
+
 		new WP_Ultimo\Admin_Pages\Checkout_Form_List_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Checkout_Form_Edit_Admin_Page();
 
-		/*
-		 * Loads the Product Pages
-		 */
 		new WP_Ultimo\Admin_Pages\Product_List_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Product_Edit_Admin_Page();
 
-		/*
-		 * Loads the Memberships Pages
-		 */
 		new WP_Ultimo\Admin_Pages\Membership_List_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Membership_Edit_Admin_Page();
 
-		/*
-		 * Loads the Payments Pages
-		 */
 		new WP_Ultimo\Admin_Pages\Payment_List_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Payment_Edit_Admin_Page();
 
-		/*
-		 * Loads the Customers Pages
-		 */
 		new WP_Ultimo\Admin_Pages\Customer_List_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Customer_Edit_Admin_Page();
 
-		/*
-		 * Loads the Site Pages
-		 */
 		new WP_Ultimo\Admin_Pages\Site_List_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Site_Edit_Admin_Page();
 
-		/*
-		 * Loads the Domain Pages
-		 */
 		new WP_Ultimo\Admin_Pages\Domain_List_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Domain_Edit_Admin_Page();
 
-		/*
-		 * Loads the Discount Code Pages
-		 */
 		new WP_Ultimo\Admin_Pages\Discount_Code_List_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Discount_Code_Edit_Admin_Page();
 
-		/*
-		 * Loads the Broadcast Pages
-		 */
 		new WP_Ultimo\Admin_Pages\Broadcast_List_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Broadcast_Edit_Admin_Page();
 
-		/*
-		 * Loads the Broadcast Pages
-		 */
 		new WP_Ultimo\Admin_Pages\Email_List_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Email_Edit_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Email_Template_Customize_Admin_Page();
 
-		/*
-		 * Loads the Settings
-		 */
 		new WP_Ultimo\Admin_Pages\Settings_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Invoice_Template_Customize_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Template_Previewer_Customize_Admin_Page();
 
-		/*
-		 * Loads the Hosting Integration
-		 */
 		new WP_Ultimo\Admin_Pages\Hosting_Integration_Wizard_Admin_Page();
 
-		/*
-		 * Loads the Events Pages
-		 */
 		new WP_Ultimo\Admin_Pages\Event_List_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Event_View_Admin_Page();
 
-		/*
-		 * Loads the Webhooks Pages
-		 */
 		new WP_Ultimo\Admin_Pages\Webhook_List_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Webhook_Edit_Admin_Page();
 
-		/*
-		 * Loads the Jobs Pages
-		 */
 		new WP_Ultimo\Admin_Pages\Jobs_List_Admin_Page();
 
-		/*
-		 * Loads the System Info Pages
-		 */
 		new WP_Ultimo\Admin_Pages\System_Info_Admin_Page();
 
-		/*
-		 * Loads the Shortcodes Page
-		 */
 		new WP_Ultimo\Admin_Pages\Shortcodes_Admin_Page();
 
-		/*
-		 * Loads the View Logs Pages
-		 */
 		new WP_Ultimo\Admin_Pages\View_Logs_Admin_Page();
 
-		/*
-		 * Loads the View Logs Pages
-		 */
 		new WP_Ultimo\Admin_Pages\Customer_Panel\Account_Admin_Page();
-		new WP_Ultimo\Admin_Pages\Customer_Panel\My_Sites_Admin_Page();
 		new WP_Ultimo\Admin_Pages\Customer_Panel\Add_New_Site_Admin_Page();
 		new WP_Ultimo\Admin_Pages\Customer_Panel\Checkout_Admin_Page();
 		new WP_Ultimo\Admin_Pages\Customer_Panel\Template_Switching_Admin_Page();
 
-		/*
-		 * Loads the Tax Pages
-		 */
 		new WP_Ultimo\Tax\Dashboard_Taxes_Tab();
 
 		new WP_Ultimo\Admin_Pages\Addons_Admin_Page();
-
-		do_action('wp_ultimo_admin_pages');
 	}
 
 	/**

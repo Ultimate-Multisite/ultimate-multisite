@@ -139,10 +139,9 @@ class Arr {
 			return $array_to_modify = $value; // phpcs:ignore
 		}
 
-		$keys       = explode('.', $key);
-		$keys_count = count($keys);
+		$keys = explode('.', $key);
 
-		while ($keys_count > 1) {
+		while (count($keys) > 1) {
 			$key = array_shift($keys);
 
 			if ( ! isset($array_to_modify[ $key ]) || ! is_array($array_to_modify[ $key ])) {
