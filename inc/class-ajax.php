@@ -110,16 +110,9 @@ class Ajax implements \WP_Ultimo\Interfaces\Singleton {
 		);
 
 		// Number can be in the query array or it's own. Code uses both.
-		if (! empty($args['query']['number'])) {
+		if (empty($args['query']['number'])) {
 			$args['query']['number'] = $args['number'];
 		}
-
-		$query = array_merge(
-			[
-				'number' => $args['number'],
-			],
-			$args['query']
-		);
 
 		if ($args['exclude']) {
 			if (is_string($args['exclude'])) {
