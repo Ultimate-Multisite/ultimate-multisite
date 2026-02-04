@@ -37,7 +37,7 @@ $sql            = '';
  * Fires before blogs are fetched from the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:883
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -47,7 +47,7 @@ do_action_ref_array('wu_pre_get_blogs', [&$query]);
  * Fires after blogs query vars have been parsed.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1159
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -57,7 +57,7 @@ do_action_ref_array('wu_parse_blogs_query', [&$query]);
  * Filters the SQL clauses for a blogs query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:994
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $clauses {
  *     Associative array of SQL clause strings.
@@ -78,7 +78,7 @@ $clauses = apply_filters_ref_array('wu_blogs_query_clauses', [$clauses, &$query]
  * Filters the columns to search when performing a blogs search.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1306
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string[]                 $search_columns Array of column names to search.
  * @param string                   $search         The search term.
@@ -91,7 +91,7 @@ $search_columns = apply_filters('wu_blogs_search_columns', $search_columns, $sea
  * Filters the found blogs after a query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1595
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param object[]                 $items The array of found blog objects.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -103,7 +103,7 @@ $items = apply_filters_ref_array('wu_the_blogs', [$items, &$query]);
  * Filters a single blog item before it is inserted or updated in the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2068
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $item  The item data as an associative array.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -115,7 +115,7 @@ $item = apply_filters_ref_array('wu_filter_blog_item', [$item, &$query]);
  * Filters the FOUND_ROWS() query for blogs.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:640
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string                   $sql   The SQL query to count found rows.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -132,7 +132,7 @@ $sql = apply_filters_ref_array('wu_found_blogs_query', [$sql, &$query]);
  * column for a customer row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous email verification value.
  * @param string $new_value The new email verification value.
@@ -147,7 +147,7 @@ do_action('wu_transition_customer_email_verification', $old_value, $new_value, $
  * column for a customer row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous has trialed value.
  * @param int $new_value The new has trialed value.
@@ -162,7 +162,7 @@ do_action('wu_transition_customer_has_trialed', $old_value, $new_value, $item_id
  * column for a customer row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous vip value.
  * @param int $new_value The new vip value.
@@ -174,7 +174,7 @@ do_action('wu_transition_customer_vip', $old_value, $new_value, $item_id);
  * Fires before customers are fetched from the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:883
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -184,7 +184,7 @@ do_action_ref_array('wu_pre_get_customers', [&$query]);
  * Fires after customers query vars have been parsed.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1159
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -194,7 +194,7 @@ do_action_ref_array('wu_parse_customers_query', [&$query]);
  * Filters the SQL clauses for a customers query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:994
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $clauses {
  *     Associative array of SQL clause strings.
@@ -215,7 +215,7 @@ $clauses = apply_filters_ref_array('wu_customers_query_clauses', [$clauses, &$qu
  * Filters the columns to search when performing a customers search.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1306
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string[]                 $search_columns Array of column names to search.
  * @param string                   $search         The search term.
@@ -228,7 +228,7 @@ $search_columns = apply_filters('wu_customers_search_columns', $search_columns, 
  * Filters the found customers after a query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1595
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param object[]                 $items The array of found customer objects.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -240,7 +240,7 @@ $items = apply_filters_ref_array('wu_the_customers', [$items, &$query]);
  * Filters a single customer item before it is inserted or updated in the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2068
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $item  The item data as an associative array.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -252,7 +252,7 @@ $item = apply_filters_ref_array('wu_filter_customer_item', [$item, &$query]);
  * Filters the FOUND_ROWS() query for customers.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:640
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string                   $sql   The SQL query to count found rows.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -269,7 +269,7 @@ $sql = apply_filters_ref_array('wu_found_customers_query', [$sql, &$query]);
  * column for a discount code row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous code value.
  * @param string $new_value The new code value.
@@ -284,7 +284,7 @@ do_action('wu_transition_discount_code_code', $old_value, $new_value, $item_id);
  * column for a discount code row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous uses value.
  * @param int $new_value The new uses value.
@@ -299,7 +299,7 @@ do_action('wu_transition_discount_code_uses', $old_value, $new_value, $item_id);
  * column for a discount code row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous max uses value.
  * @param int $new_value The new max uses value.
@@ -314,7 +314,7 @@ do_action('wu_transition_discount_code_max_uses', $old_value, $new_value, $item_
  * column for a discount code row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous apply to renewals value.
  * @param int $new_value The new apply to renewals value.
@@ -329,7 +329,7 @@ do_action('wu_transition_discount_code_apply_to_renewals', $old_value, $new_valu
  * column for a discount code row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous type value.
  * @param string $new_value The new type value.
@@ -344,7 +344,7 @@ do_action('wu_transition_discount_code_type', $old_value, $new_value, $item_id);
  * column for a discount code row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous value value.
  * @param string $new_value The new value value.
@@ -359,7 +359,7 @@ do_action('wu_transition_discount_code_value', $old_value, $new_value, $item_id)
  * column for a discount code row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous setup fee type value.
  * @param string $new_value The new setup fee type value.
@@ -374,7 +374,7 @@ do_action('wu_transition_discount_code_setup_fee_type', $old_value, $new_value, 
  * column for a discount code row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous setup fee value value.
  * @param string $new_value The new setup fee value value.
@@ -389,7 +389,7 @@ do_action('wu_transition_discount_code_setup_fee_value', $old_value, $new_value,
  * column for a discount code row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous active value.
  * @param int $new_value The new active value.
@@ -404,7 +404,7 @@ do_action('wu_transition_discount_code_active', $old_value, $new_value, $item_id
  * column for a discount code row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous date start value.
  * @param string $new_value The new date start value.
@@ -419,7 +419,7 @@ do_action('wu_transition_discount_code_date_start', $old_value, $new_value, $ite
  * column for a discount code row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous date expiration value.
  * @param string $new_value The new date expiration value.
@@ -431,7 +431,7 @@ do_action('wu_transition_discount_code_date_expiration', $old_value, $new_value,
  * Fires before discount codes are fetched from the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:883
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -441,7 +441,7 @@ do_action_ref_array('wu_pre_get_discount_codes', [&$query]);
  * Fires after discount codes query vars have been parsed.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1159
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -451,7 +451,7 @@ do_action_ref_array('wu_parse_discount_codes_query', [&$query]);
  * Filters the SQL clauses for a discount codes query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:994
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $clauses {
  *     Associative array of SQL clause strings.
@@ -472,7 +472,7 @@ $clauses = apply_filters_ref_array('wu_discount_codes_query_clauses', [$clauses,
  * Filters the columns to search when performing a discount codes search.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1306
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string[]                 $search_columns Array of column names to search.
  * @param string                   $search         The search term.
@@ -485,7 +485,7 @@ $search_columns = apply_filters('wu_discount_codes_search_columns', $search_colu
  * Filters the found discount codes after a query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1595
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param object[]                 $items The array of found discount code objects.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -497,7 +497,7 @@ $items = apply_filters_ref_array('wu_the_discount_codes', [$items, &$query]);
  * Filters a single discount code item before it is inserted or updated in the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2068
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $item  The item data as an associative array.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -509,7 +509,7 @@ $item = apply_filters_ref_array('wu_filter_discount_code_item', [$item, &$query]
  * Filters the FOUND_ROWS() query for discount codes.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:640
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string                   $sql   The SQL query to count found rows.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -526,7 +526,7 @@ $sql = apply_filters_ref_array('wu_found_discount_codes_query', [$sql, &$query])
  * column for a domain row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous domain value.
  * @param string $new_value The new domain value.
@@ -541,7 +541,7 @@ do_action('wu_transition_domain_domain', $old_value, $new_value, $item_id);
  * column for a domain row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous active value.
  * @param int $new_value The new active value.
@@ -556,7 +556,7 @@ do_action('wu_transition_domain_active', $old_value, $new_value, $item_id);
  * column for a domain row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous primary domain value.
  * @param int $new_value The new primary domain value.
@@ -571,7 +571,7 @@ do_action('wu_transition_domain_primary_domain', $old_value, $new_value, $item_i
  * column for a domain row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous secure value.
  * @param int $new_value The new secure value.
@@ -586,7 +586,7 @@ do_action('wu_transition_domain_secure', $old_value, $new_value, $item_id);
  * column for a domain row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous stage value.
  * @param string $new_value The new stage value.
@@ -598,7 +598,7 @@ do_action('wu_transition_domain_stage', $old_value, $new_value, $item_id);
  * Fires before domains are fetched from the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:883
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -608,7 +608,7 @@ do_action_ref_array('wu_pre_get_domains', [&$query]);
  * Fires after domains query vars have been parsed.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1159
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -618,7 +618,7 @@ do_action_ref_array('wu_parse_domains_query', [&$query]);
  * Filters the SQL clauses for a domains query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:994
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $clauses {
  *     Associative array of SQL clause strings.
@@ -639,7 +639,7 @@ $clauses = apply_filters_ref_array('wu_domains_query_clauses', [$clauses, &$quer
  * Filters the columns to search when performing a domains search.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1306
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string[]                 $search_columns Array of column names to search.
  * @param string                   $search         The search term.
@@ -652,7 +652,7 @@ $search_columns = apply_filters('wu_domains_search_columns', $search_columns, $s
  * Filters the found domains after a query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1595
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param object[]                 $items The array of found domain objects.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -664,7 +664,7 @@ $items = apply_filters_ref_array('wu_the_domains', [$items, &$query]);
  * Filters a single domain item before it is inserted or updated in the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2068
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $item  The item data as an associative array.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -676,7 +676,7 @@ $item = apply_filters_ref_array('wu_filter_domain_item', [$item, &$query]);
  * Filters the FOUND_ROWS() query for domains.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:640
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string                   $sql   The SQL query to count found rows.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -693,7 +693,7 @@ $sql = apply_filters_ref_array('wu_found_domains_query', [$sql, &$query]);
  * column for a event row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous author id value.
  * @param int $new_value The new author id value.
@@ -708,7 +708,7 @@ do_action('wu_transition_event_author_id', $old_value, $new_value, $item_id);
  * column for a event row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous object id value.
  * @param int $new_value The new object id value.
@@ -720,7 +720,7 @@ do_action('wu_transition_event_object_id', $old_value, $new_value, $item_id);
  * Fires before events are fetched from the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:883
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -730,7 +730,7 @@ do_action_ref_array('wu_pre_get_events', [&$query]);
  * Fires after events query vars have been parsed.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1159
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -740,7 +740,7 @@ do_action_ref_array('wu_parse_events_query', [&$query]);
  * Filters the SQL clauses for a events query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:994
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $clauses {
  *     Associative array of SQL clause strings.
@@ -761,7 +761,7 @@ $clauses = apply_filters_ref_array('wu_events_query_clauses', [$clauses, &$query
  * Filters the columns to search when performing a events search.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1306
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string[]                 $search_columns Array of column names to search.
  * @param string                   $search         The search term.
@@ -774,7 +774,7 @@ $search_columns = apply_filters('wu_events_search_columns', $search_columns, $se
  * Filters the found events after a query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1595
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param object[]                 $items The array of found event objects.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -786,7 +786,7 @@ $items = apply_filters_ref_array('wu_the_events', [$items, &$query]);
  * Filters a single event item before it is inserted or updated in the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2068
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $item  The item data as an associative array.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -798,7 +798,7 @@ $item = apply_filters_ref_array('wu_filter_event_item', [$item, &$query]);
  * Filters the FOUND_ROWS() query for events.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:640
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string                   $sql   The SQL query to count found rows.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -815,7 +815,7 @@ $sql = apply_filters_ref_array('wu_found_events_query', [$sql, &$query]);
  * column for a form row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous name value.
  * @param string $new_value The new name value.
@@ -830,7 +830,7 @@ do_action('wu_transition_form_name', $old_value, $new_value, $item_id);
  * column for a form row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous slug value.
  * @param string $new_value The new slug value.
@@ -845,7 +845,7 @@ do_action('wu_transition_form_slug', $old_value, $new_value, $item_id);
  * column for a form row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous active value.
  * @param int $new_value The new active value.
@@ -860,7 +860,7 @@ do_action('wu_transition_form_active', $old_value, $new_value, $item_id);
  * column for a form row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous settings value.
  * @param string $new_value The new settings value.
@@ -872,7 +872,7 @@ do_action('wu_transition_form_settings', $old_value, $new_value, $item_id);
  * Fires before forms are fetched from the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:883
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -882,7 +882,7 @@ do_action_ref_array('wu_pre_get_forms', [&$query]);
  * Fires after forms query vars have been parsed.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1159
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -892,7 +892,7 @@ do_action_ref_array('wu_parse_forms_query', [&$query]);
  * Filters the SQL clauses for a forms query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:994
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $clauses {
  *     Associative array of SQL clause strings.
@@ -913,7 +913,7 @@ $clauses = apply_filters_ref_array('wu_forms_query_clauses', [$clauses, &$query]
  * Filters the columns to search when performing a forms search.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1306
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string[]                 $search_columns Array of column names to search.
  * @param string                   $search         The search term.
@@ -926,7 +926,7 @@ $search_columns = apply_filters('wu_forms_search_columns', $search_columns, $sea
  * Filters the found forms after a query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1595
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param object[]                 $items The array of found form objects.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -938,7 +938,7 @@ $items = apply_filters_ref_array('wu_the_forms', [$items, &$query]);
  * Filters a single form item before it is inserted or updated in the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2068
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $item  The item data as an associative array.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -950,7 +950,7 @@ $item = apply_filters_ref_array('wu_filter_form_item', [$item, &$query]);
  * Filters the FOUND_ROWS() query for forms.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:640
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string                   $sql   The SQL query to count found rows.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -967,7 +967,7 @@ $sql = apply_filters_ref_array('wu_found_forms_query', [$sql, &$query]);
  * column for a membership row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous plan id value.
  * @param int $new_value The new plan id value.
@@ -982,7 +982,7 @@ do_action('wu_transition_membership_plan_id', $old_value, $new_value, $item_id);
  * column for a membership row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous initial amount value.
  * @param string $new_value The new initial amount value.
@@ -997,7 +997,7 @@ do_action('wu_transition_membership_initial_amount', $old_value, $new_value, $it
  * column for a membership row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous recurring value.
  * @param int $new_value The new recurring value.
@@ -1012,7 +1012,7 @@ do_action('wu_transition_membership_recurring', $old_value, $new_value, $item_id
  * column for a membership row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous auto renew value.
  * @param int $new_value The new auto renew value.
@@ -1027,7 +1027,7 @@ do_action('wu_transition_membership_auto_renew', $old_value, $new_value, $item_i
  * column for a membership row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous duration value.
  * @param int $new_value The new duration value.
@@ -1042,7 +1042,7 @@ do_action('wu_transition_membership_duration', $old_value, $new_value, $item_id)
  * column for a membership row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous amount value.
  * @param string $new_value The new amount value.
@@ -1057,7 +1057,7 @@ do_action('wu_transition_membership_amount', $old_value, $new_value, $item_id);
  * column for a membership row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous date expiration value.
  * @param string $new_value The new date expiration value.
@@ -1072,7 +1072,7 @@ do_action('wu_transition_membership_date_expiration', $old_value, $new_value, $i
  * column for a membership row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous date payment plan completed value.
  * @param string $new_value The new date payment plan completed value.
@@ -1087,7 +1087,7 @@ do_action('wu_transition_membership_date_payment_plan_completed', $old_value, $n
  * column for a membership row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous times billed value.
  * @param int $new_value The new times billed value.
@@ -1102,7 +1102,7 @@ do_action('wu_transition_membership_times_billed', $old_value, $new_value, $item
  * column for a membership row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous status value.
  * @param string $new_value The new status value.
@@ -1117,7 +1117,7 @@ do_action('wu_transition_membership_status', $old_value, $new_value, $item_id);
  * column for a membership row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous gateway customer id value.
  * @param string $new_value The new gateway customer id value.
@@ -1132,7 +1132,7 @@ do_action('wu_transition_membership_gateway_customer_id', $old_value, $new_value
  * column for a membership row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous gateway subscription id value.
  * @param string $new_value The new gateway subscription id value.
@@ -1144,7 +1144,7 @@ do_action('wu_transition_membership_gateway_subscription_id', $old_value, $new_v
  * Fires before memberships are fetched from the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:883
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -1154,7 +1154,7 @@ do_action_ref_array('wu_pre_get_memberships', [&$query]);
  * Fires after memberships query vars have been parsed.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1159
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -1164,7 +1164,7 @@ do_action_ref_array('wu_parse_memberships_query', [&$query]);
  * Filters the SQL clauses for a memberships query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:994
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $clauses {
  *     Associative array of SQL clause strings.
@@ -1185,7 +1185,7 @@ $clauses = apply_filters_ref_array('wu_memberships_query_clauses', [$clauses, &$
  * Filters the columns to search when performing a memberships search.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1306
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string[]                 $search_columns Array of column names to search.
  * @param string                   $search         The search term.
@@ -1198,7 +1198,7 @@ $search_columns = apply_filters('wu_memberships_search_columns', $search_columns
  * Filters the found memberships after a query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1595
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param object[]                 $items The array of found membership objects.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1210,7 +1210,7 @@ $items = apply_filters_ref_array('wu_the_memberships', [$items, &$query]);
  * Filters a single membership item before it is inserted or updated in the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2068
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $item  The item data as an associative array.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1222,7 +1222,7 @@ $item = apply_filters_ref_array('wu_filter_membership_item', [$item, &$query]);
  * Filters the FOUND_ROWS() query for memberships.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:640
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string                   $sql   The SQL query to count found rows.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1239,7 +1239,7 @@ $sql = apply_filters_ref_array('wu_found_memberships_query', [$sql, &$query]);
  * column for a payment row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous status value.
  * @param string $new_value The new status value.
@@ -1254,7 +1254,7 @@ do_action('wu_transition_payment_status', $old_value, $new_value, $item_id);
  * column for a payment row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous customer id value.
  * @param int $new_value The new customer id value.
@@ -1269,7 +1269,7 @@ do_action('wu_transition_payment_customer_id', $old_value, $new_value, $item_id)
  * column for a payment row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous membership id value.
  * @param int $new_value The new membership id value.
@@ -1284,7 +1284,7 @@ do_action('wu_transition_payment_membership_id', $old_value, $new_value, $item_i
  * column for a payment row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous parent id value.
  * @param int $new_value The new parent id value.
@@ -1299,7 +1299,7 @@ do_action('wu_transition_payment_parent_id', $old_value, $new_value, $item_id);
  * column for a payment row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous product id value.
  * @param int $new_value The new product id value.
@@ -1314,7 +1314,7 @@ do_action('wu_transition_payment_product_id', $old_value, $new_value, $item_id);
  * column for a payment row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous subtotal value.
  * @param string $new_value The new subtotal value.
@@ -1329,7 +1329,7 @@ do_action('wu_transition_payment_subtotal', $old_value, $new_value, $item_id);
  * column for a payment row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous refund total value.
  * @param string $new_value The new refund total value.
@@ -1344,7 +1344,7 @@ do_action('wu_transition_payment_refund_total', $old_value, $new_value, $item_id
  * column for a payment row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous tax total value.
  * @param string $new_value The new tax total value.
@@ -1359,7 +1359,7 @@ do_action('wu_transition_payment_tax_total', $old_value, $new_value, $item_id);
  * column for a payment row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous total value.
  * @param string $new_value The new total value.
@@ -1371,7 +1371,7 @@ do_action('wu_transition_payment_total', $old_value, $new_value, $item_id);
  * Fires before payments are fetched from the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:883
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -1381,7 +1381,7 @@ do_action_ref_array('wu_pre_get_payments', [&$query]);
  * Fires after payments query vars have been parsed.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1159
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -1391,7 +1391,7 @@ do_action_ref_array('wu_parse_payments_query', [&$query]);
  * Filters the SQL clauses for a payments query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:994
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $clauses {
  *     Associative array of SQL clause strings.
@@ -1412,7 +1412,7 @@ $clauses = apply_filters_ref_array('wu_payments_query_clauses', [$clauses, &$que
  * Filters the columns to search when performing a payments search.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1306
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string[]                 $search_columns Array of column names to search.
  * @param string                   $search         The search term.
@@ -1425,7 +1425,7 @@ $search_columns = apply_filters('wu_payments_search_columns', $search_columns, $
  * Filters the found payments after a query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1595
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param object[]                 $items The array of found payment objects.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1437,7 +1437,7 @@ $items = apply_filters_ref_array('wu_the_payments', [$items, &$query]);
  * Filters a single payment item before it is inserted or updated in the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2068
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $item  The item data as an associative array.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1449,7 +1449,7 @@ $item = apply_filters_ref_array('wu_filter_payment_item', [$item, &$query]);
  * Filters the FOUND_ROWS() query for payments.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:640
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string                   $sql   The SQL query to count found rows.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1463,7 +1463,7 @@ $sql = apply_filters_ref_array('wu_found_payments_query', [$sql, &$query]);
  * Fires before posts are fetched from the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:883
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -1473,7 +1473,7 @@ do_action_ref_array('wu_pre_get_posts', [&$query]);
  * Fires after posts query vars have been parsed.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1159
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -1483,7 +1483,7 @@ do_action_ref_array('wu_parse_posts_query', [&$query]);
  * Filters the SQL clauses for a posts query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:994
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $clauses {
  *     Associative array of SQL clause strings.
@@ -1504,7 +1504,7 @@ $clauses = apply_filters_ref_array('wu_posts_query_clauses', [$clauses, &$query]
  * Filters the columns to search when performing a posts search.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1306
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string[]                 $search_columns Array of column names to search.
  * @param string                   $search         The search term.
@@ -1517,7 +1517,7 @@ $search_columns = apply_filters('wu_posts_search_columns', $search_columns, $sea
  * Filters the found posts after a query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1595
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param object[]                 $items The array of found post objects.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1529,7 +1529,7 @@ $items = apply_filters_ref_array('wu_the_posts', [$items, &$query]);
  * Filters a single post item before it is inserted or updated in the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2068
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $item  The item data as an associative array.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1541,7 +1541,7 @@ $item = apply_filters_ref_array('wu_filter_post_item', [$item, &$query]);
  * Filters the FOUND_ROWS() query for posts.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:640
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string                   $sql   The SQL query to count found rows.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1558,7 +1558,7 @@ $sql = apply_filters_ref_array('wu_found_posts_query', [$sql, &$query]);
  * column for a product row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous parent id value.
  * @param int $new_value The new parent id value.
@@ -1573,7 +1573,7 @@ do_action('wu_transition_product_parent_id', $old_value, $new_value, $item_id);
  * column for a product row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous amount value.
  * @param string $new_value The new amount value.
@@ -1588,7 +1588,7 @@ do_action('wu_transition_product_amount', $old_value, $new_value, $item_id);
  * column for a product row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string $old_value The previous setup fee value.
  * @param string $new_value The new setup fee value.
@@ -1603,7 +1603,7 @@ do_action('wu_transition_product_setup_fee', $old_value, $new_value, $item_id);
  * column for a product row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous recurring value.
  * @param int $new_value The new recurring value.
@@ -1618,7 +1618,7 @@ do_action('wu_transition_product_recurring', $old_value, $new_value, $item_id);
  * column for a product row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous trial duration value.
  * @param int $new_value The new trial duration value.
@@ -1633,7 +1633,7 @@ do_action('wu_transition_product_trial_duration', $old_value, $new_value, $item_
  * column for a product row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous duration value.
  * @param int $new_value The new duration value.
@@ -1648,7 +1648,7 @@ do_action('wu_transition_product_duration', $old_value, $new_value, $item_id);
  * column for a product row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous billing cycles value.
  * @param int $new_value The new billing cycles value.
@@ -1663,7 +1663,7 @@ do_action('wu_transition_product_billing_cycles', $old_value, $new_value, $item_
  * column for a product row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous list order value.
  * @param int $new_value The new list order value.
@@ -1678,7 +1678,7 @@ do_action('wu_transition_product_list_order', $old_value, $new_value, $item_id);
  * column for a product row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous active value.
  * @param int $new_value The new active value.
@@ -1690,7 +1690,7 @@ do_action('wu_transition_product_active', $old_value, $new_value, $item_id);
  * Fires before products are fetched from the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:883
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -1700,7 +1700,7 @@ do_action_ref_array('wu_pre_get_products', [&$query]);
  * Fires after products query vars have been parsed.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1159
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -1710,7 +1710,7 @@ do_action_ref_array('wu_parse_products_query', [&$query]);
  * Filters the SQL clauses for a products query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:994
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $clauses {
  *     Associative array of SQL clause strings.
@@ -1731,7 +1731,7 @@ $clauses = apply_filters_ref_array('wu_products_query_clauses', [$clauses, &$que
  * Filters the columns to search when performing a products search.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1306
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string[]                 $search_columns Array of column names to search.
  * @param string                   $search         The search term.
@@ -1744,7 +1744,7 @@ $search_columns = apply_filters('wu_products_search_columns', $search_columns, $
  * Filters the found products after a query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1595
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param object[]                 $items The array of found product objects.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1756,7 +1756,7 @@ $items = apply_filters_ref_array('wu_the_products', [$items, &$query]);
  * Filters a single product item before it is inserted or updated in the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2068
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $item  The item data as an associative array.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1768,7 +1768,7 @@ $item = apply_filters_ref_array('wu_filter_product_item', [$item, &$query]);
  * Filters the FOUND_ROWS() query for products.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:640
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string                   $sql   The SQL query to count found rows.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1785,7 +1785,7 @@ $sql = apply_filters_ref_array('wu_found_products_query', [$sql, &$query]);
  * column for a webhook row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous active value.
  * @param int $new_value The new active value.
@@ -1800,7 +1800,7 @@ do_action('wu_transition_webhook_active', $old_value, $new_value, $item_id);
  * column for a webhook row.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2303
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param int $old_value The previous hidden value.
  * @param int $new_value The new hidden value.
@@ -1812,7 +1812,7 @@ do_action('wu_transition_webhook_hidden', $old_value, $new_value, $item_id);
  * Fires before webhooks are fetched from the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:883
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -1822,7 +1822,7 @@ do_action_ref_array('wu_pre_get_webhooks', [&$query]);
  * Fires after webhooks query vars have been parsed.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1159
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
  */
@@ -1832,7 +1832,7 @@ do_action_ref_array('wu_parse_webhooks_query', [&$query]);
  * Filters the SQL clauses for a webhooks query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:994
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $clauses {
  *     Associative array of SQL clause strings.
@@ -1853,7 +1853,7 @@ $clauses = apply_filters_ref_array('wu_webhooks_query_clauses', [$clauses, &$que
  * Filters the columns to search when performing a webhooks search.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1306
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string[]                 $search_columns Array of column names to search.
  * @param string                   $search         The search term.
@@ -1866,7 +1866,7 @@ $search_columns = apply_filters('wu_webhooks_search_columns', $search_columns, $
  * Filters the found webhooks after a query.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:1595
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param object[]                 $items The array of found webhook objects.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1878,7 +1878,7 @@ $items = apply_filters_ref_array('wu_the_webhooks', [$items, &$query]);
  * Filters a single webhook item before it is inserted or updated in the database.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:2068
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param array                    $item  The item data as an associative array.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
@@ -1890,7 +1890,7 @@ $item = apply_filters_ref_array('wu_filter_webhook_item', [$item, &$query]);
  * Filters the FOUND_ROWS() query for webhooks.
  *
  * @since 2.0.0
- * @see vendor/berlindb/core/src/Database/Query.php:640
+ * @see vendor/berlindb/core/src/Database/Query.php
  *
  * @param string                   $sql   The SQL query to count found rows.
  * @param \BerlinDB\Database\Query $query The query instance (passed by reference).
