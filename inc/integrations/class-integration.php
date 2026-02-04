@@ -333,8 +333,8 @@ class Integration {
 	 */
 	public function save_credentials(array $values): void {
 
-		$allowed = array_flip($this->get_all_constants());
-		$values  = shortcode_atts($allowed, $values);
+		$defaults = array_fill_keys($this->get_all_constants(), '');
+		$values   = shortcode_atts($defaults, $values);
 
 		foreach ($values as $constant_name => $value) {
 			if ( ! empty($value)) {
