@@ -60,7 +60,7 @@ class Credential_Store {
 			return self::ENCRYPTED_PREFIX . base64_encode($value); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 		}
 
-		return self::ENCRYPTED_PREFIX . base64_encode($iv . '::' . $encrypted); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+		return self::ENCRYPTED_PREFIX . base64_encode($iv . $encrypted); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 	}
 
 	/**
@@ -88,21 +88,17 @@ class Credential_Store {
 			return '';
 		}
 
-		if (strpos($decoded, '::') === false) {
-			return $decoded;
-		}
-
 		if ( ! function_exists('openssl_decrypt') || ! in_array(self::CIPHER_METHOD, openssl_get_cipher_methods(), true)) {
 			return $decoded;
 		}
 
-		$parts = explode('::', $decoded, 2);
+		$iv_length = openssl_cipher_iv_length(self::CIPHER_METHOD);
+		$iv        = substr($decoded, 0, $iv_length);
+		$encrypted = substr($decoded, $iv_length);
 
-		if (count($parts) !== 2) {
-			return '';
+		if (empty($encrypted)) {
+			return $decoded;
 		}
-
-		[$iv, $encrypted] = $parts;
 
 		$key       = self::get_encryption_key();
 		$decrypted = openssl_decrypt($encrypted, self::CIPHER_METHOD, $key, 0, $iv);
