@@ -230,6 +230,22 @@ class Cart implements \JsonSerializable {
 	protected $extra = [];
 
 	/**
+	 * Custom amounts for PWYW products.
+	 *
+	 * @since 2.0.0
+	 * @var array<int, float>
+	 */
+	protected $custom_amounts = [];
+
+	/**
+	 * Customer's recurring choice for PWYW products.
+	 *
+	 * @since 2.0.0
+	 * @var array<int, bool>
+	 */
+	protected $pwyw_recurring = [];
+
+	/**
 	 * The cart description.
 	 *
 	 * @since 2.1.3
@@ -260,54 +276,66 @@ class Cart implements \JsonSerializable {
 				/*
 				 * Cart Type.
 				 */
-				'cart_type'     => 'new',
+				'cart_type'      => 'new',
 
 				/*
 				 * The list of products being bought.
 				 */
-				'products'      => [],
+				'products'       => [],
 
 				/*
 				 * The duration parameters
 				 * This will dictate which price variations we are going to use.
 				 */
-				'duration'      => false,
-				'duration_unit' => false,
+				'duration'       => false,
+				'duration_unit'  => false,
 
 				/*
 				 * The membership ID.
 				 * This is passed when we want to handle a upgrade/downgrade/addon.
 				 */
-				'membership_id' => false,
+				'membership_id'  => false,
 
 				/*
 				 * Payment ID.
 				 * This is passed when we are trying to recovered a abandoned/pending payment.
 				 */
-				'payment_id'    => false,
+				'payment_id'     => false,
 
 				/*
 				 * The discount code to be used.
 				 */
-				'discount_code' => false,
+				'discount_code'  => false,
 
 				/*
 				 * If we should auto-renew or not.
 				 */
-				'auto_renew'    => true,
+				'auto_renew'     => true,
 
 				/*
 				 * The country, state, and city of the customer.
 				 * Used for taxation purposes.
 				 */
-				'country'       => '',
-				'state'         => '',
-				'city'          => '',
+				'country'        => '',
+				'state'          => '',
+				'city'           => '',
 
 				/*
 				 * Currency
 				 */
-				'currency'      => '',
+				'currency'       => '',
+
+				/*
+				 * Custom amounts for PWYW products.
+				 * Keyed by product ID => custom amount.
+				 */
+				'custom_amounts' => [],
+
+				/*
+				 * Customer's recurring choice for PWYW products.
+				 * Keyed by product ID => boolean.
+				 */
+				'pwyw_recurring' => [],
 
 			],
 			$args
@@ -335,13 +363,15 @@ class Cart implements \JsonSerializable {
 		/*
 		 * Set the country, duration and duration_unit.
 		 */
-		$this->cart_type     = $this->attributes->cart_type;
-		$this->country       = $this->attributes->country;
-		$this->state         = $this->attributes->state;
-		$this->city          = $this->attributes->city;
-		$this->currency      = $this->attributes->currency;
-		$this->duration      = $this->attributes->duration;
-		$this->duration_unit = $this->attributes->duration_unit;
+		$this->cart_type      = $this->attributes->cart_type;
+		$this->country        = $this->attributes->country;
+		$this->state          = $this->attributes->state;
+		$this->city           = $this->attributes->city;
+		$this->currency       = $this->attributes->currency;
+		$this->duration       = $this->attributes->duration;
+		$this->duration_unit  = $this->attributes->duration_unit;
+		$this->custom_amounts = is_array($this->attributes->custom_amounts) ? $this->attributes->custom_amounts : [];
+		$this->pwyw_recurring = is_array($this->attributes->pwyw_recurring) ? $this->attributes->pwyw_recurring : [];
 
 		/*
 		 * Loads the current customer, if it exists.
@@ -1336,7 +1366,7 @@ class Cart implements \JsonSerializable {
 		if (empty($discount_code)) {
 
 			// translators: %s is the coupon code being used, all-caps. e.g. PROMO10OFF
-			$this->errors->add('discount_code', sprintf(__('The code %s do not exist or is no longer valid.', 'ultimate-multisite'), $code));
+			$this->errors->add('discount_code', sprintf(__('The code %s does not exist or is no longer valid.', 'ultimate-multisite'), $code));
 
 			return false;
 		}
@@ -1693,7 +1723,7 @@ class Cart implements \JsonSerializable {
 		 * If a price variation doesn't exist, we add an error to
 		 * the cart.
 		 */
-		if ($product->is_free() === false && ! wu_has_independent_billing_cycle($product->get_type())) {
+		if ($product->is_free() === false && ! $product->is_pay_what_you_want() && ! wu_has_independent_billing_cycle($product->get_type())) {
 			if (absint($this->duration) !== $product->get_duration() || $product->get_duration_unit() !== $this->duration_unit) {
 				$price_variation = $product->get_price_variation($this->duration, $this->duration_unit);
 
@@ -1718,15 +1748,73 @@ class Cart implements \JsonSerializable {
 			}
 		}
 
+		/*
+		 * Handle Pay What You Want pricing.
+		 */
+		$is_recurring = $product->is_recurring();
+
+		if ($product->is_pay_what_you_want()) {
+			$custom_amount = $this->get_custom_amount_for_product($product->get_id());
+
+			if (null !== $custom_amount) {
+				$minimum = $product->get_pwyw_minimum_amount();
+
+				if ($custom_amount < $minimum) {
+					$this->errors->add(
+						'pwyw-below-minimum',
+						sprintf(
+							// translators: %1$s is the product name, %2$s is the minimum amount formatted as currency
+							__('The amount for %1$s must be at least %2$s.', 'ultimate-multisite'),
+							$product->get_name(),
+							wu_format_currency($minimum, $product->get_currency())
+						)
+					);
+
+					return false;
+				}
+
+				$amount = (float) $custom_amount;
+			} else {
+				// Use suggested amount as default
+				$amount = $product->get_pwyw_suggested_amount();
+			}
+
+			// Determine recurring status based on product mode and customer choice
+			$recurring_mode = $product->get_pwyw_recurring_mode();
+
+			if ('force_recurring' === $recurring_mode) {
+				$is_recurring = true;
+			} elseif ('force_one_time' === $recurring_mode) {
+				$is_recurring = false;
+			} else {
+				// customer_choice - check customer's selection, default to false (one-time)
+				$is_recurring = $this->get_pwyw_recurring_for_product($product->get_id());
+			}
+		}
+
+		// Build line item data
+		$line_item_base = [
+			'product'       => $product,
+			'quantity'      => $quantity,
+			'unit_price'    => $amount,
+			'duration'      => $duration,
+			'duration_unit' => $duration_unit,
+		];
+
+		// For PWYW products, explicitly set the recurring status
+		if ($product->is_pay_what_you_want()) {
+			$line_item_base['recurring'] = $is_recurring;
+
+			// If recurring, ensure duration values are set
+			if ($is_recurring && (! $duration || ! $duration_unit)) {
+				$line_item_base['duration']      = $product->get_duration();
+				$line_item_base['duration_unit'] = $product->get_duration_unit();
+			}
+		}
+
 		$line_item_data = apply_filters(
 			'wu_add_product_line_item',
-			[
-				'product'       => $product,
-				'quantity'      => $quantity,
-				'unit_price'    => $amount,
-				'duration'      => $duration,
-				'duration_unit' => $duration_unit,
-			],
+			$line_item_base,
 			$product,
 			$duration,
 			$duration_unit,
@@ -2352,7 +2440,13 @@ class Cart implements \JsonSerializable {
 			return $line_item;
 		}
 
-		if (is_wp_error($this->discount_code->is_valid($line_item->get_product_id()))) {
+		$is_valid = $this->discount_code->is_valid(
+			$line_item->get_product_id(),
+			$line_item->get_duration(),
+			$line_item->get_duration_unit()
+		);
+
+		if (is_wp_error($is_valid)) {
 			return $line_item;
 		}
 
@@ -2869,5 +2963,33 @@ class Cart implements \JsonSerializable {
 			}
 			// Pending payment is the same. Nothing to do, Let the form element show the pay pending payment message.
 		}
+	}
+
+	/**
+	 * Get the custom amount for a PWYW product.
+	 *
+	 * @since 2.0.0
+	 * @param int $product_id The product ID.
+	 * @return float|null The custom amount or null if not set.
+	 */
+	public function get_custom_amount_for_product($product_id) {
+
+		$product_id = (int) $product_id;
+
+		return isset($this->custom_amounts[ $product_id ]) ? (float) $this->custom_amounts[ $product_id ] : null;
+	}
+
+	/**
+	 * Get whether this PWYW product should be recurring.
+	 *
+	 * @since 2.0.0
+	 * @param int $product_id The product ID.
+	 * @return bool
+	 */
+	public function get_pwyw_recurring_for_product($product_id): bool {
+
+		$product_id = (int) $product_id;
+
+		return (bool) wu_get_isset($this->pwyw_recurring, $product_id, false);
 	}
 }

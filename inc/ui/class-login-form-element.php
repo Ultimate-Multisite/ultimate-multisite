@@ -771,12 +771,18 @@ class Login_Form_Element extends Base_Element {
 					'title'       => $atts['label_username'],
 					'placeholder' => $atts['placeholder_username'],
 					'tooltip'     => '',
+					'html_attr'   => [
+						'autocomplete' => 'username',
+					],
 				],
 				'pwd' => [
 					'type'        => 'password',
 					'title'       => $atts['label_password'],
 					'placeholder' => $atts['placeholder_password'],
 					'tooltip'     => '',
+					'html_attr'   => [
+						'autocomplete' => 'current-password',
+					],
 				],
 			];
 

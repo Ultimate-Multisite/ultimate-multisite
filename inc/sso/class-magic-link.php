@@ -149,6 +149,62 @@ class Magic_Link {
 	}
 
 	/**
+	 * Generate a magic link for cross-network authentication.
+	 *
+	 * Unlike generate_magic_link(), this method stores the transient on the
+	 * target site directly (for cross-network scenarios where the target site
+	 * is on a different network) and accepts the site URL as a parameter
+	 * instead of looking it up via wu_get_site().
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param int    $user_id     The user ID to authenticate.
+	 * @param int    $site_id     The target site ID (on the other network).
+	 * @param string $site_url    The target site's URL.
+	 * @param string $redirect_to Optional. URL to redirect to after login.
+	 * @return string|false The magic link URL or false on failure.
+	 */
+	public function generate_cross_network_magic_link(int $user_id, int $site_id, string $site_url, string $redirect_to = '') {
+
+		if ( ! $this->is_enabled()) {
+			return false;
+		}
+
+		$user = get_userdata($user_id);
+
+		if ( ! $user) {
+			return false;
+		}
+
+		$token      = $this->generate_token();
+		$user_agent = $this->get_user_agent();
+		$ip_address = $this->get_client_ip();
+
+		$token_data = [
+			'user_id'     => $user_id,
+			'site_id'     => $site_id,
+			'redirect_to' => $redirect_to,
+			'created_at'  => time(),
+			'user_agent'  => $user_agent,
+			'ip_address'  => $ip_address,
+		];
+
+		$transient_key = self::TRANSIENT_PREFIX . $token;
+
+		// Store transient on the target site's network main site
+		// so the handler on that network can find it.
+		wu_switch_blog_and_run(
+			fn() => set_transient($transient_key, $token_data, self::TOKEN_EXPIRATION),
+			$site_id
+		);
+
+		return add_query_arg(
+			[self::TOKEN_QUERY_ARG => $token],
+			$site_url
+		);
+	}
+
+	/**
 	 * Generate a cryptographically secure token.
 	 *
 	 * @since 2.0.0

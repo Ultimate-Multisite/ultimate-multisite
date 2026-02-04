@@ -105,7 +105,7 @@ function wu_slugify($term) {
  */
 function wu_path($dir): string {
 
-	return WP_ULTIMO_PLUGIN_DIR . $dir; // @phpstan-ignore-line
+	return WP_ULTIMO_PLUGIN_DIR . $dir;
 }
 
 /**
@@ -117,7 +117,7 @@ function wu_path($dir): string {
  */
 function wu_url($dir) {
 
-	return apply_filters('wp_ultimo_url', WP_ULTIMO_PLUGIN_URL . $dir); // @phpstan-ignore-line
+	return apply_filters('wp_ultimo_url', WP_ULTIMO_PLUGIN_URL . $dir);
 }
 
 /**
@@ -294,8 +294,7 @@ function wu_ignore_errors($func, $log = false) { // phpcs:ignore Generic.CodeAna
 
 	try {
 		call_user_func($func);
-	} catch (\Throwable $exception) {
-
+	} catch (\Throwable $exception) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
 		// Ignore it or log it.
 	}
 }
@@ -496,7 +495,7 @@ function wu_kses_allowed_html(): array {
 		'template'  => true,
 	];
 
-	return [
+	$allowed_tags = [
 		'svg'            => $svg_attributes + [
 			'width'               => true,
 			'height'              => true,
@@ -613,4 +612,15 @@ function wu_kses_allowed_html(): array {
 			'height'           => true,
 		],
 	] + array_merge_recursive($allowed_html, array_fill_keys(array_keys($allowed_html) + ['div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'em', 'b', 'i', 'ul', 'ol', 'li', 'a', 'img', 'input', 'textarea'], $vue_and_data_attributes));
+
+	/**
+	 * Filters the allowed HTML tags and attributes.
+	 *
+	 * Allows addons to extend the allowed HTML elements for wp_kses sanitization.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param array $allowed_tags The allowed HTML tags and attributes.
+	 */
+	return apply_filters('wu_kses_allowed_html', $allowed_tags);
 }

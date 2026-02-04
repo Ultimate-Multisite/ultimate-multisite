@@ -695,17 +695,19 @@ class Checkout {
 			apply_filters(
 				'wu_cart_parameters',
 				[
-					'products'      => $this->request_or_session('products', []),
-					'discount_code' => $this->request_or_session('discount_code'),
-					'country'       => $this->request_or_session('billing_country'),
-					'state'         => $this->request_or_session('billing_state'),
-					'city'          => $this->request_or_session('billing_city'),
-					'membership_id' => $this->request_or_session('membership_id'),
-					'payment_id'    => $this->request_or_session('payment_id'),
-					'auto_renew'    => $this->request_or_session('auto_renew', false),
-					'duration'      => $this->request_or_session('duration'),
-					'duration_unit' => $this->request_or_session('duration_unit'),
-					'cart_type'     => $this->request_or_session('cart_type', 'new'),
+					'products'       => $this->request_or_session('products', []),
+					'discount_code'  => $this->request_or_session('discount_code'),
+					'country'        => $this->request_or_session('billing_country'),
+					'state'          => $this->request_or_session('billing_state'),
+					'city'           => $this->request_or_session('billing_city'),
+					'membership_id'  => $this->request_or_session('membership_id'),
+					'payment_id'     => $this->request_or_session('payment_id'),
+					'auto_renew'     => $this->request_or_session('auto_renew', false),
+					'duration'       => $this->request_or_session('duration'),
+					'duration_unit'  => $this->request_or_session('duration_unit'),
+					'cart_type'      => $this->request_or_session('cart_type', 'new'),
+					'custom_amounts' => $this->request_or_session('custom_amounts', []),
+					'pwyw_recurring' => $this->request_or_session('pwyw_recurring', []),
 				],
 				$this
 			)
@@ -763,6 +765,13 @@ class Checkout {
 		$this->gateway_id = $gateway->get_id();
 
 		/*
+		 * Set the order early so that validation_rules()
+		 * can check should_collect_payment() to skip
+		 * billing field requirements for free trials.
+		 */
+		$this->order = $cart;
+
+		/*
 		 * Now we need to validate the form.
 		 *
 		 * Here we use the validation rules set.
@@ -776,13 +785,6 @@ class Checkout {
 		if (is_wp_error($validation)) {
 			return $validation;
 		}
-
-		/*
-		 * From now on, logic can be delegated to
-		 * special methods, so we need to set
-		 * the order as globally accessible.
-		 */
-		$this->order = $cart;
 
 		/*
 		 * Handles display names, if needed.
@@ -1110,16 +1112,14 @@ class Checkout {
 		$billing_address->load_attributes_from_post($session);
 
 		/*
-		 * Validates the address.
+		 * Validates the address when payment is being collected.
 		 */
-		$valid_address = $billing_address->validate();
+		if ($this->should_collect_payment()) {
+			$valid_address = $billing_address->validate();
 
-		/*
-		 * There's something invalid on the address,
-		 * bail with the errors.
-		 */
-		if (is_wp_error($valid_address)) {
-			return $valid_address;
+			if (is_wp_error($valid_address)) {
+				return $valid_address;
+			}
 		}
 
 		$customer->set_billing_address($billing_address);
@@ -1633,17 +1633,19 @@ class Checkout {
 			apply_filters(
 				'wu_cart_parameters',
 				[
-					'products'      => $this->request_or_session('products', []),
-					'discount_code' => $this->request_or_session('discount_code'),
-					'country'       => $country,
-					'state'         => $state,
-					'city'          => $city,
-					'membership_id' => $this->request_or_session('membership_id'),
-					'payment_id'    => $this->request_or_session('payment_id'),
-					'auto_renew'    => $this->request_or_session('auto_renew', false),
-					'duration'      => $this->request_or_session('duration'),
-					'duration_unit' => $this->request_or_session('duration_unit'),
-					'cart_type'     => $this->request_or_session('cart_type', 'new'),
+					'products'       => $this->request_or_session('products', []),
+					'discount_code'  => $this->request_or_session('discount_code'),
+					'country'        => $country,
+					'state'          => $state,
+					'city'           => $city,
+					'membership_id'  => $this->request_or_session('membership_id'),
+					'payment_id'     => $this->request_or_session('payment_id'),
+					'auto_renew'     => $this->request_or_session('auto_renew', false),
+					'duration'       => $this->request_or_session('duration'),
+					'duration_unit'  => $this->request_or_session('duration_unit'),
+					'cart_type'      => $this->request_or_session('cart_type', 'new'),
+					'custom_amounts' => $this->request_or_session('custom_amounts', []),
+					'pwyw_recurring' => $this->request_or_session('pwyw_recurring', []),
 				],
 				$this
 			)
@@ -1881,7 +1883,8 @@ class Checkout {
 			'city'               => $this->request_or_session('billing_city'),
 			'duration'           => $duration,
 			'duration_unit'      => $duration_unit,
-			'site_url'           => $this->request_or_session('site_url'),
+			'site_title'         => $this->request_or_session('site_title'),
+			'site_url'           => $this->request_or_session('site_url') === 'autogenerate' ? '' : $this->request_or_session('site_url'),
 			'site_domain'        => $this->request_or_session('site_domain', preg_replace('#^https?://#', '', $site_domain)),
 			'is_subdomain'       => is_subdomain_install(),
 			'gateway'            => wu_request('gateway', $default_gateway),
@@ -1968,6 +1971,46 @@ class Checkout {
 		 * @return array The new variables array.
 		 */
 		return apply_filters('wu_get_checkout_variables', $variables, $this);
+	}
+
+	/**
+	 * Determines whether payment should be collected for the current checkout.
+	 *
+	 * Uses $this->order if available, otherwise builds a temporary Cart
+	 * from the request/session data to check.
+	 *
+	 * @since 2.0.20
+	 * @return bool
+	 */
+	public function should_collect_payment(): bool {
+
+		if ($this->order) {
+			return $this->order->should_collect_payment();
+		}
+
+		$products = $this->request_or_session('products', []);
+
+		if (empty($products)) {
+			return true;
+		}
+
+		try {
+			$cart = new Cart(
+				[
+					'products'       => (array) $products,
+					'country'        => $this->request_or_session('billing_country'),
+					'discount_code'  => $this->request_or_session('discount_code'),
+					'duration'       => $this->request_or_session('duration'),
+					'duration_unit'  => $this->request_or_session('duration_unit'),
+					'custom_amounts' => $this->request_or_session('custom_amounts', []),
+					'pwyw_recurring' => $this->request_or_session('pwyw_recurring', []),
+				]
+			);
+
+			return $cart->should_collect_payment();
+		} catch (\Throwable $e) {
+			return true;
+		}
 	}
 
 	/**
@@ -2080,6 +2123,17 @@ class Checkout {
 			if (wu_get_isset($field, 'id') && in_array($field['id'], $product_fields, true)) {
 				$validation_rules['products'] = 'products|required';
 			}
+		}
+
+		/*
+		 * Remove billing field requirements when payment is not needed
+		 * (e.g. free trials with allow_trial_without_payment_method enabled).
+		 */
+		if ( ! $this->should_collect_payment()) {
+			$validation_rules['billing_country']  = '';
+			$validation_rules['billing_zip_code'] = '';
+			$validation_rules['billing_state']    = '';
+			$validation_rules['billing_city']     = '';
 		}
 
 		/**

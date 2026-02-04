@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-         php-version: ["7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"]
+         php-version: ["8.2", "8.3", "8.4", "8.5"]
     services:
       mysql:
         image: mariadb:11.4
@@ -43,6 +43,11 @@ jobs:
         run: |
           install-php-extensions mysqli gd bcmath || echo "Extensions may already be installed."
 
+      - name: Install Xdebug for Coverage
+        if: matrix.php-version == '8.3'
+        run: |
+          install-php-extensions xdebug || echo "Xdebug may already be installed."
+
       - name: Self-update Composer
         run: |
           composer self-update || echo "Composer update skipped due to permission issue."
@@ -67,15 +72,24 @@ jobs:
           rm -rf /tmp/wordpress-tests-lib /tmp/wordpress/
           bash bin/install-wp-tests.sh wordpress_test root root mysql latest
 
-      - name: Run PHPUnit Tests with Coverage
-        run: vendor/bin/phpunit --coverage-clover=coverage.xml
+      - name: Run PHPUnit Tests
+        if: matrix.php-version != '8.3'
+        run: vendor/bin/phpunit
 
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
+      - name: Run PHPUnit Tests with Coverage
+        if: matrix.php-version == '8.3'
+        run: |
+          php -d zend_extension=xdebug.so -d xdebug.mode=coverage \
+            vendor/bin/phpunit --coverage-clover=coverage.xml --coverage-text \
+            | tee coverage-summary.txt
+
+      - name: Upload coverage to Codecov
+        if: matrix.php-version == '8.3'
+        uses: codecov/codecov-action@v5
         with:
           file: ./coverage.xml
           flags: unittests
-          name: codecov-umbrella
+          name: php-${{ matrix.php-version }}
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

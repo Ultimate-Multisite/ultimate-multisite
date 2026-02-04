@@ -225,6 +225,13 @@ No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
 
+Version [2.4.11] - Released on 2026-XX-XX
+- New: Settings API for remote settings management.
+- New: Pay-What-You-Want (PWYW) pricing with per-product custom amounts and recurring options.
+- New: Billing-period controls for discount codes and membership creation.
+- New: Better error page for customers and admins.
+- Fix: Problems with choosing country and state in checkout.
+
 Version [2.4.10] - Released on 2026-01-23
 - New: Configurable minimum password strength setting with Medium, Strong, and Super Strong options.
 - New: Super Strong password requirements include 12+ characters, uppercase, lowercase, numbers, and special characters - compatible with WPMU DEV Defender Pro rules.

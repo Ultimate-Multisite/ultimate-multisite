@@ -37,18 +37,27 @@ class Checkout_Pages {
 
 		add_filter('lostpassword_redirect', [$this, 'filter_lost_password_redirect']);
 
+		$use_custom_login = wu_get_setting('enable_custom_login_page', false);
+
+		/*
+		 * Login URL filters need to run on ALL sites (including subsites)
+		 * so that password reset and login links redirect to the main site's
+		 * custom login page instead of wp-login.php (which may be obfuscated).
+		 *
+		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/291
+		 */
+		if ($use_custom_login) {
+			add_filter('login_url', [$this, 'filter_login_url'], 10, 3);
+
+			add_filter('lostpassword_url', [$this, 'filter_login_url'], 10, 3);
+		}
+
 		if (is_main_site()) {
 			add_action('before_signup_header', [$this, 'redirect_to_registration_page']);
-
-			$use_custom_login = wu_get_setting('enable_custom_login_page', false);
 
 			if ( ! $use_custom_login) {
 				return;
 			}
-
-			add_filter('login_url', [$this, 'filter_login_url'], 10, 3);
-
-			add_filter('lostpassword_url', [$this, 'filter_login_url'], 10, 3);
 
 			add_filter('retrieve_password_message', [$this, 'replace_reset_password_link'], 10, 4);
 

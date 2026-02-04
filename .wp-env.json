@@ -7,7 +7,8 @@
         "."
       ],
       "mappings": {
-        "wp-content/mu-plugins/email-smtp-dev.php": "./mu-plugins/email-smtp-dev/email-smtp-dev.php"
+        "wp-content/mu-plugins/email-smtp-dev.php": "./mu-plugins/email-smtp-dev/email-smtp-dev.php",
+        "wp-content/sunrise.php": "./sunrise.php"
       },
       "config": {
         "WP_DEBUG": true,
@@ -15,7 +16,8 @@
         "WP_DEBUG_LOG": true,
         "SCRIPT_DEBUG": true,
         "WP_MEMORY_LIMIT": "256M",
-        "WP_MAX_MEMORY_LIMIT": "512M"
+        "WP_MAX_MEMORY_LIMIT": "512M",
+        "SUNRISE": true
       }
     },
     "tests": {
@@ -24,7 +26,8 @@
         "."
       ],
       "mappings": {
-        "wp-content/mu-plugins/email-smtp-test.php": "./mu-plugins/email-smtp-test/email-smtp-test.php"
+        "wp-content/mu-plugins/email-smtp-test.php": "./mu-plugins/email-smtp-test/email-smtp-test.php",
+        "wp-content/sunrise.php": "./sunrise.php"
       },
       "config": {
         "WP_DEBUG": true,
@@ -32,7 +35,8 @@
         "WP_DEBUG_LOG": true,
         "SCRIPT_DEBUG": true,
         "WP_MEMORY_LIMIT": "256M",
-        "WP_MAX_MEMORY_LIMIT": "512M"
+        "WP_MAX_MEMORY_LIMIT": "512M",
+        "SUNRISE": true
       }
     }
   }

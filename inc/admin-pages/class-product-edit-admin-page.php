@@ -274,30 +274,32 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 					'data-wu-app' => 'product_pricing',
 					'data-state'  => wp_json_encode(
 						[
-							'is_recurring'  => $this->get_object()->is_recurring(),
-							'pricing_type'  => $this->get_object()->get_pricing_type(),
-							'has_trial'     => $this->get_object()->get_trial_duration() > 0,
-							'has_setup_fee' => $this->get_object()->has_setup_fee(),
-							'setup_fee'     => $this->get_object()->get_setup_fee(),
-							'amount'        => $this->get_object()->get_formatted_amount(),
-							'duration'      => $this->get_object()->get_duration(),
-							'duration_unit' => $this->get_object()->get_duration_unit(),
+							'is_recurring'        => $this->get_object()->is_recurring(),
+							'pricing_type'        => $this->get_object()->get_pricing_type(),
+							'has_trial'           => $this->get_object()->get_trial_duration() > 0,
+							'has_setup_fee'       => $this->get_object()->has_setup_fee(),
+							'setup_fee'           => $this->get_object()->get_setup_fee(),
+							'amount'              => $this->get_object()->get_formatted_amount(),
+							'duration'            => $this->get_object()->get_duration(),
+							'duration_unit'       => $this->get_object()->get_duration_unit(),
+							'pwyw_recurring_mode' => $this->get_object()->get_pwyw_recurring_mode() ?: 'customer_choice',
 						]
 					),
 				],
 				'fields'    => [
 					// Fields for price
-					'pricing_type'     => [
+					'pricing_type'          => [
 						'type'              => 'select',
 						'title'             => __('Pricing Type', 'ultimate-multisite'),
 						'placeholder'       => __('Select Pricing Type', 'ultimate-multisite'),
-						'desc'              => __('Products can be free, paid, or require further contact for pricing.', 'ultimate-multisite'),
+						'desc'              => __('Products can be free, paid, pay what you want, or require further contact for pricing.', 'ultimate-multisite'),
 						'value'             => $this->get_object()->get_pricing_type(),
 						'tooltip'           => '',
 						'options'           => [
-							'paid'       => __('Paid', 'ultimate-multisite'),
-							'free'       => __('Free', 'ultimate-multisite'),
-							'contact_us' => __('Contact Us', 'ultimate-multisite'),
+							'paid'              => __('Paid', 'ultimate-multisite'),
+							'free'              => __('Free', 'ultimate-multisite'),
+							'pay_what_you_want' => __('Pay What You Want', 'ultimate-multisite'),
+							'contact_us'        => __('Contact Us', 'ultimate-multisite'),
 						],
 						'wrapper_html_attr' => [
 							'v-cloak' => '1',
@@ -306,7 +308,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 							'v-model' => 'pricing_type',
 						],
 					],
-					'contact_us_label' => [
+					'contact_us_label'      => [
 						'type'              => 'text',
 						'title'             => __('Button Label', 'ultimate-multisite'),
 						'placeholder'       => __('E.g. Contact us', 'ultimate-multisite'),
@@ -317,7 +319,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 							'v-cloak' => '1',
 						],
 					],
-					'contact_us_link'  => [
+					'contact_us_link'       => [
 						'type'              => 'url',
 						'title'             => __('Button Link', 'ultimate-multisite'),
 						'placeholder'       => __('E.g. https://contactus.page.com', 'ultimate-multisite'),
@@ -328,7 +330,86 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 							'v-cloak' => '1',
 						],
 					],
-					'recurring'        => [
+					'pwyw_minimum_amount'   => [
+						'type'              => 'text',
+						'title'             => __('Minimum Price', 'ultimate-multisite'),
+						'placeholder'       => wu_format_currency('0'),
+						'desc'              => __('The minimum amount customers can pay. Leave at 0 for truly "pay what you want".', 'ultimate-multisite'),
+						'value'             => $this->get_object()->get_pwyw_minimum_amount(),
+						'money'             => true,
+						'wrapper_html_attr' => [
+							'v-show'  => "pricing_type == 'pay_what_you_want'",
+							'v-cloak' => '1',
+						],
+					],
+					'pwyw_suggested_amount' => [
+						'type'              => 'text',
+						'title'             => __('Suggested Price', 'ultimate-multisite'),
+						'placeholder'       => wu_format_currency('0'),
+						'desc'              => __('A suggested price shown as the default value in the price input.', 'ultimate-multisite'),
+						'value'             => $this->get_object()->get_pwyw_suggested_amount(),
+						'money'             => true,
+						'wrapper_html_attr' => [
+							'v-show'  => "pricing_type == 'pay_what_you_want'",
+							'v-cloak' => '1',
+						],
+					],
+					'pwyw_recurring_mode'   => [
+						'type'              => 'select',
+						'title'             => __('Recurring Mode', 'ultimate-multisite'),
+						'desc'              => __('Control whether customers can choose between one-time and recurring payments.', 'ultimate-multisite'),
+						'value'             => $this->get_object()->get_pwyw_recurring_mode(),
+						'options'           => [
+							'customer_choice' => __('Customer Chooses (One-time or Recurring)', 'ultimate-multisite'),
+							'force_recurring' => __('Force Recurring Only', 'ultimate-multisite'),
+							'force_one_time'  => __('Force One-time Only', 'ultimate-multisite'),
+						],
+						'wrapper_html_attr' => [
+							'v-show'  => "pricing_type == 'pay_what_you_want'",
+							'v-cloak' => '1',
+						],
+						'html_attr'         => [
+							'v-model' => 'pwyw_recurring_mode',
+						],
+					],
+					'pwyw_duration_group'   => [
+						'type'              => 'group',
+						'title'             => __('Billing Period', 'ultimate-multisite'),
+						'desc'              => __('The billing period for recurring PWYW payments. Only applies when recurring is enabled.', 'ultimate-multisite'),
+						'wrapper_html_attr' => [
+							'v-show'  => "pricing_type == 'pay_what_you_want' && pwyw_recurring_mode != 'force_one_time'",
+							'v-cloak' => '1',
+						],
+						'fields'            => [
+							'duration'      => [
+								'type'            => 'number',
+								'value'           => $this->get_object()->get_duration(),
+								'placeholder'     => 1,
+								'wrapper_classes' => 'wu-w-1/2',
+								'min'             => 1,
+								'html_attr'       => [
+									'v-model' => 'duration',
+									'steps'   => 1,
+								],
+							],
+							'duration_unit' => [
+								'type'            => 'select',
+								'value'           => $this->get_object()->get_duration_unit(),
+								'placeholder'     => '',
+								'wrapper_classes' => 'wu-w-1/2 wu-ml-2',
+								'html_attr'       => [
+									'v-model' => 'duration_unit',
+								],
+								'options'         => [
+									'day'   => __('Day(s)', 'ultimate-multisite'),
+									'week'  => __('Week(s)', 'ultimate-multisite'),
+									'month' => __('Month(s)', 'ultimate-multisite'),
+									'year'  => __('Year(s)', 'ultimate-multisite'),
+								],
+							],
+						],
+					],
+					'recurring'             => [
 						'type'              => 'toggle',
 						'title'             => __('Is Recurring?', 'ultimate-multisite'),
 						'desc'              => __('Check this if this product has a recurring charge.', 'ultimate-multisite'),
@@ -341,13 +422,13 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 							'v-model' => 'is_recurring',
 						],
 					],
-					'amount'           => [
+					'amount'                => [
 						'type'      => 'hidden',
 						'html_attr' => [
 							'v-model' => 'amount',
 						],
 					],
-					'_amount'          => [
+					'_amount'               => [
 						'type'              => 'text',
 						'title'             => __('Price', 'ultimate-multisite'),
 						'placeholder'       => __('Price', 'ultimate-multisite'),
@@ -363,7 +444,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 							'v-model'     => 'amount',
 						],
 					],
-					'amount_group'     => [
+					'amount_group'          => [
 						'type'              => 'group',
 						'title'             => __('Price', 'ultimate-multisite'),
 						// translators: placeholder %1$s is the amount, %2$s is the duration (such as 1, 2, 3), and %3$s is the unit (such as month, year, week)
@@ -413,7 +494,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 							],
 						],
 					],
-					'billing_cycles'   => [
+					'billing_cycles'        => [
 						'type'              => 'number',
 						'title'             => __('Billing Cycles', 'ultimate-multisite'),
 						'placeholder'       => __('E.g. 1', 'ultimate-multisite'),
@@ -425,7 +506,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 							'v-cloak' => '1',
 						],
 					],
-					'has_trial'        => [
+					'has_trial'             => [
 						'type'              => 'toggle',
 						'title'             => __('Offer Trial', 'ultimate-multisite'),
 						'desc'              => __('Check if you want to add a trial period to this product.', 'ultimate-multisite'),
@@ -438,7 +519,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 							'v-model' => 'has_trial',
 						],
 					],
-					'trial_group'      => [
+					'trial_group'           => [
 						'type'              => 'group',
 						'title'             => __('Trial', 'ultimate-multisite'),
 						'tooltip'           => '',
@@ -467,7 +548,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 							],
 						],
 					],
-					'has_setup_fee'    => [
+					'has_setup_fee'         => [
 						'type'              => 'toggle',
 						'title'             => __('Add Setup Fee?', 'ultimate-multisite'),
 						'desc'              => __('Check if you want to add a setup fee.', 'ultimate-multisite'),
@@ -480,13 +561,13 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 							'v-model' => 'has_setup_fee',
 						],
 					],
-					'setup_fee'        => [
+					'setup_fee'             => [
 						'type'      => 'hidden',
 						'html_attr' => [
 							'v-model' => 'setup_fee',
 						],
 					],
-					'_setup_fee'       => [
+					'_setup_fee'            => [
 						'type'              => 'text',
 						'money'             => true,
 						'title'             => __('Setup Fee', 'ultimate-multisite'),
@@ -701,7 +782,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 					'type'        => 'model',
 					'title'       => __('Offer Add-ons', 'ultimate-multisite'),
 					'placeholder' => __('Search for a package or service', 'ultimate-multisite'),
-					'desc'        => __('This products will be offered inside upgrade/downgrade forms as order bumps.', 'ultimate-multisite'),
+					'desc'        => __('These products will be offered inside upgrade/downgrade forms as order bumps.', 'ultimate-multisite'),
 					'html_attr'   => [
 						'data-exclude'      => implode(',', array_keys($plans_as_options)),
 						'data-model'        => 'product',
@@ -983,7 +1064,9 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 				'label'   => __('Click to copy Shareable Link', 'ultimate-multisite'),
 				'icon'    => 'wu-attachment',
 				'classes' => 'wu-copy',
-				'attrs'   => 'data-clipboard-text="' . esc_attr($shareable_link) . '"',
+				'attrs'   => [
+					'data-clipboard-text' => $shareable_link,
+				],
 			];
 		}
 

@@ -35,7 +35,15 @@ defined('ABSPATH') || exit;
 
 		<?php endif; ?>
 
-		<input class="form-control wu-w-full wu-my-1 <?php echo esc_attr(trim($field->classes)); ?>" id="field-<?php echo esc_attr($field->id); ?>" name="<?php echo esc_attr($field->id); ?>" type="<?php echo esc_attr($field->type); ?>" placeholder="<?php echo esc_attr($field->placeholder); ?>" value="<?php echo esc_attr($field->value); ?>" <?php $field->print_html_attributes(); ?>>
+		<?php
+		// Check if Vue is handling the name dynamically to avoid duplicate attributes
+		$has_vue_name = isset($field->html_attr['v-bind:name']);
+		?>
+		<input class="form-control wu-w-full wu-my-1 <?php echo esc_attr(trim($field->classes)); ?>" id="field-<?php echo esc_attr($field->id); ?>" 
+		<?php
+		if ( ! $has_vue_name) :
+			?>
+			name="<?php echo esc_attr($field->id); ?>" <?php endif; ?>type="<?php echo esc_attr($field->type); ?>" placeholder="<?php echo esc_attr($field->placeholder); ?>" value="<?php echo esc_attr($field->value); ?>" <?php $field->print_html_attributes(); ?>>
 
 		<?php if ($field->suffix) : ?>
 

@@ -55,8 +55,42 @@ foreach ($products as $index => &$_product) {
 			<div class="wu-ml-1 wu-text-sm wu-text-gray-500 sm:wu-ml-0"><?php echo esc_html($product->get_recurring_description()); ?></div>
 		</div>
 
+		<?php if ($product->is_pay_what_you_want()) : ?>
+			<div class="wu-mt-3 wu-w-full wu-space-y-2" v-show="$parent.has_product(<?php echo esc_attr($product->get_id()); ?>)">
+				<!-- Custom Amount Input -->
+				<div class="wu-flex wu-items-center wu-gap-2">
+					<span class="wu-text-gray-600 wu-font-medium"><?php echo esc_html(wu_get_currency_symbol()); ?></span>
+					<input
+						type="number"
+						step="0.01"
+						min="<?php echo esc_attr($product->get_pwyw_minimum_amount()); ?>"
+						:value="$parent.get_custom_amount(<?php echo esc_attr($product->get_id()); ?>)"
+						@input="$parent.set_custom_amount(<?php echo esc_attr($product->get_id()); ?>, $event.target.value)"
+						@click.stop
+						class="wu-w-28 wu-px-3 wu-py-1 wu-border wu-border-gray-300 wu-border-solid wu-rounded wu-text-sm"
+						placeholder="<?php echo esc_attr($product->get_pwyw_suggested_amount() ?: '0.00'); ?>"
+					>
+				</div>
+
+				<?php if ($product->allows_customer_recurring_choice()) : ?>
+					<!-- Recurring Toggle (only when customer can choose) -->
+					<label class="wu-flex wu-items-center wu-gap-2 wu-text-sm wu-text-gray-600" @click.stop>
+						<input
+							type="checkbox"
+							:checked="$parent.get_pwyw_recurring(<?php echo esc_attr($product->get_id()); ?>)"
+							@change="$parent.set_pwyw_recurring(<?php echo esc_attr($product->get_id()); ?>, $event.target.checked)"
+							class="wu-rounded wu-border-gray-300"
+						>
+						<?php esc_html_e('Make this a recurring payment', 'ultimate-multisite'); ?>
+					</label>
+				<?php elseif ('force_recurring' === $product->get_pwyw_recurring_mode()) : ?>
+					<span class="wu-text-sm wu-text-gray-500"><?php esc_html_e('(Recurring subscription)', 'ultimate-multisite'); ?></span>
+				<?php endif; ?>
+			</div>
+		<?php endif; ?>
+
 		<div
-			class="wu-absolute wu--inset-px wu-rounded-lg wu-border-solid wu-border-2 wu-pointer-events-none wu-top-0 wu-bottom-0 wu-right-0 wu-left-0" 
+			class="wu-absolute wu--inset-px wu-rounded-lg wu-border-solid wu-border-2 wu-pointer-events-none wu-top-0 wu-bottom-0 wu-right-0 wu-left-0"
 			:class="$parent.has_product(<?php echo esc_attr($product->get_id()); ?>) || $parent.has_product('<?php echo esc_attr($product->get_slug()); ?>') ? 'wu-border-blue-500' : 'wu-border-transparent'"
 			aria-hidden="true"
 		>

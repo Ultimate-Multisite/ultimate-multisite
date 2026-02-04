@@ -301,7 +301,7 @@ defined('ABSPATH') || exit;
 
 	<div class="wu-p-4 wu-block wu-flex wu-items-center">
 
-	<div v-if="avatar">
+	<div v-if="typeof avatar !== 'undefined' && avatar">
 
 		{{ avatar }}
 

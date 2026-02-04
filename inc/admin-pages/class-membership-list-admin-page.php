@@ -113,6 +113,23 @@ class Membership_List_Admin_Page extends List_Admin_Page {
 					'data-max-items'    => 99,
 				],
 			],
+			'billing_period'  => [
+				'type'    => 'select',
+				'title'   => __('Billing Period', 'ultimate-multisite'),
+				'desc'    => __('Select the billing period for this membership. Must match a price variation in the selected product.', 'ultimate-multisite'),
+				'tooltip' => '',
+				'value'   => '1-month',
+				'options' => [
+					'1-day'   => __('Daily', 'ultimate-multisite'),
+					'1-week'  => __('Weekly', 'ultimate-multisite'),
+					'1-month' => __('Monthly', 'ultimate-multisite'),
+					'3-month' => __('Quarterly (3 months)', 'ultimate-multisite'),
+					'6-month' => __('Semi-annually (6 months)', 'ultimate-multisite'),
+					'1-year'  => __('Yearly', 'ultimate-multisite'),
+					'2-year'  => __('Every 2 years', 'ultimate-multisite'),
+					'3-year'  => __('Every 3 years', 'ultimate-multisite'),
+				],
+			],
 			'status'          => [
 				'type'        => 'select',
 				'title'       => __('Status', 'ultimate-multisite'),
@@ -213,12 +230,27 @@ class Membership_List_Admin_Page extends List_Admin_Page {
 			);
 		}
 
+		// Parse the billing period into duration and duration_unit.
+		$billing_period = wu_request('billing_period', '1-month');
+		$billing_parts  = explode('-', $billing_period, 2);
+		$duration       = isset($billing_parts[0]) ? absint($billing_parts[0]) : 1;
+		$duration_unit  = isset($billing_parts[1]) ? $billing_parts[1] : 'month';
+
 		$cart = new \WP_Ultimo\Checkout\Cart(
 			[
-				'products' => $products,
-				'country'  => $customer->get_country(),
+				'products'      => $products,
+				'country'       => $customer->get_country(),
+				'duration'      => $duration,
+				'duration_unit' => $duration_unit,
 			]
 		);
+
+		// Check for cart errors (e.g., missing price variations).
+		$cart_errors = $cart->get_errors();
+
+		if ($cart_errors->has_errors()) {
+			wp_send_json_error($cart_errors);
+		}
 
 		$data = $cart->to_membership_data();
 

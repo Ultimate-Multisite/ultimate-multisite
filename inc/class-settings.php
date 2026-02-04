@@ -708,6 +708,22 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			120
 		);
 
+		$this->add_field(
+			'general',
+			'enable_error_reporting',
+			[
+				'title'   => __('Help Improve Ultimate Multisite', 'ultimate-multisite'),
+				'desc'    => sprintf(
+				/* translators: %s is a link to the privacy policy */
+					__('Allow Ultimate Multisite to collect anonymous usage data and error reports to help us improve the plugin. We collect: PHP version, WordPress version, plugin version, network type (subdomain/subdirectory), aggregate counts (sites, memberships), active gateways, and error logs. We never collect personal data, customer information, or domain names. <a href="%s" target="_blank" rel="noopener noreferrer">Learn more</a>.', 'ultimate-multisite'),
+					esc_url('https://ultimatemultisite.com/privacy-policy/')
+				),
+				'type'    => 'toggle',
+				'default' => 0,
+			],
+			130
+		);
+
 		/*
 		 * Login & Registration
 		 * This section holds the Login & Registration settings of the Ultimate Multisite Plugin.
@@ -856,7 +872,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			'login-and-registration',
 			'force_publish_sites_sync',
 			[
-				'title'   => __('Force Synchronous Site Publication ', 'ultimate-multisite'),
+				'title'   => __('Force Synchronous Site Publication', 'ultimate-multisite'),
 				'desc'    => __('By default, when a new pending site needs to be converted into a real network site, the publishing process happens via Job Queue, asynchronously. Enable this option to force the publication to happen in the same request as the signup. Be careful, as this can cause timeouts depending on the size of the site templates being copied.', 'ultimate-multisite'),
 				'type'    => 'toggle',
 				'default' => 0,
@@ -1727,21 +1743,6 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 					'errors'   => __('Errors Only', 'ultimate-multisite'),
 					'all'      => __('Everything', 'ultimate-multisite'),
 				],
-			]
-		);
-
-		$this->add_field(
-			'other',
-			'enable_error_reporting',
-			[
-				'title'   => __('Help Improve Ultimate Multisite', 'ultimate-multisite'),
-				'desc'    => sprintf(
-					/* translators: %s is a link to the privacy policy */
-					__('Allow Ultimate Multisite to collect anonymous usage data and error reports to help us improve the plugin. We collect: PHP version, WordPress version, plugin version, network type (subdomain/subdirectory), aggregate counts (sites, memberships), active gateways, and error logs. We never collect personal data, customer information, or domain names. <a href="%s" target="_blank">Learn more</a>.', 'ultimate-multisite'),
-					'https://ultimatemultisite.com/privacy-policy/'
-				),
-				'type'    => 'toggle',
-				'default' => 0,
 			]
 		);
 

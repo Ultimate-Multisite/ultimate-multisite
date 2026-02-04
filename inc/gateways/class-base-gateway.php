@@ -562,7 +562,7 @@ abstract class Base_Gateway {
 	/**
 	 * Reflects membership changes on the gateway.
 	 *
-	 * By default, this method will process tha cancellation of current gateway subscription
+	 * By default, this method will process the cancellation of a current gateway subscription
 	 *
 	 * @since 2.1.3
 	 *

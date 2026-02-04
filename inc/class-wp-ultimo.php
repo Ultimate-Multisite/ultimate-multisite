@@ -541,6 +541,11 @@ final class WP_Ultimo {
 		\WP_Ultimo\API\Register_Endpoint::get_instance();
 
 		/*
+		 * Loads API settings endpoint.
+		 */
+		\WP_Ultimo\API\Settings_Endpoint::get_instance();
+
+		/*
 		 * Loads Documentation
 		 */
 		\WP_Ultimo\Documentation::get_instance();

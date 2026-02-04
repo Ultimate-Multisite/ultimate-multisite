@@ -874,7 +874,7 @@ class Base_List_Table extends \WP_List_Table {
 				<div class=''>
 					<span class='wu-block wu-py-3 wu-text-gray-600 wu-text-2xs wu-font-bold wu-uppercase'><?php esc_html_e('No membership found', 'ultimate-multisite'); ?></span>
 				</div>
-			</div>";
+			</div>
 			<?php
 			return;
 		}

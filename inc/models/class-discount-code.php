@@ -34,6 +34,16 @@ class Discount_Code extends Base_Model {
 	const META_LIMIT_PRODUCTS = 'wu_limit_products';
 
 	/**
+	 * Meta key for allowed billing periods.
+	 */
+	const META_ALLOWED_BILLING_PERIODS = 'wu_allowed_billing_periods';
+
+	/**
+	 * Meta key for limit billing periods.
+	 */
+	const META_LIMIT_BILLING_PERIODS = 'wu_limit_billing_periods';
+
+	/**
 	 * Name of the discount code.
 	 *
 	 * @since 2.0.0
@@ -138,6 +148,22 @@ class Discount_Code extends Base_Model {
 	protected $allowed_products;
 
 	/**
+	 * If we should check for billing periods or not.
+	 *
+	 * @since 2.0.0
+	 * @var bool
+	 */
+	protected $limit_billing_periods;
+
+	/**
+	 * Holds the list of allowed billing periods.
+	 *
+	 * @since 2.0.0
+	 * @var array
+	 */
+	protected $allowed_billing_periods;
+
+	/**
 	 * Start date for the coupon code to be considered valid.
 	 *
 	 * @since 2.0.0
@@ -182,18 +208,20 @@ class Discount_Code extends Base_Model {
 	public function validation_rules() {
 
 		return [
-			'name'              => 'required|min:2',
-			'code'              => 'required|min:2|max:20|alpha_dash',
-			'uses'              => 'integer|default:0',
-			'max_uses'          => 'integer|min:0|default:0',
-			'active'            => 'default:1',
-			'apply_to_renewals' => 'default:0',
-			'type'              => 'default:absolute|in:percentage,absolute',
-			'value'             => 'required|numeric',
-			'setup_fee_type'    => 'in:percentage,absolute',
-			'setup_fee_value'   => 'numeric',
-			'allowed_products'  => 'array',
-			'limit_products'    => 'default:0',
+			'name'                    => 'required|min:2',
+			'code'                    => 'required|min:2|max:20|alpha_dash',
+			'uses'                    => 'integer|default:0',
+			'max_uses'                => 'integer|min:0|default:0',
+			'active'                  => 'default:1',
+			'apply_to_renewals'       => 'default:0',
+			'type'                    => 'default:absolute|in:percentage,absolute',
+			'value'                   => 'required|numeric',
+			'setup_fee_type'          => 'in:percentage,absolute',
+			'setup_fee_value'         => 'numeric',
+			'allowed_products'        => 'array',
+			'limit_products'          => 'default:0',
+			'allowed_billing_periods' => 'array',
+			'limit_billing_periods'   => 'default:0',
 		];
 	}
 
@@ -470,9 +498,11 @@ class Discount_Code extends Base_Model {
 	 *
 	 * @since 2.0.0
 	 * @param int|\WP_Ultimo\Models\Product $product Product to check against.
+	 * @param int|null                      $duration The billing duration (e.g., 1, 3, 12).
+	 * @param string|null                   $duration_unit The billing duration unit (e.g., 'month', 'year').
 	 * @return true|\WP_Error
 	 */
-	public function is_valid($product = false) {
+	public function is_valid($product = false, ?int $duration = null, ?string $duration_unit = null) {
 
 		if ($this->is_active() === false) {
 			return new \WP_Error('discount_code', __('This coupon code is not valid.', 'ultimate-multisite'));
@@ -509,25 +539,70 @@ class Discount_Code extends Base_Model {
 			}
 		}
 
-		if ( ! $this->get_limit_products()) {
-			return true;
-		}
-
-		if ( ! empty($product)) {
+		/*
+		 * Check product restrictions.
+		 */
+		if ($this->get_limit_products() && ! empty($product)) {
 			if (is_a($product, '\WP_Ultimo\Models\Product')) {
 				$product_id = $product->get_id();
 			} elseif (is_numeric($product)) {
 				$product_id = $product;
 			}
 
-			$allowed = $this->get_limit_products() && in_array($product_id, $this->get_allowed_products()); // phpcs:ignore
+			$allowed = in_array($product_id, $this->get_allowed_products()); // phpcs:ignore
 
 			if (false === $allowed) {
 				return new \WP_Error('discount_code', __('This coupon code is not valid.', 'ultimate-multisite'));
 			}
 		}
 
+		/*
+		 * Check billing period restrictions.
+		 */
+		if ($this->get_limit_billing_periods() && null !== $duration && null !== $duration_unit) {
+			$billing_period_key = self::get_billing_period_key($duration, $duration_unit);
+			$allowed_periods    = $this->get_allowed_billing_periods();
+
+			if ( ! in_array($billing_period_key, $allowed_periods, true)) {
+				return new \WP_Error('discount_code', __('This coupon code is not valid for the selected billing period.', 'ultimate-multisite'));
+			}
+		}
+
 		return true;
+	}
+
+	/**
+	 * Creates a billing period key from duration and duration unit.
+	 *
+	 * @since 2.0.0
+	 * @param int    $duration The billing duration (e.g., 1, 3, 12).
+	 * @param string $duration_unit The billing duration unit (e.g., 'month', 'year').
+	 * @return string The billing period key (e.g., '1-month', '1-year').
+	 */
+	public static function get_billing_period_key(int $duration, string $duration_unit): string {
+
+		return sprintf('%d-%s', $duration, $duration_unit);
+	}
+
+	/**
+	 * Parses a billing period key back to duration and duration unit.
+	 *
+	 * @since 2.0.0
+	 * @param string $key The billing period key (e.g., '1-month', '1-year').
+	 * @return array{duration: int, duration_unit: string}|false Array with duration and duration_unit, or false if invalid.
+	 */
+	public static function parse_billing_period_key(string $key) {
+
+		$parts = explode('-', $key, 2);
+
+		if (count($parts) !== 2) {
+			return false;
+		}
+
+		return [
+			'duration'      => (int) $parts[0],
+			'duration_unit' => $parts[1],
+		];
 	}
 
 	/**
@@ -765,5 +840,63 @@ class Discount_Code extends Base_Model {
 		$this->meta[ self::META_LIMIT_PRODUCTS ] = (bool) $limit_products;
 
 		$this->limit_products = $this->meta[ self::META_LIMIT_PRODUCTS ];
+	}
+
+	/**
+	 * Get if we should check for billing periods or not.
+	 *
+	 * @since 2.0.0
+	 * @return bool
+	 */
+	public function get_limit_billing_periods() {
+
+		if (null === $this->limit_billing_periods) {
+			$this->limit_billing_periods = $this->get_meta(self::META_LIMIT_BILLING_PERIODS, false);
+		}
+
+		return (bool) $this->limit_billing_periods;
+	}
+
+	/**
+	 * Set if we should check for billing periods or not.
+	 *
+	 * @since 2.0.0
+	 * @param bool $limit_billing_periods This discount code will be limited to certain billing periods? If set to true, you must define a list of allowed billing periods.
+	 * @return void
+	 */
+	public function set_limit_billing_periods($limit_billing_periods): void {
+
+		$this->meta[ self::META_LIMIT_BILLING_PERIODS ] = (bool) $limit_billing_periods;
+
+		$this->limit_billing_periods = $this->meta[ self::META_LIMIT_BILLING_PERIODS ];
+	}
+
+	/**
+	 * Get holds the list of allowed billing periods.
+	 *
+	 * @since 2.0.0
+	 * @return array
+	 */
+	public function get_allowed_billing_periods() {
+
+		if (null === $this->allowed_billing_periods) {
+			$this->allowed_billing_periods = $this->get_meta(self::META_ALLOWED_BILLING_PERIODS, []);
+		}
+
+		return (array) $this->allowed_billing_periods;
+	}
+
+	/**
+	 * Set holds the list of allowed billing periods.
+	 *
+	 * @since 2.0.0
+	 * @param array $allowed_billing_periods The list of billing periods that allows this discount code to be used. Format: ['1-month', '1-year'].
+	 * @return void
+	 */
+	public function set_allowed_billing_periods($allowed_billing_periods): void {
+
+		$this->meta[ self::META_ALLOWED_BILLING_PERIODS ] = (array) $allowed_billing_periods;
+
+		$this->allowed_billing_periods = $this->meta[ self::META_ALLOWED_BILLING_PERIODS ];
 	}
 }

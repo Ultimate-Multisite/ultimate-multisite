@@ -34,7 +34,9 @@ class Block_Editor_Widget_Manager {
 		if (\WP_Ultimo\Compat\Gutenberg_Support::get_instance()->should_load()) {
 			add_action('wu_element_loaded', [$this, 'handle_element']);
 
-			add_action('init', [$this, 'register_scripts']);
+			if (is_admin()) {
+				add_action('init', [$this, 'register_scripts']);
+			}
 
 			add_filter('wu_element_is_preview', [$this, 'is_block_preview']);
 		}

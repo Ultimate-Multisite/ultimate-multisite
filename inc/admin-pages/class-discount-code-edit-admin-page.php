@@ -113,7 +113,7 @@ class Discount_Code_Edit_Admin_Page extends Edit_Admin_Page {
 		$tz_note = sprintf('The site timezone is <code>%s</code>. The current time is <code>%s</code>', date_i18n('e'), date_i18n('r'));
 
 		$options = [
-			'general'  => [
+			'general'         => [
 				'title'  => __('Limit Uses', 'ultimate-multisite'),
 				'icon'   => 'dashicons-wu-lock',
 				'desc'   => __('Rules and limitations to the applicability of this discount code.', 'ultimate-multisite'),
@@ -135,7 +135,7 @@ class Discount_Code_Edit_Admin_Page extends Edit_Admin_Page {
 					],
 				],
 			],
-			'time'     => [
+			'time'            => [
 				'title'  => __('Start & Expiration Dates', 'ultimate-multisite'),
 				'desc'   => __('Define a start and end date for this discount code. Useful when running campaigns for a pre-determined period.', 'ultimate-multisite'),
 				'icon'   => 'dashicons-wu-calendar',
@@ -200,7 +200,7 @@ class Discount_Code_Edit_Admin_Page extends Edit_Admin_Page {
 					],
 				],
 			],
-			'products' => [
+			'products'        => [
 				'title'  => __('Limit Products', 'ultimate-multisite'),
 				'desc'   => __('Determine if you want this discount code to apply to all discountable products or not.', 'ultimate-multisite'),
 				'icon'   => 'dashicons-wu-price-tag',
@@ -220,6 +220,28 @@ class Discount_Code_Edit_Admin_Page extends Edit_Admin_Page {
 						],
 					],
 					$this->get_product_field_list()
+				),
+			],
+			'billing_periods' => [
+				'title'  => __('Limit Billing Periods', 'ultimate-multisite'),
+				'desc'   => __('Restrict this discount code to specific billing periods (e.g., only monthly or only annual plans).', 'ultimate-multisite'),
+				'icon'   => 'dashicons-wu-calendar',
+				'state'  => [
+					'limit_billing_periods' => $this->get_object()->get_limit_billing_periods(),
+				],
+				'fields' => array_merge(
+					[
+						'limit_billing_periods' => [
+							'type'      => 'toggle',
+							'title'     => __('Select Billing Periods', 'ultimate-multisite'),
+							'desc'      => __('Manually select which billing periods this discount code should be applicable to.', 'ultimate-multisite'),
+							'value'     => 1,
+							'html_attr' => [
+								'v-model' => 'limit_billing_periods',
+							],
+						],
+					],
+					$this->get_billing_period_field_list()
 				),
 			],
 		];
@@ -444,6 +466,190 @@ class Discount_Code_Edit_Admin_Page extends Edit_Admin_Page {
 	}
 
 	/**
+	 * List of billing periods to apply this coupon to.
+	 *
+	 * @since 2.0.0
+	 * @return array
+	 */
+	protected function get_billing_period_field_list() {
+
+		$fields          = [];
+		$billing_periods = $this->get_available_billing_periods();
+		$allowed_periods = $this->get_object()->get_allowed_billing_periods();
+		$limit_periods   = $this->get_object()->get_limit_billing_periods();
+
+		foreach ($billing_periods as $period_key => $period_label) {
+			$fields[ "allowed_billing_periods_{$period_key}" ] = [
+				'type'              => 'toggle',
+				'title'             => $period_label,
+				'desc'              => __('Make applicable to this billing period.', 'ultimate-multisite'),
+				'tooltip'           => '',
+				'wrapper_classes'   => '',
+				'html_attr'         => [
+					':name'    => "'allowed_billing_periods[]'",
+					':checked' => wp_json_encode(! $limit_periods || in_array($period_key, $allowed_periods, true)),
+					':value'   => wp_json_encode($period_key),
+				],
+				'wrapper_html_attr' => [
+					'v-cloak' => 1,
+					'v-show'  => 'limit_billing_periods',
+				],
+			];
+		}
+
+		// Hidden field to ensure at least one value is submitted
+		$fields['allowed_billing_periods_none'] = [
+			'type'      => 'hidden',
+			'value'     => '__none',
+			'html_attr' => [
+				':name' => "'allowed_billing_periods[]'",
+			],
+		];
+
+		if (empty($billing_periods)) {
+			$fields['allowed_billing_periods_no_periods'] = [
+				'type'              => 'note',
+				'title'             => '',
+				'desc'              => __('No billing periods found. Create products with different billing periods first.', 'ultimate-multisite'),
+				'wrapper_html_attr' => [
+					'v-cloak' => 1,
+					'v-show'  => 'limit_billing_periods',
+				],
+			];
+		}
+
+		return $fields;
+	}
+
+	/**
+	 * Get all available billing periods from products.
+	 *
+	 * Scans all products to find unique billing period combinations.
+	 *
+	 * @since 2.0.0
+	 * @return array Associative array of period_key => label.
+	 */
+	protected function get_available_billing_periods() {
+
+		$periods = [];
+
+		foreach (wu_get_products() as $product) {
+			if ( ! $product->is_recurring()) {
+				continue;
+			}
+
+			$duration      = $product->get_duration();
+			$duration_unit = $product->get_duration_unit();
+			$period_key    = Discount_Code::get_billing_period_key($duration, $duration_unit);
+
+			if ( ! isset($periods[ $period_key ])) {
+				$periods[ $period_key ] = $this->format_billing_period_label($duration, $duration_unit);
+			}
+
+			// Also check for price variations
+			$price_variations = $product->get_price_variations();
+
+			if ( ! empty($price_variations)) {
+				foreach ($price_variations as $variation) {
+					$var_duration      = isset($variation['duration']) ? (int) $variation['duration'] : 0;
+					$var_duration_unit = isset($variation['duration_unit']) ? $variation['duration_unit'] : '';
+
+					if ($var_duration > 0 && ! empty($var_duration_unit)) {
+						$var_period_key = Discount_Code::get_billing_period_key($var_duration, $var_duration_unit);
+
+						if ( ! isset($periods[ $var_period_key ])) {
+							$periods[ $var_period_key ] = $this->format_billing_period_label($var_duration, $var_duration_unit);
+						}
+					}
+				}
+			}
+		}
+
+		// Sort by duration for consistent display
+		uksort(
+			$periods,
+			function ($a, $b) {
+				$a_parts = Discount_Code::parse_billing_period_key($a);
+				$b_parts = Discount_Code::parse_billing_period_key($b);
+
+				if ( ! $a_parts || ! $b_parts) {
+					return 0;
+				}
+
+				// Convert to days for comparison
+				$a_days = $this->get_period_in_days($a_parts['duration'], $a_parts['duration_unit']);
+				$b_days = $this->get_period_in_days($b_parts['duration'], $b_parts['duration_unit']);
+
+				return $a_days <=> $b_days;
+			}
+		);
+
+		return $periods;
+	}
+
+	/**
+	 * Format a billing period label for display.
+	 *
+	 * @since 2.0.0
+	 * @param int    $duration The billing duration.
+	 * @param string $duration_unit The billing duration unit.
+	 * @return string Human-readable label.
+	 */
+	protected function format_billing_period_label(int $duration, string $duration_unit): string {
+
+		$unit_labels = [
+			'day'   => [
+				'singular' => __('Day', 'ultimate-multisite'),
+				'plural'   => __('Days', 'ultimate-multisite'),
+			],
+			'week'  => [
+				'singular' => __('Week', 'ultimate-multisite'),
+				'plural'   => __('Weeks', 'ultimate-multisite'),
+			],
+			'month' => [
+				'singular' => __('Month', 'ultimate-multisite'),
+				'plural'   => __('Months', 'ultimate-multisite'),
+			],
+			'year'  => [
+				'singular' => __('Year', 'ultimate-multisite'),
+				'plural'   => __('Years', 'ultimate-multisite'),
+			],
+		];
+
+		$unit_label = isset($unit_labels[ $duration_unit ])
+			? (1 === $duration ? $unit_labels[ $duration_unit ]['singular'] : $unit_labels[ $duration_unit ]['plural'])
+			: $duration_unit;
+
+		if (1 === $duration) {
+			return $unit_label;
+		}
+
+		return sprintf('%d %s', $duration, $unit_label);
+	}
+
+	/**
+	 * Convert a billing period to days for sorting purposes.
+	 *
+	 * @since 2.0.0
+	 * @param int    $duration The billing duration.
+	 * @param string $duration_unit The billing duration unit.
+	 * @return int Approximate number of days.
+	 */
+	protected function get_period_in_days(int $duration, string $duration_unit): int {
+
+		$multipliers = [
+			'day'   => 1,
+			'week'  => 7,
+			'month' => 30,
+			'year'  => 365,
+		];
+
+		$multiplier = isset($multipliers[ $duration_unit ]) ? $multipliers[ $duration_unit ] : 1;
+
+		return $duration * $multiplier;
+	}
+
+	/**
 	 * Handles legacy advanced options for coupons.
 	 *
 	 * @since 2.0.0
@@ -653,6 +859,22 @@ class Discount_Code_Edit_Admin_Page extends Edit_Admin_Page {
 		 */
 		if ( ! wu_request('limit_products')) {
 			$_POST['limit_products'] = false;
+		}
+
+		/*
+		 * Set the limit billing periods value.
+		 */
+		if ( ! wu_request('limit_billing_periods')) {
+			$_POST['limit_billing_periods'] = false;
+		}
+
+		/*
+		 * Filter out the placeholder value from allowed_billing_periods.
+		 */
+		$allowed_billing_periods = wu_request('allowed_billing_periods', []);
+
+		if (is_array($allowed_billing_periods)) {
+			$_POST['allowed_billing_periods'] = array_filter($allowed_billing_periods, fn($value) => '__none' !== $value);
 		}
 
 		/*

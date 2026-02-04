@@ -26,10 +26,16 @@ defined('ABSPATH') || exit;
 
 	?>
 
+	<?php
+	// Check if Vue is handling the name dynamically to avoid duplicate attributes
+	$has_vue_name = isset($field->html_attr['v-bind:name']);
+	?>
 	<select
 	class="form-control wu-w-full wu-my-1 <?php echo esc_attr(trim($field->classes)); ?>"
 	id="field-<?php echo esc_attr($field->id); ?>"
+	<?php if ( ! $has_vue_name) : ?>
 	name="<?php echo esc_attr($field->id); ?>"
+	<?php endif; ?>
 	value="<?php echo esc_attr($field->value); ?>"
 	<?php $field->print_html_attributes(); ?>
 	>

@@ -1,0 +1,33 @@
+codecov:
+  require_ci_to_pass: false
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 0%
+        informational: false
+    patch:
+      default:
+        target: 80%
+        threshold: 0%
+        informational: false
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+  after_n_builds: 1
+  show_carryforward_flags: true
+
+ignore:
+  - "inc/ui/**"
+  - "inc/views/**"
+  - "inc/assets/**"
+  - "inc/development/**"
+  - "inc/site-exporter/**"
+  - "tests/**"
+  - "vendor/**"

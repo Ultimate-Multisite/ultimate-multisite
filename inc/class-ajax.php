@@ -104,16 +104,15 @@ class Ajax implements \WP_Ultimo\Interfaces\Singleton {
 			[
 				'model'   => 'membership',
 				'query'   => [],
+				'number'  => 100,
 				'exclude' => [], // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
 			]
 		);
 
-		$query = array_merge(
-			$args['query'],
-			[
-				'number' => -1,
-			]
-		);
+		// Number can be in the query array or it's own. Code uses both.
+		if (empty($args['query']['number'])) {
+			$args['query']['number'] = $args['number'];
+		}
 
 		if ($args['exclude']) {
 			if (is_string($args['exclude'])) {

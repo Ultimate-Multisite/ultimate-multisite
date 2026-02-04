@@ -36,8 +36,8 @@ if ( ! defined('ABSPATH')) {
 	$site_url = str_replace('www.', '', $site_url);
 
 	echo is_subdomain_install() ?
-		sprintf('<strong id="wu-your-site" v-html="site_url ? site_url : \'yoursite\'">%s</strong>.<span id="wu-site-domain" v-html="site_domain">%s</span>', esc_html($dynamic_part), esc_html($site_url)) :
-		sprintf('<span id="wu-site-domain" v-html="site_domain">%s</span>/<strong id="wu-your-site" v-html="site_url ? site_url : \'yoursite\'">%s</strong>', esc_html($site_url), esc_html($dynamic_part));
+		sprintf('<strong id="wu-your-site" v-html="site_url ? site_url : \'%1$s\'">%1$s</strong>.<span id="wu-site-domain" v-html="site_domain">%2$s</span>', esc_html($dynamic_part), esc_html($site_url)) :
+		sprintf('<span id="wu-site-domain" v-html="site_domain">%1$s</span>/<strong id="wu-your-site" v-html="site_url ? site_url : \'%2$s\'">%2$s</strong>', esc_html($site_url), esc_html($dynamic_part));
 	?>
 
 </div>

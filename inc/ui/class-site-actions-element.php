@@ -158,6 +158,14 @@ class Site_Actions_Element extends Base_Element {
 			'value'   => 1,
 		];
 
+		$fields['show_change_email'] = [
+			'type'    => 'toggle',
+			'title'   => __('Show Change Email', 'ultimate-multisite'),
+			'desc'    => __('Toggle to show/hide the change email link.', 'ultimate-multisite'),
+			'tooltip' => '',
+			'value'   => 1,
+		];
+
 		$fields['show_change_default_site'] = [
 			'type'    => 'toggle',
 			'title'   => __('Show Change Default Site', 'ultimate-multisite'),
@@ -246,6 +254,7 @@ class Site_Actions_Element extends Base_Element {
 
 		return [
 			'show_change_password'       => 1,
+			'show_change_email'          => 1,
 			'show_change_default_site'   => 1,
 			'show_change_payment_method' => 1,
 			'redirect_after_delete'      => 0,
@@ -314,6 +323,15 @@ class Site_Actions_Element extends Base_Element {
 			[
 				'render'     => [$this, 'render_change_password'],
 				'handler'    => [$this, 'handle_change_password'],
+				'capability' => 'exist',
+			]
+		);
+
+		wu_register_form(
+			'change_email',
+			[
+				'render'     => [$this, 'render_change_email'],
+				'handler'    => [$this, 'handle_change_email'],
 				'capability' => 'exist',
 			]
 		);
@@ -404,6 +422,15 @@ class Site_Actions_Element extends Base_Element {
 				'icon_classes' => 'dashicons-wu-edit wu-align-middle',
 				'classes'      => 'wubox',
 				'href'         => wu_get_form_url('change_password'),
+			];
+		}
+
+		if (wu_get_isset($atts, 'show_change_email')) {
+			$actions['change_email'] = [
+				'label'        => __('Change Email', 'ultimate-multisite'),
+				'icon_classes' => 'dashicons-wu-edit wu-align-middle',
+				'classes'      => 'wubox',
+				'href'         => wu_get_form_url('change_email'),
 			];
 		}
 
@@ -729,6 +756,151 @@ class Site_Actions_Element extends Base_Element {
 		wp_set_auth_cookie($user->ID);
 		wp_set_current_user($user->ID);
 		do_action('wp_login', $user->user_login, $user); // PHPCS:ignore WordPress.NamingConventions
+		$referer = isset($_SERVER['HTTP_REFERER']) ? sanitize_url(wp_unslash($_SERVER['HTTP_REFERER'])) : '';
+
+		wp_send_json_success(
+			[
+				'redirect_url' => add_query_arg('updated', 1, $referer),
+			]
+		);
+	}
+
+	/**
+	 * Renders the change email modal.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function render_change_email(): void {
+
+		$user = wp_get_current_user();
+
+		$fields = [
+			'current_email'  => [
+				'type'      => 'text',
+				'title'     => __('Current Email', 'ultimate-multisite'),
+				'value'     => $user->user_email,
+				'html_attr' => [
+					'disabled' => 'disabled',
+				],
+			],
+			'password'       => [
+				'type'        => 'password',
+				'title'       => __('Current Password', 'ultimate-multisite'),
+				'placeholder' => __('******', 'ultimate-multisite'),
+				'desc'        => __('Enter your password to confirm this change.', 'ultimate-multisite'),
+			],
+			'new_email'      => [
+				'type'        => 'email',
+				'title'       => __('New Email', 'ultimate-multisite'),
+				'placeholder' => __('newemail@example.com', 'ultimate-multisite'),
+			],
+			'new_email_conf' => [
+				'type'        => 'email',
+				'placeholder' => __('newemail@example.com', 'ultimate-multisite'),
+				'title'       => __('Confirm New Email', 'ultimate-multisite'),
+			],
+			'submit_button'  => [
+				'type'            => 'submit',
+				'title'           => __('Change Email', 'ultimate-multisite'),
+				'value'           => 'save',
+				'classes'         => 'button button-primary wu-w-full',
+				'wrapper_classes' => 'wu-items-end',
+				'html_attr'       => [],
+			],
+		];
+
+		$form = new \WP_Ultimo\UI\Form(
+			'change_email',
+			$fields,
+			[
+				'views'                 => 'admin-pages/fields',
+				'classes'               => 'wu-modal-form wu-widget-list wu-striped wu-m-0 wu-mt-0',
+				'field_wrapper_classes' => 'wu-w-full wu-box-border wu-items-center wu-flex wu-justify-between wu-p-4 wu-m-0 wu-border-t wu-border-l-0 wu-border-r-0 wu-border-b-0 wu-border-gray-300 wu-border-solid',
+				'html_attr'             => [
+					'data-wu-app' => 'change_email',
+					'data-state'  => wu_convert_to_state(),
+				],
+			]
+		);
+
+		$form->render();
+	}
+
+	/**
+	 * Handles the email change form.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function handle_change_email(): void {
+
+		$user = wp_get_current_user();
+
+		if ( ! $user) {
+			$error = new \WP_Error('user-dont-exist', __('Something went wrong.', 'ultimate-multisite'));
+
+			wp_send_json_error($error);
+		}
+
+		$current_password = wu_request('password');
+
+		if ( ! wp_check_password($current_password, $user->user_pass, $user->ID)) {
+			$error = new \WP_Error('wrong-password', __('Your current password is wrong.', 'ultimate-multisite'));
+
+			wp_send_json_error($error);
+		}
+
+		$new_email      = wu_request('new_email');
+		$new_email_conf = wu_request('new_email_conf');
+
+		if ( ! $new_email || ! is_email($new_email)) {
+			$error = new \WP_Error('invalid-email', __('Please enter a valid email address.', 'ultimate-multisite'));
+
+			wp_send_json_error($error);
+		}
+
+		if ($new_email !== $new_email_conf) {
+			$error = new \WP_Error('emails-dont-match', __('Email addresses do not match.', 'ultimate-multisite'));
+
+			wp_send_json_error($error);
+		}
+
+		if (strtolower($new_email) === strtolower($user->user_email)) {
+			$error = new \WP_Error('same-email', __('The new email address is the same as your current email.', 'ultimate-multisite'));
+
+			wp_send_json_error($error);
+		}
+
+		// Check if email is already in use by another user.
+		$existing_user = get_user_by('email', $new_email);
+
+		if ($existing_user && $existing_user->ID !== $user->ID) {
+			$error = new \WP_Error('email-exists', __('This email address is already in use.', 'ultimate-multisite'));
+
+			wp_send_json_error($error);
+		}
+
+		// Update WordPress user email.
+		$user_id = wp_update_user(
+			[
+				'ID'         => $user->ID,
+				'user_email' => $new_email,
+			]
+		);
+
+		if (is_wp_error($user_id)) {
+			wp_send_json_error($user_id);
+		}
+
+		// Update customer email if exists.
+		$customer = wu_get_current_customer();
+
+		if ($customer) {
+			$customer->set_email_address($new_email);
+			$customer->save();
+		}
+
 		$referer = isset($_SERVER['HTTP_REFERER']) ? sanitize_url(wp_unslash($_SERVER['HTTP_REFERER'])) : '';
 
 		wp_send_json_success(

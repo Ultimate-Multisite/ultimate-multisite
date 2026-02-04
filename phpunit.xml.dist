@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<phpunit bootstrap="tests/bootstrap.php" backupGlobals="false" colors="true" convertErrorsToExceptions="true" convertNoticesToExceptions="true" convertWarningsToExceptions="true">
+<phpunit bootstrap="tests/bootstrap.php" backupGlobals="false" colors="true">
   <php>
     <const name="WP_TESTS_MULTISITE" value="1"/>
   </php>
@@ -17,6 +17,8 @@
       <directory>./inc/ui</directory>
       <directory>./inc/views</directory>
       <directory>./inc/assets</directory>
+      <directory>./inc/development</directory>
+      <directory>./inc/site-exporter</directory>
       <directory>./vendor</directory>
       <file>./inc/stuff.php</file>
     </exclude>
