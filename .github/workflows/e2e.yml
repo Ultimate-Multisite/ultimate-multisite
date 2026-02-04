@@ -120,66 +120,24 @@ jobs:
           echo "Base URL: http://localhost:8889"
           cat cypress.env.json 2>/dev/null || echo "❌ cypress.env.json not found"
 
-      - name: Run Setup Wizard Test (Must Run First)
+      - name: Run Setup Test (Must Run First)
         id: setup-test
-        continue-on-error: true
         run: |
-          echo "=== Starting Setup Wizard Test ==="
-
-          # Don't exit on errors - we want to capture the result
+          echo "=== Starting Setup Test ==="
           npx cypress run \
             --config-file cypress.config.test.js \
-            --spec "tests/e2e/cypress/integration/setup-wizard-complete.spec.js" \
-            --browser ${{ matrix.browser }} \
-            --reporter spec \
-            --reporter-options "verbose=true" \
-            --env "CYPRESS_CRASH_REPORTS=0" \
-            --record false \
-            --video true \
-            --screenshot-on-failure true
-
-          CYPRESS_EXIT_CODE=$?
-
-          if [ $CYPRESS_EXIT_CODE -eq 0 ]; then
-            echo "✅ Setup wizard test passed successfully"
-            echo "setup_success=true" >> $GITHUB_OUTPUT
-          else
-            echo "❌ Setup wizard test failed with exit code $CYPRESS_EXIT_CODE"
-            echo "Capturing detailed failure information..."
-            echo "=== WordPress State ==="
-            curl -I http://localhost:8889 || echo "WordPress not responding"
-            echo "=== Test Files ==="
-            ls -la tests/e2e/cypress/screenshots/ 2>/dev/null || echo "No screenshots directory"
-            ls -la tests/e2e/cypress/videos/ 2>/dev/null || echo "No videos directory"
-            echo "=== Docker Logs ==="
-            docker logs $(docker ps -q --filter "name=tests-wordpress") 2>&1 | tail -10 || echo "No Docker logs"
-            echo "=== File System ==="
-            ls -la tests/e2e/cypress/integration/setup-wizard-complete.spec.js || echo "Setup test file missing"
-            echo "setup_success=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Verify Setup Completed Successfully
-        if: success()
-        run: |
-          echo "=== Verifying Setup Wizard Completion ==="
-          # Test for setup completion indicators
-          curl -s "http://localhost:8889/wp-admin/network/" | grep -i "ultimo\|dashboard" && echo "✅ Setup appears successful" || echo "⚠️  Setup verification unclear"
+            --spec "tests/e2e/cypress/integration/000-setup.spec.js" \
+            --browser ${{ matrix.browser }}
 
       - name: Run Checkout Tests (After Setup)
-        if: always()  # Run checkout tests regardless of setup wizard result for debugging
-        continue-on-error: true
+        id: checkout-tests
         run: |
+          set +e
           echo "=== Starting Checkout Tests ==="
-          echo "Setup wizard result: ${GITHUB_OUTPUT}"
-          echo "Setup success flag: ${{ steps.setup-test.outputs.setup_success }}"
-          echo "Running checkout test suite (setup wizard success not required for debugging)..."
 
-          # Run all checkout tests in sequence
           CHECKOUT_TESTS=(
-            "tests/e2e/cypress/integration/checkout-registration.spec.js"
-            "tests/e2e/cypress/integration/checkout-validation.spec.js"
-            "tests/e2e/cypress/integration/checkout-scenarios.spec.js"
-            "tests/e2e/cypress/integration/checkout-confirmation.spec.js"
+            "tests/e2e/cypress/integration/010-manual-checkout-flow.spec.js"
+            "tests/e2e/cypress/integration/020-free-trial-flow.spec.js"
           )
 
           TOTAL_FAILURES=0
@@ -190,13 +148,7 @@ jobs:
             npx cypress run \
               --config-file cypress.config.test.js \
               --spec "$TEST_SPEC" \
-              --browser ${{ matrix.browser }} \
-              --reporter spec \
-              --reporter-options "verbose=true" \
-              --env "CYPRESS_CRASH_REPORTS=0" \
-              --record false \
-              --video true \
-              --screenshot-on-failure true
+              --browser ${{ matrix.browser }}
 
             CYPRESS_EXIT_CODE=$?
 
@@ -209,13 +161,11 @@ jobs:
           done
 
           if [ $TOTAL_FAILURES -gt 0 ]; then
-            echo "❌ $TOTAL_FAILURES checkout tests failed"
-            echo "Capturing failure information..."
-            ls -la tests/e2e/cypress/screenshots/ 2>/dev/null || echo "No screenshots"
-            ls -la tests/e2e/cypress/videos/ 2>/dev/null || echo "No videos"
-          else
-            echo "✅ All checkout tests passed successfully!"
+            echo "❌ $TOTAL_FAILURES checkout test(s) failed"
+            exit 1
           fi
+
+          echo "✅ All checkout tests passed!"
 
       - name: Fix permissions for Cypress output
         if: always()
@@ -236,12 +186,6 @@ jobs:
         with:
           name: cypress-videos-${{ matrix.php }}-${{ matrix.browser }}
           path: tests/e2e/cypress/videos
-
-      - name: Fail job if tests failed
-        if: failure()
-        run: |
-          echo "❌ One or more e2e tests failed."
-          exit 1
 
       - name: Stop WordPress Environment
         if: always()
