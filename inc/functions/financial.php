@@ -20,6 +20,13 @@ use WP_Ultimo\Database\Memberships\Membership_Status;
  */
 function wu_calculate_mrr() {
 
+	// Check for cached value
+	$cached_mrr = wp_cache_get('wu_mrr', 'wu_financial_data');
+
+	if (false !== $cached_mrr) {
+		return $cached_mrr;
+	}
+
 	$total_mrr = 0;
 
 	$memberships = wu_get_memberships(
@@ -30,6 +37,9 @@ function wu_calculate_mrr() {
 			],
 		]
 	);
+
+	// Pre-calculate duration unit conversions to avoid repeated function calls
+	$duration_unit_cache = [];
 
 	foreach ($memberships as $membership) {
 		$recurring_amount = $membership->get_amount();
@@ -42,12 +52,21 @@ function wu_calculate_mrr() {
 
 		$duration_unit = $membership->get_duration_unit();
 
-		$normalized_duration_unit = wu_convert_duration_unit_to_month($duration_unit);
+		// Use cached conversion if available
+		if (!isset($duration_unit_cache[$duration_unit])) {
+			$duration_unit_cache[$duration_unit] = wu_convert_duration_unit_to_month($duration_unit);
+		}
+
+		$normalized_duration_unit = $duration_unit_cache[$duration_unit];
 
 		$mrr = $recurring_amount / ($duration * $normalized_duration_unit);
 
 		$total_mrr += $mrr;
 	}
+
+	// Cache the result for 1 hour
+	// This value doesn't change frequently and is expensive to calculate
+	wp_cache_set('wu_mrr', $total_mrr, 'wu_financial_data', HOUR_IN_SECONDS);
 
 	return $total_mrr;
 }
@@ -96,7 +115,19 @@ function wu_convert_duration_unit_to_month($duration_unit) {
  */
 function wu_calculate_arr() {
 
-	return wu_calculate_mrr() * 12;
+	// Check for cached value
+	$cached_arr = wp_cache_get('wu_arr', 'wu_financial_data');
+
+	if (false !== $cached_arr) {
+		return $cached_arr;
+	}
+
+	$arr = wu_calculate_mrr() * 12;
+
+	// Cache the result for 1 hour
+	wp_cache_set('wu_arr', $arr, 'wu_financial_data', HOUR_IN_SECONDS);
+
+	return $arr;
 }
 
 /**
@@ -110,6 +141,16 @@ function wu_calculate_arr() {
  * @return float
  */
 function wu_calculate_revenue($start_date = false, $end_date = false, $inclusive = true) {
+
+	// Generate a cache key based on the parameters
+	$cache_key = 'wu_revenue_' . md5($start_date . '_' . $end_date . '_' . (int) $inclusive);
+
+	// Check for cached value
+	$cached_revenue = wp_cache_get($cache_key, 'wu_financial_data');
+
+	if (false !== $cached_revenue) {
+		return $cached_revenue;
+	}
 
 	$total_revenue = 0;
 
@@ -134,11 +175,19 @@ function wu_calculate_revenue($start_date = false, $end_date = false, $inclusive
 		$query_args['date_query']['inclusive'] = $inclusive;
 	}
 
-	$payments = wu_get_payments($query_args);
+	// Use sum query for better performance when possible
+	if (isset($query_args['fields']) && $query_args['fields'] === ['total']) {
+		$total_revenue = wu_get_payments_sum('total', $query_args);
+	} else {
+		$payments = wu_get_payments($query_args);
 
-	foreach ($payments as $payment) {
-		$total_revenue += (float) $payment->total;
+		foreach ($payments as $payment) {
+			$total_revenue += (float) $payment->total;
+		}
 	}
+
+	// Cache the result for 1 hour
+	wp_cache_set($cache_key, $total_revenue, 'wu_financial_data', HOUR_IN_SECONDS);
 
 	return $total_revenue;
 }
@@ -155,7 +204,17 @@ function wu_calculate_revenue($start_date = false, $end_date = false, $inclusive
  */
 function wu_calculate_refunds($start_date = false, $end_date = false, $inclusive = true) {
 
-	$total_revenue = 0;
+	// Generate a cache key based on the parameters
+	$cache_key = 'wu_refunds_' . md5($start_date . '_' . $end_date . '_' . (int) $inclusive);
+
+	// Check for cached value
+	$cached_refunds = wp_cache_get($cache_key, 'wu_financial_data');
+
+	if (false !== $cached_refunds) {
+		return $cached_refunds;
+	}
+
+	$total_refunds = 0;
 
 	$query_args = [
 		'fields'     => ['refund_total'],
@@ -178,13 +237,21 @@ function wu_calculate_refunds($start_date = false, $end_date = false, $inclusive
 		$query_args['date_query']['inclusive'] = $inclusive;
 	}
 
-	$payments = wu_get_payments($query_args);
+	// Use sum query for better performance when possible
+	if (isset($query_args['fields']) && $query_args['fields'] === ['refund_total']) {
+		$total_refunds = -wu_get_payments_sum('refund_total', $query_args);
+	} else {
+		$payments = wu_get_payments($query_args);
 
-	foreach ($payments as $payment) {
-		$total_revenue += -(float) $payment->refund_total;
+		foreach ($payments as $payment) {
+			$total_refunds += -(float) $payment->refund_total;
+		}
 	}
 
-	return $total_revenue;
+	// Cache the result for 1 hour
+	wp_cache_set($cache_key, $total_refunds, 'wu_financial_data', HOUR_IN_SECONDS);
+
+	return $total_refunds;
 }
 
 /**
@@ -387,10 +454,18 @@ function wu_calculate_taxes_by_day($start_date = false, $end_date = false, $incl
  */
 function wu_calculate_taxes_by_month() {
 
+	// Check for cached value in transient
 	$cache = get_site_transient('wu_tax_monthly_stats');
 
 	if (is_array($cache)) {
 		return $cache;
+	}
+
+	// Also check object cache for even faster retrieval
+	$cached_data = wp_cache_get('wu_tax_monthly_stats', 'wu_financial_data');
+
+	if (false !== $cached_data) {
+		return $cached_data;
 	}
 
 	$query_args = [
@@ -401,8 +476,7 @@ function wu_calculate_taxes_by_month() {
 		],
 	];
 
-	$line_items_groups = \WP_Ultimo\Checkout\Line_Item::get_line_items($query_args);
-
+	// Pre-initialize the data array with all months
 	$data = [];
 
 	$period = new \DatePeriod(
@@ -422,29 +496,98 @@ function wu_calculate_taxes_by_month() {
 		];
 	}
 
+	// Get line items in a single query
+	$line_items_groups = \WP_Ultimo\Checkout\Line_Item::get_line_items($query_args);
+
+	// Process line items more efficiently
 	foreach ($line_items_groups as $line_items_group) {
 		foreach ($line_items_group as $line_item) {
 			$date = gmdate('n', strtotime((string) $line_item->date_created));
 
+			// Get values once to avoid repeated method calls
+			$total = $line_item->get_total();
+			$tax_total = $line_item->get_tax_total();
+			$net_profit = $total - $tax_total;
+
 			if ( ! wu_get_isset($data, $date)) {
 				$data[ $date ] = [
-					'order_count' => 0,
-					'total'       => $line_item->get_total(),
-					'tax_total'   => $line_item->get_tax_total(),
-					'net_profit'  => $line_item->get_total() - $line_item->get_tax_total(),
+					'order_count' => 1,
+					'total'       => $total,
+					'tax_total'   => $tax_total,
+					'net_profit'  => $net_profit,
 				];
 			} else {
 				$data[ $date ]['order_count'] += 1;
-				$data[ $date ]['total']       += $line_item->get_total();
-				$data[ $date ]['tax_total']   += $line_item->get_tax_total();
-				$data[ $date ]['net_profit']  += $line_item->get_total() - $line_item->get_tax_total();
+				$data[ $date ]['total']       += $total;
+				$data[ $date ]['tax_total']   += $tax_total;
+				$data[ $date ]['net_profit']  += $net_profit;
 			}
 		}
 	}
 
-	set_site_transient('wu_tax_monthly_stats', $data);
+	// Cache in transient (persists across requests)
+	set_site_transient('wu_tax_monthly_stats', $data, DAY_IN_SECONDS);
+
+	// Also cache in object cache for faster retrieval during this request
+	wp_cache_set('wu_tax_monthly_stats', $data, 'wu_financial_data', HOUR_IN_SECONDS);
 
 	return $data;
+}
+
+/**
+ * Gets the sum of a specific column from payments table.
+ *
+ * @since 2.0.0
+ *
+ * @param string $column The column to sum.
+ * @param array  $args Query arguments.
+ * @return float
+ */
+function wu_get_payments_sum($column, $args = []) {
+
+	global $wpdb;
+
+	// Generate a cache key based on the parameters
+	$cache_key = 'wu_payments_sum_' . $column . '_' . md5(serialize($args));
+
+	// Check for cached value
+	$cached_sum = wp_cache_get($cache_key, 'wu_financial_data');
+
+	if (false !== $cached_sum) {
+		return $cached_sum;
+	}
+
+	$table_name = $wpdb->base_prefix . 'wu_payments';
+
+	$where = [];
+
+	// Handle status
+	if (!empty($args['status__in'])) {
+		$statuses = array_map('esc_sql', $args['status__in']);
+		$statuses_str = "'" . implode("', '", $statuses) . "'";
+		$where[] = "status IN ($statuses_str)";
+	}
+
+	// Handle date query
+	if (!empty($args['date_query'])) {
+		$date_query = new \WP_Date_Query($args['date_query']);
+		$date_query_sql = $date_query->get_sql();
+		$date_query_sql = str_replace($wpdb->base_prefix . 'posts.post_date', 'date_created', $date_query_sql);
+		$where[] = ltrim($date_query_sql, ' AND');
+	}
+
+	$where_clause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+
+	// phpcs:disable
+	$query = "SELECT SUM($column) FROM $table_name $where_clause";
+	$sum = $wpdb->get_var($query); // phpcs:ignore
+
+	$sum = (float) $sum;
+
+	// Cache the result for 1 hour
+	wp_cache_set($cache_key, $sum, 'wu_financial_data', HOUR_IN_SECONDS);
+
+	return $sum;
 }
 
 /**
@@ -458,6 +601,16 @@ function wu_calculate_taxes_by_month() {
  * @return array
  */
 function wu_calculate_signups_by_form($start_date = false, $end_date = false, $inclusive = true) {
+
+	// Generate a cache key based on the parameters
+	$cache_key = 'wu_signups_by_form_' . md5($start_date . '_' . $end_date . '_' . (int) $inclusive);
+
+	// Check for cached value
+	$cached_results = wp_cache_get($cache_key, 'wu_financial_data');
+
+	if (false !== $cached_results) {
+		return $cached_results;
+	}
 
 	global $wpdb;
 
@@ -494,6 +647,8 @@ function wu_calculate_signups_by_form($start_date = false, $end_date = false, $i
 
 	$results = $wpdb->get_results($query_sql); // phpcs:ignore
 
-	return $results;
+	// Cache the result for 1 hour
+	wp_cache_set($cache_key, $results, 'wu_financial_data', HOUR_IN_SECONDS);
 
+	return $results;
 }
