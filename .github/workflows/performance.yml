@@ -37,6 +37,9 @@ jobs:
 
       - name: Run Baseline Performance Tests
         run: |
+          # Copy the benchmark script from the PR branch into the baseline checkout
+          # (simple-performance-test.php is new in this PR and doesn't exist on main yet)
+          cp tests/simple-performance-test.php baseline/tests/simple-performance-test.php
           cd baseline
           php tests/simple-performance-test.php > ../baseline-results.json
           echo "Baseline results:"
