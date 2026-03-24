@@ -169,42 +169,42 @@ class Simple_Performance_Benchmark {
     }
     
     public function run_all_benchmarks() {
-        echo "Starting simplified performance benchmarks...\n";
-        
+        fwrite(STDERR, "Starting simplified performance benchmarks...\n");
+
         try {
             $this->benchmark_dashboard_loading();
-            echo "✓ Dashboard loading benchmark completed\n";
-            
+            fwrite(STDERR, "✓ Dashboard loading benchmark completed\n");
+
             $this->benchmark_checkout_process();
-            echo "✓ Checkout process benchmark completed\n";
-            
+            fwrite(STDERR, "✓ Checkout process benchmark completed\n");
+
             $this->benchmark_site_creation();
-            echo "✓ Site creation validation benchmark completed\n";
-            
+            fwrite(STDERR, "✓ Site creation validation benchmark completed\n");
+
             $this->benchmark_membership_operations();
-            echo "✓ Membership operations benchmark completed\n";
-            
+            fwrite(STDERR, "✓ Membership operations benchmark completed\n");
+
             $this->benchmark_api_endpoints();
-            echo "✓ API endpoints benchmark completed\n";
-            
+            fwrite(STDERR, "✓ API endpoints benchmark completed\n");
+
             $this->benchmark_database_queries();
-            echo "✓ Database queries benchmark completed\n";
-            
+            fwrite(STDERR, "✓ Database queries benchmark completed\n");
+
         } catch (Exception $e) {
             $this->results['error'] = $e->getMessage();
-            echo "✗ Benchmark failed: " . $e->getMessage() . "\n";
+            fwrite(STDERR, "✗ Benchmark failed: " . $e->getMessage() . "\n");
         }
-        
+
         return $this->results;
     }
-    
+
     public function save_results($filename = null) {
         $filename = $filename ?: 'simple-performance-results-' . date('Y-m-d-H-i-s') . '.json';
         $filepath = dirname(__FILE__) . '/' . $filename;
-        
+
         file_put_contents($filepath, json_encode($this->results, JSON_PRETTY_PRINT));
-        echo "Results saved to: $filepath\n";
-        
+        fwrite(STDERR, "Results saved to: $filepath\n");
+
         return $filepath;
     }
 }
@@ -213,10 +213,10 @@ class Simple_Performance_Benchmark {
 if (basename(__FILE__) === basename($_SERVER['SCRIPT_NAME'])) {
     $benchmark = new Simple_Performance_Benchmark();
     $results = $benchmark->run_all_benchmarks();
-    
-    // Output JSON for CI/CD consumption
+
+    // Output JSON to stdout for CI/CD consumption (progress text goes to stderr)
     echo json_encode($results, JSON_PRETTY_PRINT);
-    
+
     // Also save to file
     $benchmark->save_results();
 }

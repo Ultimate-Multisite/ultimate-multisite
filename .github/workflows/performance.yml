@@ -16,87 +16,35 @@ jobs:
   performance:
     name: Performance Benchmark
     runs-on: ubuntu-latest
-    
-    services:
-      mysql:
-        image: mysql:5.7
-        env:
-          MYSQL_ROOT_PASSWORD: root
-        ports: [3306]
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-    
-    container:
-      image: cimg/php:8.1
-      options: --user root
-    
+
     steps:
       - name: Checkout PR Branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Checkout Base Branch
         uses: actions/checkout@v4
         with:
           ref: ${{ github.base_ref }}
           path: baseline
           fetch-depth: 0
-      
-      - name: Set up Composer global bin path
-        run: |
-          mkdir -p "$HOME/.config/composer/vendor/bin"
-          echo "PATH=$HOME/.config/composer/vendor/bin:$PATH" >> $GITHUB_ENV
-      
-      - name: Install System Dependencies
-        run: |
-          apt-get update && apt-get install -y subversion mariadb-client
-      
-      - name: Install PHP Extensions
-        run: |
-          install-php-extensions mysqli gd bcmath || echo "Extensions may already be installed."
-      
-      - name: Self-update Composer
-        run: |
-          composer self-update || echo "Composer update skipped due to permission issue."
-      
-      - name: Install PHP Dependencies (PR Branch)
-        run: |
-          composer install --no-interaction --prefer-dist
-      
-      - name: Install PHP Dependencies (Baseline)
-        run: |
-          cd baseline && composer install --no-interaction --prefer-dist
-      
-      - name: Wait for MySQL to be ready
-        run: |
-          for i in {1..30}; do
-            if mysqladmin ping -h mysql --silent; then
-              echo "MySQL is up"
-              break
-            fi
-            echo "Waiting for MySQL..."
-            sleep 2
-          done
-      
-      - name: Prepare WordPress Tests
-        run: |
-          rm -rf /tmp/wordpress-tests-lib /tmp/wordpress/
-          bash bin/install-wp-tests.sh wordpress_test root root mysql latest
-      
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+
       - name: Run Baseline Performance Tests
         run: |
           cd baseline
-          php tests/performance-benchmark.php > ../baseline-results.json
+          php tests/simple-performance-test.php > ../baseline-results.json
           echo "Baseline results:"
           cat ../baseline-results.json | jq '.'
-      
+
       - name: Run Current Branch Performance Tests
         run: |
-          php tests/performance-benchmark.php > current-results.json
+          php tests/simple-performance-test.php > current-results.json
           echo "Current results:"
           cat current-results.json | jq '.'
       
