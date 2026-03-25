@@ -99,13 +99,13 @@ class External_Cron_Manager {
 	}
 
 	/**
-	 * Maybe disable WordPress cron if service is active.
+	 * Maybe disable WordPress cron if service is active and site is registered.
 	 *
 	 * @since 2.3.0
 	 */
 	public function maybe_disable_wp_cron(): void {
 
-		if ( ! $this->is_service_active()) {
+		if ( ! $this->is_service_ready()) {
 			return;
 		}
 
@@ -139,13 +139,27 @@ class External_Cron_Manager {
 	}
 
 	/**
+	 * Check if service is enabled and the site is registered.
+	 *
+	 * Guards disable/sync/heartbeat paths so WP-Cron is not disabled and
+	 * scheduled actions are not sent until the site has a valid site ID.
+	 *
+	 * @since 2.3.0
+	 * @return bool
+	 */
+	private function is_service_ready(): bool {
+
+		return $this->is_service_active() && $this->is_registered();
+	}
+
+	/**
 	 * Schedule the sync action.
 	 *
 	 * @since 2.3.0
 	 */
 	private function schedule_sync(): void {
 
-		if ( ! $this->is_service_active()) {
+		if ( ! $this->is_service_ready()) {
 			return;
 		}
 
@@ -161,7 +175,7 @@ class External_Cron_Manager {
 	 */
 	private function schedule_heartbeat(): void {
 
-		if ( ! $this->is_service_active()) {
+		if ( ! $this->is_service_ready()) {
 			return;
 		}
 
@@ -177,7 +191,7 @@ class External_Cron_Manager {
 	 */
 	public function sync_schedules(): void {
 
-		if ( ! $this->is_service_active()) {
+		if ( ! $this->is_service_ready()) {
 			return;
 		}
 
@@ -193,7 +207,7 @@ class External_Cron_Manager {
 	 */
 	public function send_heartbeat(): void {
 
-		if ( ! $this->is_service_active()) {
+		if ( ! $this->is_service_ready()) {
 			return;
 		}
 
