@@ -22,6 +22,14 @@ var coupon_app = new Vue({
 	},
 	methods: {
 
+	remove_coupon: function() {
+
+		// Clear current coupon and re-apply pricing without discounts
+		this.coupon = false;
+		this.apply_coupon();
+
+	},
+
 	add_event_tabs: function() {
 
 		$('.wu-plans-frequency-selector li a').each(function() {
@@ -266,6 +274,8 @@ var coupon_app = new Vue({
 		} else {
 
 			$('.old-price').hide();
+			$('.off-value').hide();
+			$('.setupfee-off-value').hide();
 
 			this.coupon_id = '';
 
