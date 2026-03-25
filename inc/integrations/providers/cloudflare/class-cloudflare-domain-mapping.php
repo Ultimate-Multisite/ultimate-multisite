@@ -160,7 +160,8 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 	 * @since 2.5.0
 	 *
 	 * @param string $domain  The domain name being removed.
-	 * @param int    $site_id The site ID.
+	 * @param int    $site_id The site ID. Required by Domain_Mapping_Capability interface but unused here.
+	 *                        Unlike on_add_domain, no filter hook is applied before deletion.
 	 * @return void
 	 */
 	public function on_remove_domain(string $domain, int $site_id): void {
@@ -178,7 +179,17 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 			['hostname' => $domain]
 		);
 
-		if (is_wp_error($list_result) || empty($list_result->result)) {
+		if (is_wp_error($list_result)) {
+			wu_log_add(
+				'integration-cloudflare',
+				sprintf('Failed to look up Custom Hostname for "%s". Reason: %s', $domain, $list_result->get_error_message()),
+				LogLevel::ERROR
+			);
+
+			return;
+		}
+
+		if (empty($list_result->result)) {
 			wu_log_add(
 				'integration-cloudflare',
 				sprintf('Could not find Custom Hostname for "%s" to delete. Skipping.', $domain),
