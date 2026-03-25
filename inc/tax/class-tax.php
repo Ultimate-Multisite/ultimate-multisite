@@ -32,8 +32,6 @@ class Tax {
 
 		add_action('wu_page_wp-ultimo-settings_load', [$this, 'add_sidebar_widget']);
 
-		add_filter('wu_cart_applicable_tax_rates', [$this, 'apply_universal_tax_rate'], 10, 4);
-
 		if ($this->is_enabled()) {
 			add_action('wp_ultimo_admin_pages', [$this, 'add_admin_page']);
 
@@ -93,42 +91,6 @@ class Tax {
 	}
 
 	/**
-	 * Applies universal tax rate when no specific rates are found.
-	 *
-	 * @since 2.0.0
-	 * @param array  $rates Tax rates.
-	 * @param string $country Country code.
-	 * @param string $tax_category Tax category.
-	 * @param object $cart Cart object.
-	 * @return array
-	 */
-	public function apply_universal_tax_rate(array $rates, string $country, string $tax_category, $cart): array {
-
-		if (empty($rates) && wu_should_collect_taxes() && wu_get_setting('enable_universal_tax', false)) {
-			$universal_rate = wu_get_setting('universal_tax_rate', 10);
-
-			$rates = [
-				[
-					'id'         => 'universal-' . uniqid(),
-					'title'      => __('Universal Tax', 'ultimate-multisite'),
-					'country'    => '*',
-					'state'      => '',
-					'city'       => '',
-					'tax_type'   => 'percentage',
-					'tax_amount' => $universal_rate,
-					'tax_rate'   => $universal_rate,
-					'priority'   => 1,
-					'compound'   => false,
-					'type'       => 'regular',
-					'rate'       => $universal_rate,
-				]
-			];
-		}
-
-		return $rates;
-	}
-
-	/**
 	 * Register tax settings.
 	 *
 	 * @since 2.0.0
@@ -171,36 +133,6 @@ class Tax {
 			]
 		);
 
-		wu_register_settings_field(
-			'taxes',
-			'enable_universal_tax',
-			[
-				'title'   => __('Enable Universal Tax', 'ultimate-multisite'),
-				'desc'    => __('Enable a fallback universal tax rate when no country-specific rates match.', 'ultimate-multisite'),
-				'type'    => 'toggle',
-				'default' => 0,
-				'require' => [
-					'enable_taxes' => 1,
-				],
-			]
-		);
-
-		wu_register_settings_field(
-			'taxes',
-			'universal_tax_rate',
-			[
-				'title'   => __('Universal Tax Rate (%)', 'ultimate-multisite'),
-				'desc'    => __('Tax rate applied when no country-specific rate matches.', 'ultimate-multisite'),
-				'type'    => 'number',
-				'default' => 10,
-				'min'     => 0,
-				'max'     => 100,
-				'require' => [
-					'enable_taxes'     => 1,
-					'enable_universal_tax' => 1,
-				],
-			]
-		);
 	}
 
 	/**

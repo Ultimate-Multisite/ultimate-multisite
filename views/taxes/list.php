@@ -215,19 +215,23 @@ defined('ABSPATH') || exit;
 					case 'country':
 						?>
 
-			<select v-cloak v-model="item.<?php echo esc_attr($key); ?>" style="width: 100%;">
+		<select v-cloak v-model="item.<?php echo esc_attr($key); ?>" style="width: 100%;">
 
-						<?php foreach (wu_get_countries_as_options() as $country_code => $country_name) : ?>
+					<option value="*">
+						<?php esc_html_e('Apply to all countries', 'ultimate-multisite'); ?>
+					</option>
 
-				<option value="<?php echo esc_attr($country_code); ?>">
+					<?php foreach (wu_get_countries_as_options() as $country_code => $country_name) : ?>
 
-							<?php echo esc_html($country_name); ?>
+			<option value="<?php echo esc_attr($country_code); ?>">
 
-				</option>
+						<?php echo esc_html($country_name); ?>
 
-				<?php endforeach; ?>
+			</option>
 
-			</select>
+			<?php endforeach; ?>
+
+		</select>
 
 						<?php
 						break;

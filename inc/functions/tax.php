@@ -201,6 +201,20 @@ function wu_get_applicable_tax_rates($country, $tax_category = 'default', $state
 		}
 	}
 
+	/*
+	 * If no country-specific rates matched, apply any rates configured
+	 * with '*' (Apply to all countries) as a fallback.
+	 */
+	if (empty($results)) {
+		foreach ($tax_category['rates'] as $rate) {
+			if ('*' === $rate['country']) {
+				$rate['order'] = 1;
+
+				$results[ $rate['id'] ] = $rate;
+			}
+		}
+	}
+
 	uasort($results, 'wu_sort_by_order');
 
 	return array_values($results);

@@ -16405,7 +16405,7 @@ msgstr ""
 #: views/sites/edit-placeholders.php:49
 #: views/sites/edit-placeholders.php:177
 #: views/taxes/list.php:102
-#: views/taxes/list.php:309
+#: views/taxes/list.php:313
 msgid "Select All"
 msgstr ""
 
@@ -18472,80 +18472,60 @@ msgstr ""
 msgid "Taxes Collected"
 msgstr ""
 
-#: inc/tax/class-tax.php:113
-msgid "Universal Tax"
-msgstr ""
-
-#: inc/tax/class-tax.php:153
+#: inc/tax/class-tax.php:115
 msgid "Enable Taxes"
 msgstr ""
 
-#: inc/tax/class-tax.php:154
+#: inc/tax/class-tax.php:116
 msgid "Enable this option to be able to collect sales taxes on your network payments."
 msgstr ""
 
-#: inc/tax/class-tax.php:164
+#: inc/tax/class-tax.php:126
 msgid "Inclusive Tax"
 msgstr ""
 
-#: inc/tax/class-tax.php:165
+#: inc/tax/class-tax.php:127
 msgid "Enable this option if your prices include taxes. In that case, Ultimate Multisite will calculate the included tax instead of adding taxes to the price."
 msgstr ""
 
-#: inc/tax/class-tax.php:178
-msgid "Enable Universal Tax"
-msgstr ""
-
-#: inc/tax/class-tax.php:179
-msgid "Enable a fallback universal tax rate when no country-specific rates match."
-msgstr ""
-
-#: inc/tax/class-tax.php:192
-msgid "Universal Tax Rate (%)"
-msgstr ""
-
-#: inc/tax/class-tax.php:193
-msgid "Tax rate applied when no country-specific rate matches."
-msgstr ""
-
-#: inc/tax/class-tax.php:258
+#: inc/tax/class-tax.php:190
 msgid "Regular"
 msgstr ""
 
-#: inc/tax/class-tax.php:301
+#: inc/tax/class-tax.php:233
 #: inc/ui/class-site-actions-element.php:184
 #: views/limitations/plugin-selector.php:80
 msgid "Default"
 msgstr ""
 
-#: inc/tax/class-tax.php:364
+#: inc/tax/class-tax.php:296
 msgid "You don't have permission to alter tax rates"
 msgstr ""
 
-#: inc/tax/class-tax.php:383
+#: inc/tax/class-tax.php:315
 msgid "No tax rates present in the request"
 msgstr ""
 
-#: inc/tax/class-tax.php:415
+#: inc/tax/class-tax.php:347
 msgid "Tax Rates successfully updated!"
 msgstr ""
 
-#: inc/tax/class-tax.php:455
-#: inc/tax/class-tax.php:459
+#: inc/tax/class-tax.php:387
+#: inc/tax/class-tax.php:391
 msgid "Manage Tax Rates"
 msgstr ""
 
-#: inc/tax/class-tax.php:463
+#: inc/tax/class-tax.php:395
 msgid "Add different tax rates depending on the country of your customers."
 msgstr ""
 
-#: inc/tax/class-tax.php:469
+#: inc/tax/class-tax.php:401
 msgid "You need to activate tax support first."
 msgstr ""
 
-#: inc/tax/class-tax.php:477
-#: inc/tax/class-tax.php:483
-#: inc/tax/class-tax.php:487
+#: inc/tax/class-tax.php:409
+#: inc/tax/class-tax.php:415
+#: inc/tax/class-tax.php:419
 msgid "Manage Tax Rates &rarr;"
 msgstr ""
 
@@ -20943,22 +20923,22 @@ msgid "No items to display"
 msgstr ""
 
 #: views/sites/edit-placeholders.php:209
-#: views/taxes/list.php:342
+#: views/taxes/list.php:346
 msgid "Add new Row"
 msgstr ""
 
 #: views/sites/edit-placeholders.php:215
-#: views/taxes/list.php:348
+#: views/taxes/list.php:352
 msgid "Delete Selected Rows"
 msgstr ""
 
 #: views/sites/edit-placeholders.php:241
-#: views/taxes/list.php:374
+#: views/taxes/list.php:378
 msgid "Save your changes!"
 msgstr ""
 
 #: views/sites/edit-placeholders.php:245
-#: views/taxes/list.php:378
+#: views/taxes/list.php:382
 msgid "Saving..."
 msgstr ""
 
@@ -21007,12 +20987,16 @@ msgstr ""
 msgid "Loading Tax Rates..."
 msgstr ""
 
-#: views/taxes/list.php:244
-#: views/taxes/list.php:259
+#: views/taxes/list.php:221
+msgid "Apply to all countries"
+msgstr ""
+
+#: views/taxes/list.php:250
+#: views/taxes/list.php:265
 msgid "Leave blank to apply to all"
 msgstr ""
 
-#: views/taxes/list.php:388
+#: views/taxes/list.php:392
 msgid "Save Tax Rates"
 msgstr ""
 
