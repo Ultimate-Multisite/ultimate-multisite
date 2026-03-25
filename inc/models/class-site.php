@@ -1728,6 +1728,9 @@ class Site extends Base_Model implements Limitable, Notable {
 		// Expose blog_id as id so callers get the correct non-zero value.
 		$array['id'] = $this->get_id();
 
+		// Description is lazy-loaded from wp_options (blogdescription), not a column.
+		$array['description'] = $this->get_description();
+
 		return $array;
 	}
 

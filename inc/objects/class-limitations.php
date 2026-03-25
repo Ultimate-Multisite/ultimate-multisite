@@ -33,7 +33,7 @@ defined('ABSPATH') || exit;
  * @property-read \WP_Ultimo\Limitations\Limit_Customer_User_Role $customer_user_role
  * @property-read \WP_Ultimo\Limitations\Limit_Hide_Footer_Credits $hide_credits
  */
-class Limitations {
+class Limitations implements \JsonSerializable {
 
 	/**
 	 * Caches early limitation queries to prevent
@@ -103,6 +103,21 @@ class Limitations {
 		}
 
 		return $module;
+	}
+
+	/**
+	 * Specify data which should be serialized to JSON.
+	 *
+	 * Ensures Limitations objects are properly serialized in REST API
+	 * responses instead of appearing as empty arrays.
+	 *
+	 * @since 2.0.0
+	 * @return array
+	 */
+	#[\ReturnTypeWillChange]
+	public function jsonSerialize() {
+
+		return $this->to_array();
 	}
 
 	/**
