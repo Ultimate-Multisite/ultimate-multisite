@@ -331,7 +331,7 @@ deploy_to_wporg_svn() {
   rsync -a --delete --exclude='.svn' "$src_dir/" "$svn_dir/trunk/"
 
   # Add new files and remove deleted ones
-  (cd "$svn_dir" && svn add --force trunk/* >/dev/null 2>&1 || true)
+  (cd "$svn_dir" && { svn add --force trunk/* >/dev/null 2>&1 || true; })
   (cd "$svn_dir" && svn status | awk '/^!/ {print $2}' | xargs -r svn rm)
 
   echo "Committing trunk..."

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 container_name_prefix=$(basename "$PWD")
 
 docker container stop "${container_name_prefix}-phpmyadmin"
