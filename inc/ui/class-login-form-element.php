@@ -886,6 +886,16 @@ class Login_Form_Element extends Base_Element {
 		$atts['login_url'] = $this->get_logout_url();
 		$atts['form']      = $form;
 
+		/*
+		 * Only show the "Not you?" notice when the login form is rendered
+		 * in a front-end context. In the WP admin dashboard the user is
+		 * already authenticated and the notice is unnecessary noise.
+		 *
+		 * @since 2.3.0
+		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/93
+		 */
+		$atts['show_logged_in_notice'] = ! is_admin();
+
 		wu_get_template($view, $atts);
 	}
 }

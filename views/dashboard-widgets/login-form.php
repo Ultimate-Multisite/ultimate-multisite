@@ -9,9 +9,11 @@ defined('ABSPATH') || exit;
 ?>
 <div class="wu-styling <?php echo esc_attr($className); ?>">
 
-	<?php if ($logged) : ?>
+	<?php if ($logged && ! empty($show_logged_in_notice)) : ?>
 
 	<!-- Already Logged Block -->
+	<!-- Only shown on front-end login pages, not in the WP admin dashboard. -->
+	<!-- @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/93 -->
 
 	<div class="wu-p-4 wu-bg-yellow-200 wu-rounded <?php echo esc_attr(wu_env_picker('wu-mb-4', 'wu-mt-2 wu-shadow-sm')); ?>">
 
@@ -26,7 +28,7 @@ defined('ABSPATH') || exit;
 
 	<!-- Already Logged Block - End -->
 
-	<?php else : ?>
+	<?php elseif (! $logged) : ?>
 
 	<!-- Title Element -->
 	<div class="wu-pb-4 wu-flex wu-items-center">
