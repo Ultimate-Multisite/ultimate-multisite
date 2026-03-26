@@ -980,6 +980,8 @@ class Customer extends Base_Model implements Billable, Notable {
 		if ($this->get_id()) {
 			$this->has_trialed();
 			$this->get_extra_information();
+			$this->get_billing_address();
+			$this->get_notes();
 		}
 
 		return parent::to_array();

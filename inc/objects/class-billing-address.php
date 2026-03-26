@@ -26,7 +26,7 @@ defined('ABSPATH') || exit;
  * @property string $billing_city City or town.
  * @property string $billing_zip_code ZIP or postal code.
  */
-class Billing_Address {
+class Billing_Address implements \JsonSerializable {
 
 	/**
 	 * The Billing Address content.
@@ -196,6 +196,18 @@ class Billing_Address {
 		}
 
 		return $address_array;
+	}
+
+	/**
+	 * Serialize billing address for JSON encoding.
+	 *
+	 * @since 2.0.0
+	 * @return array
+	 */
+	#[\ReturnTypeWillChange]
+	public function jsonSerialize() {
+
+		return $this->to_array();
 	}
 
 	/**
