@@ -2196,6 +2196,22 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 	}
 
 	/**
+	 * Serialize model to array, ensuring meta-stored fields are loaded.
+	 *
+	 * @since 2.0.0
+	 * @return array
+	 */
+	public function to_array() {
+
+		if ($this->get_id()) {
+			$this->get_cancellation_reason();
+			$this->get_discount_code();
+		}
+
+		return parent::to_array();
+	}
+
+	/**
 	 * By default, we just use the to_array method, but you can rewrite this.
 	 *
 	 * @since 2.0.0
