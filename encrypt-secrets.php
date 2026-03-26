@@ -8,8 +8,9 @@ $client_id     = getenv('MU_CLIENT_ID') ?: '';
 $client_secret = getenv('MU_CLIENT_SECRET') ?: '';
 
 if (!$client_id || !$client_secret) {
-	echo "Missing MU_CLIENT_ID or MU_CLIENT_SECRET env vars\n";
-	exit(1);
+	echo "Missing MU_CLIENT_ID or MU_CLIENT_SECRET env vars — writing placeholder\n";
+	file_put_contents('inc/stuff.php', "<?php\nreturn " . var_export(['', ''], true) . ';');
+	exit(0);
 }
 
 function encryptValue($plaintext, $key) {
