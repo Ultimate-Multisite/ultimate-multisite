@@ -139,6 +139,9 @@ jobs:
           echo "Playground URL generated"
 
       - name: Comment on PR
+        # Fork PRs don't have write access to the base repo — skip gracefully.
+        # The build artifact is still uploaded and accessible via the Actions run URL.
+        if: github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
         with:
           script: |
