@@ -1503,9 +1503,6 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			// phpcs:ignore Squiz.PHP.Eval.Discouraged
 			eval( '
 				class WP_Ultimo_Test_WPError_Gateway extends \WP_Ultimo\Gateways\Manual_Gateway {
-					public function __construct() {
-						$this->id = "test-wperror-gw";
-					}
 					public function process_confirmation() {
 						return new \WP_Error( "test-error", "Test confirmation error" );
 					}
@@ -1513,8 +1510,10 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			' );
 		}
 
-		$gateway_id = 'test-wperror-gw-' . wp_generate_uuid4();
-		$this->manager->register_gateway( $gateway_id, 'WPError GW', 'desc', 'WP_Ultimo_Test_WPError_Gateway' );
+		$gateway_id = 'test-wperror-gw';
+		if ( ! $this->manager->is_gateway_registered( $gateway_id ) ) {
+			$this->manager->register_gateway( $gateway_id, 'WPError GW', 'desc', 'WP_Ultimo_Test_WPError_Gateway' );
+		}
 
 		$_REQUEST['wu-confirm'] = $gateway_id;
 		unset( $_REQUEST['status'], $_REQUEST['payment'] );
@@ -1545,9 +1544,6 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			// phpcs:ignore Squiz.PHP.Eval.Discouraged
 			eval( '
 				class WP_Ultimo_Test_Throw_Gateway extends \WP_Ultimo\Gateways\Manual_Gateway {
-					public function __construct() {
-						$this->id = "test-throw-gw";
-					}
 					public function process_confirmation() {
 						throw new \RuntimeException( "Confirmation threw an exception" );
 					}
@@ -1555,8 +1551,10 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			' );
 		}
 
-		$gateway_id = 'test-throw-gw-' . wp_generate_uuid4();
-		$this->manager->register_gateway( $gateway_id, 'Throw GW', 'desc', 'WP_Ultimo_Test_Throw_Gateway' );
+		$gateway_id = 'test-throw-gw';
+		if ( ! $this->manager->is_gateway_registered( $gateway_id ) ) {
+			$this->manager->register_gateway( $gateway_id, 'Throw GW', 'desc', 'WP_Ultimo_Test_Throw_Gateway' );
+		}
 
 		$_REQUEST['wu-confirm'] = $gateway_id;
 		unset( $_REQUEST['status'], $_REQUEST['payment'] );
@@ -1587,9 +1585,6 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			// phpcs:ignore Squiz.PHP.Eval.Discouraged
 			eval( '
 				class WP_Ultimo_Test_Output_Gateway extends \WP_Ultimo\Gateways\Manual_Gateway {
-					public function __construct() {
-						$this->id = "test-output-gw";
-					}
 					public function process_confirmation() {
 						echo "Some gateway output";
 						return null;
@@ -1598,8 +1593,10 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			' );
 		}
 
-		$gateway_id = 'test-output-gw-' . wp_generate_uuid4();
-		$this->manager->register_gateway( $gateway_id, 'Output GW', 'desc', 'WP_Ultimo_Test_Output_Gateway' );
+		$gateway_id = 'test-output-gw';
+		if ( ! $this->manager->is_gateway_registered( $gateway_id ) ) {
+			$this->manager->register_gateway( $gateway_id, 'Output GW', 'desc', 'WP_Ultimo_Test_Output_Gateway' );
+		}
 
 		$_REQUEST['wu-confirm'] = $gateway_id;
 		unset( $_REQUEST['status'], $_REQUEST['payment'] );
@@ -1755,6 +1752,8 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 
 		// Cleanup
 		$payment->delete();
+		$membership->delete();
+		$product->delete();
 		$customer->delete();
 	}
 
@@ -1841,6 +1840,8 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 
 		// Cleanup
 		$payment->delete();
+		$membership->delete();
+		$product->delete();
 		$customer->delete();
 	}
 
@@ -1927,6 +1928,8 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 
 		// Cleanup
 		$payment->delete();
+		$membership->delete();
+		$product->delete();
 		$customer->delete();
 	}
 
@@ -2014,6 +2017,8 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 
 		// Cleanup
 		$payment->delete();
+		$membership->delete();
+		$product->delete();
 		$customer->delete();
 	}
 
@@ -2095,6 +2100,8 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 
 		// Cleanup
 		$payment->delete();
+		$membership->delete();
+		$product->delete();
 		$customer->delete();
 	}
 
@@ -2171,6 +2178,8 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 
 		// Cleanup
 		$payment->delete();
+		$membership->delete();
+		$product->delete();
 		$customer->delete();
 	}
 
@@ -2247,6 +2256,8 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 
 		// Cleanup
 		$payment->delete();
+		$membership->delete();
+		$product->delete();
 		$customer->delete();
 	}
 
