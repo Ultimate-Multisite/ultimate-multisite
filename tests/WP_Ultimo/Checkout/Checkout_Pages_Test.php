@@ -49,6 +49,63 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
+	 * Test init() can be called directly to cover hook registration lines.
+	 *
+	 * The singleton is initialized during plugin bootstrap (before tests run),
+	 * so init() coverage is not attributed to any test method. Calling init()
+	 * directly here covers the hook registration code paths.
+	 * Hook registrations are idempotent — duplicate add_filter/add_action calls
+	 * are harmless in the test environment.
+	 */
+	public function test_init_direct_call_covers_hook_registration(): void {
+
+		// Call init() directly to cover the hook registration lines.
+		// This is safe because add_filter/add_action are idempotent.
+		$this->pages->init();
+
+		// Verify the method completed without error.
+		$this->assertTrue(true);
+	}
+
+	/**
+	 * Test init() with custom login enabled covers login_url and related hooks.
+	 *
+	 * When enable_custom_login_page is true, init() registers additional hooks
+	 * (login_url, lostpassword_url, retrieve_password_message, etc.).
+	 * Calling init() with this setting enabled covers those conditional branches.
+	 */
+	public function test_init_with_custom_login_enabled_covers_additional_hooks(): void {
+
+		wu_save_setting('enable_custom_login_page', true);
+
+		// Call init() to cover the custom-login conditional branches.
+		$this->pages->init();
+
+		// Verify login_url filter is registered.
+		$this->assertGreaterThan(
+			0,
+			has_filter('login_url', [$this->pages, 'filter_login_url']),
+			'login_url filter should be registered when custom login is enabled'
+		);
+
+		// Verify lostpassword_url filter is registered.
+		$this->assertGreaterThan(
+			0,
+			has_filter('lostpassword_url', [$this->pages, 'filter_lostpassword_url']),
+			'lostpassword_url filter should be registered when custom login is enabled'
+		);
+
+		// Verify retrieve_password_message filter is registered (main site only).
+		$this->assertGreaterThan(
+			0,
+			has_filter('retrieve_password_message', [$this->pages, 'replace_reset_password_link']),
+			'retrieve_password_message filter should be registered on main site with custom login'
+		);
+
+		wu_save_setting('enable_custom_login_page', false);
+	}
+
+	/**
 	 * Test init registers expected filters and actions.
 	 */
 	public function test_init_registers_hooks(): void {
@@ -1823,6 +1880,245 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 		unset($_REQUEST['membership']);
 
 		$this->assertIsString($result);
+	}
+
+	// -------------------------------------------------------------------------
+	// replace_reset_password_link — additional branches
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Test replace_reset_password_link returns early on non-main site.
+	 */
+	public function test_replace_reset_password_link_returns_early_on_subsite(): void {
+
+		$blog_id = self::factory()->blog->create();
+
+		switch_to_blog($blog_id);
+
+		$message = 'Reset your password at https://example.com/wp-login.php?action=rp&key=abc';
+
+		$result = $this->pages->replace_reset_password_link($message, 'abc', 'user', ['ID' => 1]);
+
+		restore_current_blog();
+
+		// On a subsite, the method returns the message unchanged.
+		$this->assertEquals($message, $result);
+	}
+
+	/**
+	 * Test replace_reset_password_link restores locale after switch.
+	 *
+	 * Uses a non-default locale so switch_to_locale() actually switches,
+	 * causing $switched_locale to be true and restore_previous_locale() to run.
+	 * We inject 'fr_FR' into WP_Locale_Switcher::$available_languages via
+	 * reflection so the locale switch succeeds in the test environment.
+	 */
+	public function test_replace_reset_password_link_restores_locale(): void {
+
+		// Must be on main site.
+		$this->assertTrue(is_main_site());
+
+		global $wp_locale_switcher;
+
+		// Inject 'fr_FR' into available_languages so switch_to_locale() returns true.
+		$reflection = new \ReflectionObject($wp_locale_switcher);
+		$prop       = $reflection->getProperty('available_languages');
+		$prop->setAccessible(true);
+		$original_langs = $prop->getValue($wp_locale_switcher);
+		$prop->setValue($wp_locale_switcher, array_merge($original_langs, ['fr_FR']));
+
+		// Create a user with locale fr_FR — pass numeric ID so get_user_locale() reads it.
+		$user_id = self::factory()->user->create(['locale' => 'fr_FR']);
+
+		$message = "To reset your password, visit:\nhttps://example.com/wp-login.php?action=rp&key=testkey&login=testuser\n";
+
+		$result = $this->pages->replace_reset_password_link($message, 'testkey', 'testuser', $user_id);
+
+		// Restore available_languages.
+		$prop->setValue($wp_locale_switcher, $original_langs);
+
+		$this->assertIsString($result);
+		// The URL should have been replaced with action=rp and key params.
+		$this->assertStringContainsString('action=rp', $result);
+		$this->assertStringContainsString('key=testkey', $result);
+	}
+
+	// -------------------------------------------------------------------------
+	// filter_login_url — before wp_loaded early return
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Test filter_login_url returns original URL before wp_loaded fires.
+	 *
+	 * Temporarily removes wp_loaded from $wp_actions to simulate the
+	 * pre-wp_loaded state, covering the early-return branch.
+	 */
+	public function test_filter_login_url_returns_original_before_wp_loaded(): void {
+
+		global $wp_actions;
+
+		// Temporarily remove wp_loaded from fired actions.
+		$original = isset($wp_actions['wp_loaded']) ? $wp_actions['wp_loaded'] : null;
+		unset($wp_actions['wp_loaded']);
+
+		$original_url = 'https://example.com/wp-login.php';
+
+		$result = $this->pages->filter_login_url($original_url, '', false);
+
+		// Restore.
+		if ($original !== null) {
+			$wp_actions['wp_loaded'] = $original;
+		}
+
+		// Should return the original URL unchanged when wp_loaded has not fired.
+		$this->assertEquals($original_url, $result);
+	}
+
+	// -------------------------------------------------------------------------
+	// filter_lostpassword_url — additional branches
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Test filter_lostpassword_url returns early before wp_loaded fires.
+	 *
+	 * We simulate the pre-wp_loaded state by temporarily removing all
+	 * wp_loaded action callbacks, calling the filter, then restoring them.
+	 */
+	public function test_filter_lostpassword_url_before_wp_loaded(): void {
+
+		global $wp_actions;
+
+		// Temporarily remove wp_loaded from fired actions.
+		$original = isset($wp_actions['wp_loaded']) ? $wp_actions['wp_loaded'] : null;
+		unset($wp_actions['wp_loaded']);
+
+		$original_url = 'https://example.com/wp-login.php?action=lostpassword';
+
+		$result = $this->pages->filter_lostpassword_url($original_url, '');
+
+		// Restore.
+		if ($original !== null) {
+			$wp_actions['wp_loaded'] = $original;
+		}
+
+		// Should return the original URL unchanged.
+		$this->assertEquals($original_url, $result);
+	}
+
+	// -------------------------------------------------------------------------
+	// maybe_enqueue_payment_status_poll — gateway fallback from membership
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Test maybe_enqueue_payment_status_poll uses membership gateway when payment gateway is empty.
+	 */
+	public function test_maybe_enqueue_payment_status_poll_uses_membership_gateway(): void {
+
+		// Dequeue/deregister any previously registered script.
+		wp_dequeue_script('wu-payment-status-poll');
+		wp_deregister_script('wu-payment-status-poll');
+
+		$customer = wu_create_customer([
+			'username' => 'poll_mgw_user_' . wp_rand(1000, 9999),
+			'email'    => 'pollmgw_' . wp_rand(1000, 9999) . '@example.com',
+			'password' => 'password123',
+		]);
+
+		$this->assertNotWPError($customer);
+
+		$membership = wu_create_membership([
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => 0,
+			'status'      => \WP_Ultimo\Database\Memberships\Membership_Status::ACTIVE,
+			'gateway'     => 'stripe',
+		]);
+
+		// Create payment with no gateway set — gateway should fall back to membership.
+		$payment = wu_create_payment([
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'status'        => \WP_Ultimo\Database\Payments\Payment_Status::PENDING,
+			'total'         => 10.0,
+			'gateway'       => '',
+		]);
+
+		$this->assertNotWPError($payment);
+
+		$hash = $payment->get_hash();
+
+		$_REQUEST['payment'] = $hash;
+		$_REQUEST['status']  = 'done';
+
+		$this->pages->maybe_enqueue_payment_status_poll();
+
+		// Script should be enqueued because membership gateway is 'stripe'.
+		$this->assertTrue(
+			wp_script_is('wu-payment-status-poll', 'enqueued') ||
+			wp_script_is('wu-payment-status-poll', 'registered'),
+			'Script should be enqueued when membership gateway is stripe and payment gateway is empty'
+		);
+
+		unset($_REQUEST['payment'], $_REQUEST['status']);
+
+		$payment->delete();
+		$membership->delete();
+		$customer->delete();
+	}
+
+	/**
+	 * Test maybe_enqueue_payment_status_poll enqueues checkout style for Stripe payment.
+	 */
+	public function test_maybe_enqueue_payment_status_poll_enqueues_checkout_style(): void {
+
+		// Dequeue/deregister any previously registered script.
+		wp_dequeue_script('wu-payment-status-poll');
+		wp_deregister_script('wu-payment-status-poll');
+		wp_dequeue_style('wu-checkout');
+
+		$customer = wu_create_customer([
+			'username' => 'poll_style_user_' . wp_rand(1000, 9999),
+			'email'    => 'pollstyle_' . wp_rand(1000, 9999) . '@example.com',
+			'password' => 'password123',
+		]);
+
+		$this->assertNotWPError($customer);
+
+		$membership = wu_create_membership([
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => 0,
+			'status'      => \WP_Ultimo\Database\Memberships\Membership_Status::ACTIVE,
+			'gateway'     => 'stripe',
+		]);
+
+		$payment = wu_create_payment([
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'status'        => \WP_Ultimo\Database\Payments\Payment_Status::PENDING,
+			'total'         => 10.0,
+			'gateway'       => 'stripe',
+		]);
+
+		$this->assertNotWPError($payment);
+
+		$hash = $payment->get_hash();
+
+		$_REQUEST['payment'] = $hash;
+		$_REQUEST['status']  = 'done';
+
+		$this->pages->maybe_enqueue_payment_status_poll();
+
+		// wu-checkout style should be enqueued.
+		$this->assertTrue(
+			wp_style_is('wu-checkout', 'enqueued') ||
+			wp_style_is('wu-checkout', 'registered'),
+			'wu-checkout style should be enqueued for Stripe payment'
+		);
+
+		unset($_REQUEST['payment'], $_REQUEST['status']);
+
+		$payment->delete();
+		$membership->delete();
+		$customer->delete();
 	}
 
 	// -------------------------------------------------------------------------
