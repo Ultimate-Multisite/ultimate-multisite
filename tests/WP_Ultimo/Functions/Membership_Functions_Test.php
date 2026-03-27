@@ -684,4 +684,192 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 		$this->assertIsArray($memberships);
 		$this->assertNotEmpty($memberships);
 	}
+
+	/**
+	 * Test wu_get_membership_product_price returns a float for a valid product.
+	 */
+	public function test_get_membership_product_price_returns_float(): void {
+
+		$customer = wu_create_customer([
+			'user_id'         => self::factory()->user->create(),
+			'skip_validation' => true,
+		]);
+
+		$product = wu_create_product([
+			'name'            => 'Price Test Plan',
+			'slug'            => 'price-test-plan-' . wp_rand(),
+			'type'            => 'plan',
+			'amount'          => 29.99,
+			'recurring'       => true,
+			'duration'        => 1,
+			'duration_unit'   => 'month',
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($product);
+
+		$membership = wu_create_membership([
+			'customer_id'     => $customer->get_id(),
+			'plan_id'         => $product->get_id(),
+			'status'          => 'active',
+			'amount'          => 29.99,
+			'initial_amount'  => 29.99,
+			'currency'        => 'USD',
+			'recurring'       => true,
+			'duration'        => 1,
+			'duration_unit'   => 'month',
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($membership);
+
+		$price = wu_get_membership_product_price($membership, $product->get_id(), 1);
+
+		$this->assertIsFloat($price);
+	}
+
+	/**
+	 * Test wu_get_membership_product_price with only_recurring=false returns total.
+	 */
+	public function test_get_membership_product_price_not_only_recurring(): void {
+
+		$customer = wu_create_customer([
+			'user_id'         => self::factory()->user->create(),
+			'skip_validation' => true,
+		]);
+
+		$product = wu_create_product([
+			'name'            => 'Non Recurring Price Plan',
+			'slug'            => 'non-recurring-price-plan-' . wp_rand(),
+			'type'            => 'plan',
+			'amount'          => 19.99,
+			'recurring'       => true,
+			'duration'        => 1,
+			'duration_unit'   => 'month',
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($product);
+
+		$membership = wu_create_membership([
+			'customer_id'     => $customer->get_id(),
+			'plan_id'         => $product->get_id(),
+			'status'          => 'active',
+			'amount'          => 19.99,
+			'initial_amount'  => 19.99,
+			'currency'        => 'USD',
+			'recurring'       => true,
+			'duration'        => 1,
+			'duration_unit'   => 'month',
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($membership);
+
+		$price = wu_get_membership_product_price($membership, $product->get_id(), 1, false);
+
+		$this->assertIsFloat($price);
+	}
+
+	/**
+	 * Test wu_get_membership_product_price with invalid product returns errors object.
+	 */
+	public function test_get_membership_product_price_invalid_product(): void {
+
+		$customer = wu_create_customer([
+			'user_id'         => self::factory()->user->create(),
+			'skip_validation' => true,
+		]);
+
+		$membership = wu_create_membership([
+			'customer_id'     => $customer->get_id(),
+			'status'          => 'active',
+			'amount'          => 10.00,
+			'initial_amount'  => 10.00,
+			'currency'        => 'USD',
+			'recurring'       => true,
+			'duration'        => 1,
+			'duration_unit'   => 'month',
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($membership);
+
+		// Pass a non-existent product ID — add_product returns false, function returns cart errors
+		$result = wu_get_membership_product_price($membership, 999999, 1);
+
+		// Should return the cart errors object (not a float)
+		$this->assertNotNull($result);
+	}
+
+	/**
+	 * Test wu_get_membership_new_cart with initial amount different from cart total.
+	 */
+	public function test_get_membership_new_cart_with_initial_amount_difference(): void {
+
+		$customer = wu_create_customer([
+			'user_id'         => self::factory()->user->create(),
+			'skip_validation' => true,
+		]);
+
+		$product = wu_create_product([
+			'name'            => 'Init Adjust Plan',
+			'slug'            => 'init-adjust-plan-' . wp_rand(),
+			'type'            => 'plan',
+			'amount'          => 10.00,
+			'recurring'       => true,
+			'duration'        => 1,
+			'duration_unit'   => 'month',
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($product);
+
+		// Set initial_amount different from amount to trigger INITADJUSTMENT line item
+		$membership = wu_create_membership([
+			'customer_id'     => $customer->get_id(),
+			'plan_id'         => $product->get_id(),
+			'status'          => 'active',
+			'amount'          => 10.00,
+			'initial_amount'  => 25.00,
+			'currency'        => 'USD',
+			'recurring'       => true,
+			'duration'        => 1,
+			'duration_unit'   => 'month',
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($membership);
+
+		$cart = wu_get_membership_new_cart($membership);
+
+		$this->assertInstanceOf(\WP_Ultimo\Checkout\Cart::class, $cart);
+	}
+
+	/**
+	 * Test wu_get_membership_update_url fallback to register page when no site and no checkout page.
+	 */
+	public function test_get_membership_update_url_fallback_register(): void {
+
+		$customer = wu_create_customer([
+			'user_id'         => self::factory()->user->create(),
+			'skip_validation' => true,
+		]);
+
+		$membership = wu_create_membership([
+			'customer_id'     => $customer->get_id(),
+			'status'          => 'active',
+			'amount'          => 10.00,
+			'currency'        => 'USD',
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($membership);
+
+		// No site attached, no checkout page configured — falls through to register page fallback
+		$url = wu_get_membership_update_url($membership);
+
+		$this->assertIsString($url);
+		$this->assertStringContainsString($membership->get_hash(), $url);
+	}
 }
