@@ -322,20 +322,18 @@ class Domain_Edit_Admin_Page extends Edit_Admin_Page {
 						'state'  => [
 							'primary_domain' => $this->get_object()->is_primary_domain(),
 						],
-					'fields' => [
-						'primary_domain' => [
-							'type'            => 'toggle',
-							'title'           => __('Main WP Multisite WaaS Domain', 'ultimate-multisite'),
-							'desc'            => __('Set this as the main WaaS website domain.', 'ultimate-multisite'),
-							'tooltip'         => __('Warning: Changing the main WaaS domain will affect all URLs across your entire WP Multisite WaaS network. This is different from host-level "Primary Domain" settings (e.g. www vs non-www). Only change this if you intend to move your entire WaaS network to a new domain.', 'ultimate-multisite'),
-							'value'           => $this->get_object()->is_primary_domain(),
-							'wrapper_classes' => 'wu-primary-domain-field',
-							'html_attr'       => [
-								'v-model'                       => 'primary_domain',
-								'data-wu-primary-domain-toggle' => 'true',
+						'fields' => [
+							'primary_domain' => [
+								'type'      => 'toggle',
+								'title'     => __('Is Primary Domain?', 'ultimate-multisite'),
+								'desc'      => __('Set as the primary domain.', 'ultimate-multisite'),
+								'tooltip'   => __('Setting this as the primary domain will remove any other domain mapping marked as the primary domain for this site.', 'ultimate-multisite'),
+								'value'     => $this->get_object()->is_primary_domain(),
+								'html_attr' => [
+									'v-model' => 'primary_domain',
+								],
 							],
-						],
-						'primary_note'   => [
+							'primary_note'   => [
 								'type'              => 'note',
 								'desc'              => __('By making this the primary domain, we will convert the previous primary domain for this site, if one exists, into an alias domain.', 'ultimate-multisite'),
 								'wrapper_html_attr' => [

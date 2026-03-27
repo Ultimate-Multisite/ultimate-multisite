@@ -4163,15 +4163,6 @@ ul.wu-widget-list > li:first-child {
   margin-right: -0.8em;
 }
 
-/* Primary domain toggle: red when checked to signal danger */
-.wu-primary-domain-field .wu-tgl-ios:checked + .wu-tgl-btn {
-  background: #e53e3e;
-  border-color: #c53030;
-}
-.wu-primary-domain-field .wu-tgl-ios:checked + .wu-tgl-btn:active {
-  box-shadow: inset 0 0 0 2em #c53030;
-}
-
 .wu-styling .wu-spin {
   -moz-animation: wu_spin 2s infinite linear;
   -o-animation: wu_spin 2s infinite linear;
