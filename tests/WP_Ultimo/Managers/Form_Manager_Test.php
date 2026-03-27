@@ -882,49 +882,17 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 	// =========================================================================
 
 	/**
-	 * Helper: run a callable in AJAX die context using the inline pattern.
+	 * Helper: run a callable in AJAX die context.
 	 *
-	 * Uses the same inline pattern as test_handle_model_delete_form_requires_confirmation
-	 * which is proven to work. Returns ['output' => string, 'exception' => bool].
+	 * Delegates to call_in_ajax_context() to avoid duplicating the AJAX die
+	 * handler setup. Returns ['output' => string, 'exception' => bool].
 	 *
 	 * @param callable $callable The callable to invoke.
 	 * @return array{output: string, exception: bool}
 	 */
 	private function run_in_ajax_context( callable $callable ): array {
 
-		if (defined('REST_REQUEST') && REST_REQUEST) {
-			$this->setExpectedIncorrectUsage('wp_send_json');
-		}
-
-		add_filter('wp_doing_ajax', '__return_true');
-
-		$ajax_die_handler = function () {
-			return function ( $message ) {
-				throw new \WPAjaxDieContinueException( (string) $message );
-			};
-		};
-
-		add_filter('wp_die_ajax_handler', $ajax_die_handler, 1);
-
-		$exception_caught = false;
-
-		ob_start();
-
-		try {
-			$callable();
-		} catch (\WPAjaxDieContinueException $e) {
-			$exception_caught = true;
-		}
-
-		$output = ob_get_clean();
-
-		remove_filter('wp_doing_ajax', '__return_true');
-		remove_filter('wp_die_ajax_handler', $ajax_die_handler, 1);
-
-		return [
-			'output'    => $output,
-			'exception' => $exception_caught,
-		];
+		return $this->call_in_ajax_context($callable);
 	}
 
 	/**
