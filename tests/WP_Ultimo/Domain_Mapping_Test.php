@@ -859,6 +859,51 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	}
 
 	// ----------------------------------------------------------------
+	// DB-backed helpers
+	// ----------------------------------------------------------------
+
+	/**
+	 * Create a persisted Domain record for blog_id=1 (always exists in test env).
+	 *
+	 * Returns the Domain instance, or marks the test skipped if the DB write fails.
+	 *
+	 * @param string $domain Domain string.
+	 * @return Domain
+	 */
+	private function create_db_domain( string $domain ): Domain {
+
+		$result = wu_create_domain(
+			[
+				'blog_id'        => 1,
+				'domain'         => $domain,
+				'active'         => true,
+				'primary_domain' => false,
+				'secure'         => false,
+				'stage'          => \WP_Ultimo\Database\Domains\Domain_Stage::DONE,
+			]
+		);
+
+		if ( is_wp_error( $result ) || ! $result instanceof Domain ) {
+			$this->markTestSkipped( 'Could not create domain record: ' . ( is_wp_error( $result ) ? $result->get_error_message() : 'unknown' ) );
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Flush domain caches for a given domain string (both www and no-www variants).
+	 *
+	 * @param string $domain Domain string.
+	 */
+	private function flush_domain_cache( string $domain ): void {
+
+		wp_cache_delete( 'domain:' . $domain, 'domain_mappings' );
+		wp_cache_delete( 'domain:www.' . $domain, 'domain_mappings' );
+		wp_cache_delete( 'domain:' . ltrim( $domain, 'www.' ), 'domain_mappings' );
+		wp_cache_delete( 'id:1', 'domain_mapping' );
+	}
+
+	// ----------------------------------------------------------------
 	// check_domain_mapping
 	// ----------------------------------------------------------------
 
@@ -1099,4 +1144,283 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 
 		$this->assertIsString($result);
 	}
+
+	// ----------------------------------------------------------------
+	// DB-backed: check_domain_mapping with active mapping
+	// ----------------------------------------------------------------
+
+	/**
+	 * Test check_domain_mapping stores mapping and returns mapped site when active mapping found.
+	 *
+	 * Uses blog_id=1 (always exists in test env) to avoid factory()->blog->create() issues.
+	 */
+	public function test_check_domain_mapping_with_active_mapping_returns_site(): void {
+
+		$domain_str = 'active-mapped-dm-test.example.com';
+		$domain     = $this->create_db_domain( $domain_str );
+
+		$this->flush_domain_cache( $domain_str );
+
+		$result = $this->domain_mapping->check_domain_mapping( null, $domain_str );
+
+		// Should return a WP_Site for blog_id=1.
+		$this->assertNotNull( $result );
+
+		// current_mapping should now be set.
+		$this->assertNotNull( $this->domain_mapping->current_mapping );
+		$this->assertEquals( $domain_str, $this->domain_mapping->current_mapping->get_domain() );
+
+		// Clean up.
+		$domain->delete();
+		$this->flush_domain_cache( $domain_str );
+		$this->domain_mapping->current_mapping = null;
+		$this->domain_mapping->original_url    = null;
+	}
+
+	/**
+	 * Test check_domain_mapping respects wu_use_domain_mapping filter returning false.
+	 */
+	public function test_check_domain_mapping_inactive_via_filter_returns_null(): void {
+
+		$domain_str = 'filter-inactive-dm-test.example.com';
+		$domain     = $this->create_db_domain( $domain_str );
+
+		$this->flush_domain_cache( $domain_str );
+
+		// Force the mapping to be treated as inactive via filter.
+		add_filter( 'wu_use_domain_mapping', '__return_false', 99 );
+
+		$result = $this->domain_mapping->check_domain_mapping( null, $domain_str );
+
+		remove_filter( 'wu_use_domain_mapping', '__return_false', 99 );
+
+		// Inactive mapping — should return the original $site value (null).
+		$this->assertNull( $result );
+
+		// current_mapping should NOT be set.
+		$this->assertNull( $this->domain_mapping->current_mapping );
+
+		// Clean up.
+		$domain->delete();
+		$this->flush_domain_cache( $domain_str );
+	}
+
+	// ----------------------------------------------------------------
+	// DB-backed: clear_mappings_on_delete
+	// ----------------------------------------------------------------
+
+	/**
+	 * Test clear_mappings_on_delete removes domain records for a site.
+	 */
+	public function test_clear_mappings_on_delete_with_mappings(): void {
+
+		$domain_str = 'delete-me-dm-test.example.com';
+		$domain     = $this->create_db_domain( $domain_str );
+
+		$this->flush_domain_cache( $domain_str );
+
+		$site_data           = new \stdClass();
+		$site_data->blog_id  = 1;
+		$site_data->domain   = 'example.org';
+		$site_data->path     = '/';
+		$site_data->site_id  = 1;
+		$site_data->deleted  = 0;
+		$site_data->archived = 0;
+		$site_data->spam     = 0;
+		$site                = new \WP_Site( $site_data );
+
+		// Should not throw — deletes the mapping.
+		$this->domain_mapping->clear_mappings_on_delete( $site );
+
+		// Verify the domain is gone from the DB.
+		$this->flush_domain_cache( $domain_str );
+
+		$fetched = Domain::get_by_domain( [ $domain_str ] );
+		$this->assertNull( $fetched );
+	}
+
+	// ----------------------------------------------------------------
+	// DB-backed: fix_srcset with valid mapping
+	// ----------------------------------------------------------------
+
+	/**
+	 * Test fix_srcset with a mapping that has a valid site replaces URLs.
+	 *
+	 * Uses blog_id=1 (always exists) so get_site() returns a real WP_Site.
+	 */
+	public function test_fix_srcset_with_valid_mapping_replaces_urls(): void {
+
+		$mapping = new Domain();
+		$mapping->set_domain( 'srcset-mapped.example.com' );
+		$mapping->set_blog_id( 1 );
+		$mapping->set_active( true );
+		$mapping->set_secure( false );
+
+		$this->domain_mapping->current_mapping = $mapping;
+
+		$sources = [
+			100 => [ 'url' => 'http://example.org/image-100.jpg', 'value' => 100 ],
+			200 => [ 'url' => 'http://example.org/image-200.jpg', 'value' => 200 ],
+		];
+
+		$result = $this->domain_mapping->fix_srcset( $sources );
+
+		$this->assertIsArray( $result );
+		// At least one URL should be mangled to the mapped domain.
+		$all_urls = array_column( $result, 'url' );
+		$mangled  = array_filter( $all_urls, fn( $u ) => str_contains( $u, 'srcset-mapped.example.com' ) );
+		$this->assertNotEmpty( $mangled );
+
+		$this->domain_mapping->current_mapping = null;
+	}
+
+	// ----------------------------------------------------------------
+	// DB-backed: register_mapped_filters with mapping found
+	// ----------------------------------------------------------------
+
+	/**
+	 * Test register_mapped_filters with a domain in DB registers URL filters.
+	 */
+	public function test_register_mapped_filters_with_db_mapping_registers_filters(): void {
+
+		global $current_blog;
+
+		$domain_str = 'register-filters-dm-test.example.com';
+		$domain     = $this->create_db_domain( $domain_str );
+
+		$this->flush_domain_cache( $domain_str );
+
+		// Set current_blog so the early-return is bypassed.
+		$site_data           = new \stdClass();
+		$site_data->blog_id  = 1;
+		$site_data->domain   = 'example.org';
+		$site_data->path     = '/';
+		$site_data->site_id  = 1;
+		$site_data->deleted  = 0;
+		$site_data->archived = 0;
+		$site_data->spam     = 0;
+		$current_blog        = new \WP_Site( $site_data );
+
+		$_SERVER['HTTP_HOST'] = $domain_str;
+
+		$this->domain_mapping->register_mapped_filters();
+
+		// site_url filter should now be registered.
+		$this->assertTrue( has_filter( 'site_url', [ $this->domain_mapping, 'mangle_url' ] ) !== false );
+
+		// Clean up.
+		remove_filter( 'site_url', [ $this->domain_mapping, 'mangle_url' ], -10 );
+		remove_filter( 'home_url', [ $this->domain_mapping, 'mangle_url' ], -10 );
+		unset( $_SERVER['HTTP_HOST'] );
+		$domain->delete();
+		$this->flush_domain_cache( $domain_str );
+		$this->domain_mapping->current_mapping = null;
+	}
+
+	// ----------------------------------------------------------------
+	// DB-backed: add_mapped_domains_as_allowed_origins
+	// ----------------------------------------------------------------
+
+	/**
+	 * Test add_mapped_domains_as_allowed_origins returns mapped domain when found.
+	 */
+	public function test_add_mapped_domains_as_allowed_origins_returns_mapped_domain(): void {
+
+		$domain_str = 'origin-mapped-dm-test.example.com';
+		$domain     = $this->create_db_domain( $domain_str );
+
+		$this->flush_domain_cache( $domain_str );
+
+		$result = $this->domain_mapping->add_mapped_domains_as_allowed_origins( 'https://' . $domain_str . '/path' );
+
+		// Should return the mapped domain (without path).
+		$this->assertEquals( $domain_str, $result );
+
+		// Clean up.
+		$domain->delete();
+		$this->flush_domain_cache( $domain_str );
+	}
+
+	// ----------------------------------------------------------------
+	// DB-backed: allow_network_redirect_hosts with mapped domain
+	// ----------------------------------------------------------------
+
+	/**
+	 * Test allow_network_redirect_hosts adds host when it matches a mapped domain.
+	 */
+	public function test_allow_network_redirect_hosts_adds_mapped_domain(): void {
+
+		$domain_str = 'redirect-mapped-dm-test.example.com';
+		$domain     = $this->create_db_domain( $domain_str );
+
+		$this->flush_domain_cache( $domain_str );
+
+		$allowed = [];
+		$result  = $this->domain_mapping->allow_network_redirect_hosts( $allowed, $domain_str );
+
+		$this->assertContains( $domain_str, $result );
+
+		// Clean up.
+		$domain->delete();
+		$this->flush_domain_cache( $domain_str );
+	}
+
+	// ----------------------------------------------------------------
+	// DB-backed: fix_sso_target_site with mapped domain
+	// ----------------------------------------------------------------
+
+	/**
+	 * Test fix_sso_target_site with null target and a mapped domain returns the site.
+	 */
+	public function test_fix_sso_target_site_null_target_with_mapping_returns_site(): void {
+
+		$domain_str = 'sso-mapped-dm-test.example.com';
+		$domain     = $this->create_db_domain( $domain_str );
+
+		$this->flush_domain_cache( $domain_str );
+
+		$result = $this->domain_mapping->fix_sso_target_site( null, $domain_str );
+
+		// Should return a site for blog_id=1.
+		$this->assertNotNull( $result );
+
+		// Clean up.
+		$domain->delete();
+		$this->flush_domain_cache( $domain_str );
+	}
+
+	// ----------------------------------------------------------------
+	// replace_url — second-attempt branch
+	// ----------------------------------------------------------------
+
+	/**
+	 * Test replace_url second-attempt branch fires when current_mapping differs from explicit mapping.
+	 *
+	 * The second attempt in replace_url fires when:
+	 * - The first regex didn't match (URL domain+path doesn't match)
+	 * - $current_mapping !== $explicit_mapping
+	 */
+	public function test_replace_url_second_attempt_branch(): void {
+
+		// Explicit mapping passed to replace_url (differs from current_mapping).
+		$explicit = new Domain();
+		$explicit->set_domain( 'second-attempt.example.com' );
+		$explicit->set_blog_id( 1 );
+		$explicit->set_active( true );
+		$explicit->set_secure( false );
+
+		// Set a different current_mapping so the second-attempt branch fires.
+		$other = new Domain();
+		$other->set_domain( 'other-current.example.com' );
+		$other->set_blog_id( 1 );
+		$this->domain_mapping->current_mapping = $other;
+
+		// URL whose host+path doesn't match the first regex (path mismatch).
+		$result = $this->domain_mapping->replace_url( 'http://example.org/', $explicit );
+
+		$this->assertIsString( $result );
+
+		$this->domain_mapping->current_mapping = null;
+	}
+
 }
