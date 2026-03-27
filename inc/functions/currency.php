@@ -396,7 +396,11 @@ function wu_format_currency($value, $currency = null, $format = null, $thousands
 
 	$currency_symbol = wu_get_currency_symbol($atts['currency']);
 
-	$value = number_format($value, $atts['precision'], $atts['decimal_sep'], $atts['thousands_sep']);
+	// Let wu_currency_decimal_filter override precision for zero-decimal currencies
+	// (and give the multi-currency addon a chance to set 3 decimals for e.g. KWD).
+	$precision = wu_currency_decimal_filter($atts['precision'], $atts['currency']);
+
+	$value = number_format($value, $precision, $atts['decimal_sep'], $atts['thousands_sep']);
 
 	$format = str_replace('%v', $value, (string) $atts['format']);
 	$format = str_replace('%s', $currency_symbol, $format);
@@ -419,35 +423,45 @@ function wu_is_zero_decimal_currency($currency = 'USD') {
 		'CLP', // Chilean Peso
 		'DJF', // Djiboutian Franc
 		'GNF', // Guinean Franc
+		'HUF', // Hungarian Forint (PayPal treats as zero-decimal)
+		'ISK', // Icelandic Króna
 		'JPY', // Japanese Yen
 		'KMF', // Comorian Franc
 		'KRW', // South Korean Won
+		'IRR', // Iranian Rial
 		'MGA', // Malagasy Ariary
 		'PYG', // Paraguayan Guarani
 		'RWF', // Rwandan Franc
+		'UGX', // Ugandan Shilling
 		'VND', // Vietnamese Dong
 		'VUV', // Vanuatu Vatu
 		'XAF', // Central African CFA Franc
 		'XOF', // West African CFA Franc
 		'XPF', // CFP Franc
-		'IRR', // Iranian Rial
 	];
 
-	return apply_filters('wu_is_zero_decimal_currency', in_array($currency, $zero_dec_currencies, true));
+	return apply_filters('wu_is_zero_decimal_currency', in_array(strtoupper($currency), $zero_dec_currencies, true), $currency);
 }
 
 /**
- * Sets the number of decimal places based on the currency.
+ * Returns the correct number of decimal places for the given currency.
  *
- * @param int $decimals The number of decimal places. Default is 2.
+ * Zero-decimal currencies always return 0 regardless of the $decimals argument.
+ * The `wu_currency_decimal_filter` filter lets the multi-currency addon (or any
+ * other code) override this further — e.g. to support 3-decimal currencies like
+ * KWD, BHD, OMR.
  *
- * @todo add the missing currency parameter?
- * @since  2.0.0
+ * @param int    $decimals Default number of decimal places (typically the site setting).
+ * @param string $currency ISO 4217 currency code. Defaults to the site currency setting.
+ *
+ * @since 2.0.0
  * @return int The number of decimal places.
  */
-function wu_currency_decimal_filter($decimals = 2) {
+function wu_currency_decimal_filter($decimals = 2, $currency = '') {
 
-	$currency = 'USD';
+	if (empty($currency)) {
+		$currency = wu_get_setting('currency_symbol', 'USD');
+	}
 
 	if (wu_is_zero_decimal_currency($currency)) {
 		$decimals = 0;

@@ -638,7 +638,6 @@ class Gateway_Manager extends Base_Manager {
 			);
 		}
 
-		// Only try to verify Stripe payments
 		$gateway_id = $payment->get_gateway();
 
 		if (empty($gateway_id)) {
@@ -647,23 +646,14 @@ class Gateway_Manager extends Base_Manager {
 			$gateway_id = $membership ? $membership->get_gateway() : '';
 		}
 
-		if (! in_array($gateway_id, ['stripe', 'stripe-checkout'], true)) {
-			wp_send_json_success(
-				[
-					'status'  => $payment->get_status(),
-					'message' => __('Non-Stripe payment, cannot verify.', 'ultimate-multisite'),
-				]
-			);
-		}
-
-		// Get the gateway instance and verify
+		// Ask the gateway itself whether it supports polling — no hardcoded list.
 		$gateway = wu_get_gateway($gateway_id);
 
-		if (! $gateway || ! method_exists($gateway, 'verify_and_complete_payment')) {
+		if (! $gateway || ! $gateway->supports_payment_polling()) {
 			wp_send_json_success(
 				[
 					'status'  => $payment->get_status(),
-					'message' => __('Gateway does not support verification.', 'ultimate-multisite'),
+					'message' => __('Gateway does not support payment verification.', 'ultimate-multisite'),
 				]
 			);
 		}

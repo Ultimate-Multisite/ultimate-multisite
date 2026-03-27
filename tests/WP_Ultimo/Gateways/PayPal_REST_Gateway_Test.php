@@ -573,7 +573,7 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test render_oauth_connection includes fee notice.
+	 * Test render_oauth_connection renders connect button.
 	 */
 	public function test_render_oauth_connection_fee_notice(): void {
 
@@ -583,8 +583,8 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 		$this->gateway->render_oauth_connection();
 		$output = ob_get_clean();
 
-		// Fee notice should be present (unless addon is purchased)
-		$this->assertStringContainsString('fee', strtolower($output));
+		// Should render the connect button
+		$this->assertStringContainsString('wu-paypal-connect', strtolower($output));
 	}
 
 	/**

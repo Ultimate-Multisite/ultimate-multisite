@@ -178,6 +178,9 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 		// Initialize OAuth handler
 		PayPal_OAuth_Handler::get_instance()->init();
 
+		// Preserve hidden OAuth connection settings during general settings saves
+		add_filter('wu_pre_save_settings', [$this, 'preserve_oauth_settings'], 10, 3);
+
 		// Handle webhook installation after settings save
 		add_action('wu_after_save_settings', [$this, 'maybe_install_webhook'], 10, 3);
 
@@ -465,7 +468,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 				[
 					'amount' => [
 						'currency_code' => $currency,
-						'value'         => number_format($fee_amount, 2, '.', ''),
+						'value'         => $this->format_amount($fee_amount, $currency),
 					],
 				],
 			],
@@ -508,6 +511,26 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 		$this->log(sprintf('Order created with %.2f%% platform fee ($%s)', $this->get_platform_fee_percent(), number_format($fee_amount, 2)));
 
 		return $body;
+	}
+
+	/**
+	 * Format a monetary amount as a string for the PayPal API.
+	 *
+	 * PayPal requires zero-decimal currencies (JPY, KRW, etc.) to be sent as
+	 * whole integers. Sending "4767.00" for JPY causes INVALID_PARAMETER_VALUE.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param float  $amount   The amount to format.
+	 * @param string $currency ISO 4217 currency code.
+	 * @return string
+	 */
+	protected function format_amount(float $amount, string $currency): string {
+
+		// Delegate to the shared check so the list stays in one place.
+		$decimals = wu_is_zero_decimal_currency($currency) ? 0 : 2;
+
+		return number_format($amount, $decimals, '.', '');
 	}
 
 	/**
@@ -760,7 +783,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 				$subscription_data['plan'] = [
 					'payment_preferences' => [
 						'setup_fee' => [
-							'value'         => number_format($setup_fee, 2, '.', ''),
+							'value'         => $this->format_amount($setup_fee, $currency),
 							'currency_code' => $currency,
 						],
 					],
@@ -944,7 +967,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 					'total_cycles'   => 0, // 0 = unlimited
 					'pricing_scheme' => [
 						'fixed_price' => [
-							'value'         => number_format($cart->get_recurring_total(), 2, '.', ''),
+							'value'         => $this->format_amount($cart->get_recurring_total(), $currency),
 							'currency_code' => $currency,
 						],
 					],
@@ -1009,15 +1032,15 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 					'custom_id'    => sprintf('%s|%s|%s', $payment->get_id(), $membership->get_id(), $customer->get_id()),
 					'amount'       => [
 						'currency_code' => $currency,
-						'value'         => number_format($payment->get_total(), 2, '.', ''),
+						'value'         => $this->format_amount($payment->get_total(), $currency),
 						'breakdown'     => [
 							'item_total' => [
 								'currency_code' => $currency,
-								'value'         => number_format($payment->get_subtotal(), 2, '.', ''),
+								'value'         => $this->format_amount($payment->get_subtotal(), $currency),
 							],
 							'tax_total'  => [
 								'currency_code' => $currency,
-								'value'         => number_format($payment->get_tax_total(), 2, '.', ''),
+								'value'         => $this->format_amount($payment->get_tax_total(), $currency),
 							],
 						],
 					],
@@ -1115,7 +1138,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 				'description' => substr($line_item->get_description(), 0, 127) ?: null,
 				'unit_amount' => [
 					'currency_code' => $currency,
-					'value'         => number_format($line_item->get_unit_price(), 2, '.', ''),
+					'value'         => $this->format_amount($line_item->get_unit_price(), $currency),
 				],
 				'quantity'    => (string) $line_item->get_quantity(),
 				'category'    => 'DIGITAL_GOODS',
@@ -1163,21 +1186,13 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 		$subscription = $this->api_request('/v1/billing/subscriptions/' . $subscription_id, [], 'GET');
 
 		if (is_wp_error($subscription)) {
-			wp_die(
-				esc_html($subscription->get_error_message()),
-				esc_html__('PayPal Error', 'ultimate-multisite'),
-				['back_link' => true]
-			);
+			$this->redirect_with_error($subscription->get_error_message());
 		}
 
 		// Parse custom_id to get our IDs
 		$custom_parts = explode('|', $subscription['custom_id'] ?? '');
 		if (count($custom_parts) !== 3) {
-			wp_die(
-				esc_html__('Invalid subscription data', 'ultimate-multisite'),
-				esc_html__('PayPal Error', 'ultimate-multisite'),
-				['back_link' => true]
-			);
+			$this->redirect_with_error(__('Invalid subscription data', 'ultimate-multisite'));
 		}
 
 		[$payment_id, $membership_id, $customer_id] = $custom_parts;
@@ -1186,11 +1201,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 		$membership = wu_get_membership($membership_id);
 
 		if (! $payment || ! $membership) {
-			wp_die(
-				esc_html__('Payment or membership not found', 'ultimate-multisite'),
-				esc_html__('PayPal Error', 'ultimate-multisite'),
-				['back_link' => true]
-			);
+			$this->redirect_with_error(__('Payment or membership not found', 'ultimate-multisite'));
 		}
 
 		// Check subscription status
@@ -1205,11 +1216,15 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 			if ('ACTIVE' === $subscription['status']) {
 				// Payment already processed
 				$payment->set_status(Payment_Status::COMPLETED);
-				$membership->renew(false);
 			} else {
-				// Will be activated on first payment webhook
+				// First payment being processed — activate membership immediately so the
+				// site is created now. Payment will be confirmed via PAYMENT.SALE.COMPLETED webhook.
 				$payment->set_status(Payment_Status::PENDING);
 			}
+
+			// Always renew regardless of ACTIVE vs APPROVED — this activates the membership
+			// and fires wu_membership_post_renew which triggers site creation.
+			$membership->renew(false);
 
 			$payment->set_gateway('paypal-rest');
 			$payment->save();
@@ -1222,11 +1237,9 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 			exit;
 		}
 
-		wp_die(
+		$this->redirect_with_error(
 			// translators: %s is the subscription status
-			esc_html(sprintf(__('Subscription not approved. Status: %s', 'ultimate-multisite'), $subscription['status'])),
-			esc_html__('PayPal Error', 'ultimate-multisite'),
-			['back_link' => true]
+			sprintf(__('Subscription not approved. Status: %s', 'ultimate-multisite'), $subscription['status'])
 		);
 	}
 
@@ -1241,22 +1254,17 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 	protected function confirm_order(string $token): void {
 
 		// Capture the order (Prefer header ensures full response with capture details)
+		// Capture the order (Prefer header ensures full response with capture details)
 		$capture = $this->api_request('/v2/checkout/orders/' . $token . '/capture', [], 'POST', ['Prefer' => 'return=representation']);
 
 		if (is_wp_error($capture)) {
-			wp_die(
-				esc_html($capture->get_error_message()),
-				esc_html__('PayPal Error', 'ultimate-multisite'),
-				['back_link' => true]
-			);
+			$this->redirect_with_error($capture->get_error_message());
 		}
 
 		if ('COMPLETED' !== $capture['status']) {
-			wp_die(
+			$this->redirect_with_error(
 				// translators: %s is the order status
-				esc_html(sprintf(__('Order not completed. Status: %s', 'ultimate-multisite'), $capture['status'])),
-				esc_html__('PayPal Error', 'ultimate-multisite'),
-				['back_link' => true]
+				sprintf(__('Order not completed. Status: %s', 'ultimate-multisite'), $capture['status'])
 			);
 		}
 
@@ -1265,11 +1273,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 		$custom_parts  = explode('|', $purchase_unit['payments']['captures'][0]['custom_id'] ?? '');
 
 		if (count($custom_parts) !== 3) {
-			wp_die(
-				esc_html__('Invalid order data', 'ultimate-multisite'),
-				esc_html__('PayPal Error', 'ultimate-multisite'),
-				['back_link' => true]
-			);
+			$this->redirect_with_error(__('Invalid order data', 'ultimate-multisite'));
 		}
 
 		[$payment_id, $membership_id, $customer_id] = $custom_parts;
@@ -1278,11 +1282,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 		$membership = wu_get_membership($membership_id);
 
 		if (! $payment || ! $membership) {
-			wp_die(
-				esc_html__('Payment or membership not found', 'ultimate-multisite'),
-				esc_html__('PayPal Error', 'ultimate-multisite'),
-				['back_link' => true]
-			);
+			$this->redirect_with_error(__('Payment or membership not found', 'ultimate-multisite'));
 		}
 
 		// Get transaction ID from capture
@@ -1353,8 +1353,22 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 
 		$capture_id = $payment->get_gateway_payment_id();
 
+		/*
+		 * For subscription payments, the capture ID is not stored on the
+		 * payment because PayPal handles the charge internally. Look it up
+		 * from the subscription's transaction history.
+		 */
+		if (empty($capture_id) && $membership) {
+			$capture_id = $this->find_capture_id_for_payment($payment, $membership);
+
+			if ($capture_id) {
+				$payment->set_gateway_payment_id($capture_id);
+				$payment->save();
+			}
+		}
+
 		if (empty($capture_id)) {
-			throw new \Exception(esc_html__('No capture ID found for this payment.', 'ultimate-multisite'));
+			throw new \Exception(esc_html__('No capture ID found for this payment. PayPal subscription payments require an active subscription to look up the transaction.', 'ultimate-multisite'));
 		}
 
 		$refund_data = [];
@@ -1362,18 +1376,108 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 		// Only include amount for partial refunds
 		if ($amount < $payment->get_total()) {
 			$refund_data['amount'] = [
-				'value'         => number_format($amount, 2, '.', ''),
+				'value'         => $this->format_amount($amount, strtoupper($payment->get_currency())),
 				'currency_code' => strtoupper($payment->get_currency()),
 			];
 		}
 
+		/*
+		 * Try the captures endpoint first (for one-time orders), then fall
+		 * back to the sale endpoint (for subscription payments). PayPal uses
+		 * different transaction types depending on the payment flow.
+		 */
 		$result = $this->api_request('/v2/payments/captures/' . $capture_id . '/refund', $refund_data);
+
+		if (is_wp_error($result)) {
+			// Try the v1 sale refund endpoint as fallback for subscription payments.
+			$result = $this->api_request('/v1/payments/sale/' . $capture_id . '/refund', $refund_data);
+		}
 
 		if (is_wp_error($result)) {
 			throw new \Exception(esc_html($result->get_error_message()));
 		}
 
-		$this->log(sprintf('Refund processed: %s for capture %s', $result['id'] ?? 'unknown', $capture_id));
+		$this->log(sprintf('Refund processed: %s for transaction %s', $result['id'] ?? 'unknown', $capture_id));
+	}
+
+	/**
+	 * Find the PayPal capture ID for a payment by querying the subscription transactions.
+	 *
+	 * @param \WP_Ultimo\Models\Payment    $payment    The payment.
+	 * @param \WP_Ultimo\Models\Membership $membership The membership.
+	 * @return string|false The capture ID or false if not found.
+	 */
+	protected function find_capture_id_for_payment($payment, $membership) {
+
+		$subscription_id = $membership->get_gateway_subscription_id();
+
+		if (empty($subscription_id)) {
+			return false;
+		}
+
+		$start_time = gmdate('Y-m-d\TH:i:s.000\Z', strtotime($payment->get_date_created()) - 86400);
+		$end_time   = gmdate('Y-m-d\TH:i:s.000\Z', strtotime($payment->get_date_created()) + 86400);
+
+		$transactions = $this->api_request(
+			'/v1/billing/subscriptions/' . $subscription_id . '/transactions?start_time=' . $start_time . '&end_time=' . $end_time,
+			[],
+			'GET'
+		);
+
+		if (is_wp_error($transactions) || empty($transactions['transactions'])) {
+			$this->log('Failed to fetch subscription transactions for refund lookup.', LogLevel::WARNING);
+
+			return false;
+		}
+
+		/*
+		 * PayPal subscription transactions may have statuses like COMPLETED
+		 * or UNCLAIMED (sandbox). The amounts may also be split into a setup
+		 * fee and a recurring charge. Try to match by amount first, then fall
+		 * back to the largest transaction (typically the setup fee).
+		 */
+		$payment_total    = (float) $payment->get_total();
+		$payment_currency = strtoupper($payment->get_currency());
+		$best_match       = null;
+		$best_amount      = 0;
+
+		foreach ($transactions['transactions'] as $transaction) {
+			$txn_status = $transaction['status'] ?? '';
+
+			// Skip failed or refunded transactions.
+			if (in_array($txn_status, ['DECLINED', 'REFUNDED', 'PARTIALLY_REFUNDED'], true)) {
+				continue;
+			}
+
+			$txn_amount   = (float) ($transaction['amount_with_breakdown']['gross_amount']['value'] ?? 0);
+			$txn_currency = strtoupper($transaction['amount_with_breakdown']['gross_amount']['currency_code'] ?? '');
+
+			if ($txn_currency !== $payment_currency) {
+				continue;
+			}
+
+			// Exact match on amount — best case.
+			if (abs($txn_amount - $payment_total) < 0.01) {
+				$this->log(sprintf('Found exact capture ID %s for payment %d', $transaction['id'], $payment->get_id()));
+
+				return $transaction['id'];
+			}
+
+			// Track the largest transaction as fallback (likely the setup fee).
+			if ($txn_amount > $best_amount) {
+				$best_amount = $txn_amount;
+				$best_match  = $transaction['id'];
+			}
+		}
+
+		// Fall back to the largest transaction if no exact match.
+		if ($best_match) {
+			$this->log(sprintf('Found capture ID %s (amount fallback) for payment %d', $best_match, $payment->get_id()));
+
+			return $best_match;
+		}
+
+		return false;
 	}
 
 	/**
@@ -1684,25 +1788,25 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 		$this->enqueue_connect_scripts();
 
 		// Fee notice (mirrors Stripe Connect fee notice)
-		if (! \WP_Ultimo::get_instance()->get_addon_repository()->has_addon_purchase()) {
-			printf(
-				'<div class="wu-py-3">%s <br><a href="%s" target="_blank" rel="noopener">%s</a></div>',
-				esc_html(
-					sprintf(
-						/* translators: %s: the fee percentage */
-						__('There is a %s%% fee per-transaction to use the PayPal integration included in the free Ultimate Multisite plugin.', 'ultimate-multisite'),
-						number_format_i18n($this->get_platform_fee_percent(), 0)
-					)
-				),
-				esc_url(network_admin_url('admin.php?page=wp-ultimo-addons')),
-				esc_html__('Remove this fee by purchasing any addon and connecting your store.', 'ultimate-multisite')
-			);
-		} else {
-			printf(
-				'<p class="wu-text-xs wu-text-green-700 wu-mt-2">%s</p>',
-				esc_html__('No application fee — thank you for your support!', 'ultimate-multisite')
-			);
-		}
+//		if (! \WP_Ultimo::get_instance()->get_addon_repository()->has_addon_purchase()) {
+//			printf(
+//				'<div class="wu-py-3">%s <br><a href="%s" target="_blank" rel="noopener">%s</a></div>',
+//				esc_html(
+//					sprintf(
+//						/* translators: %s: the fee percentage */
+//						__('There is a %s%% fee per-transaction to use the PayPal integration included in the free Ultimate Multisite plugin.', 'ultimate-multisite'),
+//						number_format_i18n($this->get_platform_fee_percent(), 0)
+//					)
+//				),
+//				esc_url(network_admin_url('admin.php?page=wp-ultimo-addons')),
+//				esc_html__('Remove this fee by purchasing any addon and connecting your store.', 'ultimate-multisite')
+//			);
+//		} else {
+//			printf(
+//				'<p class="wu-text-xs wu-text-green-700 wu-mt-2">%s</p>',
+//				esc_html__('No application fee — thank you for your support!', 'ultimate-multisite')
+//			);
+//		}
 	}
 
 	/**
@@ -1803,6 +1907,180 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 				<?php
 			}
 		);
+	}
+
+	/**
+	 * Preserves PayPal OAuth connection settings during a general settings save.
+	 *
+	 * The settings save mechanism only persists registered fields. OAuth tokens and
+	 * merchant connection data are stored separately via wu_save_setting() and must
+	 * be carried forward so they are not wiped when unrelated settings are saved.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param array $settings         The settings being saved (built from registered fields only).
+	 * @param array $settings_to_save Raw POST data.
+	 * @param array $saved_settings   The full settings array before this save.
+	 * @return array
+	 */
+	public function preserve_oauth_settings(array $settings, array $settings_to_save, array $saved_settings): array {
+
+		$oauth_keys = [
+			'paypal_rest_sandbox_merchant_id',
+			'paypal_rest_sandbox_merchant_email',
+			'paypal_rest_sandbox_payments_receivable',
+			'paypal_rest_sandbox_email_confirmed',
+			'paypal_rest_live_merchant_id',
+			'paypal_rest_live_merchant_email',
+			'paypal_rest_live_payments_receivable',
+			'paypal_rest_live_email_confirmed',
+			'paypal_rest_connected',
+			'paypal_rest_connection_date',
+			'paypal_rest_connection_mode',
+		];
+
+		foreach ($oauth_keys as $key) {
+			if (array_key_exists($key, $saved_settings)) {
+				$settings[ $key ] = $saved_settings[ $key ];
+			}
+		}
+
+		return $settings;
+	}
+
+	/**
+	 * @inheritdoc
+	 * @since 2.0.0
+	 */
+	public function supports_payment_polling(): bool {
+
+		return true;
+	}
+
+	/**
+	 * Verify and complete a pending payment by polling PayPal directly.
+	 *
+	 * Fallback for environments where webhooks cannot reach the server (e.g. local dev).
+	 * Checks the subscription status on PayPal; if ACTIVE, marks the local payment COMPLETED
+	 * and stamps the gateway_payment_id from the latest transaction.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param int $payment_id The local payment ID to verify.
+	 * @return array{success: bool, message: string, status?: string}
+	 */
+	public function verify_and_complete_payment(int $payment_id): array {
+
+		$payment = wu_get_payment($payment_id);
+
+		if (! $payment) {
+			return [
+				'success' => false,
+				'message' => __('Payment not found.', 'ultimate-multisite'),
+			];
+		}
+
+		if ($payment->get_status() === \WP_Ultimo\Database\Payments\Payment_Status::COMPLETED) {
+			return [
+				'success' => true,
+				'message' => __('Payment already completed.', 'ultimate-multisite'),
+				'status'  => 'completed',
+			];
+		}
+
+		$membership = $payment->get_membership();
+
+		if (! $membership) {
+			return [
+				'success' => false,
+				'message' => __('Membership not found.', 'ultimate-multisite'),
+				'status'  => $payment->get_status(),
+			];
+		}
+
+		$subscription_id = $membership->get_gateway_subscription_id();
+
+		if (empty($subscription_id)) {
+			return [
+				'success' => false,
+				'message' => __('No PayPal subscription ID found.', 'ultimate-multisite'),
+				'status'  => $payment->get_status(),
+			];
+		}
+
+		// Ask PayPal for the current subscription status.
+		$subscription = $this->api_request('/v1/billing/subscriptions/' . $subscription_id, [], 'GET');
+
+		if (is_wp_error($subscription)) {
+			return [
+				'success' => false,
+				'message' => $subscription->get_error_message(),
+				'status'  => $payment->get_status(),
+			];
+		}
+
+		$status = $subscription['status'] ?? '';
+
+		if ('ACTIVE' !== $status && 'APPROVED' !== $status) {
+			return [
+				'success' => false,
+				'message' => sprintf(
+					// translators: %s is the PayPal subscription status.
+					__('PayPal subscription status: %s', 'ultimate-multisite'),
+					$status
+				),
+				'status'  => $payment->get_status(),
+			];
+		}
+
+		if ('APPROVED' === $status) {
+			// First payment not yet captured by PayPal — still waiting.
+			return [
+				'success' => false,
+				'message' => __('PayPal subscription approved, waiting for first payment to process.', 'ultimate-multisite'),
+				'status'  => 'pending',
+			];
+		}
+
+		// Subscription is ACTIVE — try to find the transaction ID for the first payment.
+		$gateway_payment_id = '';
+
+		$start_time     = gmdate('Y-m-d\TH:i:s\Z', strtotime('-1 day'));
+		$end_time       = gmdate('Y-m-d\TH:i:s\Z');
+		$transactions   = $this->api_request(
+			sprintf('/v1/billing/subscriptions/%s/transactions?start_time=%s&end_time=%s', $subscription_id, $start_time, $end_time),
+			[],
+			'GET'
+		);
+
+		if (! is_wp_error($transactions) && ! empty($transactions['transactions'])) {
+			$gateway_payment_id = $transactions['transactions'][0]['id'] ?? '';
+		}
+
+		// Mark the pending payment as completed.
+		if (! empty($gateway_payment_id)) {
+			$payment->set_gateway_payment_id($gateway_payment_id);
+		}
+
+		$payment->set_status(\WP_Ultimo\Database\Payments\Payment_Status::COMPLETED);
+		$payment->save();
+
+		// Ensure membership customer ID is populated from the subscription if missing.
+		if (empty($membership->get_gateway_customer_id())) {
+			$payer_id = $subscription['subscriber']['payer_id'] ?? '';
+			if (! empty($payer_id)) {
+				$membership->set_gateway_customer_id($payer_id);
+				$membership->save();
+			}
+		}
+
+		$this->log(sprintf('Payment %d verified and completed via polling. Subscription: %s', $payment_id, $subscription_id));
+
+		return [
+			'success' => true,
+			'message' => __('Payment confirmed.', 'ultimate-multisite'),
+			'status'  => 'completed',
+		];
 	}
 
 	/**

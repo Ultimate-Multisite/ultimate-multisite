@@ -201,7 +201,7 @@ class Scripts {
 				'currency_position'  => wu_get_setting('currency_position', '%s %v'),
 				'decimal_separator'  => wu_get_setting('decimal_separator', '.'),
 				'thousand_separator' => wu_get_setting('thousand_separator', ','),
-				'precision'          => wu_get_setting('precision', 2),
+				'precision'          => wu_currency_decimal_filter(wu_get_setting('precision', 2)),
 				'use_container'      => get_user_setting('wu_use_container', false),
 				'disable_image_zoom' => wu_get_setting('disable_image_zoom', false),
 			]

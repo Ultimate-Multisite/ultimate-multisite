@@ -1899,9 +1899,18 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		$pending_site = $include_pending ? $this->get_pending_site() : false;
 
 		if ($pending_site) {
-			$pending_site->set_type('pending');
+			/*
+			 * Skip the pending site if a real site already exists for this
+			 * membership. This avoids a race condition where the async
+			 * publish job has created the real blog but hasn't yet deleted
+			 * the pending_site metadata, causing duplicates on the Thank
+			 * You page.
+			 */
+			if (empty($sites)) {
+				$pending_site->set_type('pending');
 
-			$sites[] = $pending_site;
+				$sites[] = $pending_site;
+			}
 		}
 
 		return $sites;
@@ -2080,7 +2089,7 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		}
 
 		if (is_wp_error($saved)) {
-			if ($saved->get_error_code() === 'site_taken') {
+			if (in_array($saved->get_error_code(), ['site_taken', 'blog_taken'], true)) {
 				/*
 				 * If the site is already taken, we just delete the pending site.
 				 * This is a workaround for cases where the publish is called twice
@@ -2484,14 +2493,18 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 
 		$has_change = false;
 
-		$current_gateway = [
-			'gateway'                 => $this->get_gateway(),
-			'gateway_customer_id'     => $this->get_gateway_customer_id(),
-			'gateway_subscription_id' => $this->get_gateway_subscription_id(),
-		];
+		// Only compare gateway and gateway_subscription_id — these identify
+		// whether an old external subscription needs to be cancelled.
+		// gateway_customer_id is excluded because it may be populated for the
+		// first time on return from PayPal (empty → payer_id) and should NOT
+		// trigger cancellation of the subscription we just confirmed.
+		$keys_to_compare = ['gateway', 'gateway_subscription_id'];
 
-		foreach ($this->gateway_info as $key => $value) {
-			if ($current_gateway[ $key ] !== $value) {
+		foreach ($keys_to_compare as $key) {
+			$current_value  = $key === 'gateway' ? $this->get_gateway() : $this->get_gateway_subscription_id();
+			$snapshot_value = $this->gateway_info[ $key ] ?? null;
+
+			if ($current_value !== $snapshot_value) {
 				$has_change = true;
 
 				break;

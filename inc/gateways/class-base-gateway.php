@@ -556,6 +556,49 @@ abstract class Base_Gateway {
 	public function process_confirmation() {}
 
 	/**
+	 * Whether this gateway supports client-side payment status polling.
+	 *
+	 * When this returns true, the thank-you page will poll the gateway to
+	 * confirm a pending payment without relying on webhooks. Useful for
+	 * environments where the webhook endpoint is not publicly reachable
+	 * (e.g. local development) and for production resilience.
+	 *
+	 * Gateways that return true must also implement verify_and_complete_payment().
+	 *
+	 * @since 2.0.0
+	 * @return bool
+	 */
+	public function supports_payment_polling(): bool {
+
+		return false;
+	}
+
+	/**
+	 * Verify a pending payment directly with the gateway and mark it complete if confirmed.
+	 *
+	 * Called by the AJAX payment-status polling endpoint as a webhook fallback.
+	 * Only invoked when supports_payment_polling() returns true.
+	 *
+	 * Return array keys:
+	 *   - success (bool)   — true if the payment was confirmed as complete.
+	 *   - status  (string) — 'completed' or 'pending'.
+	 *   - message (string) — human-readable status description.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param int $payment_id The local payment ID to verify.
+	 * @return array{success: bool, status: string, message: string}
+	 */
+	public function verify_and_complete_payment(int $payment_id): array {
+
+		return [
+			'success' => false,
+			'status'  => 'pending',
+			'message' => __('This gateway does not support payment verification.', 'ultimate-multisite'),
+		];
+	}
+
+	/**
 	 * Returns the external link to view the payment on the payment gateway.
 	 *
 	 * Return an empty string to hide the link element.
@@ -763,6 +806,31 @@ abstract class Base_Gateway {
 			],
 			$this->confirm_url
 		);
+	}
+
+	/**
+	 * Redirect back to the checkout page with an error message.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param string $message The error message.
+	 * @return void
+	 */
+	public function redirect_with_error(string $message): void {
+
+		$url = remove_query_arg(['wu-confirm', 'payment', 'token', 'PayerID', 'ba_token', 'subscription_id', 'status'], $this->return_url ?: wu_get_current_url());
+
+		$url = add_query_arg(
+			[
+				'status'       => 'error',
+				'wu_error_msg' => rawurlencode($message),
+			],
+			$url
+		);
+
+		wp_safe_redirect($url);
+
+		exit;
 	}
 
 	/**

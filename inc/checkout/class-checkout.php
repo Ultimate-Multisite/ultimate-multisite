@@ -2989,6 +2989,19 @@ class Checkout {
 		if (wu_request('status') !== 'error') {
 			return;
 		}
+
+		$message = wu_request('wu_error_msg');
+
+		if (empty($message)) {
+			return;
+		}
+
+		$message = sanitize_text_field(rawurldecode($message));
+
+		printf(
+			'<div class="wu-p-4 wu-mb-4 wu-bg-red-100 wu-border wu-border-red-300 wu-border-solid wu-rounded wu-text-red-700">%s</div>',
+			esc_html($message)
+		);
 	}
 
 	/**

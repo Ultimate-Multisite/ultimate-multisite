@@ -833,18 +833,21 @@ class Checkout_Pages {
 			$gateway_id = $membership ? $membership->get_gateway() : '';
 		}
 
-		// Only poll for Stripe payments that are still pending
-		$is_stripe_payment = in_array($gateway_id, ['stripe', 'stripe-checkout'], true);
-		$is_pending        = $payment->get_status() === \WP_Ultimo\Database\Payments\Payment_Status::PENDING;
+		$is_pending = $payment->get_status() === \WP_Ultimo\Database\Payments\Payment_Status::PENDING;
 
-		if (! $is_stripe_payment) {
+		// Ask the gateway itself — no hardcoded list here, third-party gateways can opt in.
+		$gateway = wu_get_gateway($gateway_id);
+
+		if (! $gateway || ! $gateway->supports_payment_polling()) {
 			return;
 		}
+
+		$pending_message = __('Verifying your payment...', 'ultimate-multisite');
 
 		wp_register_script(
 			'wu-payment-status-poll',
 			wu_get_asset('payment-status-poll.js', 'js'),
-			['jquery'],
+			[],
 			wu_get_version(),
 			true
 		);
@@ -863,7 +866,7 @@ class Checkout_Pages {
 				'success_redirect' => '',
 				'messages'         => [
 					'completed' => __('Payment confirmed! Refreshing page...', 'ultimate-multisite'),
-					'pending'   => __('Verifying your payment with Stripe...', 'ultimate-multisite'),
+					'pending'   => $pending_message,
 					'timeout'   => __('Payment verification is taking longer than expected. Your payment may still be processing. Please refresh the page or contact support if you believe payment was made.', 'ultimate-multisite'),
 					'error'     => __('Error checking payment status. Retrying...', 'ultimate-multisite'),
 					'checking'  => __('Checking payment status...', 'ultimate-multisite'),

@@ -1089,6 +1089,24 @@ class Base_Stripe_Gateway extends Base_Gateway {
 
 		$id = wu_replace_dashes($this->get_id());
 
+		// Always preserve OAuth tokens so they are not wiped when unrelated settings are saved.
+		$oauth_keys = [
+			"{$id}_test_access_token",
+			"{$id}_test_refresh_token",
+			"{$id}_test_account_id",
+			"{$id}_test_publishable_key",
+			"{$id}_live_access_token",
+			"{$id}_live_refresh_token",
+			"{$id}_live_account_id",
+			"{$id}_live_publishable_key",
+		];
+
+		foreach ($oauth_keys as $key) {
+			if (array_key_exists($key, $saved_settings)) {
+				$settings[ $key ] = $saved_settings[ $key ];
+			}
+		}
+
 		$active_gateways = (array) wu_get_isset($settings_to_save, 'active_gateways', []);
 
 		if ( ! in_array($this->get_id(), $active_gateways, true)) {
@@ -1413,7 +1431,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 					$credit = $credits[0];
 				}
 
-				$s_amount = - round($credit['amount'] * wu_stripe_get_currency_multiplier());
+				$s_amount = - round($credit['amount'] * wu_stripe_get_currency_multiplier(strtoupper($membership->get_currency())));
 
 				if ($s_amount >= 1) {
 					$currency = strtolower($membership->get_currency());
@@ -1903,7 +1921,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 			return false;
 		}
 
-		$s_amount = - round($amount * wu_stripe_get_currency_multiplier());
+		$s_amount = - round($amount * wu_stripe_get_currency_multiplier(strtoupper($cart->get_currency())));
 		$currency = strtolower($cart->get_currency());
 
 		$coupon_data = [
@@ -1996,7 +2014,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 				continue;
 			}
 
-			$unit_amount = round($line_item->get_unit_price() * wu_stripe_get_currency_multiplier());
+			$unit_amount = round($line_item->get_unit_price() * wu_stripe_get_currency_multiplier(strtoupper($cart->get_currency())));
 
 			/*
 			 * Skip zero-amount items.
@@ -2472,7 +2490,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 		 * for Stripe, which usually works
 		 * in cents.
 		 */
-		$normalize_amount = $amount * wu_stripe_get_currency_multiplier();
+		$normalize_amount = $amount * wu_stripe_get_currency_multiplier(strtoupper($payment->get_currency()));
 
 		$this->get_stripe_client()->refunds->create(
 			[
@@ -2749,7 +2767,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 		 * Last ditch effort to retrieve a valid membership.
 		 */
 		if (empty($membership) && ! empty($invoice)) {
-			$amount = $invoice->amount_paid / wu_stripe_get_currency_multiplier();
+			$amount = $invoice->amount_paid / wu_stripe_get_currency_multiplier(strtoupper($invoice->currency ?? 'USD'));
 
 			$membership = wu_get_membership_by_customer_gateway_id($payment_event->customer, ['stripe', 'stripe-checkout'], $amount);
 		}
@@ -2847,16 +2865,17 @@ class Base_Stripe_Gateway extends Base_Gateway {
 				 * Successful one-time payment
 				 */
 				if (empty($payment_event->invoice)) {
-					$payment_data['total']              = $payment_event->amount / wu_stripe_get_currency_multiplier();
+					$payment_data['total']              = $payment_event->amount / wu_stripe_get_currency_multiplier(strtoupper($payment_event->currency ?? 'USD'));
 					$payment_data['gateway_payment_id'] = $payment_event->id;
 
 					/*
 					* Subscription payment received.
 					*/
 				} else {
-					$payment_data['total']              = $invoice->total / wu_stripe_get_currency_multiplier();
-					$payment_data['subtotal']           = ($invoice->total_excluding_tax / wu_stripe_get_currency_multiplier()) - $payment_data['discount_total'];
-					$payment_data['tax_total']          = $invoice->tax / wu_stripe_get_currency_multiplier();
+					$invoice_currency = strtoupper($invoice->currency ?? 'USD');
+					$payment_data['total']              = $invoice->total / wu_stripe_get_currency_multiplier($invoice_currency);
+					$payment_data['subtotal']           = ($invoice->total_excluding_tax / wu_stripe_get_currency_multiplier($invoice_currency)) - $payment_data['discount_total'];
+					$payment_data['tax_total']          = $invoice->tax / wu_stripe_get_currency_multiplier($invoice_currency);
 					$payment_data['gateway_payment_id'] = $payment_event->id;
 
 					if ( ! empty($payment_event->discount)) {
@@ -3093,7 +3112,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 			/*
 			 * Let's address the type.
 			 */
-			$amount = $payment_event->amount_refunded / wu_stripe_get_currency_multiplier();
+			$amount = $payment_event->amount_refunded / wu_stripe_get_currency_multiplier(strtoupper($payment_event->currency ?? 'USD'));
 
 			/*
 			 * Actually process the refund
@@ -3490,7 +3509,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 		}
 
 		// Convert price to Stripe format.
-		$price = round($args['price'] * wu_stripe_get_currency_multiplier(), 0);
+		$price = round($args['price'] * wu_stripe_get_currency_multiplier(strtoupper($args['currency'] ?? 'USD')), 0);
 
 		// First check to see if a plan exists with this ID. If so, return that.
 		try {
@@ -3648,7 +3667,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 		$name = 1 === $quantity ? $title : "x$quantity $title";
 
 		$currency = strtolower($currency);
-		$s_amount = round($amount * wu_stripe_get_currency_multiplier());
+		$s_amount = round($amount * wu_stripe_get_currency_multiplier(strtoupper($currency)));
 
 		$s_product = $this->maybe_create_product($name);
 
@@ -3833,6 +3852,15 @@ class Base_Stripe_Gateway extends Base_Gateway {
 		$route = $this->test_mode ? '/test' : '/';
 
 		return sprintf('https://dashboard.stripe.com%s/customers/%s', $route, $gateway_customer_id);
+	}
+
+	/**
+	 * @inheritdoc
+	 * @since 2.0.0
+	 */
+	public function supports_payment_polling(): bool {
+
+		return true;
 	}
 
 	/**

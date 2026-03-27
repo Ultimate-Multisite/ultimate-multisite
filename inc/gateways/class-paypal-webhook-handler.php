@@ -314,10 +314,10 @@ class PayPal_Webhook_Handler {
 			return;
 		}
 
-		// Update membership status if needed
+		// Update membership status if needed — use renew() so wu_membership_post_renew
+		// fires and triggers site creation / all post-activation hooks.
 		if ($membership->get_status() !== Membership_Status::ACTIVE) {
-			$membership->set_status(Membership_Status::ACTIVE);
-			$membership->save();
+			$membership->renew(true);
 
 			$this->log(sprintf('Membership %d activated via webhook', $membership->get_id()));
 		}
@@ -454,7 +454,7 @@ class PayPal_Webhook_Handler {
 			return;
 		}
 
-		// Check if this is a renewal payment (not initial)
+		// Check if we already recorded this exact payment
 		$existing_payment = wu_get_payment_by('gateway_payment_id', $sale_id);
 
 		if ($existing_payment) {
@@ -462,31 +462,51 @@ class PayPal_Webhook_Handler {
 			return;
 		}
 
-		// Create renewal payment
-		$payment_data = [
-			'customer_id'        => $membership->get_customer_id(),
-			'membership_id'      => $membership->get_id(),
-			'gateway'            => 'paypal-rest',
-			'gateway_payment_id' => $sale_id,
-			'currency'           => $currency,
-			'subtotal'           => (float) $amount,
-			'total'              => (float) $amount,
-			'status'             => Payment_Status::COMPLETED,
-			'product_id'         => $membership->get_plan_id(),
-		];
+		// Check for the original pending payment created during checkout (first payment only).
+		// When a subscription returns APPROVED, we leave the initial payment as PENDING and
+		// expect this webhook to confirm it rather than creating a duplicate.
+		$pending_payments = wu_get_payments([
+			'membership_id' => $membership->get_id(),
+			'status'        => Payment_Status::PENDING,
+			'number'        => 1,
+		]);
 
-		$payment = wu_create_payment($payment_data);
+		$payment = ! empty($pending_payments) ? $pending_payments[0] : null;
 
-		if (is_wp_error($payment)) {
-			$this->log(sprintf('Failed to create renewal payment: %s', $payment->get_error_message()), LogLevel::ERROR);
-			return;
+		if ($payment) {
+			// Confirm the existing pending payment
+			$payment->set_gateway_payment_id($sale_id);
+			$payment->set_status(Payment_Status::COMPLETED);
+			$payment->save();
+
+			$this->log(sprintf('Confirmed pending payment %d for membership %d', $payment->get_id(), $membership->get_id()));
+		} else {
+			// No pending payment — create a renewal payment record
+			$payment_data = [
+				'customer_id'        => $membership->get_customer_id(),
+				'membership_id'      => $membership->get_id(),
+				'gateway'            => 'paypal-rest',
+				'gateway_payment_id' => $sale_id,
+				'currency'           => $currency,
+				'subtotal'           => (float) $amount,
+				'total'              => (float) $amount,
+				'status'             => Payment_Status::COMPLETED,
+				'product_id'         => $membership->get_plan_id(),
+			];
+
+			$payment = wu_create_payment($payment_data);
+
+			if (is_wp_error($payment)) {
+				$this->log(sprintf('Failed to create renewal payment: %s', $payment->get_error_message()), LogLevel::ERROR);
+				return;
+			}
+
+			$this->log(sprintf('Renewal payment created: %d for membership %d', $payment->get_id(), $membership->get_id()));
 		}
 
 		// Update membership
 		$membership->add_to_times_billed(1);
 		$membership->renew(false);
-
-		$this->log(sprintf('Renewal payment created: %d for membership %d', $payment->get_id(), $membership->get_id()));
 	}
 
 	/**
