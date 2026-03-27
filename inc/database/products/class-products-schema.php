@@ -99,7 +99,7 @@ class Products_Schema extends Schema {
 		[
 			'name'     => 'pricing_type',
 			'type'     => 'varchar',
-			'length'   => '10',
+			'length'   => '20',
 			'default'  => 'paid',
 			'sortable' => true,
 		],

@@ -73,7 +73,7 @@ final class Products_Table extends Table {
 			description longtext NOT NULL default '',
 			product_group varchar(20) DEFAULT '',
 			currency varchar(10) NOT NULL DEFAULT 'USD',
-			pricing_type varchar(10) NOT NULL DEFAULT 'paid',
+			pricing_type varchar(20) NOT NULL DEFAULT 'paid',
 			amount decimal(13,4) default 0,
 			setup_fee decimal(13,4) default 0,
 			recurring tinyint(4) default 1,
@@ -166,5 +166,22 @@ final class Products_Table extends Table {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Expands the pricing_type column from varchar(10) to varchar(20).
+	 *
+	 * The 'pay_what_you_want' value is 17 characters and was silently
+	 * truncated to 'pay_what_y' by MySQL, breaking PWYW product detection.
+	 *
+	 * @since 2.4.14
+	 */
+	protected function __20260327(): bool { // phpcs:ignore PHPCompatibility.FunctionNameRestrictions.ReservedFunctionNames.MethodDoubleUnderscore
+
+		$query = "ALTER TABLE {$this->table_name} MODIFY COLUMN `pricing_type` varchar(20) NOT NULL DEFAULT 'paid';";
+
+		$result = $this->get_db()->query($query);
+
+		return $this->is_success($result);
 	}
 }
