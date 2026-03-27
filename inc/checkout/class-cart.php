@@ -2792,6 +2792,23 @@ class Cart implements \JsonSerializable {
 			return $line_item;
 		}
 
+		/**
+		 * Filters the applicable tax rates for a cart line item.
+		 *
+		 * Rates with country set to '*' (Apply to all countries) act as a universal
+		 * fallback and are applied when no country-specific rate matches the customer's
+		 * country. Country-specific rates always take precedence.
+		 *
+		 * To configure a universal fallback rate, go to Tax Rates and select
+		 * 'Apply to all countries' from the country dropdown on any rate row.
+		 *
+		 * @since 2.0.0
+		 *
+		 * @param array  $tax_rates    The applicable tax rates.
+		 * @param string $country      The customer's country code.
+		 * @param string $tax_category The tax category slug.
+		 * @param Cart   $cart         The current cart object.
+		 */
 		$tax_rates = apply_filters('wu_cart_applicable_tax_rates', wu_get_applicable_tax_rates($this->country, $tax_category, $this->state, $this->city), $this->country, $tax_category, $this);
 
 		if (empty($tax_rates)) {
