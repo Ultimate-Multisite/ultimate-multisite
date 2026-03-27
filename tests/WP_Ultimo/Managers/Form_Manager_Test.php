@@ -435,13 +435,12 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 	 * Test handle_model_delete_form aborts when confirm is not set.
 	 *
 	 * handle_model_delete_form() calls wp_send_json_error() which internally
-	 * calls wp_die(). In AJAX context, wp_die() uses wp_die_ajax_handler
-	 * (not wp_die_handler), so we must install both filters to prevent the
-	 * bare die() call from killing the PHPUnit process (GitHub issue #527).
+	 * calls wp_die(). In non-AJAX context wp_send_json() falls back to a bare
+	 * die statement that terminates the entire PHPUnit process (GH#527/562).
 	 *
-	 * wp_send_json_error() outputs JSON before calling wp_die(), so the AJAX
-	 * die handler throws WPAjaxDieContinueException (output present). We
-	 * capture the output with ob_start() and verify the JSON error payload.
+	 * Fix: call_in_ajax_context() installs wp_doing_ajax and wp_die_ajax_handler
+	 * filters so wp_die() throws WPAjaxDieContinueException instead of calling
+	 * exit(). The JSON output is captured and verified.
 	 *
 	 * @since 2.0.0
 	 */
@@ -454,53 +453,13 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 		$_REQUEST['model'] = 'membership';
 		$_REQUEST['id']    = '1';
 
-		/*
-		 * wp_send_json() triggers a _doing_it_wrong notice when REST_REQUEST is
-		 * defined (CI environment). Declare it as expected so the test framework
-		 * does not treat it as a failure. Skip when REST_REQUEST is not defined
-		 * (local environment) to avoid "Failed to assert that wp_send_json
-		 * triggered an incorrect usage notice" errors.
-		 */
-		if (defined('REST_REQUEST') && REST_REQUEST) {
-			$this->setExpectedIncorrectUsage('wp_send_json');
-		}
+		$result = $this->call_in_ajax_context([$manager, 'handle_model_delete_form']);
 
-		/*
-		 * Simulate AJAX context so wp_send_json_error() routes through
-		 * wp_die() instead of a bare `die` statement.
-		 *
-		 * wp_die() in AJAX context uses wp_die_ajax_handler (not wp_die_handler).
-		 * We install a handler that throws WPAjaxDieContinueException so PHPUnit
-		 * can catch it instead of the process terminating.
-		 */
-		add_filter('wp_doing_ajax', '__return_true');
-		$ajax_die_handler = function() {
-			return function( $message ) {
-				throw new \WPAjaxDieContinueException( (string) $message );
-			};
-		};
-		add_filter('wp_die_ajax_handler', $ajax_die_handler, 1);
-
-		$json_output      = '';
-		$exception_caught = false;
-
-		ob_start();
-
-		try {
-			$manager->handle_model_delete_form();
-		} catch (\WPAjaxDieContinueException $e) {
-			$exception_caught = true;
-		}
-
-		$json_output = ob_get_clean();
-
-		remove_filter('wp_doing_ajax', '__return_true');
-		remove_filter('wp_die_ajax_handler', $ajax_die_handler, 1);
 		unset($_REQUEST['model'], $_REQUEST['id']);
 
-		$this->assertTrue($exception_caught, 'handle_model_delete_form() should have terminated via wp_die()');
+		$this->assertTrue($result['exception'], 'handle_model_delete_form() should have terminated via wp_die()');
 
-		$response = json_decode($json_output, true);
+		$response = json_decode($result['output'], true);
 
 		$this->assertIsArray($response, 'Response should be a JSON object');
 		$this->assertFalse($response['success'], 'Response should indicate failure');
@@ -923,49 +882,17 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 	// =========================================================================
 
 	/**
-	 * Helper: run a callable in AJAX die context using the inline pattern.
+	 * Helper: run a callable in AJAX die context.
 	 *
-	 * Uses the same inline pattern as test_handle_model_delete_form_requires_confirmation
-	 * which is proven to work. Returns ['output' => string, 'exception' => bool].
+	 * Delegates to call_in_ajax_context() to avoid duplicating the AJAX die
+	 * handler setup. Returns ['output' => string, 'exception' => bool].
 	 *
 	 * @param callable $callable The callable to invoke.
 	 * @return array{output: string, exception: bool}
 	 */
 	private function run_in_ajax_context( callable $callable ): array {
 
-		if (defined('REST_REQUEST') && REST_REQUEST) {
-			$this->setExpectedIncorrectUsage('wp_send_json');
-		}
-
-		add_filter('wp_doing_ajax', '__return_true');
-
-		$ajax_die_handler = function () {
-			return function ( $message ) {
-				throw new \WPAjaxDieContinueException( (string) $message );
-			};
-		};
-
-		add_filter('wp_die_ajax_handler', $ajax_die_handler, 1);
-
-		$exception_caught = false;
-
-		ob_start();
-
-		try {
-			$callable();
-		} catch (\WPAjaxDieContinueException $e) {
-			$exception_caught = true;
-		}
-
-		$output = ob_get_clean();
-
-		remove_filter('wp_doing_ajax', '__return_true');
-		remove_filter('wp_die_ajax_handler', $ajax_die_handler, 1);
-
-		return [
-			'output'    => $output,
-			'exception' => $exception_caught,
-		];
+		return $this->call_in_ajax_context($callable);
 	}
 
 	/**
@@ -1072,5 +999,124 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 		$this->assertNotFalse(has_action('wu_ajax_wu_form_display', [$manager, 'display_form']));
 		$this->assertNotFalse(has_action('wu_ajax_wu_form_handler', [$manager, 'handle_form']));
 		$this->assertNotFalse(has_action('wu_register_forms', [$manager, 'register_action_forms']));
+	}
+
+	// =========================================================================
+	// security_checks
+	// =========================================================================
+
+	/**
+	 * Test security_checks calls wp_die(0) when request is not an AJAX request.
+	 *
+	 * security_checks() checks $_SERVER['HTTP_X_REQUESTED_WITH'] for the value
+	 * 'xmlhttprequest'. When absent (or wrong), it calls wp_die(0).
+	 *
+	 * wp_die() in non-AJAX context uses wp_die_handler (not wp_die_ajax_handler).
+	 * We install a wp_die_handler filter that throws WPDieException so PHPUnit
+	 * can catch it instead of the process terminating.
+	 */
+	public function test_security_checks_dies_for_non_ajax_request(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// Ensure HTTP_X_REQUESTED_WITH is absent (non-AJAX request).
+		unset($_SERVER['HTTP_X_REQUESTED_WITH']);
+
+		$die_handler = function () {
+			return function ( $message ) {
+				throw new \WPDieException( (string) $message );
+			};
+		};
+
+		add_filter('wp_die_handler', $die_handler, 1);
+
+		$exception_caught = false;
+
+		try {
+			$manager->security_checks();
+		} catch (\WPDieException $e) {
+			$exception_caught = true;
+		}
+
+		remove_filter('wp_die_handler', $die_handler, 1);
+
+		$this->assertTrue($exception_caught, 'security_checks() should call wp_die() for non-AJAX requests');
+	}
+
+	/**
+	 * Test security_checks passes through when request is AJAX and form exists with capability.
+	 *
+	 * When HTTP_X_REQUESTED_WITH is 'XMLHttpRequest', the form is registered,
+	 * and the current user has the required capability, security_checks() returns
+	 * without calling wp_die() or display_form_unavailable().
+	 */
+	public function test_security_checks_passes_for_valid_ajax_request(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// Register a form with 'read' capability (all users have this).
+		$manager->register_form(
+			'security_test_form_xyz',
+			[
+				'capability' => 'read',
+				'render'     => '__return_empty_string',
+				'handler'    => '__return_false',
+			]
+		);
+
+		// Simulate AJAX request.
+		$_SERVER['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest';
+		$_REQUEST['form']                 = 'security_test_form_xyz';
+
+		// Grant the current user 'read' capability (WP_UnitTestCase sets up a user).
+		wp_set_current_user($this->factory()->user->create(['role' => 'subscriber']));
+
+		$exception_caught = false;
+
+		try {
+			$manager->security_checks();
+		} catch (\Exception $e) {
+			$exception_caught = true;
+		}
+
+		unset($_SERVER['HTTP_X_REQUESTED_WITH'], $_REQUEST['form']);
+
+		$this->assertFalse($exception_caught, 'security_checks() should not die for a valid AJAX request with capable user');
+	}
+
+	// =========================================================================
+	// default_bulk_action_handler — error path
+	// =========================================================================
+
+	/**
+	 * Test default_bulk_action_handler sends json_error when process_bulk_action fails.
+	 *
+	 * process_bulk_action() returns WP_Error when the model function doesn't exist
+	 * (e.g. model='nonexistent_model_xyz'). default_bulk_action_handler() should
+	 * then call wp_send_json_error() with that WP_Error.
+	 */
+	public function test_default_bulk_action_handler_sends_error_when_process_fails(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// Use a model that has no corresponding wu_get_* function.
+		$_REQUEST['bulk_action'] = 'delete';
+		$_REQUEST['model']       = 'nonexistent_model_xyz';
+		$_REQUEST['ids']         = '1,2,3';
+
+		$result = $this->run_in_ajax_context(
+			function () use ( $manager ) {
+				$manager->default_bulk_action_handler('delete', 'nonexistent_model_xyz', ['1', '2', '3']);
+			}
+		);
+
+		unset($_REQUEST['bulk_action'], $_REQUEST['model'], $_REQUEST['ids']);
+
+		$this->assertTrue($result['exception'], 'Should terminate via wp_die()');
+
+		$response = json_decode($result['output'], true);
+
+		$this->assertIsArray($response);
+		$this->assertFalse($response['success'], 'Should return error when process_bulk_action fails');
 	}
 }

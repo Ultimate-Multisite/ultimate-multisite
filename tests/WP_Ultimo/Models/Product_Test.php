@@ -509,6 +509,107 @@ class Product_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Regression test: pricing_type 'pay_what_you_want' must survive a full round-trip
+	 * through set/get without truncation.
+	 *
+	 * The DB column was varchar(10), silently truncating 'pay_what_you_want' (17 chars)
+	 * to 'pay_what_y', breaking is_pay_what_you_want() on every subsequent load.
+	 *
+	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/564
+	 */
+	public function test_get_set_pricing_type_pay_what_you_want(): void {
+		$this->product->set_pricing_type('pay_what_you_want');
+		$this->assertSame('pay_what_you_want', $this->product->get_pricing_type());
+	}
+
+	/**
+	 * Regression test: is_pay_what_you_want() must return true after set_pricing_type('pay_what_you_want').
+	 *
+	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/564
+	 */
+	public function test_is_pay_what_you_want_returns_true(): void {
+		$this->product->set_pricing_type('pay_what_you_want');
+		$this->assertTrue($this->product->is_pay_what_you_want());
+	}
+
+	/**
+	 * Regression test: is_pay_what_you_want() must return false for non-PWYW types.
+	 *
+	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/564
+	 */
+	public function test_is_pay_what_you_want_returns_false_for_paid(): void {
+		$this->product->set_pricing_type('paid');
+		$this->assertFalse($this->product->is_pay_what_you_want());
+	}
+
+	/**
+	 * Regression test: get_amount() for PWYW returns the suggested amount, not 0.
+	 *
+	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/564
+	 */
+	public function test_pwyw_get_amount_returns_suggested_amount(): void {
+		$this->product->set_pricing_type('pay_what_you_want');
+		$this->product->set_pwyw_suggested_amount(25.00);
+		$this->assertEquals(25.00, $this->product->get_amount());
+	}
+
+	/**
+	 * Regression test: get_amount() for PWYW returns 0 when no suggested amount is set.
+	 *
+	 * This is the value submitted by the hidden amount field in the admin form.
+	 * It must be numeric (0) not a formatted string like 'Name Your Price'.
+	 *
+	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/564
+	 */
+	public function test_pwyw_get_amount_returns_zero_when_no_suggested_amount(): void {
+		$this->product->set_pricing_type('pay_what_you_want');
+		$this->assertEquals(0.0, $this->product->get_amount());
+	}
+
+	/**
+	 * Regression test: PWYW with force_recurring mode reports is_recurring() as true.
+	 *
+	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/564
+	 */
+	public function test_pwyw_force_recurring_is_recurring(): void {
+		$this->product->set_pricing_type('pay_what_you_want');
+		$this->product->set_pwyw_recurring_mode('force_recurring');
+		$this->product->set_pwyw_suggested_amount(10.00);
+		$this->assertTrue($this->product->is_recurring());
+	}
+
+	/**
+	 * Regression test: PWYW with force_one_time mode reports is_recurring() as false.
+	 *
+	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/564
+	 */
+	public function test_pwyw_force_one_time_is_not_recurring(): void {
+		$this->product->set_pricing_type('pay_what_you_want');
+		$this->product->set_pwyw_recurring_mode('force_one_time');
+		$this->product->set_pwyw_suggested_amount(10.00);
+		$this->assertFalse($this->product->is_recurring());
+	}
+
+	/**
+	 * Regression test: pricing_type value length — 'pay_what_you_want' is 17 chars,
+	 * must not be truncated by a varchar(10) column.
+	 *
+	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/564
+	 */
+	public function test_pay_what_you_want_value_length_fits_column(): void {
+		$this->assertLessThanOrEqual(
+			20,
+			strlen('pay_what_you_want'),
+			'pay_what_you_want must fit in varchar(20) column'
+		);
+		$this->assertGreaterThan(
+			10,
+			strlen('pay_what_you_want'),
+			'pay_what_you_want exceeds old varchar(10) limit — confirms the truncation bug'
+		);
+	}
+
+	/**
 	 * Test amount getter and setter.
 	 */
 	public function test_get_set_amount(): void {
