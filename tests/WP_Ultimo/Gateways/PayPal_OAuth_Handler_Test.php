@@ -1863,4 +1863,159 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		$this->assertFalse($result);
 		$this->assertEquals('no', get_site_transient('wu_paypal_oauth_enabled'));
 	}
+
+	/**
+	 * Test verify_merchant_via_proxy sends correct test mode parameter.
+	 */
+	public function test_verify_merchant_via_proxy_test_mode_parameter(): void {
+
+		$captured_body = null;
+
+		add_filter(
+			'pre_http_request',
+			function ( $preempt, $args, $url ) use ( &$captured_body ) {
+				if (strpos($url, '/oauth/verify') !== false) {
+					$captured_body = json_decode($args['body'], true);
+					return [
+						'response' => ['code' => 200, 'message' => 'OK'],
+						'body'     => wp_json_encode(['paymentsReceivable' => true]),
+						'headers'  => [],
+						'cookies'  => [],
+						'filename' => '',
+					];
+				}
+				return $preempt;
+			},
+			10,
+			3
+		);
+
+		$reflection = new \ReflectionClass($this->handler);
+		$method = $reflection->getMethod('verify_merchant_via_proxy');
+
+		// Test with test_mode = true (default)
+		$result = $method->invoke($this->handler, 'MERCHANT123', 'TRACKING456');
+
+		$this->assertIsArray($captured_body);
+		$this->assertTrue($captured_body['testMode']);
+
+		// Test with test_mode = false
+		$test_mode_prop = $reflection->getProperty('test_mode');
+		$test_mode_prop->setValue($this->handler, false);
+
+		$result = $method->invoke($this->handler, 'MERCHANT789', 'TRACKING789');
+
+		$this->assertFalse($captured_body['testMode']);
+
+		// Restore
+		$test_mode_prop->setValue($this->handler, true);
+	}
+
+	/**
+	 * Test ajax_initiate_oauth sends correct request body to proxy.
+	 */
+	public function test_ajax_initiate_oauth_request_body(): void {
+
+		$user_id = $this->factory->user->create(['role' => 'administrator']);
+		wp_set_current_user($user_id);
+		grant_super_admin($user_id);
+
+		$_POST['nonce'] = wp_create_nonce('wu_paypal_oauth');
+		$_REQUEST['nonce'] = $_POST['nonce'];
+		$_POST['sandbox_mode'] = '0'; // Live mode
+
+		$captured_body = null;
+
+		add_filter(
+			'pre_http_request',
+			function ( $preempt, $args, $url ) use ( &$captured_body ) {
+				if (strpos($url, '/oauth/init') !== false) {
+					$captured_body = json_decode($args['body'], true);
+					return [
+						'response' => ['code' => 200, 'message' => 'OK'],
+						'body'     => wp_json_encode(
+							[
+								'actionUrl'  => 'https://paypal.com/connect',
+								'trackingId' => 'TRACK123',
+							]
+						),
+						'headers'  => [],
+						'cookies'  => [],
+						'filename' => '',
+					];
+				}
+				return $preempt;
+			},
+			10,
+			3
+		);
+
+		ob_start();
+		try {
+			$this->handler->ajax_initiate_oauth();
+		} catch (\WPDieException $e) {
+			// Expected
+		}
+		ob_get_clean();
+
+		// Verify request body
+		$this->assertIsArray($captured_body);
+		$this->assertArrayHasKey('returnUrl', $captured_body);
+		$this->assertArrayHasKey('testMode', $captured_body);
+		$this->assertFalse($captured_body['testMode']); // Live mode
+		$this->assertStringContainsString('wu_paypal_onboarding=complete', $captured_body['returnUrl']);
+	}
+
+	/**
+	 * Test ajax_disconnect sends deauthorize request with correct parameters.
+	 */
+	public function test_ajax_disconnect_deauthorize_request(): void {
+
+		$user_id = $this->factory->user->create(['role' => 'administrator']);
+		wp_set_current_user($user_id);
+		grant_super_admin($user_id);
+
+		$_POST['nonce'] = wp_create_nonce('wu_paypal_oauth');
+		$_REQUEST['nonce'] = $_POST['nonce'];
+
+		$captured_body = null;
+		$deauthorize_called = false;
+
+		add_filter(
+			'pre_http_request',
+			function ( $preempt, $args, $url ) use ( &$captured_body, &$deauthorize_called ) {
+				if (strpos($url, '/deauthorize') !== false) {
+					$deauthorize_called = true;
+					$captured_body = json_decode($args['body'], true);
+					// Verify it's non-blocking
+					$this->assertFalse($args['blocking']);
+					return [
+						'response' => ['code' => 200, 'message' => 'OK'],
+						'body'     => '',
+						'headers'  => [],
+						'cookies'  => [],
+						'filename' => '',
+					];
+				}
+				return $preempt;
+			},
+			10,
+			3
+		);
+
+		ob_start();
+		try {
+			$this->handler->ajax_disconnect();
+		} catch (\WPDieException $e) {
+			// Expected
+		}
+		ob_get_clean();
+
+		// Verify deauthorize was called
+		$this->assertTrue($deauthorize_called);
+		$this->assertIsArray($captured_body);
+		$this->assertArrayHasKey('siteUrl', $captured_body);
+		$this->assertArrayHasKey('testMode', $captured_body);
+		$this->assertTrue($captured_body['testMode']); // Default is sandbox
+	}
 }
