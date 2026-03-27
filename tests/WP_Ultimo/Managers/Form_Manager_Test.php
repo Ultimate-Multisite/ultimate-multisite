@@ -1073,4 +1073,123 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 		$this->assertNotFalse(has_action('wu_ajax_wu_form_handler', [$manager, 'handle_form']));
 		$this->assertNotFalse(has_action('wu_register_forms', [$manager, 'register_action_forms']));
 	}
+
+	// =========================================================================
+	// security_checks
+	// =========================================================================
+
+	/**
+	 * Test security_checks calls wp_die(0) when request is not an AJAX request.
+	 *
+	 * security_checks() checks $_SERVER['HTTP_X_REQUESTED_WITH'] for the value
+	 * 'xmlhttprequest'. When absent (or wrong), it calls wp_die(0).
+	 *
+	 * wp_die() in non-AJAX context uses wp_die_handler (not wp_die_ajax_handler).
+	 * We install a wp_die_handler filter that throws WPDieException so PHPUnit
+	 * can catch it instead of the process terminating.
+	 */
+	public function test_security_checks_dies_for_non_ajax_request(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// Ensure HTTP_X_REQUESTED_WITH is absent (non-AJAX request).
+		unset($_SERVER['HTTP_X_REQUESTED_WITH']);
+
+		$die_handler = function () {
+			return function ( $message ) {
+				throw new \WPDieException( (string) $message );
+			};
+		};
+
+		add_filter('wp_die_handler', $die_handler, 1);
+
+		$exception_caught = false;
+
+		try {
+			$manager->security_checks();
+		} catch (\WPDieException $e) {
+			$exception_caught = true;
+		}
+
+		remove_filter('wp_die_handler', $die_handler, 1);
+
+		$this->assertTrue($exception_caught, 'security_checks() should call wp_die() for non-AJAX requests');
+	}
+
+	/**
+	 * Test security_checks passes through when request is AJAX and form exists with capability.
+	 *
+	 * When HTTP_X_REQUESTED_WITH is 'XMLHttpRequest', the form is registered,
+	 * and the current user has the required capability, security_checks() returns
+	 * without calling wp_die() or display_form_unavailable().
+	 */
+	public function test_security_checks_passes_for_valid_ajax_request(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// Register a form with 'read' capability (all users have this).
+		$manager->register_form(
+			'security_test_form_xyz',
+			[
+				'capability' => 'read',
+				'render'     => '__return_empty_string',
+				'handler'    => '__return_false',
+			]
+		);
+
+		// Simulate AJAX request.
+		$_SERVER['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest';
+		$_REQUEST['form']                 = 'security_test_form_xyz';
+
+		// Grant the current user 'read' capability (WP_UnitTestCase sets up a user).
+		wp_set_current_user($this->factory()->user->create(['role' => 'subscriber']));
+
+		$exception_caught = false;
+
+		try {
+			$manager->security_checks();
+		} catch (\Exception $e) {
+			$exception_caught = true;
+		}
+
+		unset($_SERVER['HTTP_X_REQUESTED_WITH'], $_REQUEST['form']);
+
+		$this->assertFalse($exception_caught, 'security_checks() should not die for a valid AJAX request with capable user');
+	}
+
+	// =========================================================================
+	// default_bulk_action_handler — error path
+	// =========================================================================
+
+	/**
+	 * Test default_bulk_action_handler sends json_error when process_bulk_action fails.
+	 *
+	 * process_bulk_action() returns WP_Error when the model function doesn't exist
+	 * (e.g. model='nonexistent_model_xyz'). default_bulk_action_handler() should
+	 * then call wp_send_json_error() with that WP_Error.
+	 */
+	public function test_default_bulk_action_handler_sends_error_when_process_fails(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// Use a model that has no corresponding wu_get_* function.
+		$_REQUEST['bulk_action'] = 'delete';
+		$_REQUEST['model']       = 'nonexistent_model_xyz';
+		$_REQUEST['ids']         = '1,2,3';
+
+		$result = $this->run_in_ajax_context(
+			function () use ( $manager ) {
+				$manager->default_bulk_action_handler('delete', 'nonexistent_model_xyz', ['1', '2', '3']);
+			}
+		);
+
+		unset($_REQUEST['bulk_action'], $_REQUEST['model'], $_REQUEST['ids']);
+
+		$this->assertTrue($result['exception'], 'Should terminate via wp_die()');
+
+		$response = json_decode($result['output'], true);
+
+		$this->assertIsArray($response);
+		$this->assertFalse($response['success'], 'Should return error when process_bulk_action fails');
+	}
 }
