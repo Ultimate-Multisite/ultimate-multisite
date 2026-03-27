@@ -798,8 +798,9 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 		// Pass a non-existent product ID — add_product returns false, function returns cart errors
 		$result = wu_get_membership_product_price($membership, 999999, 1);
 
-		// Should return the cart errors object (not a float)
+		// Should return the cart errors object (not a numeric price)
 		$this->assertNotNull($result);
+		$this->assertIsNotFloat($result);
 	}
 
 	/**
@@ -844,6 +845,9 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 		$cart = wu_get_membership_new_cart($membership);
 
 		$this->assertInstanceOf(\WP_Ultimo\Checkout\Cart::class, $cart);
+
+		// The INITADJUSTMENT line item should bring the cart total to match initial_amount (25.00)
+		$this->assertEquals(25.00, $cart->get_total());
 	}
 
 	/**
@@ -871,5 +875,7 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 
 		$this->assertIsString($url);
 		$this->assertStringContainsString($membership->get_hash(), $url);
+		// The register fallback branch adds wu_form=wu-checkout to the URL
+		$this->assertStringContainsString('wu_form=wu-checkout', $url);
 	}
 }
