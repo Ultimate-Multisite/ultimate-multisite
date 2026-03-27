@@ -873,6 +873,13 @@
 
 					this.request('wu_validate_form', form_data, function (results) {
 
+						// Safari/iOS autofill does NOT fire keyup/input events, so
+						// valid_password may be stale at submit time. Force a
+						// synchronous re-check before deciding to show the error.
+						if (! that.valid_password && that.password_strength_checker) {
+							that.password_strength_checker.checkStrength();
+						}
+
 						if (! that.valid_password) {
 
 							that.errors.push({
