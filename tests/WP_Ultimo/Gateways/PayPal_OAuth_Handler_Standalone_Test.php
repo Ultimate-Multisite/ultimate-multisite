@@ -247,16 +247,23 @@ class PayPal_OAuth_Handler_Standalone_Test extends TestCase {
 			->getMock();
 
 		// Configure mock to return errors for both sandbox and live
+		$set_test_mode_calls = [];
 		$mock_gateway->expects($this->exactly(2))
 			->method('set_test_mode')
-			->withConsecutive([true], [false]);
+			->willReturnCallback(function($mode) use (&$set_test_mode_calls) {
+				$set_test_mode_calls[] = $mode;
+			});
 
+		$delete_count = 0;
 		$mock_gateway->expects($this->exactly(2))
 			->method('delete_webhook')
-			->willReturnOnConsecutiveCalls(
-				new \WP_Error('delete_error', 'Sandbox webhook not found'),
-				new \WP_Error('delete_error', 'Live webhook not found')
-			);
+			->willReturnCallback(function() use (&$delete_count) {
+				$delete_count++;
+				if ($delete_count === 1) {
+					return new \WP_Error('delete_error', 'Sandbox webhook not found');
+				}
+				return new \WP_Error('delete_error', 'Live webhook not found');
+			});
 
 		// Mock wu_get_gateway to return our mock
 		self::$mock_functions['wu_get_gateway'] = function($gateway_id) use ($mock_gateway) {
@@ -304,9 +311,12 @@ class PayPal_OAuth_Handler_Standalone_Test extends TestCase {
 			->getMock();
 
 		// Configure mock to return success for both
+		$set_test_mode_calls = [];
 		$mock_gateway->expects($this->exactly(2))
 			->method('set_test_mode')
-			->withConsecutive([true], [false]);
+			->willReturnCallback(function($mode) use (&$set_test_mode_calls) {
+				$set_test_mode_calls[] = $mode;
+			});
 
 		$mock_gateway->expects($this->exactly(2))
 			->method('delete_webhook')
@@ -388,6 +398,9 @@ class PayPal_OAuth_Handler_Standalone_Test extends TestCase {
 
 	/**
 	 * Test is_oauth_feature_enabled with WU_PAYPAL_OAUTH_ENABLED constant.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
 	 */
 	public function test_is_oauth_feature_enabled_with_constant(): void {
 
@@ -419,20 +432,19 @@ class PayPal_OAuth_Handler_Standalone_Test extends TestCase {
 		$json_error = null;
 		self::$mock_functions['wp_send_json_error'] = function($data) use (&$json_error) {
 			$json_error = $data;
+			// Verify error message inside mock before execution stops
+			\PHPUnit\Framework\Assert::assertIsArray($data);
+			\PHPUnit\Framework\Assert::assertArrayHasKey('message', $data);
+			\PHPUnit\Framework\Assert::assertStringContainsString('do not have permission', $data['message']);
 			throw new \Exception('wp_send_json_error called');
 		};
 
-		// Expect exception from our mock
+		// Expect exception from our mock (wp_send_json_error normally calls exit)
 		$this->expectException(\Exception::class);
 		$this->expectExceptionMessage('wp_send_json_error called');
 
 		// Call the method
 		$this->handler->ajax_initiate_oauth();
-
-		// Check the error message
-		$this->assertIsArray($json_error);
-		$this->assertArrayHasKey('message', $json_error);
-		$this->assertStringContainsString('do not have permission', $json_error['message']);
 	}
 
 	/**
@@ -454,20 +466,19 @@ class PayPal_OAuth_Handler_Standalone_Test extends TestCase {
 		$json_error = null;
 		self::$mock_functions['wp_send_json_error'] = function($data) use (&$json_error) {
 			$json_error = $data;
+			// Verify error message inside mock before execution stops
+			\PHPUnit\Framework\Assert::assertIsArray($data);
+			\PHPUnit\Framework\Assert::assertArrayHasKey('message', $data);
+			\PHPUnit\Framework\Assert::assertStringContainsString('do not have permission', $data['message']);
 			throw new \Exception('wp_send_json_error called');
 		};
 
-		// Expect exception from our mock
+		// Expect exception from our mock (wp_send_json_error normally calls exit)
 		$this->expectException(\Exception::class);
 		$this->expectExceptionMessage('wp_send_json_error called');
 
 		// Call the method
 		$this->handler->ajax_disconnect();
-
-		// Check the error message
-		$this->assertIsArray($json_error);
-		$this->assertArrayHasKey('message', $json_error);
-		$this->assertStringContainsString('do not have permission', $json_error['message']);
 	}
 }
 

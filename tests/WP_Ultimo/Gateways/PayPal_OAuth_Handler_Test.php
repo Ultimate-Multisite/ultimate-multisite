@@ -1894,7 +1894,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		$method = $reflection->getMethod('verify_merchant_via_proxy');
 
 		// Test with test_mode = true (default)
-		$result = $method->invoke($this->handler, 'MERCHANT123', 'TRACKING456');
+		$method->invoke($this->handler, 'MERCHANT123', 'TRACKING456');
 
 		$this->assertIsArray($captured_body);
 		$this->assertTrue($captured_body['testMode']);
@@ -1903,7 +1903,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		$test_mode_prop = $reflection->getProperty('test_mode');
 		$test_mode_prop->setValue($this->handler, false);
 
-		$result = $method->invoke($this->handler, 'MERCHANT789', 'TRACKING789');
+		$method->invoke($this->handler, 'MERCHANT789', 'TRACKING789');
 
 		$this->assertFalse($captured_body['testMode']);
 
