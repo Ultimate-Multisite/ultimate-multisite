@@ -13,23 +13,23 @@ Overall coverage: **35%** (20,720 / 59,212 statements). 90 files at 0% coverage.
 
 ### Priority 1 — Business-Critical Code (low coverage, high risk)
 
-- [ ] t453 test(checkout): write unit tests for Checkout class (inc/checkout/class-checkout.php — 7.9% coverage, 960 uncovered stmts) #testing #auto-dispatch ~6h
-- [ ] t454 test(cart): improve Cart test coverage (inc/checkout/class-cart.php — 61.1% coverage, 382 uncovered stmts) #testing #auto-dispatch ~4h
+- [ ] t453 test(checkout): write unit tests for Checkout class (inc/checkout/class-checkout.php — 7.9% coverage, 960 uncovered stmts) #testing #auto-dispatch ~6h ref:GH#555
+- [ ] t454 test(cart): improve Cart test coverage (inc/checkout/class-cart.php — 61.1% coverage, 382 uncovered stmts) #testing #auto-dispatch ~4h ref:GH#556
 - [ ] t455 test(stripe): write unit tests for Base_Stripe_Gateway (inc/gateways/class-base-stripe-gateway.php — 28.6% coverage, 1093 uncovered stmts) #testing ~8h
 - [ ] t456 test(stripe): improve Stripe_Gateway test coverage (inc/gateways/class-stripe-gateway.php — 55% coverage, 200 uncovered stmts) #testing ~4h
 - [ ] t457 test(paypal): write unit tests for PayPal_Gateway (inc/gateways/class-paypal-gateway.php — 1.1% coverage, 783 uncovered stmts) #testing ~6h
 - [ ] t458 test(paypal): improve PayPal_REST_Gateway test coverage (inc/gateways/class-paypal-rest-gateway.php — 29.8% coverage, 683 uncovered stmts) #testing ~5h
-- [ ] t459 test(paypal): write tests for PayPal_OAuth_Handler (inc/gateways/class-paypal-oauth-handler.php — 15% coverage, 238 uncovered stmts) #testing #auto-dispatch ~3h ref:GH#549
-- [ ] t460 test(gateway): improve Gateway_Manager test coverage (inc/managers/class-gateway-manager.php — 34.7% coverage, 177 uncovered stmts) #testing #auto-dispatch ~3h ref:GH#550
-- [ ] t461 test(checkout-pages): improve Checkout_Pages test coverage (inc/checkout/class-checkout-pages.php — 33.7% coverage, 203 uncovered stmts) #testing #auto-dispatch ~3h ref:GH#551
+- [x] t459 test(paypal): write tests for PayPal_OAuth_Handler (inc/gateways/class-paypal-oauth-handler.php — 15% coverage, 238 uncovered stmts) #testing #auto-dispatch ~3h ref:GH#549 pr:#554 completed:2026-03-27
+- [x] t460 test(gateway): improve Gateway_Manager test coverage (inc/managers/class-gateway-manager.php — 34.7% coverage, 177 uncovered stmts) #testing #auto-dispatch ~3h ref:GH#550 pr:#552 completed:2026-03-27
+- [x] t461 test(checkout-pages): improve Checkout_Pages test coverage (inc/checkout/class-checkout-pages.php — 33.7% coverage, 203 uncovered stmts) #testing #auto-dispatch ~3h ref:GH#551 pr:#553 completed:2026-03-27
 
 ### Priority 2 — Core Domain Logic (moderate coverage gaps)
 
-- [ ] t462 test(site-manager): improve Site_Manager test coverage (inc/managers/class-site-manager.php — 23.5% coverage, 433 uncovered stmts) #testing #auto-dispatch ~4h
-- [ ] t463 test(domain-manager): improve DNS_Record_Manager test coverage (inc/managers/class-dns-record-manager.php — 14.4% coverage, 393 uncovered stmts) #testing #auto-dispatch ~4h
-- [ ] t464 test(event-manager): improve Event_Manager test coverage (inc/managers/class-event-manager.php — 33% coverage, 240 uncovered stmts) #testing #auto-dispatch ~3h
-- [ ] t465 test(form-manager): improve Form_Manager test coverage (inc/managers/class-form-manager.php — 9.7% coverage, 251 uncovered stmts) #testing #auto-dispatch ~3h
-- [ ] t466 test(notes-manager): improve Notes_Manager test coverage (inc/managers/class-notes-manager.php — 9.9% coverage, 283 uncovered stmts) #testing #auto-dispatch ~3h
+- [ ] t462 test(site-manager): improve Site_Manager test coverage (inc/managers/class-site-manager.php — 23.5% coverage, 433 uncovered stmts) #testing #auto-dispatch ~4h ref:GH#557
+- [ ] t463 test(domain-manager): improve DNS_Record_Manager test coverage (inc/managers/class-dns-record-manager.php — 14.4% coverage, 393 uncovered stmts) #testing #auto-dispatch ~4h ref:GH#558
+- [ ] t464 test(event-manager): improve Event_Manager test coverage (inc/managers/class-event-manager.php — 33% coverage, 240 uncovered stmts) #testing #auto-dispatch ~3h ref:GH#559
+- [ ] t465 test(form-manager): improve Form_Manager test coverage (inc/managers/class-form-manager.php — 9.7% coverage, 251 uncovered stmts) #testing #auto-dispatch ~3h ref:GH#560
+- [ ] t466 test(notes-manager): improve Notes_Manager test coverage (inc/managers/class-notes-manager.php — 9.9% coverage, 283 uncovered stmts) #testing #auto-dispatch ~3h ref:GH#561
 - [ ] t467 test(sso): improve SSO test coverage (inc/sso/class-sso.php — 36.7% coverage, 210 uncovered stmts) #testing #auto-dispatch ~4h
 - [ ] t468 test(domain-mapping): write tests for Domain_Mapping (inc/class-domain-mapping.php — 13.8% coverage, 168 uncovered stmts) #testing #auto-dispatch ~3h
 - [ ] t469 test(membership-functions): improve membership function tests (inc/functions/membership.php — 28.3% coverage, 152 uncovered stmts) #testing #auto-dispatch ~2h
