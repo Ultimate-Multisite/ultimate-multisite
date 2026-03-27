@@ -73,4 +73,4 @@ Overall coverage: **35%** (20,720 / 59,212 statements). 90 files at 0% coverage.
 
 ### Fix: Test suite exits early at 56%
 
-- [ ] t495 fix(tests): Form_Manager_Test::test_handle_model_delete_form_requires_confirmation calls exit() killing test runner at test 2533/4411 #bug #auto-dispatch ~1h
+- [ ] t495 fix(tests): Form_Manager_Test::test_handle_model_delete_form_requires_confirmation calls exit() killing test runner at test 2533/4411 #bug #auto-dispatch ~1h ref:GH#562
