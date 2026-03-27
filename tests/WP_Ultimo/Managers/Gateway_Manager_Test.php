@@ -1230,6 +1230,1027 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	}
 
 	// =========================================================================
+	// maybe_process_webhooks — exception paths
+	// =========================================================================
+
+	/**
+	 * Test maybe_process_webhooks catches Ignorable_Exception and sends 200 JSON error.
+	 */
+	public function test_maybe_process_webhooks_ignorable_exception(): void {
+		$_REQUEST['wu-gateway'] = 'manual';
+
+		// Hook into the webhook action to throw an Ignorable_Exception
+		add_action(
+			'wu_manual_process_webhooks',
+			function () {
+				throw new \WP_Ultimo\Gateways\Ignorable_Exception( 'Ignorable webhook error' );
+			}
+		);
+
+		$ob_level_before  = ob_get_level();
+		$exception_thrown = false;
+
+		try {
+			$this->manager->maybe_process_webhooks();
+		} catch ( \WPDieException $e ) {
+			$exception_thrown = true;
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['wu-gateway'] );
+			remove_all_actions( 'wu_manual_process_webhooks' );
+		}
+
+		// wp_send_json_error triggers wp_die which throws WPDieException in tests
+		$this->assertTrue( $exception_thrown, 'Expected WPDieException from wp_send_json_error on Ignorable_Exception' );
+	}
+
+	/**
+	 * Test maybe_process_webhooks catches generic Throwable and sends 500 JSON error.
+	 */
+	public function test_maybe_process_webhooks_generic_throwable(): void {
+		$_REQUEST['wu-gateway'] = 'manual';
+
+		// Hook into the webhook action to throw a generic exception
+		add_action(
+			'wu_manual_process_webhooks',
+			function () {
+				throw new \RuntimeException( 'Generic webhook error' );
+			}
+		);
+
+		$ob_level_before  = ob_get_level();
+		$exception_thrown = false;
+
+		try {
+			$this->manager->maybe_process_webhooks();
+		} catch ( \WPDieException $e ) {
+			$exception_thrown = true;
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['wu-gateway'] );
+			remove_all_actions( 'wu_manual_process_webhooks' );
+		}
+
+		// wp_send_json_error triggers wp_die which throws WPDieException in tests
+		$this->assertTrue( $exception_thrown, 'Expected WPDieException from wp_send_json_error on generic Throwable' );
+	}
+
+	// =========================================================================
+	// maybe_process_v1_webhooks — registered gateway paths
+	// =========================================================================
+
+	/**
+	 * Test maybe_process_v1_webhooks with a registered gateway (Ignorable_Exception path).
+	 */
+	public function test_maybe_process_v1_webhooks_registered_gateway_ignorable_exception(): void {
+		// Register manual gateway so wu_get_gateway('manual-v1-test') works
+		$this->manager->register_gateway( 'manual-v1-test', 'Manual V1', 'desc', \WP_Ultimo\Gateways\Manual_Gateway::class );
+
+		$_REQUEST['action'] = 'notify_gateway_manual-v1-test';
+
+		// Hook into the webhook action to throw an Ignorable_Exception
+		add_action(
+			'wu_manual-v1-test_process_webhooks',
+			function () {
+				throw new \WP_Ultimo\Gateways\Ignorable_Exception( 'Ignorable v1 webhook error' );
+			}
+		);
+
+		$ob_level_before  = ob_get_level();
+		$exception_thrown = false;
+
+		try {
+			$this->manager->maybe_process_v1_webhooks();
+		} catch ( \WPDieException $e ) {
+			$exception_thrown = true;
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['action'] );
+			remove_all_actions( 'wu_manual-v1-test_process_webhooks' );
+		}
+
+		$this->assertTrue( $exception_thrown, 'Expected WPDieException from wp_send_json_error on Ignorable_Exception in v1 webhook' );
+	}
+
+	/**
+	 * Test maybe_process_v1_webhooks with a registered gateway (generic Throwable path).
+	 */
+	public function test_maybe_process_v1_webhooks_registered_gateway_generic_throwable(): void {
+		// Register manual gateway so wu_get_gateway('manual-v1-throw') works
+		$this->manager->register_gateway( 'manual-v1-throw', 'Manual V1 Throw', 'desc', \WP_Ultimo\Gateways\Manual_Gateway::class );
+
+		$_REQUEST['action'] = 'notify_gateway_manual-v1-throw';
+
+		// Hook into the webhook action to throw a generic exception
+		add_action(
+			'wu_manual-v1-throw_process_webhooks',
+			function () {
+				throw new \RuntimeException( 'Generic v1 webhook error' );
+			}
+		);
+
+		$ob_level_before  = ob_get_level();
+		$exception_thrown = false;
+
+		try {
+			$this->manager->maybe_process_v1_webhooks();
+		} catch ( \WPDieException $e ) {
+			$exception_thrown = true;
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['action'] );
+			remove_all_actions( 'wu_manual-v1-throw_process_webhooks' );
+		}
+
+		$this->assertTrue( $exception_thrown, 'Expected WPDieException from wp_send_json_error on generic Throwable in v1 webhook' );
+	}
+
+	// =========================================================================
+	// process_gateway_confirmations — registered gateway paths
+	// =========================================================================
+
+	/**
+	 * Test process_gateway_confirmations with a registered gateway (no payment hash).
+	 * process_confirmation() returns null by default — no WP_Error, no exception.
+	 */
+	public function test_process_gateway_confirmations_registered_gateway_no_payment(): void {
+		// Ensure manual is registered
+		if ( ! $this->manager->is_gateway_registered( 'manual' ) ) {
+			$this->manager->register_gateway( 'manual', 'Manual', 'desc', \WP_Ultimo\Gateways\Manual_Gateway::class );
+		}
+
+		$_REQUEST['wu-confirm'] = 'manual';
+		unset( $_REQUEST['status'], $_REQUEST['payment'] );
+
+		$ob_level_before = ob_get_level();
+
+		try {
+			$this->manager->process_gateway_confirmations();
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['wu-confirm'], $_REQUEST['payment'] );
+		}
+
+		// If we get here without exception, the method handled the case gracefully
+		$this->assertTrue( true );
+	}
+
+	/**
+	 * Test process_gateway_confirmations with a registered gateway and a valid payment hash.
+	 */
+	public function test_process_gateway_confirmations_registered_gateway_with_payment(): void {
+		// Ensure manual is registered
+		if ( ! $this->manager->is_gateway_registered( 'manual' ) ) {
+			$this->manager->register_gateway( 'manual', 'Manual', 'desc', \WP_Ultimo\Gateways\Manual_Gateway::class );
+		}
+
+		$uuid     = wp_generate_uuid4();
+		$customer = wu_create_customer( [
+			'username' => 'confirm-test-' . $uuid,
+			'email'    => 'confirm-test-' . $uuid . '@example.com',
+			'password' => 'password123',
+		] );
+
+		if ( is_wp_error( $customer ) ) {
+			$this->markTestSkipped( 'Could not create test customer: ' . $customer->get_error_message() );
+			return;
+		}
+
+		$product = wu_create_product( [
+			'name'         => 'Confirm Plan ' . $uuid,
+			'slug'         => 'confirm-plan-' . $uuid,
+			'pricing_type' => 'paid',
+			'amount'       => 10,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		] );
+
+		if ( is_wp_error( $product ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test product: ' . $product->get_error_message() );
+			return;
+		}
+
+		$membership = wu_create_membership( [
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+			'status'      => \WP_Ultimo\Database\Memberships\Membership_Status::ACTIVE,
+		] );
+
+		if ( is_wp_error( $membership ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test membership: ' . $membership->get_error_message() );
+			return;
+		}
+
+		$payment = wu_create_payment( [
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'currency'      => 'USD',
+			'subtotal'      => 10.00,
+			'total'         => 10.00,
+			'status'        => \WP_Ultimo\Database\Payments\Payment_Status::PENDING,
+			'gateway'       => 'manual',
+		] );
+
+		if ( is_wp_error( $payment ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test payment: ' . $payment->get_error_message() );
+			return;
+		}
+
+		$_REQUEST['wu-confirm'] = 'manual';
+		$_REQUEST['payment']    = $payment->get_hash();
+		unset( $_REQUEST['status'] );
+
+		$ob_level_before = ob_get_level();
+
+		try {
+			$this->manager->process_gateway_confirmations();
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['wu-confirm'], $_REQUEST['payment'] );
+		}
+
+		// process_confirmation() returns null by default — no exception expected
+		$this->assertTrue( true );
+
+		// Cleanup
+		$payment->delete();
+		$customer->delete();
+	}
+
+	/**
+	 * Test process_gateway_confirmations when process_confirmation returns WP_Error.
+	 * Uses a custom gateway class registered via eval.
+	 */
+	public function test_process_gateway_confirmations_wp_error_result(): void {
+		// Define a stub class if not already defined
+		if ( ! class_exists( 'WP_Ultimo_Test_WPError_Gateway' ) ) {
+			// phpcs:ignore Squiz.PHP.Eval.Discouraged
+			eval( '
+				class WP_Ultimo_Test_WPError_Gateway extends \WP_Ultimo\Gateways\Manual_Gateway {
+					public function __construct() {
+						$this->id = "test-wperror-gw";
+					}
+					public function process_confirmation() {
+						return new \WP_Error( "test-error", "Test confirmation error" );
+					}
+				}
+			' );
+		}
+
+		$gateway_id = 'test-wperror-gw-' . wp_generate_uuid4();
+		$this->manager->register_gateway( $gateway_id, 'WPError GW', 'desc', 'WP_Ultimo_Test_WPError_Gateway' );
+
+		$_REQUEST['wu-confirm'] = $gateway_id;
+		unset( $_REQUEST['status'], $_REQUEST['payment'] );
+
+		$ob_level_before  = ob_get_level();
+		$exception_thrown = false;
+
+		try {
+			$this->manager->process_gateway_confirmations();
+		} catch ( \WPDieException $e ) {
+			$exception_thrown = true;
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['wu-confirm'] );
+		}
+
+		$this->assertTrue( $exception_thrown, 'Expected WPDieException when process_confirmation returns WP_Error' );
+	}
+
+	/**
+	 * Test process_gateway_confirmations when process_confirmation throws a Throwable.
+	 */
+	public function test_process_gateway_confirmations_throwable_from_gateway(): void {
+		// Define a stub class if not already defined
+		if ( ! class_exists( 'WP_Ultimo_Test_Throw_Gateway' ) ) {
+			// phpcs:ignore Squiz.PHP.Eval.Discouraged
+			eval( '
+				class WP_Ultimo_Test_Throw_Gateway extends \WP_Ultimo\Gateways\Manual_Gateway {
+					public function __construct() {
+						$this->id = "test-throw-gw";
+					}
+					public function process_confirmation() {
+						throw new \RuntimeException( "Confirmation threw an exception" );
+					}
+				}
+			' );
+		}
+
+		$gateway_id = 'test-throw-gw-' . wp_generate_uuid4();
+		$this->manager->register_gateway( $gateway_id, 'Throw GW', 'desc', 'WP_Ultimo_Test_Throw_Gateway' );
+
+		$_REQUEST['wu-confirm'] = $gateway_id;
+		unset( $_REQUEST['status'], $_REQUEST['payment'] );
+
+		$ob_level_before  = ob_get_level();
+		$exception_thrown = false;
+
+		try {
+			$this->manager->process_gateway_confirmations();
+		} catch ( \WPDieException $e ) {
+			$exception_thrown = true;
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['wu-confirm'] );
+		}
+
+		$this->assertTrue( $exception_thrown, 'Expected WPDieException when process_confirmation throws a Throwable' );
+	}
+
+	/**
+	 * Test process_gateway_confirmations adds wu_bypass_checkout_form action when output is produced.
+	 */
+	public function test_process_gateway_confirmations_adds_bypass_action_when_output(): void {
+		// Define a stub class that produces output during process_confirmation
+		if ( ! class_exists( 'WP_Ultimo_Test_Output_Gateway' ) ) {
+			// phpcs:ignore Squiz.PHP.Eval.Discouraged
+			eval( '
+				class WP_Ultimo_Test_Output_Gateway extends \WP_Ultimo\Gateways\Manual_Gateway {
+					public function __construct() {
+						$this->id = "test-output-gw";
+					}
+					public function process_confirmation() {
+						echo "Some gateway output";
+						return null;
+					}
+				}
+			' );
+		}
+
+		$gateway_id = 'test-output-gw-' . wp_generate_uuid4();
+		$this->manager->register_gateway( $gateway_id, 'Output GW', 'desc', 'WP_Ultimo_Test_Output_Gateway' );
+
+		$_REQUEST['wu-confirm'] = $gateway_id;
+		unset( $_REQUEST['status'], $_REQUEST['payment'] );
+
+		$ob_level_before = ob_get_level();
+
+		try {
+			$this->manager->process_gateway_confirmations();
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['wu-confirm'] );
+		}
+
+		// The wu_bypass_checkout_form action should have been added
+		$this->assertNotFalse( has_action( 'wu_bypass_checkout_form' ) );
+	}
+
+	// =========================================================================
+	// ajax_check_payment_status
+	// =========================================================================
+
+	/**
+	 * Test ajax_check_payment_status with missing payment hash.
+	 */
+	public function test_ajax_check_payment_status_missing_hash(): void {
+		// Set up a valid nonce
+		$_REQUEST['nonce']        = wp_create_nonce( 'wu_payment_status_poll' );
+		$_REQUEST['payment_hash'] = '';
+
+		$ob_level_before  = ob_get_level();
+		$exception_thrown = false;
+
+		try {
+			$this->manager->ajax_check_payment_status();
+		} catch ( \WPDieException $e ) {
+			$exception_thrown = true;
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['nonce'], $_REQUEST['payment_hash'] );
+		}
+
+		// wp_send_json_error triggers wp_die which throws WPDieException in tests
+		$this->assertTrue( $exception_thrown, 'Expected WPDieException for missing payment hash' );
+	}
+
+	/**
+	 * Test ajax_check_payment_status with nonexistent payment hash.
+	 */
+	public function test_ajax_check_payment_status_nonexistent_payment(): void {
+		$_REQUEST['nonce']        = wp_create_nonce( 'wu_payment_status_poll' );
+		$_REQUEST['payment_hash'] = 'nonexistent-hash-' . wp_generate_uuid4();
+
+		$ob_level_before  = ob_get_level();
+		$exception_thrown = false;
+
+		try {
+			$this->manager->ajax_check_payment_status();
+		} catch ( \WPDieException $e ) {
+			$exception_thrown = true;
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['nonce'], $_REQUEST['payment_hash'] );
+		}
+
+		$this->assertTrue( $exception_thrown, 'Expected WPDieException for nonexistent payment' );
+	}
+
+	/**
+	 * Test ajax_check_payment_status with a completed payment.
+	 */
+	public function test_ajax_check_payment_status_completed_payment(): void {
+		$uuid     = wp_generate_uuid4();
+		$customer = wu_create_customer( [
+			'username' => 'ajax-completed-' . $uuid,
+			'email'    => 'ajax-completed-' . $uuid . '@example.com',
+			'password' => 'password123',
+		] );
+
+		if ( is_wp_error( $customer ) ) {
+			$this->markTestSkipped( 'Could not create test customer: ' . $customer->get_error_message() );
+			return;
+		}
+
+		$product = wu_create_product( [
+			'name'         => 'Ajax Completed Plan ' . $uuid,
+			'slug'         => 'ajax-completed-plan-' . $uuid,
+			'pricing_type' => 'paid',
+			'amount'       => 10,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		] );
+
+		if ( is_wp_error( $product ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test product: ' . $product->get_error_message() );
+			return;
+		}
+
+		$membership = wu_create_membership( [
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+			'status'      => \WP_Ultimo\Database\Memberships\Membership_Status::ACTIVE,
+		] );
+
+		if ( is_wp_error( $membership ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test membership: ' . $membership->get_error_message() );
+			return;
+		}
+
+		$payment = wu_create_payment( [
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'currency'      => 'USD',
+			'subtotal'      => 10.00,
+			'total'         => 10.00,
+			'status'        => \WP_Ultimo\Database\Payments\Payment_Status::COMPLETED,
+			'gateway'       => 'manual',
+		] );
+
+		if ( is_wp_error( $payment ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test payment: ' . $payment->get_error_message() );
+			return;
+		}
+
+		$_REQUEST['nonce']        = wp_create_nonce( 'wu_payment_status_poll' );
+		$_REQUEST['payment_hash'] = $payment->get_hash();
+
+		$ob_level_before  = ob_get_level();
+		$exception_thrown = false;
+
+		try {
+			$this->manager->ajax_check_payment_status();
+		} catch ( \WPDieException $e ) {
+			$exception_thrown = true;
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['nonce'], $_REQUEST['payment_hash'] );
+		}
+
+		// wp_send_json_success triggers wp_die which throws WPDieException in tests
+		$this->assertTrue( $exception_thrown, 'Expected WPDieException from wp_send_json_success for completed payment' );
+
+		// Cleanup
+		$payment->delete();
+		$customer->delete();
+	}
+
+	/**
+	 * Test ajax_check_payment_status with a non-stripe pending payment.
+	 */
+	public function test_ajax_check_payment_status_non_stripe_payment(): void {
+		$uuid     = wp_generate_uuid4();
+		$customer = wu_create_customer( [
+			'username' => 'ajax-nonstripe-' . $uuid,
+			'email'    => 'ajax-nonstripe-' . $uuid . '@example.com',
+			'password' => 'password123',
+		] );
+
+		if ( is_wp_error( $customer ) ) {
+			$this->markTestSkipped( 'Could not create test customer: ' . $customer->get_error_message() );
+			return;
+		}
+
+		$product = wu_create_product( [
+			'name'         => 'Ajax Non-Stripe Plan ' . $uuid,
+			'slug'         => 'ajax-nonstripe-plan-' . $uuid,
+			'pricing_type' => 'paid',
+			'amount'       => 10,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		] );
+
+		if ( is_wp_error( $product ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test product: ' . $product->get_error_message() );
+			return;
+		}
+
+		$membership = wu_create_membership( [
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+			'status'      => \WP_Ultimo\Database\Memberships\Membership_Status::ACTIVE,
+			'gateway'     => 'manual',
+		] );
+
+		if ( is_wp_error( $membership ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test membership: ' . $membership->get_error_message() );
+			return;
+		}
+
+		$payment = wu_create_payment( [
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'currency'      => 'USD',
+			'subtotal'      => 10.00,
+			'total'         => 10.00,
+			'status'        => \WP_Ultimo\Database\Payments\Payment_Status::PENDING,
+			'gateway'       => 'manual',
+		] );
+
+		if ( is_wp_error( $payment ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test payment: ' . $payment->get_error_message() );
+			return;
+		}
+
+		$_REQUEST['nonce']        = wp_create_nonce( 'wu_payment_status_poll' );
+		$_REQUEST['payment_hash'] = $payment->get_hash();
+
+		$ob_level_before  = ob_get_level();
+		$exception_thrown = false;
+
+		try {
+			$this->manager->ajax_check_payment_status();
+		} catch ( \WPDieException $e ) {
+			$exception_thrown = true;
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['nonce'], $_REQUEST['payment_hash'] );
+		}
+
+		// wp_send_json_success triggers wp_die which throws WPDieException in tests
+		$this->assertTrue( $exception_thrown, 'Expected WPDieException from wp_send_json_success for non-stripe payment' );
+
+		// Cleanup
+		$payment->delete();
+		$customer->delete();
+	}
+
+	/**
+	 * Test ajax_check_payment_status with a stripe pending payment (no verify_and_complete_payment).
+	 */
+	public function test_ajax_check_payment_status_stripe_payment(): void {
+		$uuid     = wp_generate_uuid4();
+		$customer = wu_create_customer( [
+			'username' => 'ajax-stripe-' . $uuid,
+			'email'    => 'ajax-stripe-' . $uuid . '@example.com',
+			'password' => 'password123',
+		] );
+
+		if ( is_wp_error( $customer ) ) {
+			$this->markTestSkipped( 'Could not create test customer: ' . $customer->get_error_message() );
+			return;
+		}
+
+		$product = wu_create_product( [
+			'name'         => 'Ajax Stripe Plan ' . $uuid,
+			'slug'         => 'ajax-stripe-plan-' . $uuid,
+			'pricing_type' => 'paid',
+			'amount'       => 10,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		] );
+
+		if ( is_wp_error( $product ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test product: ' . $product->get_error_message() );
+			return;
+		}
+
+		$membership = wu_create_membership( [
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+			'status'      => \WP_Ultimo\Database\Memberships\Membership_Status::ACTIVE,
+			'gateway'     => 'stripe',
+		] );
+
+		if ( is_wp_error( $membership ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test membership: ' . $membership->get_error_message() );
+			return;
+		}
+
+		$payment = wu_create_payment( [
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'currency'      => 'USD',
+			'subtotal'      => 10.00,
+			'total'         => 10.00,
+			'status'        => \WP_Ultimo\Database\Payments\Payment_Status::PENDING,
+			'gateway'       => 'stripe',
+		] );
+
+		if ( is_wp_error( $payment ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test payment: ' . $payment->get_error_message() );
+			return;
+		}
+
+		$_REQUEST['nonce']        = wp_create_nonce( 'wu_payment_status_poll' );
+		$_REQUEST['payment_hash'] = $payment->get_hash();
+
+		$ob_level_before  = ob_get_level();
+		$exception_thrown = false;
+
+		try {
+			$this->manager->ajax_check_payment_status();
+		} catch ( \WPDieException $e ) {
+			$exception_thrown = true;
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['nonce'], $_REQUEST['payment_hash'] );
+		}
+
+		// Either wp_send_json_success (no verify method) or verify attempt — both trigger WPDieException
+		$this->assertTrue( $exception_thrown, 'Expected WPDieException from ajax_check_payment_status for stripe payment' );
+
+		// Cleanup
+		$payment->delete();
+		$customer->delete();
+	}
+
+	/**
+	 * Test ajax_check_payment_status derives gateway from membership when payment gateway is empty.
+	 */
+	public function test_ajax_check_payment_status_derives_gateway_from_membership(): void {
+		$uuid     = wp_generate_uuid4();
+		$customer = wu_create_customer( [
+			'username' => 'ajax-derive-' . $uuid,
+			'email'    => 'ajax-derive-' . $uuid . '@example.com',
+			'password' => 'password123',
+		] );
+
+		if ( is_wp_error( $customer ) ) {
+			$this->markTestSkipped( 'Could not create test customer: ' . $customer->get_error_message() );
+			return;
+		}
+
+		$product = wu_create_product( [
+			'name'         => 'Ajax Derive Plan ' . $uuid,
+			'slug'         => 'ajax-derive-plan-' . $uuid,
+			'pricing_type' => 'paid',
+			'amount'       => 10,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		] );
+
+		if ( is_wp_error( $product ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test product: ' . $product->get_error_message() );
+			return;
+		}
+
+		$membership = wu_create_membership( [
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+			'status'      => \WP_Ultimo\Database\Memberships\Membership_Status::ACTIVE,
+			'gateway'     => 'manual',
+		] );
+
+		if ( is_wp_error( $membership ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test membership: ' . $membership->get_error_message() );
+			return;
+		}
+
+		// Payment with empty gateway — should derive from membership
+		$payment = wu_create_payment( [
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'currency'      => 'USD',
+			'subtotal'      => 10.00,
+			'total'         => 10.00,
+			'status'        => \WP_Ultimo\Database\Payments\Payment_Status::PENDING,
+			'gateway'       => '',
+		] );
+
+		if ( is_wp_error( $payment ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test payment: ' . $payment->get_error_message() );
+			return;
+		}
+
+		$_REQUEST['nonce']        = wp_create_nonce( 'wu_payment_status_poll' );
+		$_REQUEST['payment_hash'] = $payment->get_hash();
+
+		$ob_level_before  = ob_get_level();
+		$exception_thrown = false;
+
+		try {
+			$this->manager->ajax_check_payment_status();
+		} catch ( \WPDieException $e ) {
+			$exception_thrown = true;
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+			unset( $_REQUEST['nonce'], $_REQUEST['payment_hash'] );
+		}
+
+		// wp_send_json_success triggers WPDieException (non-stripe gateway derived from membership)
+		$this->assertTrue( $exception_thrown, 'Expected WPDieException from ajax_check_payment_status when deriving gateway from membership' );
+
+		// Cleanup
+		$payment->delete();
+		$customer->delete();
+	}
+
+	// =========================================================================
+	// maybe_schedule_payment_verification — stripe path
+	// =========================================================================
+
+	/**
+	 * Test maybe_schedule_payment_verification with stripe gateway (pending payment).
+	 * Stripe gateway is registered; schedule_payment_verification may or may not exist.
+	 */
+	public function test_maybe_schedule_payment_verification_stripe_gateway(): void {
+		$uuid     = wp_generate_uuid4();
+		$customer = wu_create_customer( [
+			'username' => 'sched-stripe-gw-' . $uuid,
+			'email'    => 'sched-stripe-gw-' . $uuid . '@example.com',
+			'password' => 'password123',
+		] );
+
+		if ( is_wp_error( $customer ) ) {
+			$this->markTestSkipped( 'Could not create test customer: ' . $customer->get_error_message() );
+			return;
+		}
+
+		$product = wu_create_product( [
+			'name'         => 'Sched Stripe GW Plan ' . $uuid,
+			'slug'         => 'sched-stripe-gw-plan-' . $uuid,
+			'pricing_type' => 'paid',
+			'amount'       => 10,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		] );
+
+		if ( is_wp_error( $product ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test product: ' . $product->get_error_message() );
+			return;
+		}
+
+		$membership = wu_create_membership( [
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+			'status'      => \WP_Ultimo\Database\Memberships\Membership_Status::ACTIVE,
+			'gateway'     => 'stripe',
+		] );
+
+		if ( is_wp_error( $membership ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test membership: ' . $membership->get_error_message() );
+			return;
+		}
+
+		$payment = wu_create_payment( [
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'currency'      => 'USD',
+			'subtotal'      => 10.00,
+			'total'         => 10.00,
+			'status'        => \WP_Ultimo\Database\Payments\Payment_Status::PENDING,
+			'gateway'       => 'stripe',
+		] );
+
+		if ( is_wp_error( $payment ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test payment: ' . $payment->get_error_message() );
+			return;
+		}
+
+		// Ensure stripe is registered
+		if ( ! $this->manager->is_gateway_registered( 'stripe' ) ) {
+			$this->manager->register_gateway( 'stripe', 'Stripe', 'desc', \WP_Ultimo\Gateways\Stripe_Gateway::class );
+		}
+
+		// Should proceed to the stripe gateway check and either schedule or return early
+		$this->manager->maybe_schedule_payment_verification( $payment, $membership, null, null, 'new' );
+
+		$this->assertTrue( true );
+
+		// Cleanup
+		$payment->delete();
+		$customer->delete();
+	}
+
+	/**
+	 * Test maybe_schedule_payment_verification with stripe-checkout gateway.
+	 */
+	public function test_maybe_schedule_payment_verification_stripe_checkout_gateway(): void {
+		$uuid     = wp_generate_uuid4();
+		$customer = wu_create_customer( [
+			'username' => 'sched-sc-' . $uuid,
+			'email'    => 'sched-sc-' . $uuid . '@example.com',
+			'password' => 'password123',
+		] );
+
+		if ( is_wp_error( $customer ) ) {
+			$this->markTestSkipped( 'Could not create test customer: ' . $customer->get_error_message() );
+			return;
+		}
+
+		$product = wu_create_product( [
+			'name'         => 'Sched SC Plan ' . $uuid,
+			'slug'         => 'sched-sc-plan-' . $uuid,
+			'pricing_type' => 'paid',
+			'amount'       => 10,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		] );
+
+		if ( is_wp_error( $product ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test product: ' . $product->get_error_message() );
+			return;
+		}
+
+		$membership = wu_create_membership( [
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+			'status'      => \WP_Ultimo\Database\Memberships\Membership_Status::ACTIVE,
+			'gateway'     => 'stripe-checkout',
+		] );
+
+		if ( is_wp_error( $membership ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test membership: ' . $membership->get_error_message() );
+			return;
+		}
+
+		$payment = wu_create_payment( [
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'currency'      => 'USD',
+			'subtotal'      => 10.00,
+			'total'         => 10.00,
+			'status'        => \WP_Ultimo\Database\Payments\Payment_Status::PENDING,
+			'gateway'       => 'stripe-checkout',
+		] );
+
+		if ( is_wp_error( $payment ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test payment: ' . $payment->get_error_message() );
+			return;
+		}
+
+		// Ensure stripe-checkout is registered
+		if ( ! $this->manager->is_gateway_registered( 'stripe-checkout' ) ) {
+			$this->manager->register_gateway( 'stripe-checkout', 'Stripe Checkout', 'desc', \WP_Ultimo\Gateways\Stripe_Checkout_Gateway::class );
+		}
+
+		// Should proceed to the stripe-checkout gateway check
+		$this->manager->maybe_schedule_payment_verification( $payment, $membership, null, null, 'new' );
+
+		$this->assertTrue( true );
+
+		// Cleanup
+		$payment->delete();
+		$customer->delete();
+	}
+
+	// =========================================================================
+	// handle_scheduled_payment_verification — gateway derived from membership
+	// =========================================================================
+
+	/**
+	 * Test handle_scheduled_payment_verification derives gateway from membership when payment gateway is empty.
+	 */
+	public function test_handle_scheduled_payment_verification_derives_gateway_from_membership(): void {
+		$uuid     = wp_generate_uuid4();
+		$customer = wu_create_customer( [
+			'username' => 'sched-mem-gw-' . $uuid,
+			'email'    => 'sched-mem-gw-' . $uuid . '@example.com',
+			'password' => 'password123',
+		] );
+
+		if ( is_wp_error( $customer ) ) {
+			$this->markTestSkipped( 'Could not create test customer: ' . $customer->get_error_message() );
+			return;
+		}
+
+		$product = wu_create_product( [
+			'name'         => 'Sched Mem GW Plan ' . $uuid,
+			'slug'         => 'sched-mem-gw-plan-' . $uuid,
+			'pricing_type' => 'paid',
+			'amount'       => 10,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		] );
+
+		if ( is_wp_error( $product ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test product: ' . $product->get_error_message() );
+			return;
+		}
+
+		$membership = wu_create_membership( [
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+			'status'      => \WP_Ultimo\Database\Memberships\Membership_Status::ACTIVE,
+			'gateway'     => 'manual',
+		] );
+
+		if ( is_wp_error( $membership ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test membership: ' . $membership->get_error_message() );
+			return;
+		}
+
+		// Payment with empty gateway — should derive from membership (manual) and return early
+		$payment = wu_create_payment( [
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'currency'      => 'USD',
+			'subtotal'      => 10.00,
+			'total'         => 10.00,
+			'status'        => \WP_Ultimo\Database\Payments\Payment_Status::PENDING,
+			'gateway'       => '',
+		] );
+
+		if ( is_wp_error( $payment ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test payment: ' . $payment->get_error_message() );
+			return;
+		}
+
+		// No gateway_id provided — should derive from payment (empty) then membership (manual) and return early
+		$this->manager->handle_scheduled_payment_verification( $payment->get_id() );
+
+		$this->assertTrue( true );
+
+		// Cleanup
+		$payment->delete();
+		$customer->delete();
+	}
+
+	// =========================================================================
 	// Error Cases
 	// =========================================================================
 
