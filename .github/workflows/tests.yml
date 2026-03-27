@@ -155,7 +155,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: swissspidy/wp-performance-action
-          ref: b7e3ffcf0fc4a48b62492e021e0ebeb51430ff11
+          ref: 233d525186e4d41bc7574837a3baeb3b5698656f
           path: .wp-performance-action
 
       - name: Install performance action dependencies
@@ -235,6 +235,7 @@ jobs:
           DEBUG: "true"
           TEST_ITERATIONS: "20"
           TEST_REPETITIONS: "2"
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "true"
 
       - name: Stop server
         if: always()
