@@ -202,7 +202,29 @@ jobs:
           exit 1
 
       - name: Run WP Performance Tests
-        run: npm run test:performance
+        # Retry up to 3 times: WP Playground server occasionally crashes between
+        # the readiness check and test execution, causing a transient TypeError.
+        # The job has continue-on-error:true so failures never block merging.
+        run: |
+          for attempt in 1 2 3; do
+            echo "--- Performance test attempt $attempt/3 ---"
+            # Verify server is still alive before each attempt
+            if ! curl -sf --max-time 5 http://127.0.0.1:9400/ > /dev/null 2>&1; then
+              echo "Server not responding on attempt $attempt — skipping"
+              continue
+            fi
+            if npm run test:performance; then
+              echo "Tests passed on attempt $attempt"
+              exit 0
+            fi
+            echo "Tests failed on attempt $attempt"
+            if [ "$attempt" -lt 3 ]; then
+              echo "Waiting 10s before retry..."
+              sleep 10
+            fi
+          done
+          echo "All 3 attempts failed"
+          exit 1
         working-directory: .wp-performance-action/env
         env:
           WP_BASE_URL: http://127.0.0.1:9400
