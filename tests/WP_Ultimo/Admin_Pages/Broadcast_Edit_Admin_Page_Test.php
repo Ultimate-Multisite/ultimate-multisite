@@ -357,18 +357,36 @@ class Broadcast_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test get_object returns pre-set object when object property is set.
+	 * Test get_object returns a Broadcast fetched by GET id when id is set.
+	 *
+	 * Note: get_object() does not use $this->object — it always queries by
+	 * $_GET['id'] or returns a new Broadcast(). This test verifies the DB
+	 * fetch path by saving a broadcast and passing its id via $_GET.
 	 */
 	public function test_get_object_returns_preset_object(): void {
 		$broadcast = new Broadcast();
 		$broadcast->set_title('Preset Broadcast');
 		$broadcast->set_type('broadcast_notice');
+		$broadcast->set_content('Preset content');
+		$saved = $broadcast->save();
 
-		$this->page->object = $broadcast;
+		if (is_wp_error($saved)) {
+			$this->markTestSkipped('Could not save broadcast: ' . $saved->get_error_message());
+			return;
+		}
 
-		$result = $this->page->get_object();
+		$id = $broadcast->get_id();
 
-		$this->assertSame($broadcast, $result);
+		$page = new Broadcast_Edit_Admin_Page();
+
+		$_GET['id'] = $id;
+
+		$result = $page->get_object();
+
+		unset($_GET['id']);
+
+		$this->assertInstanceOf(Broadcast::class, $result);
+		$this->assertEquals($id, $result->get_id());
 	}
 
 	// -------------------------------------------------------------------------
@@ -418,7 +436,10 @@ class Broadcast_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test query_filter uses saved object id.
+	 * Test query_filter uses saved object id when fetched via GET id.
+	 *
+	 * Note: get_object() does not use $this->object — it queries by $_GET['id'].
+	 * We pass the id via $_GET to exercise the saved-object path.
 	 */
 	public function test_query_filter_uses_saved_object_id(): void {
 		$broadcast = new Broadcast();
@@ -432,11 +453,17 @@ class Broadcast_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			return;
 		}
 
-		$this->page->object = $broadcast;
+		$id = $broadcast->get_id();
 
-		$result = $this->page->query_filter([]);
+		$page = new Broadcast_Edit_Admin_Page();
 
-		$this->assertEquals($broadcast->get_id(), $result['object_id']);
+		$_GET['id'] = $id;
+
+		$result = $page->query_filter([]);
+
+		unset($_GET['id']);
+
+		$this->assertEquals($id, $result['object_id']);
 	}
 
 	// -------------------------------------------------------------------------
@@ -486,7 +513,10 @@ class Broadcast_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test events_query_filter uses saved object id.
+	 * Test events_query_filter uses saved object id when fetched via GET id.
+	 *
+	 * Note: get_object() does not use $this->object — it queries by $_GET['id'].
+	 * We pass the id via $_GET to exercise the saved-object path.
 	 */
 	public function test_events_query_filter_uses_saved_object_id(): void {
 		$broadcast = new Broadcast();
@@ -500,11 +530,17 @@ class Broadcast_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			return;
 		}
 
-		$this->page->object = $broadcast;
+		$id = $broadcast->get_id();
 
-		$result = $this->page->events_query_filter([]);
+		$page = new Broadcast_Edit_Admin_Page();
 
-		$this->assertEquals($broadcast->get_id(), $result['object_id']);
+		$_GET['id'] = $id;
+
+		$result = $page->events_query_filter([]);
+
+		unset($_GET['id']);
+
+		$this->assertEquals($id, $result['object_id']);
 	}
 
 	/**
@@ -785,12 +821,19 @@ class Broadcast_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 	/**
 	 * Test output_default_widget_product_targets does not throw with no targets.
+	 *
+	 * Note: get_object() does not use $this->object — it queries by $_GET['id'].
+	 * We pass the id via $_GET so get_object() fetches the saved broadcast.
+	 * We set empty message_targets so wu_get_broadcast_targets() receives an
+	 * array (not false) from get_message_targets().
 	 */
 	public function test_output_default_widget_product_targets_no_targets(): void {
 		$broadcast = new Broadcast();
 		$broadcast->set_title('No Product Targets Broadcast');
 		$broadcast->set_type('broadcast_notice');
 		$broadcast->set_content('Content for no product targets test');
+		// Set empty targets so get_message_targets() returns an array, not false.
+		$broadcast->set_message_targets(['customers' => '', 'products' => '']);
 		$saved = $broadcast->save();
 
 		if (is_wp_error($saved)) {
@@ -798,11 +841,17 @@ class Broadcast_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			return;
 		}
 
-		$this->page->object = $broadcast;
+		$id = $broadcast->get_id();
+
+		$page = new Broadcast_Edit_Admin_Page();
+
+		$_GET['id'] = $id;
 
 		ob_start();
-		$this->page->output_default_widget_product_targets();
+		$page->output_default_widget_product_targets();
 		$output = ob_get_clean();
+
+		unset($_GET['id']);
 
 		// With no targets, wu_get_template is called — just verify no exception.
 		$this->assertIsString($output);
@@ -866,31 +915,48 @@ class Broadcast_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test setting broadcast type to broadcast_email.
+	 * Test setting broadcast type to broadcast_email and fetching via GET id.
+	 *
+	 * Note: get_object() does not use $this->object — it queries by $_GET['id'].
+	 * We save a broadcast_email type and fetch it via $_GET['id'].
 	 */
 	public function test_broadcast_type_email(): void {
 		$broadcast = new Broadcast();
+		$broadcast->set_title('Email Type Broadcast');
 		$broadcast->set_type('broadcast_email');
+		$broadcast->set_content('Email broadcast content');
+		$saved = $broadcast->save();
 
-		$this->page->object = $broadcast;
+		if (is_wp_error($saved)) {
+			$this->markTestSkipped('Could not save broadcast: ' . $saved->get_error_message());
+			return;
+		}
 
-		$object = $this->page->get_object();
+		$id = $broadcast->get_id();
+
+		$page = new Broadcast_Edit_Admin_Page();
+
+		$_GET['id'] = $id;
+
+		$object = $page->get_object();
+
+		unset($_GET['id']);
 
 		$this->assertEquals('broadcast_email', $object->get_type());
 	}
 
 	/**
-	 * Test setting broadcast type to broadcast_notice.
+	 * Test Broadcast model type can be set to broadcast_notice.
+	 *
+	 * Note: get_object() always returns a new Broadcast() (default type
+	 * broadcast_notice) unless $_GET['id'] is set. This test verifies the
+	 * Broadcast model's type setter/getter directly.
 	 */
 	public function test_broadcast_type_notice(): void {
 		$broadcast = new Broadcast();
 		$broadcast->set_type('broadcast_notice');
 
-		$this->page->object = $broadcast;
-
-		$object = $this->page->get_object();
-
-		$this->assertEquals('broadcast_notice', $object->get_type());
+		$this->assertEquals('broadcast_notice', $broadcast->get_type());
 	}
 
 	// -------------------------------------------------------------------------
