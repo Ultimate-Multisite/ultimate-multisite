@@ -77,6 +77,9 @@ Overall coverage: **35%** (20,720 / 59,212 statements). 90 files at 0% coverage.
 - [ ] t497 test(admin): write unit tests for Email_Edit_Admin_Page (inc/admin-pages/class-email-edit-admin-page.php — 0% coverage, ~576 lines) #testing #auto-dispatch ~4h ref:GH#639
 - [ ] t498 test(admin): write unit tests for Broadcast_Edit_Admin_Page (inc/admin-pages/class-broadcast-edit-admin-page.php — 0% coverage, ~513 lines) #testing #auto-dispatch ~4h ref:GH#640
 - [ ] t499 test(admin): write unit tests for Base_Admin_Page (inc/admin-pages/class-base-admin-page.php — 0% coverage, ~800 lines) #testing #auto-dispatch ~5h ref:GH#641
+- [ ] t500 test(admin): write unit tests for Addons_Admin_Page (inc/admin-pages/class-addons-admin-page.php — 0% coverage, ~513 lines) #testing #auto-dispatch ~4h ref:GH#642
+- [ ] t501 test(admin): write unit tests for Dashboard_Admin_Page (inc/admin-pages/class-dashboard-admin-page.php — 0% coverage) #testing #auto-dispatch ~4h ref:GH#643
+- [ ] t502 test(admin): write unit tests for Customer_List_Admin_Page (inc/admin-pages/class-customer-list-admin-page.php — 0% coverage) #testing #auto-dispatch ~3h ref:GH#644
 
 ### Fix: Test suite exits early at 56%
 
