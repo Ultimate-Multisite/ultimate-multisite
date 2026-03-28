@@ -131,22 +131,38 @@ jobs:
 
   wp-performance:
     name: WP Performance Metrics
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     continue-on-error: true
     permissions:
       contents: read
       pull-requests: write
+    env:
+      PERF_ACTION_DIR: .wp-performance-action/env
+      WP_PERF_ARTIFACTS: ${{ github.workspace }}/.wp-performance-action/env/artifacts
     steps:
-      - name: Checkout
+      # ── Checkout both branches ──────────────────────────────────────
+      - name: Checkout PR branch
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: current
 
+      - name: Checkout base branch (main)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.base_ref }}
+          path: baseline
+
+      # ── Environment setup ───────────────────────────────────────────
       - name: Setup PHP
         uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2
         with:
           php-version: "8.2"
 
-      - name: Install PHP Dependencies
-        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+      - name: Install PHP dependencies (both branches)
+        run: |
+          composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --working-dir=current
+          composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --working-dir=baseline
 
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -168,30 +184,31 @@ jobs:
         run: npx playwright install --with-deps
         working-directory: .wp-performance-action/env
 
-      - name: Start WordPress Playground server
+      - name: Prepare merged blueprint
         run: |
-          PLUGIN_REALPATH=$(realpath "$GITHUB_WORKSPACE")
-          PLUGIN_BASENAME=$(basename "$PLUGIN_REALPATH")
-          BLUEPRINT=$(realpath "$GITHUB_WORKSPACE/.github/performance-blueprint.json")
-
-          MERGED_BLUEPRINT=./blueprints/tmp-merged.json
+          BLUEPRINT=$(realpath "$GITHUB_WORKSPACE/current/.github/performance-blueprint.json")
           jq -s 'map(to_entries)|flatten|group_by(.key)|map({(.[0].key):map(.value)|add})|add' \
-            ./blueprints/setup.json "$BLUEPRINT" > "$MERGED_BLUEPRINT"
-
+            ./blueprints/setup.json "$BLUEPRINT" > ./blueprints/tmp-merged.json
           echo "Merged blueprint:"
-          cat "$MERGED_BLUEPRINT" | jq '.'
-
-          ./node_modules/@wp-playground/cli/wp-playground.js server \
-            --mount="./wp-content/mu-plugins:/wordpress/wp-content/mu-plugins" \
-            --mount="$PLUGIN_REALPATH:/wordpress/wp-content/plugins/$PLUGIN_BASENAME" \
-            --blueprint="$MERGED_BLUEPRINT" \
-            --wp=6.8 \
-            --php=8.2 &
+          cat ./blueprints/tmp-merged.json | jq '.'
         working-directory: .wp-performance-action/env
 
-      - name: Wait for WordPress Playground server on port 9400
+      # ── Baseline run (main branch) ─────────────────────────────────
+      - name: Start server with baseline plugin
         run: |
-          echo "Waiting for WordPress Playground to be ready on port 9400..."
+          BASELINE_PATH=$(realpath "$GITHUB_WORKSPACE/baseline")
+          ./node_modules/@wp-playground/cli/wp-playground.js server \
+            --mount="./wp-content/mu-plugins:/wordpress/wp-content/mu-plugins" \
+            --mount="$BASELINE_PATH:/wordpress/wp-content/plugins/ultimate-multisite" \
+            --blueprint="./blueprints/tmp-merged.json" \
+            --wp=6.8 \
+            --php=8.2 &
+          echo $! > /tmp/playground.pid
+        working-directory: .wp-performance-action/env
+
+      - name: Wait for baseline server
+        run: |
+          echo "Waiting for baseline server on port 9400..."
           for i in $(seq 1 60); do
             if curl -sf --max-time 5 http://127.0.0.1:9400/ > /dev/null 2>&1; then
               echo "Server is ready after ${i}s"
@@ -203,27 +220,88 @@ jobs:
           echo "ERROR: Server did not become ready within 300 seconds"
           exit 1
 
-      - name: Run WP Performance Tests
-        # Retry up to 3 times: WP Playground server occasionally crashes between
-        # the readiness check and test execution, causing a transient TypeError.
-        # The job has continue-on-error:true so failures never block merging.
+      - name: Run baseline performance tests
         run: |
+          mkdir -p "$WP_PERF_ARTIFACTS"
           for attempt in 1 2 3; do
-            echo "--- Performance test attempt $attempt/3 ---"
-            # Verify server is still alive before each attempt
+            echo "--- Baseline attempt $attempt/3 ---"
             if ! curl -sf --max-time 5 http://127.0.0.1:9400/ > /dev/null 2>&1; then
-              echo "Server not responding on attempt $attempt — skipping"
+              echo "Server not responding — skipping"
               continue
             fi
             if npm run test:performance; then
-              echo "Tests passed on attempt $attempt"
+              echo "Baseline tests passed on attempt $attempt"
+              # Save baseline results
+              cp "$WP_PERF_ARTIFACTS/performance-results.json" \
+                 "$RUNNER_TEMP/baseline-results.json"
+              echo "baseline_ok=true" >> "$GITHUB_ENV"
               exit 0
             fi
-            echo "Tests failed on attempt $attempt"
-            if [ "$attempt" -lt 3 ]; then
-              echo "Waiting 10s before retry..."
-              sleep 10
+            echo "Baseline tests failed on attempt $attempt"
+            [ "$attempt" -lt 3 ] && sleep 10
+          done
+          echo "All baseline attempts failed — will run PR tests without comparison"
+          echo "baseline_ok=false" >> "$GITHUB_ENV"
+        working-directory: .wp-performance-action/env
+        env:
+          WP_BASE_URL: http://127.0.0.1:9400
+          WP_ARTIFACTS_PATH: ${{ github.workspace }}/.wp-performance-action/env/artifacts
+          BLOB_REPORT_PATH: ${{ github.workspace }}/.wp-performance-action/env/blob-report
+          SHARD: ""
+          URLS_TO_TEST: /
+          DEBUG: "true"
+          TEST_ITERATIONS: "20"
+          TEST_REPETITIONS: "2"
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "true"
+
+      - name: Stop baseline server
+        run: |
+          npm run stop-server 2>/dev/null || true
+          # Clean artifacts for the PR run
+          rm -rf "$WP_PERF_ARTIFACTS"
+        working-directory: .wp-performance-action/env
+
+      # ── PR branch run ───────────────────────────────────────────────
+      - name: Start server with PR branch plugin
+        run: |
+          CURRENT_PATH=$(realpath "$GITHUB_WORKSPACE/current")
+          ./node_modules/@wp-playground/cli/wp-playground.js server \
+            --mount="./wp-content/mu-plugins:/wordpress/wp-content/mu-plugins" \
+            --mount="$CURRENT_PATH:/wordpress/wp-content/plugins/ultimate-multisite" \
+            --blueprint="./blueprints/tmp-merged.json" \
+            --wp=6.8 \
+            --php=8.2 &
+        working-directory: .wp-performance-action/env
+
+      - name: Wait for PR server
+        run: |
+          echo "Waiting for PR server on port 9400..."
+          for i in $(seq 1 60); do
+            if curl -sf --max-time 5 http://127.0.0.1:9400/ > /dev/null 2>&1; then
+              echo "Server is ready after ${i}s"
+              exit 0
             fi
+            echo "  attempt $i/60..."
+            sleep 5
+          done
+          echo "ERROR: Server did not become ready within 300 seconds"
+          exit 1
+
+      - name: Run PR branch performance tests
+        run: |
+          mkdir -p "$WP_PERF_ARTIFACTS"
+          for attempt in 1 2 3; do
+            echo "--- PR branch attempt $attempt/3 ---"
+            if ! curl -sf --max-time 5 http://127.0.0.1:9400/ > /dev/null 2>&1; then
+              echo "Server not responding — skipping"
+              continue
+            fi
+            if npm run test:performance; then
+              echo "PR tests passed on attempt $attempt"
+              exit 0
+            fi
+            echo "PR tests failed on attempt $attempt"
+            [ "$attempt" -lt 3 ] && sleep 10
           done
           echo "All 3 attempts failed"
           exit 1
@@ -241,30 +319,38 @@ jobs:
 
       - name: Stop server
         if: always()
-        run: npm run stop-server
+        run: npm run stop-server 2>/dev/null || true
         working-directory: .wp-performance-action/env
 
-      - name: Generate performance results report
+      # ── Generate comparison report ──────────────────────────────────
+      - name: Generate performance comparison report
         id: prepare-results
         if: always()
         run: |
-          WP_ARTIFACTS_PATH="$GITHUB_WORKSPACE/.wp-performance-action/env/artifacts"
-          RESULTS_JSON="$WP_ARTIFACTS_PATH/performance-results.json"
-          if [ -f "$RESULTS_JSON" ]; then
-            UUID=$(uuidgen)
-            cp "$RESULTS_JSON" "$RUNNER_TEMP/performance-results-$UUID.json"
-            echo "results=$RUNNER_TEMP/performance-results-$UUID.json" >> "$GITHUB_OUTPUT"
-            REPOSITORY_URL="${{ github.server_url }}/${{ github.repository }}" \
-              npm run test:performance:results "$RUNNER_TEMP/performance-results-$UUID.json"
+          RESULTS_JSON="$WP_PERF_ARTIFACTS/performance-results.json"
+          if [ ! -f "$RESULTS_JSON" ]; then
+            echo "No PR results found — skipping report"
+            exit 0
           fi
+
+          # Build the results.js arguments: after-file [before-file]
+          ARGS="$RESULTS_JSON"
+          if [ "$baseline_ok" = "true" ] && [ -f "$RUNNER_TEMP/baseline-results.json" ]; then
+            ARGS="$RESULTS_JSON $RUNNER_TEMP/baseline-results.json"
+            echo "Generating comparison report (PR vs main)..."
+          else
+            echo "Generating report (PR branch only, no baseline available)..."
+          fi
+
+          REPOSITORY_URL="${{ github.server_url }}/${{ github.repository }}" \
+            npm run test:performance:results $ARGS
         working-directory: .wp-performance-action/env
 
       - name: Add workflow summary
         if: always()
         run: |
-          WP_ARTIFACTS_PATH="$GITHUB_WORKSPACE/.wp-performance-action/env/artifacts"
-          if [ -f "$WP_ARTIFACTS_PATH/performance-results.md" ]; then
-            cat "$WP_ARTIFACTS_PATH/performance-results.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$WP_PERF_ARTIFACTS/performance-results.md" ]; then
+            cat "$WP_PERF_ARTIFACTS/performance-results.md" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload performance results
@@ -272,21 +358,21 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: performance-results-${{ github.run_number }}
-          path: .wp-performance-action/env/artifacts/
+          path: |
+            .wp-performance-action/env/artifacts/
+            ${{ runner.temp }}/baseline-results.json
           retention-days: 30
 
       - name: Check if a comment was already made
         id: find-comment
-        # Fork PRs don't have write access to the base repo — skip comment steps.
-        # Performance results are still uploaded as artifacts and shown in the workflow summary.
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        if: github.event.pull_request.head.repo.full_name == github.repository
         uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body-includes: Performance test results for
 
       - name: Comment on PR with performance results
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && hashFiles('.wp-performance-action/env/artifacts/performance-results.md') != ''
+        if: github.event.pull_request.head.repo.full_name == github.repository && hashFiles('.wp-performance-action/env/artifacts/performance-results.md') != ''
         uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9
         with:
           issue-number: ${{ github.event.pull_request.number }}
