@@ -69,6 +69,8 @@ jobs:
 
       - name: Install System Dependencies
         run: |
+          # Remove broken packagecloud git-lfs source that returns 403 in cimg/php:8.5
+          rm -f /etc/apt/sources.list.d/github_git-lfs.list 2>/dev/null || true
           apt-get update && apt-get install -y subversion mariadb-client
 
       - name: Install PHP Extensions
