@@ -34,9 +34,15 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	protected function tearDown(): void {
 		remove_all_filters('http_request_args');
+		remove_all_filters('pre_http_request');
+		remove_all_filters('wu_is_debug');
+		remove_all_filters('wp_redirect');
 		delete_site_transient('wu-addons-list');
 		delete_site_transient('wu-addons-list-beta');
 		delete_transient('wu-access-token');
+		wu_save_setting('enable_beta_updates', false);
+		unset($_GET['tab'], $_REQUEST['addon']);
+		$_POST = array();
 		parent::tearDown();
 	}
 
@@ -614,8 +620,20 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 		$property->setAccessible(true);
 		$property->setValue($this->page, $test_addons);
 
-		// Verify the addons property is set correctly before calling serve_addons_list
-		$this->assertEquals($test_addons, $property->getValue($this->page));
+		$handler = $this->install_ajax_die_handler();
+
+		ob_start();
+		try {
+			$this->page->serve_addons_list();
+		} catch (\WPAjaxDieContinueException $e) {
+			// Expected: wp_send_json_* calls wp_die() in AJAX context
+		}
+		$output = ob_get_clean();
+
+		$this->remove_ajax_die_handler($handler);
+
+		// The output should contain the cached addon slug
+		$this->assertStringContainsString('cached-addon', $output);
 	}
 
 	// ------------------------------------------------------------------
@@ -853,6 +871,7 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 		$_POST = array('some_setting' => 'value');
 
 		$redirected = false;
+		$exited     = false;
 		add_filter('wp_redirect', function($location) use (&$redirected) {
 			$redirected = true;
 			return $location;
@@ -863,13 +882,14 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 			$this->page->default_handler();
 		} catch (\WPDieException $e) {
 			// exit() in wp_safe_redirect may throw in test env
+			$exited = true;
 		} catch (\Throwable $e) {
 			// Catch any other exception from exit
+			$exited = true;
 		}
 		ob_get_clean();
 
-		// Either redirect was called or an exit was triggered
-		$this->assertTrue(true);
+		$this->assertTrue($redirected || $exited, 'Expected wp_redirect to be called or execution to exit in default_handler()');
 
 		remove_all_filters('wp_redirect');
 		$_POST = array();
@@ -1005,7 +1025,7 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 
 		$link = $this->page->get_prev_section_link();
 
-		$this->assertIsString($link);
+		$this->assertSame('', $link);
 	}
 
 	/**
