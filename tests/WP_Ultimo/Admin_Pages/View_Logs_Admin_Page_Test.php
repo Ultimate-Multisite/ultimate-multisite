@@ -293,9 +293,11 @@ class View_Logs_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_handle_view_logs_returns_file_contents_for_valid_file(): void {
 
-		// Create a temporary log file inside the logs folder.
+		// Create a unique temporary log file inside the logs folder to avoid
+		// cross-test collisions in parallel/sharded runs.
 		$logs_folder = Logger::get_logs_folder();
-		$tmp_file    = $logs_folder . '/test-unit-test.log';
+		$tmp_file    = tempnam($logs_folder, 'wu-log-test-');
+		$this->assertNotFalse($tmp_file);
 
 		file_put_contents($tmp_file, 'test log content');
 
@@ -306,9 +308,11 @@ class View_Logs_Admin_Page_Test extends WP_UnitTestCase {
 
 			$this->assertEquals('test log content', $result['contents']);
 			$this->assertEquals($tmp_file, $result['file']);
-			$this->assertEquals('/test-unit-test.log', $result['file_name']);
+			$this->assertStringEndsWith(basename($tmp_file), $result['file_name']);
 		} finally {
-			@unlink($tmp_file);
+			if (is_string($tmp_file) && is_file($tmp_file)) {
+				unlink($tmp_file);
+			}
 			unset($_REQUEST['file']);
 		}
 	}
@@ -378,11 +382,11 @@ class View_Logs_Admin_Page_Test extends WP_UnitTestCase {
 	// register_scripts()
 	// -------------------------------------------------------------------------
 
-	public function test_register_scripts_does_not_throw(): void {
+	public function test_register_scripts_enqueues_wu_view_log_script(): void {
 
 		$this->page->register_scripts();
 
-		$this->assertTrue(true);
+		$this->assertTrue(wp_script_is('wu-view-log', 'enqueued'));
 	}
 
 	// -------------------------------------------------------------------------
@@ -408,5 +412,7 @@ class View_Logs_Admin_Page_Test extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertIsString($output);
+		$this->assertNotSame('', trim($output));
+		$this->assertStringContainsString('test log line', $output);
 	}
 }

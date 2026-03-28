@@ -34,7 +34,7 @@ class Tax_Rates_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Tear down: clean up any registered actions/filters.
+	 * Tear down test fixtures.
 	 */
 	protected function tearDown(): void {
 
@@ -135,11 +135,13 @@ class Tax_Rates_Admin_Page_Test extends WP_UnitTestCase {
 
 		set_current_screen('dashboard-network');
 
-		ob_start();
-		$this->page->output();
-		ob_get_clean();
-
-		remove_action('wu_load_tax_rates_list_page', $callback);
+		try {
+			ob_start();
+			$this->page->output();
+			ob_get_clean();
+		} finally {
+			remove_action('wu_load_tax_rates_list_page', $callback);
+		}
 
 		$this->assertTrue($action_fired);
 	}
@@ -159,11 +161,13 @@ class Tax_Rates_Admin_Page_Test extends WP_UnitTestCase {
 
 		set_current_screen('dashboard-network');
 
-		ob_start();
-		$this->page->output();
-		ob_get_clean();
-
-		remove_filter('wu_tax_rates_columns', $callback);
+		try {
+			ob_start();
+			$this->page->output();
+			ob_get_clean();
+		} finally {
+			remove_filter('wu_tax_rates_columns', $callback);
+		}
 
 		$this->assertTrue($filter_called);
 	}
@@ -183,11 +187,13 @@ class Tax_Rates_Admin_Page_Test extends WP_UnitTestCase {
 
 		set_current_screen('dashboard-network');
 
-		ob_start();
-		$this->page->output();
-		ob_get_clean();
-
-		remove_filter('wu_tax_rates_columns', $callback);
+		try {
+			ob_start();
+			$this->page->output();
+			ob_get_clean();
+		} finally {
+			remove_filter('wu_tax_rates_columns', $callback);
+		}
 
 		$this->assertIsArray($received_columns);
 		$this->assertArrayHasKey('title', $received_columns);
@@ -203,8 +209,10 @@ class Tax_Rates_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_output_columns_filter_can_modify_columns(): void {
 
-		$callback = function ($columns) {
+		$received_columns = null;
+		$callback         = function ($columns) use (&$received_columns) {
 			$columns['custom_col'] = 'Custom Column';
+			$received_columns      = $columns;
 			return $columns;
 		};
 
@@ -212,14 +220,17 @@ class Tax_Rates_Admin_Page_Test extends WP_UnitTestCase {
 
 		set_current_screen('dashboard-network');
 
-		ob_start();
-		$this->page->output();
-		$output = ob_get_clean();
+		try {
+			ob_start();
+			$this->page->output();
+			ob_get_clean();
+		} finally {
+			remove_filter('wu_tax_rates_columns', $callback);
+		}
 
-		remove_filter('wu_tax_rates_columns', $callback);
-
-		// The filter was applied — we just verify no exception was thrown.
-		$this->assertTrue(true);
+		$this->assertIsArray($received_columns);
+		$this->assertArrayHasKey('custom_col', $received_columns);
+		$this->assertEquals('Custom Column', $received_columns['custom_col']);
 	}
 
 	// -------------------------------------------------------------------------
