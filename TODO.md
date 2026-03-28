@@ -77,27 +77,27 @@ Overall coverage: **35%** (20,720 / 59,212 statements). 90 files at 0% coverage.
 - [x] t497 test(admin): write unit tests for Email_Edit_Admin_Page (inc/admin-pages/class-email-edit-admin-page.php — 0% coverage, ~576 lines) #testing #auto-dispatch ~4h ref:GH#639 pr:#650 completed:2026-03-28
 - [x] t498 test(admin): write unit tests for Broadcast_Edit_Admin_Page (inc/admin-pages/class-broadcast-edit-admin-page.php — 0% coverage, ~513 lines) #testing #auto-dispatch ~4h ref:GH#640 pr:#655 completed:2026-03-28
 - [x] t499 test(admin): write unit tests for Base_Admin_Page (inc/admin-pages/class-base-admin-page.php — 0% coverage, ~800 lines) #testing #auto-dispatch ~5h ref:GH#641 pr:#651 completed:2026-03-28
-- [ ] t500 test(admin): write unit tests for Addons_Admin_Page (inc/admin-pages/class-addons-admin-page.php — 0% coverage, ~513 lines) #testing #auto-dispatch ~4h ref:GH#642
+- [x] t500 test(admin): write unit tests for Addons_Admin_Page (inc/admin-pages/class-addons-admin-page.php — 0% coverage, ~513 lines) #testing #auto-dispatch ~4h ref:GH#642 pr:#667 completed:2026-03-28
 - [x] t501 test(admin): write unit tests for Dashboard_Admin_Page (inc/admin-pages/class-dashboard-admin-page.php — 0% coverage) #testing #auto-dispatch ~4h ref:GH#643 pr:#657 completed:2026-03-28
-- [ ] t502 test(admin): write unit tests for Customer_List_Admin_Page (inc/admin-pages/class-customer-list-admin-page.php — 0% coverage) #testing #auto-dispatch ~3h ref:GH#644
+- [x] t502 test(admin): write unit tests for Customer_List_Admin_Page (inc/admin-pages/class-customer-list-admin-page.php — 0% coverage) #testing #auto-dispatch ~3h ref:GH#644 pr:#663 completed:2026-03-28
 - [x] t503 test(admin): write unit tests for Discount_Code_List_Admin_Page (inc/admin-pages/class-discount-code-list-admin-page.php — 0% coverage) #testing #auto-dispatch ~3h ref:GH#645 pr:#454 verified:2026-03-28
 - [x] t504 test(admin): write unit tests for Domain_List_Admin_Page (inc/admin-pages/class-domain-list-admin-page.php — 0% coverage) #testing #auto-dispatch ~3h ref:GH#646 pr:#654 completed:2026-03-28
 - [x] t505 test(admin): write unit tests for Email_List_Admin_Page (inc/admin-pages/class-email-list-admin-page.php — 0% coverage) #testing #auto-dispatch ~3h ref:GH#647 pr:#656 completed:2026-03-28
 
 ### Priority 8 — Remaining Admin Pages (0% coverage)
 
-- [ ] t506 test(admin): write unit tests for Settings_Admin_Page (inc/admin-pages/class-settings-admin-page.php — 0% coverage, ~980 lines) #testing #auto-dispatch ~6h ref:GH#658
-- [ ] t507 test(admin): write unit tests for Setup_Wizard_Admin_Page (inc/admin-pages/class-setup-wizard-admin-page.php — 0% coverage, ~947 lines) #testing #auto-dispatch ~6h ref:GH#659
-- [ ] t508 test(admin): write unit tests for System_Info_Admin_Page (inc/admin-pages/class-system-info-admin-page.php — 0% coverage, ~778 lines) #testing #auto-dispatch ~5h ref:GH#660
-- [ ] t509 test(admin): write unit tests for Email_Template_Customize_Admin_Page (inc/admin-pages/class-email-template-customize-admin-page.php — 0% coverage, ~692 lines) #testing #auto-dispatch ~4h ref:GH#661
-- [ ] t510 test(admin): write unit tests for Template_Library_Admin_Page (inc/admin-pages/class-template-library-admin-page.php — 0% coverage, ~673 lines) #testing #auto-dispatch ~4h ref:GH#662
+- [x] t506 test(admin): write unit tests for Settings_Admin_Page (inc/admin-pages/class-settings-admin-page.php — 0% coverage, ~980 lines) #testing #auto-dispatch ~6h ref:GH#658 pr:#664 completed:2026-03-28
+- [x] t507 test(admin): write unit tests for Setup_Wizard_Admin_Page (inc/admin-pages/class-setup-wizard-admin-page.php — 0% coverage, ~947 lines) #testing #auto-dispatch ~6h ref:GH#659 pr:#665 completed:2026-03-28
+- [x] t508 test(admin): write unit tests for System_Info_Admin_Page (inc/admin-pages/class-system-info-admin-page.php — 0% coverage, ~778 lines) #testing #auto-dispatch ~5h ref:GH#660 pr:#669 completed:2026-03-28
+- [x] t509 test(admin): write unit tests for Email_Template_Customize_Admin_Page (inc/admin-pages/class-email-template-customize-admin-page.php — 0% coverage, ~692 lines) #testing #auto-dispatch ~4h ref:GH#661 pr:#668 completed:2026-03-28
+- [x] t510 test(admin): write unit tests for Template_Library_Admin_Page (inc/admin-pages/class-template-library-admin-page.php — 0% coverage, ~673 lines) #testing #auto-dispatch ~4h ref:GH#662 pr:#666 completed:2026-03-28
 
 ### Priority 9 — Remaining Admin Pages & List Tables (0% coverage)
 
 - [x] t511 test(admin): write unit tests for Multisite_Setup_Admin_Page (inc/admin-pages/class-multisite-setup-admin-page.php — 0% coverage, ~520 lines) #testing #auto-dispatch ~4h ref:GH#672 pr:#682 completed:2026-03-28
 - [x] t512 test(admin): write unit tests for Wizard_Admin_Page (inc/admin-pages/class-wizard-admin-page.php — 0% coverage, ~445 lines) #testing #auto-dispatch ~3h ref:GH#673 pr:#686 completed:2026-03-28
 - [x] t513 test(admin): write unit tests for Invoice_Template_Customize_Admin_Page (inc/admin-pages/class-invoice-template-customize-admin-page.php — 0% coverage, ~435 lines) #testing #auto-dispatch ~3h ref:GH#674 pr:#680 completed:2026-03-28
-- [ ] t514 test(admin): write unit tests for Hosting_Integration_Wizard_Admin_Page (inc/admin-pages/class-hosting-integration-wizard-admin-page.php — 0% coverage, ~420 lines) #testing #auto-dispatch ~3h ref:GH#675
+- [x] t514 test(admin): write unit tests for Hosting_Integration_Wizard_Admin_Page (inc/admin-pages/class-hosting-integration-wizard-admin-page.php — 0% coverage, ~420 lines) #testing #auto-dispatch ~3h ref:GH#675 pr:#687 completed:2026-03-28
 - [x] t515 test(admin): write unit tests for External_Cron_Admin_Page (inc/admin-pages/class-external-cron-admin-page.php — 0% coverage, ~417 lines) #testing #auto-dispatch ~3h ref:GH#676 pr:#683 completed:2026-03-28
 - [x] t516 test(list-tables): write unit tests for remaining list table classes (15 files, 0% coverage) #testing #auto-dispatch ~6h ref:GH#677 pr:#684 completed:2026-03-28
 - [x] t517 test(admin): write unit tests for View_Logs and Tax_Rates admin pages (0% coverage) #testing #auto-dispatch ~3h ref:GH#678 pr:#681 completed:2026-03-28
