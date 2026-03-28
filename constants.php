@@ -37,3 +37,17 @@ if ( ! defined('WP_ULTIMO_PLUGIN_BASENAME')) {
 if ( ! defined('WU_TEMPLATE_LIBRARY_ENABLED')) {
 	define('WU_TEMPLATE_LIBRARY_ENABLED', false);
 }
+
+/**
+ * Feature flag: Enable External Cron Service.
+ *
+ * When set to true, enables the External Cron manager, admin page,
+ * and service integration. Server-side functionality is not complete,
+ * so this defaults to false. Developers can enable this by defining
+ * WU_EXTERNAL_CRON_ENABLED as true in wp-config.php before the plugin loads.
+ *
+ * @since 2.5.0
+ */
+if ( ! defined('WU_EXTERNAL_CRON_ENABLED')) {
+	define('WU_EXTERNAL_CRON_ENABLED', false);
+}
