@@ -270,10 +270,23 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_field_types_excludes_hidden_fields(): void {
 		$field_types = $this->page->field_types();
 
-		// Hidden fields should be filtered out (null values removed)
-		foreach ($field_types as $type) {
-			$this->assertNotNull($type);
+		// Collect the 'type' slugs of all fields that report is_hidden() === true
+		$hidden_type_slugs = [];
+		$registered        = \WP_Ultimo\Managers\Signup_Fields_Manager::get_instance()->get_field_types();
+		foreach ($registered as $class_name) {
+			$field = new $class_name();
+			if ($field->is_hidden()) {
+				$hidden_type_slugs[] = $field->get_type();
+			}
 		}
+
+		// None of the hidden type slugs should appear in the returned field_types array
+		$returned_type_slugs = array_column($field_types, 'type');
+		$intersection        = array_intersect($returned_type_slugs, $hidden_type_slugs);
+		$this->assertEmpty(
+			$intersection,
+			'field_types() must not include hidden field types: ' . implode(', ', $intersection)
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -651,12 +664,9 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$decoded = json_decode($output, true);
-		if ($decoded !== null) {
-			$this->assertFalse($decoded['success']);
-		} else {
-			// wp_send_json_error was called — test passes
-			$this->assertTrue(true);
-		}
+		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
+		$this->assertArrayHasKey('success', $decoded);
+		$this->assertFalse($decoded['success']);
 	}
 
 	/**
@@ -681,13 +691,11 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$decoded = json_decode($output, true);
-		if ($decoded !== null) {
-			$this->assertTrue($decoded['success']);
-			$this->assertArrayHasKey('send', $decoded['data']);
-			$this->assertEquals('add_step', $decoded['data']['send']['function_name']);
-		} else {
-			$this->assertTrue(true);
-		}
+		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
+		$this->assertArrayHasKey('success', $decoded);
+		$this->assertTrue($decoded['success']);
+		$this->assertArrayHasKey('send', $decoded['data']);
+		$this->assertEquals('add_step', $decoded['data']['send']['function_name']);
 	}
 
 	// -------------------------------------------------------------------------
@@ -709,11 +717,9 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$decoded = json_decode($output, true);
-		if ($decoded !== null) {
-			$this->assertFalse($decoded['success']);
-		} else {
-			$this->assertTrue(true);
-		}
+		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
+		$this->assertArrayHasKey('success', $decoded);
+		$this->assertFalse($decoded['success']);
 	}
 
 	/**
@@ -742,13 +748,11 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$decoded = json_decode($output, true);
-		if ($decoded !== null) {
-			$this->assertTrue($decoded['success']);
-			$this->assertArrayHasKey('send', $decoded['data']);
-			$this->assertEquals('add_field', $decoded['data']['send']['function_name']);
-		} else {
-			$this->assertTrue(true);
-		}
+		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
+		$this->assertArrayHasKey('success', $decoded);
+		$this->assertTrue($decoded['success']);
+		$this->assertArrayHasKey('send', $decoded['data']);
+		$this->assertEquals('add_field', $decoded['data']['send']['function_name']);
 	}
 
 	/**
@@ -775,12 +779,15 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$decoded = json_decode($output, true);
-		if ($decoded !== null && isset($decoded['data']['send']['data']['id'])) {
-			$this->assertNotEmpty($decoded['data']['send']['data']['id']);
-			$this->assertStringStartsWith($type_key . '-', $decoded['data']['send']['data']['id']);
-		} else {
-			$this->assertTrue(true);
-		}
+		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
+		$this->assertArrayHasKey('success', $decoded);
+		$this->assertTrue($decoded['success']);
+		$this->assertArrayHasKey('data', $decoded);
+		$this->assertArrayHasKey('send', $decoded['data']);
+		$this->assertArrayHasKey('data', $decoded['data']['send']);
+		$this->assertArrayHasKey('id', $decoded['data']['send']['data']);
+		$this->assertNotEmpty($decoded['data']['send']['data']['id']);
+		$this->assertStringStartsWith($type_key . '-', $decoded['data']['send']['data']['id']);
 	}
 
 	// -------------------------------------------------------------------------
@@ -803,11 +810,9 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$decoded = json_decode($output, true);
-		if ($decoded !== null) {
-			$this->assertFalse($decoded['success']);
-		} else {
-			$this->assertTrue(true);
-		}
+		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
+		$this->assertArrayHasKey('success', $decoded);
+		$this->assertFalse($decoded['success']);
 	}
 
 	/**
@@ -826,11 +831,9 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$decoded = json_decode($output, true);
-		if ($decoded !== null) {
-			$this->assertFalse($decoded['success']);
-		} else {
-			$this->assertTrue(true);
-		}
+		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
+		$this->assertArrayHasKey('success', $decoded);
+		$this->assertFalse($decoded['success']);
 	}
 
 	/**
@@ -859,11 +862,9 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$decoded = json_decode($output, true);
-		if ($decoded !== null) {
-			$this->assertTrue($decoded['success']);
-		} else {
-			$this->assertTrue(true);
-		}
+		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
+		$this->assertArrayHasKey('success', $decoded);
+		$this->assertTrue($decoded['success']);
 	}
 
 	// -------------------------------------------------------------------------
