@@ -47,7 +47,7 @@ npm run check                        # lint + stan + test
 
 ## Project Structure
 
-```
+```text
 ultimate-multisite.php   # Plugin entry point, defines WP_ULTIMO_PLUGIN_FILE
 constants.php            # Plugin constants and feature flags
 sunrise.php              # MU-plugin for domain mapping (loaded before WP)
