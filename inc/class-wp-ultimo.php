@@ -855,7 +855,18 @@ final class WP_Ultimo {
 
 		new WP_Ultimo\Admin_Pages\Setup_Wizard_Admin_Page();
 
-		new WP_Ultimo\Admin_Pages\Template_Library_Admin_Page();
+		/**
+		 * Template Library Admin Page.
+		 *
+		 * This is behind a feature flag as server-side functionality
+		 * is not yet complete. Define WU_TEMPLATE_LIBRARY_ENABLED as true
+		 * in wp-config.php to enable for development/testing.
+		 *
+		 * @since 2.5.0
+		 */
+		if (defined('WU_TEMPLATE_LIBRARY_ENABLED') && WU_TEMPLATE_LIBRARY_ENABLED) {
+			new WP_Ultimo\Admin_Pages\Template_Library_Admin_Page();
+		}
 
 		do_action('wp_ultimo_admin_pages');
 	}

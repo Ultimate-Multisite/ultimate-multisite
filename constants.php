@@ -23,3 +23,17 @@ if ( ! defined('WP_ULTIMO_PLUGIN_URL')) {
 if ( ! defined('WP_ULTIMO_PLUGIN_BASENAME')) {
 	define('WP_ULTIMO_PLUGIN_BASENAME', plugin_basename(WP_ULTIMO_PLUGIN_FILE));
 }
+
+/**
+ * Feature flag: Enable Template Library.
+ *
+ * When set to true, enables the Template Library admin page.
+ * Server-side functionality is not complete, so this defaults to false.
+ * Developers can enable this by defining WU_TEMPLATE_LIBRARY_ENABLED as true
+ * in wp-config.php before the plugin loads.
+ *
+ * @since 2.5.0
+ */
+if ( ! defined('WU_TEMPLATE_LIBRARY_ENABLED')) {
+	define('WU_TEMPLATE_LIBRARY_ENABLED', false);
+}
