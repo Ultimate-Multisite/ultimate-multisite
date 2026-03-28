@@ -41,6 +41,8 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 		delete_site_transient('wu-addons-list-beta');
 		delete_transient('wu-access-token');
 		wu_save_setting('enable_beta_updates', false);
+		delete_option('wu_allow_beta_addons');
+		delete_option('wu_is_debug');
 		unset($_GET['tab'], $_REQUEST['addon']);
 		$_POST = array();
 		parent::tearDown();
