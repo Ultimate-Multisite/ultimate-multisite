@@ -20,11 +20,22 @@ class System_Info_Admin_Page_Test extends WP_UnitTestCase {
 	private $page;
 
 	/**
+	 * Original HTTP_USER_AGENT value, captured before setUp() overwrites it.
+	 *
+	 * @var string|null
+	 */
+	private $original_user_agent;
+
+	/**
 	 * Set up test fixtures.
 	 */
 	protected function setUp(): void {
 
 		parent::setUp();
+
+		// Snapshot the original value so tearDown() can restore it rather than
+		// unconditionally unsetting it (which would remove a pre-existing UA).
+		$this->original_user_agent = $_SERVER['HTTP_USER_AGENT'] ?? null;
 
 		// Set a default user agent so get_browser() always matches a known browser.
 		// The source class has a known bug: $browser_name_short is undefined when no
@@ -40,7 +51,11 @@ class System_Info_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	protected function tearDown(): void {
 
-		unset($_SERVER['HTTP_USER_AGENT']);
+		if (null === $this->original_user_agent) {
+			unset($_SERVER['HTTP_USER_AGENT']);
+		} else {
+			$_SERVER['HTTP_USER_AGENT'] = $this->original_user_agent;
+		}
 
 		parent::tearDown();
 	}
@@ -419,12 +434,22 @@ class System_Info_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_active_plugins_returns_empty_when_none(): void {
 
-		delete_site_option('active_sitewide_plugins');
+		$original = get_site_option('active_sitewide_plugins', null);
 
-		$plugins = $this->page->get_active_plugins();
+		try {
+			delete_site_option('active_sitewide_plugins');
 
-		$this->assertIsArray($plugins);
-		$this->assertEmpty($plugins);
+			$plugins = $this->page->get_active_plugins();
+
+			$this->assertIsArray($plugins);
+			$this->assertEmpty($plugins);
+		} finally {
+			if (null === $original) {
+				delete_site_option('active_sitewide_plugins');
+			} else {
+				update_site_option('active_sitewide_plugins', $original);
+			}
+		}
 	}
 
 	/**
@@ -432,13 +457,21 @@ class System_Info_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_active_plugins_reflects_site_option(): void {
 
-		update_site_option('active_sitewide_plugins', ['some-plugin/some-plugin.php' => time()]);
+		$original = get_site_option('active_sitewide_plugins', null);
 
-		$plugins = $this->page->get_active_plugins();
+		try {
+			update_site_option('active_sitewide_plugins', ['some-plugin/some-plugin.php' => time()]);
 
-		$this->assertArrayHasKey('some-plugin/some-plugin.php', $plugins);
+			$plugins = $this->page->get_active_plugins();
 
-		delete_site_option('active_sitewide_plugins');
+			$this->assertArrayHasKey('some-plugin/some-plugin.php', $plugins);
+		} finally {
+			if (null === $original) {
+				delete_site_option('active_sitewide_plugins');
+			} else {
+				update_site_option('active_sitewide_plugins', $original);
+			}
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -923,20 +956,19 @@ class System_Info_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_get_data_applies_filter(): void {
 
 		$filter_called = false;
+		$callback      = function ($data) use (&$filter_called) {
+			$filter_called = true;
+			return $data;
+		};
 
-		add_filter(
-			'wu_system_info_data',
-			function ($data) use (&$filter_called) {
-				$filter_called = true;
-				return $data;
-			}
-		);
+		add_filter('wu_system_info_data', $callback);
 
-		$this->page->get_data();
-
-		$this->assertTrue($filter_called);
-
-		remove_all_filters('wu_system_info_data');
+		try {
+			$this->page->get_data();
+			$this->assertTrue($filter_called);
+		} finally {
+			remove_filter('wu_system_info_data', $callback);
+		}
 	}
 
 	/**
@@ -944,20 +976,20 @@ class System_Info_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_data_filter_can_modify_data(): void {
 
-		add_filter(
-			'wu_system_info_data',
-			function ($data) {
-				$data['Custom Section'] = ['custom-key' => ['tooltip' => '', 'title' => 'Custom', 'value' => 'test']];
-				return $data;
-			}
-		);
+		$callback = function ($data) {
+			$data['Custom Section'] = ['custom-key' => ['tooltip' => '', 'title' => 'Custom', 'value' => 'test']];
+			return $data;
+		};
 
-		$data = $this->page->get_data();
+		add_filter('wu_system_info_data', $callback);
 
-		$this->assertArrayHasKey('Custom Section', $data);
-		$this->assertEquals('test', $data['Custom Section']['custom-key']['value']);
-
-		remove_all_filters('wu_system_info_data');
+		try {
+			$data = $this->page->get_data();
+			$this->assertArrayHasKey('Custom Section', $data);
+			$this->assertEquals('test', $data['Custom Section']['custom-key']['value']);
+		} finally {
+			remove_filter('wu_system_info_data', $callback);
+		}
 	}
 
 	/**
@@ -1252,47 +1284,64 @@ class System_Info_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test get_data max execution time value contains 'seconds'.
+	 * Test get_data max execution time value contains the translated 'seconds' word.
+	 *
+	 * Uses the same translation call as the production code so the assertion is
+	 * locale-independent and does not break in non-en_US environments.
+	 * Production code: sprintf(__('%s seconds', 'ultimate-multisite'), ini_get('max_execution_time'))
 	 */
 	public function test_get_data_max_execution_time_contains_seconds(): void {
 
 		$data  = $this->page->get_data();
 		$value = $data['WordPress and System Settings']['php-max-execution-time']['value'];
 
-		$this->assertStringContainsString('seconds', $value);
+		// Assert against the translated format string rather than the hardcoded English word.
+		$this->assertStringContainsString(__('seconds', 'ultimate-multisite'), $value);
 	}
 
 	/**
-	 * Test get_data multisite-active value is Yes or No.
+	 * Test get_data multisite-active value matches the translated Yes or No string.
+	 *
+	 * Uses the same translation calls as the production code so the assertion is
+	 * locale-independent and does not break in non-en_US environments.
+	 * Production code: is_multisite() ? __('Yes', ...) : __('No', ...)
 	 */
 	public function test_get_data_multisite_active_is_yes_or_no(): void {
 
 		$data  = $this->page->get_data();
 		$value = $data['WordPress and System Settings']['multisite-active']['value'];
 
-		$this->assertContains($value, ['Yes', 'No']);
+		$this->assertContains($value, [__('Yes', 'ultimate-multisite'), __('No', 'ultimate-multisite')]);
 	}
 
 	/**
-	 * Test get_data curl support value is Yes or No.
+	 * Test get_data curl support value matches the translated Yes or No string.
+	 *
+	 * Uses the same translation calls as the production code so the assertion is
+	 * locale-independent and does not break in non-en_US environments.
+	 * Production code: function_exists('curl_init') ? __('Yes', ...) : __('No', ...)
 	 */
 	public function test_get_data_curl_support_is_yes_or_no(): void {
 
 		$data  = $this->page->get_data();
 		$value = $data['WordPress and System Settings']['php-curl-support']['value'];
 
-		$this->assertContains($value, ['Yes', 'No']);
+		$this->assertContains($value, [__('Yes', 'ultimate-multisite'), __('No', 'ultimate-multisite')]);
 	}
 
 	/**
-	 * Test get_data gd support value is Yes or No.
+	 * Test get_data gd support value matches the translated Yes or No string.
+	 *
+	 * Uses the same translation calls as the production code so the assertion is
+	 * locale-independent and does not break in non-en_US environments.
+	 * Production code: function_exists('gd_info') ? __('Yes', ...) : __('No', ...)
 	 */
 	public function test_get_data_gd_support_is_yes_or_no(): void {
 
 		$data  = $this->page->get_data();
 		$value = $data['WordPress and System Settings']['php-gd-time']['value'];
 
-		$this->assertContains($value, ['Yes', 'No']);
+		$this->assertContains($value, [__('Yes', 'ultimate-multisite'), __('No', 'ultimate-multisite')]);
 	}
 
 	/**
