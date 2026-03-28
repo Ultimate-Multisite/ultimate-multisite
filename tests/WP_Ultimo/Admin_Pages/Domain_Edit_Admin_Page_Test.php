@@ -72,6 +72,8 @@ class Domain_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			$_POST['secure'],
 			$_REQUEST['id'],
 			$_REQUEST['primary_domain'],
+			$_REQUEST['active'],
+			$_REQUEST['secure'],
 			$_REQUEST['domain_id'],
 			$_REQUEST['record_id'],
 			$_REQUEST['set_domain_as_primary'],
