@@ -61,7 +61,8 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 
 		$result = wu_get_memberships(['search' => 'nonexistent_xyz_abc_123']);
 
-		$this->assertIsArray($result);
+		// A search that matches no customers must return an empty result, not just any array.
+		$this->assertEmpty($result);
 	}
 
 	/**
@@ -71,14 +72,29 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 
 		$user_id = self::factory()->user->create(['user_email' => 'searchable-member@example.com']);
 
-		wu_create_customer([
+		$customer = wu_create_customer([
 			'user_id'         => $user_id,
 			'skip_validation' => true,
 		]);
 
+		// Create a membership for the customer so the search has something to return.
+		$membership = wu_create_membership([
+			'customer_id'     => $customer->get_id(),
+			'status'          => 'active',
+			'amount'          => 10.00,
+			'currency'        => 'USD',
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($membership);
+
 		$result = wu_get_memberships(['search' => 'searchable-member@example.com']);
 
-		$this->assertIsArray($result);
+		// The search must return a non-empty array containing the created membership.
+		$this->assertNotEmpty($result, 'Search by customer email must return at least one membership.');
+
+		$result_ids = array_map(fn($m) => $m->get_id(), $result);
+		$this->assertContains($membership->get_id(), $result_ids, 'The created membership must appear in the search results.');
 	}
 
 	/**
@@ -201,13 +217,45 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test wu_get_membership_by_customer_gateway_id with amount filter returns false.
+	 * Test wu_get_membership_by_customer_gateway_id with amount filter validates the amount.
 	 */
 	public function test_get_membership_by_customer_gateway_id_with_amount(): void {
 
-		$result = wu_get_membership_by_customer_gateway_id('cus_nonexistent', ['stripe'], 99.99);
+		$customer = wu_create_customer([
+			'user_id'         => self::factory()->user->create(),
+			'skip_validation' => true,
+		]);
 
-		$this->assertFalse($result);
+		$gateway_customer_id = 'cus_test_amount_' . wp_rand();
+
+		$membership = wu_create_membership([
+			'customer_id'         => $customer->get_id(),
+			'status'              => 'pending',
+			'amount'              => 50.00,
+			'initial_amount'      => 50.00,
+			'currency'            => 'USD',
+			'gateway'             => 'stripe',
+			'gateway_customer_id' => $gateway_customer_id,
+			'skip_validation'     => true,
+		]);
+
+		$this->assertNotWPError($membership);
+
+		// Unfiltered lookup must find the membership.
+		$found = wu_get_membership_by_customer_gateway_id($gateway_customer_id, ['stripe']);
+		$this->assertNotFalse($found, 'Unfiltered lookup must return the seeded membership.');
+		$this->assertSame($membership->get_id(), $found->get_id());
+
+		// Amount mismatch must return false.
+		$this->assertFalse(
+			wu_get_membership_by_customer_gateway_id($gateway_customer_id, ['stripe'], 99.99),
+			'Amount mismatch must return false.'
+		);
+
+		// Exact amount match must return the membership.
+		$exact = wu_get_membership_by_customer_gateway_id($gateway_customer_id, ['stripe'], 50.00);
+		$this->assertNotFalse($exact, 'Exact amount match must return the membership.');
+		$this->assertSame($membership->get_id(), $exact->get_id());
 	}
 
 	/**
@@ -405,7 +453,8 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 
 		$this->assertNotWPError($product);
 
-		// Set amount different from product price to trigger adjustment line item
+		// Set amount different from product price to trigger adjustment line item.
+		// membership amount (15.00) > product amount (10.00) → difference = 5.00 debit adjustment.
 		$membership = wu_create_membership([
 			'customer_id'     => $customer->get_id(),
 			'plan_id'         => $product->get_id(),
@@ -424,6 +473,23 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 		$cart = wu_get_membership_new_cart($membership);
 
 		$this->assertInstanceOf(\WP_Ultimo\Checkout\Cart::class, $cart);
+
+		// Verify the ADJUSTMENT line item was created for the amount difference.
+		$line_items = $cart->get_line_items();
+		$this->assertNotEmpty($line_items, 'Cart must have line items.');
+
+		$adjustment_found = false;
+		foreach ($line_items as $id => $line_item) {
+			// The ADJUSTMENT line item has hash 'ADJUSTMENT' and its ID contains 'ADJUSTMENT'.
+			if (strpos((string) $id, 'ADJUSTMENT') !== false) {
+				$adjustment_found = true;
+				// The difference is 15.00 - 10.00 = 5.00.
+				$this->assertEquals(5.00, $line_item->get_unit_price(), 'ADJUSTMENT line item unit price must equal the amount difference (5.00).', 0.01);
+				break;
+			}
+		}
+
+		$this->assertTrue($adjustment_found, 'An ADJUSTMENT line item must be present when membership amount differs from product price.');
 	}
 
 	/**
@@ -553,8 +619,8 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 
 		$this->assertNotWPError($membership);
 
-		// Create a pending payment first
-		wu_create_payment([
+		// Create a pending payment first and capture its ID.
+		$pending_payment = wu_create_payment([
 			'customer_id'     => $customer->get_id(),
 			'membership_id'   => $membership->get_id(),
 			'currency'        => 'USD',
@@ -564,11 +630,19 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 			'skip_validation' => true,
 		]);
 
-		// Now create a new payment — should cancel the pending one
+		$this->assertNotWPError($pending_payment);
+		$pending_payment_id = $pending_payment->get_id();
+
+		// Now create a new payment — should cancel the pending one.
 		$new_payment = wu_membership_create_new_payment($membership, true);
 
 		$this->assertNotWPError($new_payment);
 		$this->assertInstanceOf(\WP_Ultimo\Models\Payment::class, $new_payment);
+
+		// Reload the original pending payment and assert it was cancelled.
+		$reloaded_pending = wu_get_payment($pending_payment_id);
+		$this->assertNotFalse($reloaded_pending, 'Original pending payment must still exist.');
+		$this->assertEquals('cancelled', $reloaded_pending->get_status(), 'Original pending payment must be cancelled after wu_membership_create_new_payment with should_cancel_pending_payments=true.');
 	}
 
 	/**
@@ -609,10 +683,30 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 
 		$this->assertNotWPError($membership);
 
+		// Create a pending payment and capture its ID.
+		$pending_payment = wu_create_payment([
+			'customer_id'     => $customer->get_id(),
+			'membership_id'   => $membership->get_id(),
+			'currency'        => 'USD',
+			'subtotal'        => 29.99,
+			'total'           => 29.99,
+			'status'          => 'pending',
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($pending_payment);
+		$pending_payment_id = $pending_payment->get_id();
+
+		// Create a new payment with should_cancel_pending_payments=false.
 		$payment = wu_membership_create_new_payment($membership, false);
 
 		$this->assertNotWPError($payment);
 		$this->assertInstanceOf(\WP_Ultimo\Models\Payment::class, $payment);
+
+		// Reload the original pending payment — it must remain pending.
+		$reloaded_pending = wu_get_payment($pending_payment_id);
+		$this->assertNotFalse($reloaded_pending, 'Original pending payment must still exist.');
+		$this->assertEquals('pending', $reloaded_pending->get_status(), 'Original pending payment must remain pending when should_cancel_pending_payments=false.');
 	}
 
 	/**
@@ -638,12 +732,13 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 
 		$this->assertNotWPError($product);
 
+		// Use initial_amount != amount to trigger an INITADJUSTMENT (non-recurring) line item.
 		$membership = wu_create_membership([
 			'customer_id'     => $customer->get_id(),
 			'plan_id'         => $product->get_id(),
 			'status'          => 'active',
 			'amount'          => 29.99,
-			'initial_amount'  => 29.99,
+			'initial_amount'  => 49.99,
 			'currency'        => 'USD',
 			'recurring'       => true,
 			'duration'        => 1,
@@ -653,10 +748,25 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 
 		$this->assertNotWPError($membership);
 
-		$payment = wu_membership_create_new_payment($membership, false, false);
+		// With remove_non_recurring=false, non-recurring line items must be kept.
+		$payment_keep = wu_membership_create_new_payment($membership, false, false);
 
-		$this->assertNotWPError($payment);
-		$this->assertInstanceOf(\WP_Ultimo\Models\Payment::class, $payment);
+		$this->assertNotWPError($payment_keep);
+		$this->assertInstanceOf(\WP_Ultimo\Models\Payment::class, $payment_keep);
+
+		$keep_items = $payment_keep->get_line_items();
+		$non_recurring_kept = array_filter($keep_items, fn($item) => ! $item->is_recurring());
+		$this->assertNotEmpty($non_recurring_kept, 'Non-recurring line items must be present when remove_non_recurring=false.');
+
+		// With remove_non_recurring=true (default), non-recurring line items must be stripped.
+		$payment_strip = wu_membership_create_new_payment($membership, false, true);
+
+		$this->assertNotWPError($payment_strip);
+		$this->assertInstanceOf(\WP_Ultimo\Models\Payment::class, $payment_strip);
+
+		$strip_items = $payment_strip->get_line_items();
+		$non_recurring_stripped = array_filter($strip_items, fn($item) => ! $item->is_recurring());
+		$this->assertEmpty($non_recurring_stripped, 'Non-recurring line items must be removed when remove_non_recurring=true.');
 	}
 
 	/**

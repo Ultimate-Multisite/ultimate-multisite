@@ -15,10 +15,10 @@ Overall coverage: **35%** (20,720 / 59,212 statements). 90 files at 0% coverage.
 
 - [x] t453 test(checkout): write unit tests for Checkout class (inc/checkout/class-checkout.php — 7.9% coverage, 960 uncovered stmts) #testing #auto-dispatch ~6h ref:GH#555 pr:#569 completed:2026-03-27
 - [x] t454 test(cart): improve Cart test coverage (inc/checkout/class-cart.php — 61.1% coverage, 382 uncovered stmts) #testing #auto-dispatch ~4h ref:GH#556 pr:#583 completed:2026-03-28
-- [ ] t455 test(stripe): write unit tests for Base_Stripe_Gateway (inc/gateways/class-base-stripe-gateway.php — 28.6% coverage, 1093 uncovered stmts) #testing #auto-dispatch ~8h ref:GH#624
+- [x] t455 test(stripe): write unit tests for Base_Stripe_Gateway (inc/gateways/class-base-stripe-gateway.php — 28.6% coverage, 1093 uncovered stmts) #testing #auto-dispatch ~8h ref:GH#624 pr:#648 completed:2026-03-28
 - [x] t456 test(stripe): improve Stripe_Gateway test coverage (inc/gateways/class-stripe-gateway.php — 55% coverage, 200 uncovered stmts) #testing ~4h pr:#623 completed:2026-03-28
-- [ ] t457 test(paypal): write unit tests for PayPal_Gateway (inc/gateways/class-paypal-gateway.php — 1.1% coverage, 783 uncovered stmts) #testing #auto-dispatch ~6h ref:GH#627
-- [ ] t458 test(paypal): improve PayPal_REST_Gateway test coverage (inc/gateways/class-paypal-rest-gateway.php — 29.8% coverage, 683 uncovered stmts) #testing #auto-dispatch ~5h ref:GH#629
+- [x] t457 test(paypal): write unit tests for PayPal_Gateway (inc/gateways/class-paypal-gateway.php — 1.1% coverage, 783 uncovered stmts) #testing #auto-dispatch ~6h ref:GH#627 pr:#649 completed:2026-03-28
+- [x] t458 test(paypal): improve PayPal_REST_Gateway test coverage (inc/gateways/class-paypal-rest-gateway.php — 29.8% coverage, 683 uncovered stmts) #testing #auto-dispatch ~5h ref:GH#629 pr:#636 completed:2026-03-28
 - [x] t459 test(paypal): write tests for PayPal_OAuth_Handler (inc/gateways/class-paypal-oauth-handler.php — 15% coverage, 238 uncovered stmts) #testing #auto-dispatch ~3h ref:GH#549 pr:#554 completed:2026-03-27
 - [x] t460 test(gateway): improve Gateway_Manager test coverage (inc/managers/class-gateway-manager.php — 34.7% coverage, 177 uncovered stmts) #testing #auto-dispatch ~3h ref:GH#550 pr:#552 completed:2026-03-27
 - [x] t461 test(checkout-pages): improve Checkout_Pages test coverage (inc/checkout/class-checkout-pages.php — 33.7% coverage, 203 uncovered stmts) #testing #auto-dispatch ~3h ref:GH#551 pr:#553 completed:2026-03-27
@@ -39,9 +39,9 @@ Overall coverage: **35%** (20,720 / 59,212 statements). 90 files at 0% coverage.
 
 ### Priority 3 — Admin Pages (0% coverage, UI-heavy but testable logic)
 
-- [ ] t473 test(admin): write unit tests for Membership_Edit_Admin_Page (inc/admin-pages/class-membership-edit-admin-page.php — 5% coverage, 1042 uncovered stmts) #testing #auto-dispatch ~6h ref:GH#626
+- [x] t473 test(admin): write unit tests for Membership_Edit_Admin_Page (inc/admin-pages/class-membership-edit-admin-page.php — 5% coverage, 1042 uncovered stmts) #testing #auto-dispatch ~6h ref:GH#626 pr:#634 completed:2026-03-28
 - [x] t474 test(admin): write unit tests for Payment_Edit_Admin_Page (inc/admin-pages/class-payment-edit-admin-page.php — 0% coverage, 913 uncovered stmts) #testing ~5h pr:#632 completed:2026-03-28
-- [ ] t475 test(admin): write unit tests for Checkout_Form_Edit_Admin_Page (inc/admin-pages/class-checkout-form-edit-admin-page.php — 0% coverage, 901 uncovered stmts) #testing ~5h ref:GH#630
+- [x] t475 test(admin): write unit tests for Checkout_Form_Edit_Admin_Page (inc/admin-pages/class-checkout-form-edit-admin-page.php — 0% coverage, 901 uncovered stmts) #testing ~5h ref:GH#630 pr:#637 completed:2026-03-28
 - [x] t476 test(admin): write unit tests for Product_Edit_Admin_Page (inc/admin-pages/class-product-edit-admin-page.php — 0% coverage, 869 uncovered stmts) #testing ~5h pr:#633 completed:2026-03-28
 - [x] t477 test(admin): write unit tests for Customer_Edit_Admin_Page (inc/admin-pages/class-customer-edit-admin-page.php — 0% coverage, 784 uncovered stmts) #testing ~5h pr:#622 completed:2026-03-28
 - [x] t478 test(admin): write unit tests for Discount_Code_Edit_Admin_Page (inc/admin-pages/class-discount-code-edit-admin-page.php — 1.5% coverage, 526 uncovered stmts) #testing ~4h pr:#618 completed:2026-03-28
@@ -73,16 +73,24 @@ Overall coverage: **35%** (20,720 / 59,212 statements). 90 files at 0% coverage.
 
 ### Priority 7 — More Admin Pages (0% coverage)
 
-- [ ] t496 test(admin): write unit tests for Domain_Edit_Admin_Page (inc/admin-pages/class-domain-edit-admin-page.php — 0% coverage, ~932 lines) #testing #auto-dispatch ~6h ref:GH#638
-- [ ] t497 test(admin): write unit tests for Email_Edit_Admin_Page (inc/admin-pages/class-email-edit-admin-page.php — 0% coverage, ~576 lines) #testing #auto-dispatch ~4h ref:GH#639
-- [ ] t498 test(admin): write unit tests for Broadcast_Edit_Admin_Page (inc/admin-pages/class-broadcast-edit-admin-page.php — 0% coverage, ~513 lines) #testing #auto-dispatch ~4h ref:GH#640
-- [ ] t499 test(admin): write unit tests for Base_Admin_Page (inc/admin-pages/class-base-admin-page.php — 0% coverage, ~800 lines) #testing #auto-dispatch ~5h ref:GH#641
+- [x] t496 test(admin): write unit tests for Domain_Edit_Admin_Page (inc/admin-pages/class-domain-edit-admin-page.php — 0% coverage, ~932 lines) #testing #auto-dispatch ~6h ref:GH#638 pr:#653 completed:2026-03-28
+- [x] t497 test(admin): write unit tests for Email_Edit_Admin_Page (inc/admin-pages/class-email-edit-admin-page.php — 0% coverage, ~576 lines) #testing #auto-dispatch ~4h ref:GH#639 pr:#650 completed:2026-03-28
+- [x] t498 test(admin): write unit tests for Broadcast_Edit_Admin_Page (inc/admin-pages/class-broadcast-edit-admin-page.php — 0% coverage, ~513 lines) #testing #auto-dispatch ~4h ref:GH#640 pr:#655 completed:2026-03-28
+- [x] t499 test(admin): write unit tests for Base_Admin_Page (inc/admin-pages/class-base-admin-page.php — 0% coverage, ~800 lines) #testing #auto-dispatch ~5h ref:GH#641 pr:#651 completed:2026-03-28
 - [ ] t500 test(admin): write unit tests for Addons_Admin_Page (inc/admin-pages/class-addons-admin-page.php — 0% coverage, ~513 lines) #testing #auto-dispatch ~4h ref:GH#642
-- [ ] t501 test(admin): write unit tests for Dashboard_Admin_Page (inc/admin-pages/class-dashboard-admin-page.php — 0% coverage) #testing #auto-dispatch ~4h ref:GH#643
+- [x] t501 test(admin): write unit tests for Dashboard_Admin_Page (inc/admin-pages/class-dashboard-admin-page.php — 0% coverage) #testing #auto-dispatch ~4h ref:GH#643 pr:#657 completed:2026-03-28
 - [ ] t502 test(admin): write unit tests for Customer_List_Admin_Page (inc/admin-pages/class-customer-list-admin-page.php — 0% coverage) #testing #auto-dispatch ~3h ref:GH#644
 - [x] t503 test(admin): write unit tests for Discount_Code_List_Admin_Page (inc/admin-pages/class-discount-code-list-admin-page.php — 0% coverage) #testing #auto-dispatch ~3h ref:GH#645 pr:#454 verified:2026-03-28
-- [ ] t504 test(admin): write unit tests for Domain_List_Admin_Page (inc/admin-pages/class-domain-list-admin-page.php — 0% coverage) #testing #auto-dispatch ~3h ref:GH#646
-- [ ] t505 test(admin): write unit tests for Email_List_Admin_Page (inc/admin-pages/class-email-list-admin-page.php — 0% coverage) #testing #auto-dispatch ~3h ref:GH#647
+- [x] t504 test(admin): write unit tests for Domain_List_Admin_Page (inc/admin-pages/class-domain-list-admin-page.php — 0% coverage) #testing #auto-dispatch ~3h ref:GH#646 pr:#654 completed:2026-03-28
+- [x] t505 test(admin): write unit tests for Email_List_Admin_Page (inc/admin-pages/class-email-list-admin-page.php — 0% coverage) #testing #auto-dispatch ~3h ref:GH#647 pr:#656 completed:2026-03-28
+
+### Priority 8 — Remaining Admin Pages (0% coverage)
+
+- [ ] t506 test(admin): write unit tests for Settings_Admin_Page (inc/admin-pages/class-settings-admin-page.php — 0% coverage, ~980 lines) #testing #auto-dispatch ~6h ref:GH#658
+- [ ] t507 test(admin): write unit tests for Setup_Wizard_Admin_Page (inc/admin-pages/class-setup-wizard-admin-page.php — 0% coverage, ~947 lines) #testing #auto-dispatch ~6h ref:GH#659
+- [ ] t508 test(admin): write unit tests for System_Info_Admin_Page (inc/admin-pages/class-system-info-admin-page.php — 0% coverage, ~778 lines) #testing #auto-dispatch ~5h ref:GH#660
+- [ ] t509 test(admin): write unit tests for Email_Template_Customize_Admin_Page (inc/admin-pages/class-email-template-customize-admin-page.php — 0% coverage, ~692 lines) #testing #auto-dispatch ~4h ref:GH#661
+- [ ] t510 test(admin): write unit tests for Template_Library_Admin_Page (inc/admin-pages/class-template-library-admin-page.php — 0% coverage, ~673 lines) #testing #auto-dispatch ~4h ref:GH#662
 
 ### Fix: Test suite exits early at 56%
 
