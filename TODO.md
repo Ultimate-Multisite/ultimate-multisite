@@ -71,6 +71,13 @@ Overall coverage: **35%** (20,720 / 59,212 statements). 90 files at 0% coverage.
 
 - [x] t494 test(api-schemas): write tests for API schema validation files (inc/apis/schemas/ — 0% coverage across 24 files, 2436 uncovered stmts) #testing #auto-dispatch ~6h ref:GH#604 pr:#605 completed:2026-03-28
 
+### Priority 7 — More Admin Pages (0% coverage)
+
+- [ ] t496 test(admin): write unit tests for Domain_Edit_Admin_Page (inc/admin-pages/class-domain-edit-admin-page.php — 0% coverage, ~932 lines) #testing #auto-dispatch ~6h ref:GH#638
+- [ ] t497 test(admin): write unit tests for Email_Edit_Admin_Page (inc/admin-pages/class-email-edit-admin-page.php — 0% coverage, ~576 lines) #testing #auto-dispatch ~4h ref:GH#639
+- [ ] t498 test(admin): write unit tests for Broadcast_Edit_Admin_Page (inc/admin-pages/class-broadcast-edit-admin-page.php — 0% coverage, ~513 lines) #testing #auto-dispatch ~4h ref:GH#640
+- [ ] t499 test(admin): write unit tests for Base_Admin_Page (inc/admin-pages/class-base-admin-page.php — 0% coverage, ~800 lines) #testing #auto-dispatch ~5h ref:GH#641
+
 ### Fix: Test suite exits early at 56%
 
 - [x] t495 fix(tests): Form_Manager_Test::test_handle_model_delete_form_requires_confirmation calls exit() killing test runner at test 2533/4411 #bug #auto-dispatch ~1h ref:GH#562 pr:#563 completed:2026-03-27
