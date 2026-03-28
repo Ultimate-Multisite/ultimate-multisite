@@ -99,7 +99,7 @@ Overall coverage: **35%** (20,720 / 59,212 statements). 90 files at 0% coverage.
 - [x] t513 test(admin): write unit tests for Invoice_Template_Customize_Admin_Page (inc/admin-pages/class-invoice-template-customize-admin-page.php — 0% coverage, ~435 lines) #testing #auto-dispatch ~3h ref:GH#674 pr:#680 completed:2026-03-28
 - [ ] t514 test(admin): write unit tests for Hosting_Integration_Wizard_Admin_Page (inc/admin-pages/class-hosting-integration-wizard-admin-page.php — 0% coverage, ~420 lines) #testing #auto-dispatch ~3h ref:GH#675
 - [x] t515 test(admin): write unit tests for External_Cron_Admin_Page (inc/admin-pages/class-external-cron-admin-page.php — 0% coverage, ~417 lines) #testing #auto-dispatch ~3h ref:GH#676 pr:#683 completed:2026-03-28
-- [ ] t516 test(list-tables): write unit tests for remaining list table classes (15 files, 0% coverage) #testing #auto-dispatch ~6h ref:GH#677
+- [x] t516 test(list-tables): write unit tests for remaining list table classes (15 files, 0% coverage) #testing #auto-dispatch ~6h ref:GH#677 pr:#684 completed:2026-03-28
 - [ ] t517 test(admin): write unit tests for View_Logs and Tax_Rates admin pages (0% coverage) #testing #auto-dispatch ~3h ref:GH#678
 - [x] t518 test(admin): write unit tests for Template_Previewer, Checkout_Form_List, and Event_View admin pages (0% coverage) #testing #auto-dispatch ~3h ref:GH#679 pr:#685 completed:2026-03-28
 
