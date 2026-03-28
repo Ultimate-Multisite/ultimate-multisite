@@ -8,7 +8,6 @@
 namespace WP_Ultimo\Checkout\Signup_Fields;
 
 use WP_UnitTestCase;
-use WP_Ultimo\Managers\Field_Templates_Manager;
 
 /**
  * Test class for Signup_Field_Period_Selection.
