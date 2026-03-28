@@ -279,7 +279,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 							'has_trial'           => $this->get_object()->get_trial_duration() > 0,
 							'has_setup_fee'       => $this->get_object()->has_setup_fee(),
 							'setup_fee'           => $this->get_object()->get_setup_fee(),
-							'amount'              => $this->get_object()->get_formatted_amount(),
+							'amount'              => $this->get_object()->get_amount(),
 							'duration'            => $this->get_object()->get_duration(),
 							'duration_unit'       => $this->get_object()->get_duration_unit(),
 							'pwyw_recurring_mode' => $this->get_object()->get_pwyw_recurring_mode() ?: 'customer_choice',

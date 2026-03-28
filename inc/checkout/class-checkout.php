@@ -2052,6 +2052,14 @@ class Checkout {
 		 */
 		$variables['order'] = (new Cart($variables))->done();
 
+		/*
+		 * Always expose discount_code as a string so wu_checkout.discount_code
+		 * is never undefined in JS. An undefined value causes the Vue watcher
+		 * to fire a spurious create_order() call on page load when v-init sets
+		 * the field to an empty string.
+		 */
+		$variables['discount_code'] = '';
+
 		if ( ! empty($variables['order']->discount_code)) {
 			$variables['discount_code'] = $variables['order']->discount_code->get_code();
 		}

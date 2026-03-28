@@ -191,4 +191,99 @@ class Currency_Functions_Test extends WP_UnitTestCase {
 		$decimals = wu_currency_decimal_filter(3);
 		$this->assertIsInt($decimals);
 	}
+
+	/**
+	 * Test wu_get_currency_precision returns 2 when precision setting is empty string.
+	 *
+	 * Regression test for issue #496: wizard saves precision as '' causing
+	 * number_format() to fail with "Unknown format specifier" and JS to show NaN.
+	 */
+	public function test_get_currency_precision_empty_string_returns_2(): void {
+		add_filter(
+			'wu_get_setting',
+			function ($value, $setting) {
+				if ('precision' === $setting) {
+					return '';
+				}
+				return $value;
+			},
+			10,
+			2
+		);
+
+		$precision = wu_get_currency_precision();
+
+		remove_all_filters('wu_get_setting');
+
+		$this->assertSame(2, $precision);
+	}
+
+	/**
+	 * Test wu_get_currency_precision returns 2 when precision setting is false.
+	 */
+	public function test_get_currency_precision_false_returns_2(): void {
+		add_filter(
+			'wu_get_setting',
+			function ($value, $setting) {
+				if ('precision' === $setting) {
+					return false;
+				}
+				return $value;
+			},
+			10,
+			2
+		);
+
+		$precision = wu_get_currency_precision();
+
+		remove_all_filters('wu_get_setting');
+
+		$this->assertSame(2, $precision);
+	}
+
+	/**
+	 * Test wu_get_currency_precision returns the stored integer value when valid.
+	 */
+	public function test_get_currency_precision_valid_value(): void {
+		add_filter(
+			'wu_get_setting',
+			function ($value, $setting) {
+				if ('precision' === $setting) {
+					return '3';
+				}
+				return $value;
+			},
+			10,
+			2
+		);
+
+		$precision = wu_get_currency_precision();
+
+		remove_all_filters('wu_get_setting');
+
+		$this->assertSame(3, $precision);
+	}
+
+	/**
+	 * Test wu_get_currency_precision returns 0 for zero-decimal currencies.
+	 */
+	public function test_get_currency_precision_zero_is_valid(): void {
+		add_filter(
+			'wu_get_setting',
+			function ($value, $setting) {
+				if ('precision' === $setting) {
+					return '0';
+				}
+				return $value;
+			},
+			10,
+			2
+		);
+
+		$precision = wu_get_currency_precision();
+
+		remove_all_filters('wu_get_setting');
+
+		$this->assertSame(0, $precision);
+	}
 }

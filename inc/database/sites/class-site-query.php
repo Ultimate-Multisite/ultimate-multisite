@@ -15,7 +15,7 @@ use WP_Ultimo\Database\Engine\Query;
 defined('ABSPATH') || exit;
 
 /**
- * Class used for querying products.
+ * Class used for querying sites.
  *
  * @since 2.0.0
  */
@@ -105,16 +105,86 @@ class Site_Query extends Query {
 	protected $global_cache = true;
 
 	/**
-	 * We need to add the network_id if one is not set.
+	 * Maps convenience query params to their wp_blogmeta keys.
 	 *
-	 * @param array $query Query.
+	 * Fields like `type`, `customer_id`, `membership_id`, and `template_id`
+	 * are stored in wp_blogmeta, not as columns in wp_blogs. BerlinDB cannot
+	 * filter by them directly, so we convert them to meta_query clauses here.
 	 *
+	 * @since 2.5.0
+	 * @var array<string, string>
+	 */
+	protected $meta_filter_map = [
+		'type'          => \WP_Ultimo\Models\Site::META_TYPE,
+		'customer_id'   => \WP_Ultimo\Models\Site::META_CUSTOMER_ID,
+		'membership_id' => \WP_Ultimo\Models\Site::META_MEMBERSHIP_ID,
+		'template_id'   => \WP_Ultimo\Models\Site::META_TEMPLATE_ID,
+	];
+
+	/**
+	 * Converts meta-stored field params into meta_query clauses, then queries.
+	 *
+	 * BerlinDB can only filter by actual wp_blogs columns. Fields stored in
+	 * wp_blogmeta (type, customer_id, membership_id, template_id) must be
+	 * translated to meta_query clauses before the query is executed.
+	 *
+	 * Also ensures the current network's site_id is set when not provided.
+	 *
+	 * @since 2.0.0
+	 * @since 2.5.0 Added meta_query conversion for meta-stored fields.
+	 *
+	 * @param array $query Query parameters.
 	 * @return array|int
 	 */
 	public function query($query = array()) {
+
 		if (empty($query['site_id']) && empty($query['site_id__in'])) {
 			$query['site_id'] = get_current_network_id();
 		}
+
+		$extra_meta_clauses = [];
+
+		foreach ($this->meta_filter_map as $param => $meta_key) {
+			if ( ! isset($query[ $param ])) {
+				continue;
+			}
+
+			$value = $query[ $param ];
+
+			unset($query[ $param ]);
+
+			$extra_meta_clauses[] = [
+				'key'     => $meta_key,
+				'value'   => $value,
+				'compare' => '=',
+			];
+		}
+
+		if ( ! empty($extra_meta_clauses)) {
+			$existing = isset($query['meta_query']) && is_array($query['meta_query'])
+				? $query['meta_query']
+				: [];
+
+			/*
+			 * Preserve any existing relation key so callers can still pass
+			 * their own meta_query with a custom relation. The new clauses
+			 * are always ANDed together; if the caller already set a relation
+			 * we wrap both sets under a top-level AND.
+			 */
+			if ( ! empty($existing)) {
+				$query['meta_query'] = array_merge(
+					['relation' => 'AND'],
+					$existing,
+					$extra_meta_clauses
+				);
+			} else {
+				$query['meta_query'] = array_merge( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					['relation' => 'AND'],
+					$extra_meta_clauses
+				);
+			}
+		}
+
 		return parent::query($query);
 	}
 }

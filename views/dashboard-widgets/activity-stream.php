@@ -120,6 +120,7 @@ defined('ABSPATH') || exit;
 </div>
 
 <?php
-wp_enqueue_script('wu-activity-stream', wu_get_asset('activity-stream.js', 'js'), ['wu-vue'], wu_get_version(), true);
+// wu-functions must be a dependency so window.wu_moment is defined before activity-stream.js runs.
+wp_enqueue_script('wu-activity-stream', wu_get_asset('activity-stream.js', 'js'), ['wu-vue', 'wu-functions'], wu_get_version(), true);
 wp_add_inline_script('wu-activity-stream', 'var wu_activity_stream_nonce = "' . esc_js(wp_create_nonce('wu_activity_stream')) . '";', 'before');
 ?>

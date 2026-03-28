@@ -151,7 +151,7 @@
 			site_url: wu_checkout.site_url,
 			site_domain: wu_checkout.site_domain,
 			is_subdomain: wu_checkout.is_subdomain,
-			discount_code: wu_checkout.discount_code,
+			discount_code: wu_checkout.discount_code || '',
 			toggle_discount_code: 0,
 			payment_method: '',
 			username: '',
@@ -872,6 +872,13 @@
 					const that = this;
 
 					this.request('wu_validate_form', form_data, function (results) {
+
+						// Safari/iOS autofill does NOT fire keyup/input events, so
+						// valid_password may be stale at submit time. Force a
+						// synchronous re-check before deciding to show the error.
+						if (! that.valid_password && that.password_strength_checker) {
+							that.password_strength_checker.checkStrength();
+						}
 
 						if (! that.valid_password) {
 

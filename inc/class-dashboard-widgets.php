@@ -77,6 +77,14 @@ class Dashboard_Widgets implements \WP_Ultimo\Interfaces\Singleton {
 		wp_enqueue_script('wu-vue');
 
 		wp_enqueue_script('moment');
+
+		/*
+		 * wu-functions defines window.wu_moment, which is required by the
+		 * activity-stream widget. The network admin dashboard is not a
+		 * wp-ultimo page, so enqueue_default_admin_scripts() skips it —
+		 * we must enqueue wu-functions explicitly here.
+		 */
+		wp_enqueue_script('wu-functions');
 	}
 
 	/**

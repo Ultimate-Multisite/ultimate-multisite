@@ -17,7 +17,7 @@ defined('ABSPATH') || exit;
  *
  * @since 2.0.0
  */
-class Note {
+class Note implements \JsonSerializable {
 
 	/**
 	 * The Note content.
@@ -167,6 +167,22 @@ class Note {
 		}
 
 		return $address_array;
+	}
+
+	/**
+	 * Returns a JSON-serializable representation of the note.
+	 *
+	 * Implements JsonSerializable so that json_encode() produces the same
+	 * output as to_array() instead of serializing only public properties
+	 * (which would yield {} because $attributes is protected).
+	 *
+	 * @since 2.0.11
+	 * @return array
+	 */
+	#[\ReturnTypeWillChange]
+	public function jsonSerialize() {
+
+		return $this->to_array();
 	}
 
 	/**

@@ -107,16 +107,37 @@
 			// Set initial message
 			this.options.result.html(this.getStrengthLabel('empty'));
 
-			// Bind events
-			this.options.pass1.on('keyup input', function() {
+			// Bind events.
+			// Include 'change' for Safari/iOS autofill which does NOT fire
+			// keyup/input when auto-generating or pasting passwords (WebKit bug).
+			this.options.pass1.on('keyup input change', function() {
 				self.checkStrength();
 			});
 
 			if (this.options.pass2 && this.options.pass2.length) {
-				this.options.pass2.on('keyup input', function() {
+				this.options.pass2.on('keyup input change', function() {
 					self.checkStrength();
 				});
 			}
+
+			// Safari autofill detection — poll for value changes that bypass all
+			// DOM events (known WebKit bug). Stops after 60 seconds to avoid
+			// unnecessary CPU usage once the user has had time to fill the form.
+			this._lastPass1Val = '';
+			this._autofillPoll = setInterval(function() {
+				var currentVal = self.options.pass1.val();
+				if (currentVal !== self._lastPass1Val) {
+					self._lastPass1Val = currentVal;
+					self.checkStrength();
+				}
+			}, 1000);
+
+			setTimeout(function() {
+				if (self._autofillPoll) {
+					clearInterval(self._autofillPoll);
+					self._autofillPoll = null;
+				}
+			}, 60000);
 
 			// Disable submit initially if provided
 			if (this.options.submit && this.options.submit.length) {

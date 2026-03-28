@@ -358,6 +358,35 @@ function wu_get_currency_symbol($currency = '') {
 }
 
 /**
+ * Returns the currency precision (number of decimal places) as a valid integer.
+ *
+ * Reads the `precision` setting and falls back to 2 when the stored value is
+ * an empty string, false, or any other non-numeric value. This prevents
+ * `number_format()` from receiving an invalid precision argument (which would
+ * trigger "Unknown format specifier" errors) and stops `parseFloat('')`
+ * returning NaN in the JavaScript counterpart.
+ *
+ * @since 2.4.13
+ * @return int Number of decimal places (minimum 0, default 2).
+ */
+function wu_get_currency_precision(): int {
+
+	$raw = wu_get_setting('precision', 2);
+
+	/*
+	 * Guard against empty string, false, or null stored in the DB.
+	 * (int) '' === 0, which is a valid precision, but an empty string
+	 * stored in the DB means the setting was never properly saved —
+	 * fall back to the standard 2 decimal places.
+	 */
+	if ('' === $raw || false === $raw || null === $raw) {
+		return 2;
+	}
+
+	return max(0, (int) $raw);
+}
+
+/**
  * Formats a value into our defined format
  *
  * @param  string      $value Value to be processed.
@@ -390,7 +419,7 @@ function wu_format_currency($value, $currency = null, $format = null, $thousands
 			'format'        => wu_get_setting('currency_position', '%s %v'),
 			'thousands_sep' => wu_get_setting('thousand_separator', ','),
 			'decimal_sep'   => wu_get_setting('decimal_separator', '.'),
-			'precision'     => (int) wu_get_setting('precision', 2),
+			'precision'     => wu_get_currency_precision(),
 		]
 	);
 

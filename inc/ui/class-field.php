@@ -394,13 +394,29 @@ class Field implements \JsonSerializable {
 	 * Sanitization callback for fields of type number.
 	 *
 	 * Checks if the new value set is between the min and max boundaries.
+	 * When the submitted value is an empty string (e.g. the browser sends
+	 * an empty `<input type="number">`) the field's declared default is
+	 * used instead, preventing empty strings from being persisted to the
+	 * database and later causing `number_format()` / `parseFloat()` errors.
 	 *
 	 * @since 2.0.0
 	 *
-	 * @param int|float $value Value of the settings being represented by this field.
+	 * @param int|float|string $value Value of the settings being represented by this field.
 	 * @return int|float
 	 */
 	protected function validate_number_field($value) {
+
+		/*
+		 * An empty string means the field was submitted without a value
+		 * (e.g. the browser sends an empty <input type="number">).
+		 * Fall back to the field's declared default so we never persist ''
+		 * for a numeric setting (e.g. precision). We check both 'default'
+		 * (used by settings field definitions) and 'default_value' (the
+		 * canonical Field attribute name) so either convention works.
+		 */
+		if ('' === $value || false === $value || null === $value) {
+			$value = $this->atts['default'] ?? $this->default_value;
+		}
 
 		/**
 		 * Check if the value respects the min/max values.

@@ -143,6 +143,9 @@ class Domain_Manager extends Base_Manager {
 
 		add_action('plugins_loaded', [$this, 'load_integrations']);
 
+		// Initialize DNS Record Manager
+		add_action('plugins_loaded', [$this, 'init_dns_record_manager'], 11);
+
 		add_action('wp_ajax_wu_test_hosting_integration', [$this, 'test_integration']);
 
 		add_action('wp_ajax_wu_get_dns_records', [$this, 'get_dns_records']);
@@ -258,6 +261,18 @@ class Domain_Manager extends Base_Manager {
 
 		// Host is the network root domain itself — no override needed.
 		return null;
+	}
+
+	/**
+	 * Initialize the DNS Record Manager.
+	 *
+	 * @since 2.3.0
+	 *
+	 * @return void
+	 */
+	public function init_dns_record_manager(): void {
+
+		DNS_Record_Manager::get_instance();
 	}
 
 	/**

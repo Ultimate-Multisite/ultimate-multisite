@@ -238,6 +238,41 @@ class Default_Content_Installer extends Base_Installer {
 	}
 
 	/**
+	 * Ensures currency settings are initialized with proper defaults.
+	 *
+	 * Called before creating products or checkout forms so that
+	 * `wu_get_setting('precision')` always returns a usable integer
+	 * even when the wizard's "Your Company" step was skipped or the
+	 * precision field was submitted as an empty string.
+	 *
+	 * @since 2.4.13
+	 * @return void
+	 */
+	protected function ensure_currency_defaults(): void {
+
+		$defaults = [
+			'currency_symbol'    => 'USD',
+			'currency_position'  => '%s %v',
+			'decimal_separator'  => '.',
+			'thousand_separator' => ',',
+			'precision'          => 2,
+		];
+
+		foreach ($defaults as $key => $default) {
+			$current = wu_get_setting($key, false);
+
+			/*
+			 * Only write the default when the stored value is missing,
+			 * false, or an empty string. A stored 0 for precision is
+			 * intentional (zero-decimal currencies) and must be kept.
+			 */
+			if (false === $current || '' === $current) {
+				wu_save_setting($key, $default);
+			}
+		}
+	}
+
+	/**
 	 * Creates a example products.
 	 *
 	 * @since 2.0.0
@@ -245,6 +280,16 @@ class Default_Content_Installer extends Base_Installer {
 	 * @return void
 	 */
 	public function _install_create_products(): void {
+
+		/*
+		 * Guarantee that currency settings (especially `precision`) are
+		 * stored with valid defaults before product validation runs.
+		 * Without this, `wu_get_setting('precision')` can return '' which
+		 * causes the Product model's validation rule to fail with
+		 * "The Currency field is required" and later causes NaN prices.
+		 */
+		$this->ensure_currency_defaults();
+
 		/*
 		 * Saves Images
 		 */
@@ -340,6 +385,12 @@ class Default_Content_Installer extends Base_Installer {
 	 */
 	public function _install_create_checkout(): void {
 
+		/*
+		 * Ensure currency defaults are set before the checkout form template
+		 * renders any price formatting (e.g. the format specifier for precision).
+		 */
+		$this->ensure_currency_defaults();
+
 		$checkout_form = [
 			'name'     => __('Registration Form', 'ultimate-multisite'),
 			'slug'     => 'main-form',
@@ -363,16 +414,16 @@ class Default_Content_Installer extends Base_Installer {
 		 * customise in the block editor without touching shortcode syntax.
 		 */
 		$post_content = '<!-- wp:columns {"align":"wide"} -->
-<div class="wp-block-columns alignwide"><!-- wp:column {"width":"25%"} -->
-<div class="wp-block-column" style="flex-basis:25%"></div>
+<div class="wp-block-columns alignwide"><!-- wp:column {"width":"25%%"} -->
+<div class="wp-block-column" style="flex-basis:25%%"></div>
 <!-- /wp:column -->
 
-<!-- wp:column {"width":"50%"} -->
-<div class="wp-block-column" style="flex-basis:50%"><!-- wp:wp-ultimo/checkout {"slug":"%s"} /--></div>
+<!-- wp:column {"width":"50%%"} -->
+<div class="wp-block-column" style="flex-basis:50%%"><!-- wp:wp-ultimo/checkout {"slug":"%s"} /--></div>
 <!-- /wp:column -->
 
-<!-- wp:column {"width":"25%"} -->
-<div class="wp-block-column" style="flex-basis:25%"></div>
+<!-- wp:column {"width":"25%%"} -->
+<div class="wp-block-column" style="flex-basis:25%%"></div>
 <!-- /wp:column --></div>
 <!-- /wp:columns -->';
 

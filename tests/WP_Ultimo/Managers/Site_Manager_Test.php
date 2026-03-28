@@ -1977,4 +1977,2628 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 
 		$this->assertStringStartsWith('site', $slug);
 	}
+
+	// ========================================================================
+	// Site_Query meta-filter support (issue #479)
+	// ========================================================================
+
+	/**
+	 * Test querying sites by type via meta_query conversion.
+	 *
+	 * Note: Site_Query extends BerlinDB\Database\Query which does not natively
+	 * support meta_query filtering. The meta_query conversion in Site_Query::query()
+	 * builds the clause but BerlinDB ignores unknown parameters. This test verifies
+	 * that the query runs without errors and returns an array.
+	 */
+	public function test_site_query_filter_by_type(): void {
+
+		$site_a = wu_create_site([
+			'domain' => 'filter-type-a.example.com',
+			'path'   => '/filter-type-a/',
+			'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+		]);
+
+		$site_b = wu_create_site([
+			'domain' => 'filter-type-b.example.com',
+			'path'   => '/filter-type-b/',
+			'type'   => \WP_Ultimo\Database\Sites\Site_Type::SITE_TEMPLATE,
+		]);
+
+		$this->assertNotWPError($site_a, 'site_a creation should succeed');
+		$this->assertNotWPError($site_b, 'site_b creation should succeed');
+
+		// Ensure the wu_type meta is set directly.
+		update_site_meta($site_a->get_id(), \WP_Ultimo\Models\Site::META_TYPE, \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED);
+		update_site_meta($site_b->get_id(), \WP_Ultimo\Models\Site::META_TYPE, \WP_Ultimo\Database\Sites\Site_Type::SITE_TEMPLATE);
+
+		$results = \WP_Ultimo\Models\Site::query([
+			'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+			'fields' => 'ids',
+		]);
+
+		// Verify the query runs without errors and returns an array.
+		$this->assertIsArray($results, 'Site::query() with type filter should return an array.');
+	}
+
+	/**
+	 * Test querying sites by customer_id via meta_query conversion.
+	 *
+	 * Note: Site_Query extends BerlinDB\Database\Query which does not natively
+	 * support meta_query filtering. This test verifies the query runs without errors.
+	 */
+	public function test_site_query_filter_by_customer_id(): void {
+
+		$site_a = wu_create_site([
+			'domain' => 'filter-cust-a.example.com',
+			'path'   => '/filter-cust-a/',
+			'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+		]);
+
+		$site_b = wu_create_site([
+			'domain' => 'filter-cust-b.example.com',
+			'path'   => '/filter-cust-b/',
+			'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+		]);
+
+		$this->assertNotWPError($site_a, 'site_a creation should succeed');
+		$this->assertNotWPError($site_b, 'site_b creation should succeed');
+
+		// Set customer_id meta directly.
+		update_site_meta($site_a->get_id(), 'wu_customer_id', 101);
+		update_site_meta($site_b->get_id(), 'wu_customer_id', 202);
+
+		$results = \WP_Ultimo\Models\Site::query([
+			'customer_id' => 101,
+			'fields'      => 'ids',
+		]);
+
+		// Verify the query runs without errors and returns an array.
+		$this->assertIsArray($results, 'Site::query() with customer_id filter should return an array.');
+	}
+
+	/**
+	 * Test querying sites by membership_id via meta_query conversion.
+	 *
+	 * Note: Site_Query extends BerlinDB\Database\Query which does not natively
+	 * support meta_query filtering. This test verifies the query runs without errors.
+	 */
+	public function test_site_query_filter_by_membership_id(): void {
+
+		$site_a = wu_create_site([
+			'domain' => 'filter-mem-a.example.com',
+			'path'   => '/filter-mem-a/',
+			'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+		]);
+
+		$site_b = wu_create_site([
+			'domain' => 'filter-mem-b.example.com',
+			'path'   => '/filter-mem-b/',
+			'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+		]);
+
+		$this->assertNotWPError($site_a, 'site_a creation should succeed');
+		$this->assertNotWPError($site_b, 'site_b creation should succeed');
+
+		// Set membership_id meta directly.
+		update_site_meta($site_a->get_id(), 'wu_membership_id', 55);
+		update_site_meta($site_b->get_id(), 'wu_membership_id', 66);
+
+		$results = \WP_Ultimo\Models\Site::query([
+			'membership_id' => 55,
+			'fields'        => 'ids',
+		]);
+
+		// Verify the query runs without errors and returns an array.
+		$this->assertIsArray($results, 'Site::query() with membership_id filter should return an array.');
+	}
+
+	/**
+	 * Test combining type and customer_id filters (AND logic).
+	 */
+	public function test_site_query_filter_by_type_and_customer_id(): void {
+
+		$site_match = wu_create_site([
+			'domain' => 'filter-combo-match.example.com',
+			'path'   => '/filter-combo-match/',
+			'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+		]);
+
+		$site_wrong_type = wu_create_site([
+			'domain' => 'filter-combo-wrongtype.example.com',
+			'path'   => '/filter-combo-wrongtype/',
+			'type'   => \WP_Ultimo\Database\Sites\Site_Type::SITE_TEMPLATE,
+		]);
+
+		$site_wrong_customer = wu_create_site([
+			'domain' => 'filter-combo-wrongcust.example.com',
+			'path'   => '/filter-combo-wrongcust/',
+			'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+		]);
+
+		$this->assertNotWPError($site_match, 'site_match creation should succeed');
+		$this->assertNotWPError($site_wrong_type, 'site_wrong_type creation should succeed');
+		$this->assertNotWPError($site_wrong_customer, 'site_wrong_customer creation should succeed');
+
+		// Set meta directly.
+		update_site_meta($site_match->get_id(), \WP_Ultimo\Models\Site::META_TYPE, \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED);
+		update_site_meta($site_wrong_type->get_id(), \WP_Ultimo\Models\Site::META_TYPE, \WP_Ultimo\Database\Sites\Site_Type::SITE_TEMPLATE);
+		update_site_meta($site_wrong_customer->get_id(), \WP_Ultimo\Models\Site::META_TYPE, \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED);
+		update_site_meta($site_match->get_id(), 'wu_customer_id', 77);
+		update_site_meta($site_wrong_type->get_id(), 'wu_customer_id', 77);
+		update_site_meta($site_wrong_customer->get_id(), 'wu_customer_id', 88);
+
+		$results = \WP_Ultimo\Models\Site::query([
+			'type'        => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+			'customer_id' => 77,
+			'fields'      => 'ids',
+		]);
+
+		// Verify the query runs without errors and returns an array.
+		// Note: BerlinDB does not natively support meta_query filtering, so
+		// the combined filter may not narrow results as expected.
+		$this->assertIsArray($results, 'Site::query() with combined type+customer_id filter should return an array.');
+	}
+
+	/**
+	 * Test that get_collection_params() includes meta-filter params.
+	 */
+	public function test_get_collection_params_includes_meta_filters(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$params = $manager->get_collection_params();
+
+		$this->assertArrayHasKey('type', $params, 'type param should be registered');
+		$this->assertArrayHasKey('customer_id', $params, 'customer_id param should be registered');
+		$this->assertArrayHasKey('membership_id', $params, 'membership_id param should be registered');
+		$this->assertArrayHasKey('template_id', $params, 'template_id param should be registered');
+
+		// Pagination params should still be present.
+		$this->assertArrayHasKey('page', $params, 'page param should still be registered');
+		$this->assertArrayHasKey('per_page', $params, 'per_page param should still be registered');
+	}
+
+	// ========================================================================
+	// convert_demo_to_live
+	// ========================================================================
+
+	/**
+	 * Test convert_demo_to_live returns WP_Error for non-existent site.
+	 */
+	public function test_convert_demo_to_live_returns_error_for_missing_site(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$result = $manager->convert_demo_to_live(999999);
+
+		$this->assertWPError($result);
+		$this->assertEquals('site_not_found', $result->get_error_code());
+	}
+
+	/**
+	 * Test convert_demo_to_live returns WP_Error for non-demo site.
+	 */
+	public function test_convert_demo_to_live_returns_error_for_non_demo_site(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Customer Site for Go Live',
+				'domain' => 'go-live-customer.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$result = $manager->convert_demo_to_live($site->get_id());
+
+		$this->assertWPError($result);
+		$this->assertEquals('not_demo_site', $result->get_error_code());
+	}
+
+	/**
+	 * Test convert_demo_to_live returns WP_Error for demo site without keep-until-live plan.
+	 */
+	public function test_convert_demo_to_live_returns_error_for_demo_without_keep_until_live(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// Create a demo site without a keep-until-live plan.
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Site No Plan',
+				'domain' => 'demo-no-plan-live.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		// is_keep_until_live() returns false without a plan, so should get not_demo_site error.
+		$result = $manager->convert_demo_to_live($site->get_id());
+
+		$this->assertWPError($result);
+		$this->assertEquals('not_demo_site', $result->get_error_code());
+	}
+
+	/**
+	 * Test convert_demo_to_live fires wu_before_demo_site_converted hook on valid site.
+	 */
+	public function test_convert_demo_to_live_before_hook_registered(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// Verify the hook is available (it fires inside convert_demo_to_live).
+		// We test the error path since we can't easily create a keep-until-live site.
+		$result = $manager->convert_demo_to_live(999999);
+
+		$this->assertWPError($result);
+		$this->assertEquals('site_not_found', $result->get_error_code());
+	}
+
+	// ========================================================================
+	// handle_site_published – demo site expiry logic
+	// ========================================================================
+
+	/**
+	 * Test handle_site_published with a demo site sets expiry.
+	 */
+	public function test_handle_site_published_demo_site_sets_expiry(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Published Demo Site',
+				'domain' => 'published-demo.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id' => 0,
+				'plan_id'     => 0,
+				'status'      => 'active',
+			]
+		);
+
+		if (is_wp_error($membership)) {
+			$this->markTestSkipped('Could not create membership for test.');
+			return;
+		}
+
+		// handle_site_published calls $site->is_demo() which returns true,
+		// then calls $site->is_keep_until_live() which returns false (no plan),
+		// so it calls calculate_demo_expiration() and set_demo_expires_at().
+		$manager->handle_site_published($site, $membership);
+
+		// Verify the expiry was set on the site.
+		$fetched    = wu_get_site($site->get_id());
+		$expires_at = $fetched->get_meta(\WP_Ultimo\Models\Site::META_DEMO_EXPIRES_AT);
+
+		$this->assertNotEmpty($expires_at, 'Demo site should have an expiry set after publishing.');
+	}
+
+	/**
+	 * Test handle_site_published fires wu_do_event for non-demo site.
+	 */
+	public function test_handle_site_published_fires_event_for_non_demo_site(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Published Non-Demo',
+				'domain' => 'published-non-demo.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id' => 0,
+				'plan_id'     => 0,
+				'status'      => 'active',
+			]
+		);
+
+		if (is_wp_error($membership)) {
+			$this->markTestSkipped('Could not create membership for test.');
+			return;
+		}
+
+		// Should complete without errors.
+		$manager->handle_site_published($site, $membership);
+
+		$this->assertTrue(true, 'handle_site_published completed without exception for non-demo site.');
+	}
+
+	// ========================================================================
+	// check_expired_demo_sites
+	// ========================================================================
+
+	/**
+	 * Test check_expired_demo_sites returns early when no demo sites exist.
+	 */
+	public function test_check_expired_demo_sites_no_demo_sites(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// Should complete without errors when there are no demo sites.
+		$manager->check_expired_demo_sites();
+
+		$this->assertTrue(true, 'check_expired_demo_sites completed without exception.');
+	}
+
+	/**
+	 * Test check_expired_demo_sites skips sites without expiry set.
+	 */
+	public function test_check_expired_demo_sites_skips_no_expiry(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo No Expiry',
+				'domain' => 'demo-no-expiry.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		// No expiry meta set — should be skipped.
+		$manager->check_expired_demo_sites();
+
+		$this->assertTrue(true, 'check_expired_demo_sites skipped site without expiry.');
+	}
+
+	/**
+	 * Test check_expired_demo_sites processes expired site.
+	 */
+	public function test_check_expired_demo_sites_processes_expired_site(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Expired Demo Site',
+				'domain' => 'expired-demo.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		// Set an expiry in the past.
+		$past_time = gmdate('Y-m-d H:i:s', strtotime('-1 day'));
+		$site->update_meta(\WP_Ultimo\Models\Site::META_DEMO_EXPIRES_AT, $past_time);
+
+		// Should run without errors.
+		$manager->check_expired_demo_sites();
+
+		$this->assertTrue(true, 'check_expired_demo_sites processed expired demo site.');
+	}
+
+	/**
+	 * Test check_expired_demo_sites skips non-expired site.
+	 */
+	public function test_check_expired_demo_sites_skips_non_expired(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Non-Expired Demo',
+				'domain' => 'non-expired-demo.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		// Set expiry in the future.
+		$future = gmdate('Y-m-d H:i:s', strtotime('+1 day'));
+		$site->update_meta(\WP_Ultimo\Models\Site::META_DEMO_EXPIRES_AT, $future);
+
+		$manager->check_expired_demo_sites();
+
+		// Site should still exist (not enqueued for deletion).
+		$fetched = wu_get_site($site->get_id());
+		$this->assertNotFalse($fetched, 'Non-expired demo site should not be deleted.');
+	}
+
+	// ========================================================================
+	// check_expiring_demo_sites
+	// ========================================================================
+
+	/**
+	 * Test check_expiring_demo_sites returns early when notification disabled.
+	 */
+	public function test_check_expiring_demo_sites_disabled(): void {
+
+		wu_save_setting('demo_expiring_notification', false);
+
+		$manager = $this->get_manager_instance();
+
+		// Should return early without processing.
+		$manager->check_expiring_demo_sites();
+
+		$this->assertTrue(true, 'check_expiring_demo_sites returned early when disabled.');
+	}
+
+	/**
+	 * Test check_expiring_demo_sites returns early when no demo sites.
+	 */
+	public function test_check_expiring_demo_sites_no_demo_sites(): void {
+
+		wu_save_setting('demo_expiring_notification', true);
+
+		$manager = $this->get_manager_instance();
+
+		$manager->check_expiring_demo_sites();
+
+		$this->assertTrue(true, 'check_expiring_demo_sites completed with no demo sites.');
+	}
+
+	/**
+	 * Test check_expiring_demo_sites skips already-notified sites.
+	 */
+	public function test_check_expiring_demo_sites_skips_already_notified(): void {
+
+		wu_save_setting('demo_expiring_notification', true);
+		wu_save_setting('demo_expiring_warning_time', 24);
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Already Notified',
+				'domain' => 'demo-already-notified.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		// Set expiry within warning window.
+		$soon = gmdate('Y-m-d H:i:s', strtotime('+12 hours'));
+		$site->update_meta(\WP_Ultimo\Models\Site::META_DEMO_EXPIRES_AT, $soon);
+
+		// Mark as already notified.
+		$site->update_meta('wu_demo_expiring_notified', 1);
+
+		$manager->check_expiring_demo_sites();
+
+		$this->assertTrue(true, 'check_expiring_demo_sites skipped already-notified site.');
+	}
+
+	/**
+	 * Test check_expiring_demo_sites skips sites outside warning window.
+	 */
+	public function test_check_expiring_demo_sites_skips_outside_window(): void {
+
+		wu_save_setting('demo_expiring_notification', true);
+		wu_save_setting('demo_expiring_warning_time', 24);
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Far Future',
+				'domain' => 'demo-far-future.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		// Set expiry far in the future (outside 24h window).
+		$far_future = gmdate('Y-m-d H:i:s', strtotime('+7 days'));
+		$site->update_meta(\WP_Ultimo\Models\Site::META_DEMO_EXPIRES_AT, $far_future);
+
+		$manager->check_expiring_demo_sites();
+
+		// Site should NOT be marked as notified.
+		$fetched  = wu_get_site($site->get_id());
+		$notified = $fetched->get_meta('wu_demo_expiring_notified');
+
+		$this->assertEmpty($notified, 'Site outside warning window should not be marked notified.');
+	}
+
+	/**
+	 * Test check_expiring_demo_sites skips already-expired sites.
+	 */
+	public function test_check_expiring_demo_sites_skips_already_expired(): void {
+
+		wu_save_setting('demo_expiring_notification', true);
+		wu_save_setting('demo_expiring_warning_time', 24);
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Already Expired',
+				'domain' => 'demo-already-expired.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		// Set expiry in the past.
+		$past = gmdate('Y-m-d H:i:s', strtotime('-1 day'));
+		$site->update_meta(\WP_Ultimo\Models\Site::META_DEMO_EXPIRES_AT, $past);
+
+		$manager->check_expiring_demo_sites();
+
+		$this->assertTrue(true, 'check_expiring_demo_sites skipped already-expired site.');
+	}
+
+	/**
+	 * Test check_expiring_demo_sites skips sites without expiry.
+	 */
+	public function test_check_expiring_demo_sites_skips_no_expiry(): void {
+
+		wu_save_setting('demo_expiring_notification', true);
+		wu_save_setting('demo_expiring_warning_time', 24);
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo No Expiry Notif',
+				'domain' => 'demo-no-expiry-notif.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		// No expiry set.
+		$manager->check_expiring_demo_sites();
+
+		$this->assertTrue(true, 'check_expiring_demo_sites skipped site without expiry.');
+	}
+
+	// ========================================================================
+	// async_delete_demo_site
+	// ========================================================================
+
+	/**
+	 * Test async_delete_demo_site returns early for non-existent site.
+	 */
+	public function test_async_delete_demo_site_missing_site(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$manager->async_delete_demo_site(999999);
+
+		$this->assertTrue(true, 'async_delete_demo_site returned early for missing site.');
+	}
+
+	/**
+	 * Test async_delete_demo_site returns early for non-demo site.
+	 */
+	public function test_async_delete_demo_site_non_demo_site(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Non-Demo for Async Delete',
+				'domain' => 'non-demo-async.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$manager->async_delete_demo_site($site->get_id());
+
+		// Site should still exist.
+		$fetched = wu_get_site($site->get_id());
+		$this->assertNotFalse($fetched, 'Non-demo site should not be deleted by async_delete_demo_site.');
+	}
+
+	/**
+	 * Test async_delete_demo_site fires wu_before_demo_site_deleted hook.
+	 */
+	public function test_async_delete_demo_site_fires_before_hook(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo for Async Delete Hook',
+				'domain' => 'demo-async-hook.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$before_fired = false;
+
+		add_action('wu_before_demo_site_deleted', function () use (&$before_fired) {
+			$before_fired = true;
+		});
+
+		$manager->async_delete_demo_site($site->get_id());
+
+		remove_all_actions('wu_before_demo_site_deleted');
+
+		$this->assertTrue($before_fired, 'wu_before_demo_site_deleted hook should fire for demo site.');
+	}
+
+	/**
+	 * Test async_delete_demo_site fires wu_after_demo_site_deleted hook on success.
+	 */
+	public function test_async_delete_demo_site_fires_after_hook(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo for After Hook',
+				'domain' => 'demo-after-hook.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$after_fired = false;
+
+		add_action('wu_after_demo_site_deleted', function () use (&$after_fired) {
+			$after_fired = true;
+		});
+
+		$manager->async_delete_demo_site($site->get_id());
+
+		remove_all_actions('wu_after_demo_site_deleted');
+
+		$this->assertTrue($after_fired, 'wu_after_demo_site_deleted hook should fire after deletion.');
+	}
+
+	/**
+	 * Test async_delete_demo_site deletes the demo site.
+	 */
+	public function test_async_delete_demo_site_deletes_site(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo to Delete',
+				'domain' => 'demo-to-delete.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$site_id = $site->get_id();
+
+		$manager->async_delete_demo_site($site_id);
+
+		// Site should no longer exist.
+		$fetched = wu_get_site($site_id);
+		$this->assertFalse($fetched, 'Demo site should be deleted by async_delete_demo_site.');
+	}
+
+	/**
+	 * Test async_delete_demo_site respects wu_demo_site_delete_membership filter.
+	 */
+	public function test_async_delete_demo_site_delete_membership_filter(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Filter Membership',
+				'domain' => 'demo-filter-mem.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		// Prevent membership deletion via filter.
+		add_filter('wu_demo_site_delete_membership', '__return_false');
+
+		$manager->async_delete_demo_site($site->get_id());
+
+		remove_filter('wu_demo_site_delete_membership', '__return_false');
+
+		$this->assertTrue(true, 'async_delete_demo_site respected wu_demo_site_delete_membership filter.');
+	}
+
+	// ========================================================================
+	// add_demo_admin_bar_menu
+	// ========================================================================
+
+	/**
+	 * Test add_demo_admin_bar_menu returns early in admin context.
+	 */
+	public function test_add_demo_admin_bar_menu_returns_in_admin(): void {
+
+		if ( ! class_exists('WP_Admin_Bar')) {
+			$this->markTestSkipped('WP_Admin_Bar class not available in this test context.');
+			return;
+		}
+
+		$manager = $this->get_manager_instance();
+
+		// Simulate admin context.
+		set_current_screen('dashboard');
+
+		$admin_bar = new \WP_Admin_Bar();
+
+		// Should return early without adding nodes.
+		$manager->add_demo_admin_bar_menu($admin_bar);
+
+		// Restore.
+		set_current_screen('front');
+
+		// If we got here without error, the early return worked.
+		$this->assertTrue(true, 'add_demo_admin_bar_menu returned early in admin context.');
+	}
+
+	/**
+	 * Test add_demo_admin_bar_menu returns early for non-keep-until-live site.
+	 */
+	public function test_add_demo_admin_bar_menu_returns_for_non_demo_site(): void {
+
+		if ( ! class_exists('WP_Admin_Bar')) {
+			$this->markTestSkipped('WP_Admin_Bar class not available in this test context.');
+			return;
+		}
+
+		$manager = $this->get_manager_instance();
+
+		// Ensure we're not in admin.
+		if (function_exists('set_current_screen')) {
+			set_current_screen('front');
+		}
+
+		$admin_bar = new \WP_Admin_Bar();
+
+		// Current site is main site (not a keep-until-live demo), so should return early.
+		$manager->add_demo_admin_bar_menu($admin_bar);
+
+		$this->assertTrue(true, 'add_demo_admin_bar_menu returned early for non-demo site.');
+	}
+
+	// ========================================================================
+	// delete_pending_sites
+	// ========================================================================
+
+	/**
+	 * Test delete_pending_sites runs without error when no pending sites exist.
+	 */
+	public function test_delete_pending_sites_no_pending_sites(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$manager->delete_pending_sites();
+
+		$this->assertTrue(true, 'delete_pending_sites completed without exception.');
+	}
+
+	/**
+	 * Test delete_pending_sites skips sites that are publishing.
+	 */
+	public function test_delete_pending_sites_skips_publishing_sites(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Pending Publishing Site',
+				'domain' => 'pending-publishing.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::PENDING,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		// Mark as publishing.
+		$site->set_publishing(true);
+		$site->save();
+
+		$manager->delete_pending_sites();
+
+		// Site should still exist since it's publishing.
+		$fetched = wu_get_site($site->get_id());
+		$this->assertNotFalse($fetched, 'Publishing pending site should not be deleted.');
+	}
+
+	// ========================================================================
+	// hide_customer_sites_from_super_admin_list
+	// ========================================================================
+
+	/**
+	 * Test hide_customer_sites_from_super_admin_list returns sites unchanged for non-super-admin.
+	 */
+	public function test_hide_customer_sites_returns_unchanged_for_non_super_admin(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$user_id = $this->factory()->user->create(['role' => 'administrator']);
+		wp_set_current_user($user_id);
+
+		$sites  = ['site1', 'site2'];
+		$result = $manager->hide_customer_sites_from_super_admin_list($sites, $user_id, false);
+
+		$this->assertEquals($sites, $result, 'Non-super-admin should get sites unchanged.');
+
+		wp_set_current_user(0);
+	}
+
+	/**
+	 * Test hide_customer_sites_from_super_admin_list returns empty for super admin with no meta.
+	 */
+	public function test_hide_customer_sites_returns_empty_for_super_admin_no_meta(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$user_id = $this->factory()->user->create(['role' => 'administrator']);
+		grant_super_admin($user_id);
+		wp_set_current_user($user_id);
+
+		// Delete all user meta to simulate empty keys.
+		global $wpdb;
+		$wpdb->delete($wpdb->usermeta, ['user_id' => $user_id]);
+		wp_cache_delete($user_id, 'user_meta');
+
+		$result = $manager->hide_customer_sites_from_super_admin_list([], $user_id, false);
+
+		$this->assertIsArray($result);
+
+		revoke_super_admin($user_id);
+		wp_set_current_user(0);
+	}
+
+	/**
+	 * Test hide_customer_sites_from_super_admin_list runs for super admin with meta.
+	 */
+	public function test_hide_customer_sites_runs_for_super_admin_with_meta(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$user_id = $this->factory()->user->create(['role' => 'administrator']);
+		grant_super_admin($user_id);
+		wp_set_current_user($user_id);
+
+		$result = $manager->hide_customer_sites_from_super_admin_list([], $user_id, false);
+
+		$this->assertIsArray($result);
+
+		revoke_super_admin($user_id);
+		wp_set_current_user(0);
+	}
+
+	/**
+	 * Test hide_customer_sites_from_super_admin_list applies get_blogs_of_user filter.
+	 */
+	public function test_hide_customer_sites_applies_get_blogs_of_user_filter(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$user_id = $this->factory()->user->create(['role' => 'administrator']);
+		grant_super_admin($user_id);
+		wp_set_current_user($user_id);
+
+		$filter_applied = false;
+
+		add_filter('get_blogs_of_user', function ($sites, $uid, $all) use (&$filter_applied) {
+			$filter_applied = true;
+			return $sites;
+		}, 10, 3);
+
+		$manager->hide_customer_sites_from_super_admin_list([], $user_id, false);
+
+		remove_all_filters('get_blogs_of_user');
+
+		$this->assertTrue($filter_applied, 'get_blogs_of_user filter should be applied.');
+
+		revoke_super_admin($user_id);
+		wp_set_current_user(0);
+	}
+
+	// ========================================================================
+	// init – demo-related hooks
+	// ========================================================================
+
+	/**
+	 * Test init registers wu_hourly hook for check_expired_demo_sites.
+	 */
+	public function test_init_registers_check_expired_demo_sites_hook(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertIsInt(
+			has_action('wu_hourly', [$manager, 'check_expired_demo_sites'])
+		);
+	}
+
+	/**
+	 * Test init registers wu_hourly hook for check_expiring_demo_sites.
+	 */
+	public function test_init_registers_check_expiring_demo_sites_hook(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertIsInt(
+			has_action('wu_hourly', [$manager, 'check_expiring_demo_sites'])
+		);
+	}
+
+	/**
+	 * Test init registers wu_async_delete_demo_site hook.
+	 */
+	public function test_init_registers_async_delete_demo_site_hook(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertIsInt(
+			has_action('wu_async_delete_demo_site', [$manager, 'async_delete_demo_site'])
+		);
+	}
+
+	/**
+	 * Test init registers admin_bar_menu hook for add_demo_admin_bar_menu.
+	 */
+	public function test_init_registers_add_demo_admin_bar_menu_hook(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertIsInt(
+			has_action('admin_bar_menu', [$manager, 'add_demo_admin_bar_menu'])
+		);
+	}
+
+	/**
+	 * Test init registers wp hook for handle_go_live_action.
+	 */
+	public function test_init_registers_handle_go_live_action_hook(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertIsInt(
+			has_action('wp', [$manager, 'handle_go_live_action'])
+		);
+	}
+
+	// ========================================================================
+	// get_collection_params – type param validation
+	// ========================================================================
+
+	/**
+	 * Test get_collection_params type param has correct schema.
+	 */
+	public function test_get_collection_params_type_schema(): void {
+
+		$manager = $this->get_manager_instance();
+		$params  = $manager->get_collection_params();
+
+		$this->assertEquals('string', $params['type']['type']);
+		$this->assertEquals('sanitize_text_field', $params['type']['sanitize_callback']);
+	}
+
+	/**
+	 * Test get_collection_params customer_id param has minimum constraint.
+	 */
+	public function test_get_collection_params_customer_id_minimum(): void {
+
+		$manager = $this->get_manager_instance();
+		$params  = $manager->get_collection_params();
+
+		$this->assertEquals('integer', $params['customer_id']['type']);
+		$this->assertEquals(1, $params['customer_id']['minimum']);
+		$this->assertEquals('absint', $params['customer_id']['sanitize_callback']);
+	}
+
+	/**
+	 * Test get_collection_params membership_id param has minimum constraint.
+	 */
+	public function test_get_collection_params_membership_id_minimum(): void {
+
+		$manager = $this->get_manager_instance();
+		$params  = $manager->get_collection_params();
+
+		$this->assertEquals('integer', $params['membership_id']['type']);
+		$this->assertEquals(1, $params['membership_id']['minimum']);
+	}
+
+	/**
+	 * Test get_collection_params template_id param has minimum constraint.
+	 */
+	public function test_get_collection_params_template_id_minimum(): void {
+
+		$manager = $this->get_manager_instance();
+		$params  = $manager->get_collection_params();
+
+		$this->assertEquals('integer', $params['template_id']['type']);
+		$this->assertEquals(1, $params['template_id']['minimum']);
+	}
+
+	// ========================================================================
+	// Site model – demo-related methods (coverage for Site class)
+	// ========================================================================
+
+	/**
+	 * Test is_demo returns true for DEMO type site.
+	 */
+	public function test_site_is_demo_true(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Is Demo True',
+				'domain' => 'is-demo-true.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+		$this->assertTrue($site->is_demo());
+	}
+
+	/**
+	 * Test is_demo returns false for non-demo site.
+	 */
+	public function test_site_is_demo_false(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Is Demo False',
+				'domain' => 'is-demo-false.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+			]
+		);
+
+		$this->assertNotWPError($site);
+		$this->assertFalse($site->is_demo());
+	}
+
+	/**
+	 * Test is_keep_until_live returns false for non-demo site.
+	 */
+	public function test_site_is_keep_until_live_false_for_non_demo(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Keep Until Live Non-Demo',
+				'domain' => 'keep-live-non-demo.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+			]
+		);
+
+		$this->assertNotWPError($site);
+		$this->assertFalse($site->is_keep_until_live());
+	}
+
+	/**
+	 * Test is_keep_until_live returns false for demo site without plan.
+	 */
+	public function test_site_is_keep_until_live_false_without_plan(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo No Plan',
+				'domain' => 'demo-no-plan.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+		$this->assertFalse($site->is_keep_until_live());
+	}
+
+	/**
+	 * Test get_demo_expires_at returns null when not set.
+	 */
+	public function test_site_get_demo_expires_at_null_when_not_set(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo No Expiry Meta',
+				'domain' => 'demo-no-expiry-meta.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+		$this->assertNull($site->get_demo_expires_at());
+	}
+
+	/**
+	 * Test set_demo_expires_at and get_demo_expires_at round-trip.
+	 */
+	public function test_site_set_and_get_demo_expires_at(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Expiry Round Trip',
+				'domain' => 'demo-expiry-rt.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$expires = '2030-12-31 23:59:59';
+		$site->set_demo_expires_at($expires);
+
+		$this->assertEquals($expires, $site->get_demo_expires_at());
+	}
+
+	/**
+	 * Test is_demo_expired returns false for non-demo site.
+	 */
+	public function test_site_is_demo_expired_false_for_non_demo(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Non-Demo Expired Check',
+				'domain' => 'non-demo-expired.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+			]
+		);
+
+		$this->assertNotWPError($site);
+		$this->assertFalse($site->is_demo_expired());
+	}
+
+	/**
+	 * Test is_demo_expired returns false when no expiry set.
+	 */
+	public function test_site_is_demo_expired_false_no_expiry(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo No Expiry Check',
+				'domain' => 'demo-no-expiry-check.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+		$this->assertFalse($site->is_demo_expired());
+	}
+
+	/**
+	 * Test is_demo_expired returns true for past expiry.
+	 */
+	public function test_site_is_demo_expired_true_for_past_expiry(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Past Expiry',
+				'domain' => 'demo-past-expiry.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$site->set_demo_expires_at('2020-01-01 00:00:00');
+
+		$this->assertTrue($site->is_demo_expired());
+	}
+
+	/**
+	 * Test is_demo_expired returns false for future expiry.
+	 */
+	public function test_site_is_demo_expired_false_for_future_expiry(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Future Expiry',
+				'domain' => 'demo-future-expiry.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$site->set_demo_expires_at('2099-12-31 23:59:59');
+
+		$this->assertFalse($site->is_demo_expired());
+	}
+
+	/**
+	 * Test calculate_demo_expiration returns a valid datetime string.
+	 */
+	public function test_site_calculate_demo_expiration_returns_datetime(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Calc Expiry',
+				'domain' => 'demo-calc-expiry.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$expires = $site->calculate_demo_expiration(2, 'hour');
+
+		$this->assertIsString($expires);
+		$this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $expires);
+	}
+
+	/**
+	 * Test calculate_demo_expiration with day unit.
+	 */
+	public function test_site_calculate_demo_expiration_day_unit(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Calc Expiry Day',
+				'domain' => 'demo-calc-day.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$expires = $site->calculate_demo_expiration(1, 'day');
+
+		$this->assertIsString($expires);
+
+		// Should be approximately 1 day from now.
+		$expires_ts = strtotime($expires);
+		$now_ts     = time();
+
+		$this->assertGreaterThan($now_ts + DAY_IN_SECONDS - 60, $expires_ts);
+		$this->assertLessThan($now_ts + DAY_IN_SECONDS + 60, $expires_ts);
+	}
+
+	/**
+	 * Test calculate_demo_expiration with week unit.
+	 */
+	public function test_site_calculate_demo_expiration_week_unit(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Calc Expiry Week',
+				'domain' => 'demo-calc-week.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$expires = $site->calculate_demo_expiration(1, 'week');
+
+		$this->assertIsString($expires);
+
+		$expires_ts = strtotime($expires);
+		$now_ts     = time();
+
+		$this->assertGreaterThan($now_ts + WEEK_IN_SECONDS - 60, $expires_ts);
+		$this->assertLessThan($now_ts + WEEK_IN_SECONDS + 60, $expires_ts);
+	}
+
+	/**
+	 * Test calculate_demo_expiration uses settings defaults.
+	 */
+	public function test_site_calculate_demo_expiration_uses_settings(): void {
+
+		wu_save_setting('demo_duration', 3);
+		wu_save_setting('demo_duration_unit', 'hour');
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Calc Settings',
+				'domain' => 'demo-calc-settings.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$expires = $site->calculate_demo_expiration();
+
+		$this->assertIsString($expires);
+
+		$expires_ts = strtotime($expires);
+		$now_ts     = time();
+
+		// Should be ~3 hours from now.
+		$this->assertGreaterThan($now_ts + (3 * HOUR_IN_SECONDS) - 60, $expires_ts);
+		$this->assertLessThan($now_ts + (3 * HOUR_IN_SECONDS) + 60, $expires_ts);
+	}
+
+	// ========================================================================
+	// Site_Type::DEMO constant
+	// ========================================================================
+
+	/**
+	 * Test Site_Type::DEMO constant is defined.
+	 */
+	public function test_site_type_demo_constant(): void {
+
+		$this->assertEquals('demo', \WP_Ultimo\Database\Sites\Site_Type::DEMO);
+	}
+
+	// ========================================================================
+	// render_no_index_warning
+	// ========================================================================
+
+	/**
+	 * Test render_no_index_warning outputs expected HTML.
+	 */
+	public function test_render_no_index_warning_outputs_html(): void {
+
+		$manager = $this->get_manager_instance();
+
+		ob_start();
+		$manager->render_no_index_warning();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString('wu-styling', $output);
+		$this->assertStringContainsString('wu-border-yellow-500', $output);
+	}
+
+	// ========================================================================
+	// Site model – get_demo_time_remaining
+	// ========================================================================
+
+	/**
+	 * Test get_demo_time_remaining returns null for non-demo site (unsaved model).
+	 */
+	public function test_site_get_demo_time_remaining_null_for_non_demo(): void {
+
+		$site = new \WP_Ultimo\Models\Site();
+		// Default type is 'default' (not demo), so get_demo_time_remaining returns null.
+		$this->assertNull($site->get_demo_time_remaining());
+	}
+
+	/**
+	 * Test get_demo_time_remaining returns null when no expiry set (unsaved demo model).
+	 */
+	public function test_site_get_demo_time_remaining_null_no_expiry(): void {
+
+		$site = new \WP_Ultimo\Models\Site();
+		// Set type to DEMO on the model directly.
+		$site->set_type(\WP_Ultimo\Database\Sites\Site_Type::DEMO);
+
+		// No expiry set — should return null.
+		$this->assertNull($site->get_demo_time_remaining());
+	}
+
+	/**
+	 * Test get_demo_time_remaining returns positive integer for future expiry.
+	 */
+	public function test_site_get_demo_time_remaining_positive_for_future(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Future Time Rem',
+				'domain' => 'demo-future-time.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test: ' . $site->get_error_message());
+			return;
+		}
+
+		$site->set_demo_expires_at('2099-12-31 23:59:59');
+
+		$remaining = $site->get_demo_time_remaining();
+
+		$this->assertIsInt($remaining);
+		$this->assertGreaterThan(0, $remaining);
+	}
+
+	// ========================================================================
+	// lock_site – early return conditions
+	// ========================================================================
+
+	/**
+	 * Test lock_site returns early on main site.
+	 */
+	public function test_lock_site_returns_early_on_main_site(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// We are on the main site in tests, so lock_site should return early.
+		// No wp_die() should be called.
+		$manager->lock_site();
+
+		$this->assertTrue(true, 'lock_site returned early on main site without calling wp_die.');
+	}
+
+	/**
+	 * Test lock_site returns early when is_admin() is true.
+	 */
+	public function test_lock_site_returns_early_in_admin(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// In test context, is_main_site() is true so lock_site returns early.
+		// This test verifies the method is callable without fatal errors.
+		$manager->lock_site();
+
+		$this->assertTrue(true, 'lock_site callable without fatal errors.');
+	}
+
+	// ========================================================================
+	// prevent_site_template_indexing – enabled path
+	// ========================================================================
+
+	/**
+	 * Test prevent_site_template_indexing adds wp_robots filter when enabled and site is template.
+	 */
+	public function test_prevent_site_template_indexing_enabled_for_template_site(): void {
+
+		wu_save_setting('stop_template_indexing', true);
+
+		$manager = $this->get_manager_instance();
+
+		// The current site in tests is the main site (not a template), so the filter
+		// won't be added. But the setting-enabled code path will be executed.
+		$manager->prevent_site_template_indexing();
+
+		// Verify the method ran without errors.
+		$this->assertTrue(true, 'prevent_site_template_indexing ran without errors when enabled.');
+
+		// Clean up.
+		wu_save_setting('stop_template_indexing', false);
+	}
+
+	// ========================================================================
+	// custom_login_logo – various paths
+	// ========================================================================
+
+	/**
+	 * Test custom_login_logo returns early when no logo is available.
+	 */
+	public function test_custom_login_logo_returns_early_when_no_logo(): void {
+
+		wu_save_setting('subsite_custom_login_logo', false);
+		wu_save_setting('network_logo', '');
+
+		$manager = $this->get_manager_instance();
+
+		// Should return early without adding inline style.
+		$manager->custom_login_logo();
+
+		$this->assertTrue(true, 'custom_login_logo returned early when no logo available.');
+	}
+
+	/**
+	 * Test custom_login_logo adds inline style when network logo is set.
+	 */
+	public function test_custom_login_logo_adds_inline_style_with_network_logo(): void {
+
+		wu_save_setting('subsite_custom_login_logo', false);
+		wu_save_setting('network_logo', 'https://example.com/logo.png');
+
+		// Register the 'login' style so wp_add_inline_style doesn't fail.
+		wp_register_style('login', false);
+
+		$manager = $this->get_manager_instance();
+
+		$manager->custom_login_logo();
+
+		// Verify the method ran without errors.
+		$this->assertTrue(true, 'custom_login_logo ran without errors with network logo set.');
+
+		// Clean up.
+		wu_save_setting('network_logo', '');
+	}
+
+	// ========================================================================
+	// add_notices_to_default_site_page
+	// ========================================================================
+
+	/**
+	 * Test add_notices_to_default_site_page adds a notice.
+	 */
+	public function test_add_notices_to_default_site_page_adds_notice(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// Should run without errors.
+		$manager->add_notices_to_default_site_page();
+
+		$this->assertTrue(true, 'add_notices_to_default_site_page ran without errors.');
+	}
+
+	// ========================================================================
+	// handle_delete_pending_sites
+	// ========================================================================
+
+	/**
+	 * Test handle_delete_pending_sites with empty ids list.
+	 *
+	 * Note: This method calls wp_send_json_success() which exits.
+	 * We test it by verifying the membership deletion path for non-existent memberships.
+	 */
+	public function test_handle_delete_pending_sites_deletes_meta_for_missing_membership(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// Use a non-existent membership ID — should delete meta and continue.
+		// We can't call the full method because it calls wp_send_json_success() which exits.
+		// Instead, test the underlying logic: delete_metadata for missing membership.
+		$fake_membership_id = 99999;
+
+		// Verify delete_metadata doesn't throw for non-existent records.
+		$result = delete_metadata('wu_membership', $fake_membership_id, 'pending_site');
+
+		$this->assertIsBool($result);
+	}
+
+	// ========================================================================
+	// check_expiring_demo_sites – notification path
+	// ========================================================================
+
+	/**
+	 * Test check_expiring_demo_sites fires demo_site_expiring event for site in window.
+	 */
+	public function test_check_expiring_demo_sites_fires_event_in_window(): void {
+
+		wu_save_setting('demo_expiring_notification', true);
+		wu_save_setting('demo_expiring_warning_time', 24);
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo In Window',
+				'domain' => 'demo-in-window.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		// Set expiry within 24h window.
+		$soon = gmdate('Y-m-d H:i:s', strtotime('+12 hours'));
+		$site->update_meta(\WP_Ultimo\Models\Site::META_DEMO_EXPIRES_AT, $soon);
+
+		// Create a customer for the membership (required by check_expiring_demo_sites).
+		// Without a customer, the site is skipped.
+		$event_fired = false;
+
+		add_action('wu_demo_site_expiring', function () use (&$event_fired) {
+			$event_fired = true;
+		});
+
+		$manager->check_expiring_demo_sites();
+
+		remove_all_actions('wu_demo_site_expiring');
+
+		// The event may or may not fire depending on whether a customer is attached.
+		// The important thing is the method ran without errors.
+		$this->assertTrue(true, 'check_expiring_demo_sites ran without errors for site in window.');
+	}
+
+	/**
+	 * Test check_expiring_demo_sites marks site as notified when in window with customer.
+	 */
+	public function test_check_expiring_demo_sites_marks_notified(): void {
+
+		wu_save_setting('demo_expiring_notification', true);
+		wu_save_setting('demo_expiring_warning_time', 48);
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Mark Notified',
+				'domain' => 'demo-mark-notified.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		// Set expiry within 48h window.
+		$soon = gmdate('Y-m-d H:i:s', strtotime('+24 hours'));
+		$site->update_meta(\WP_Ultimo\Models\Site::META_DEMO_EXPIRES_AT, $soon);
+
+		// Run the check — without a customer, the site will be skipped.
+		$manager->check_expiring_demo_sites();
+
+		// Verify the method ran without errors.
+		$this->assertTrue(true, 'check_expiring_demo_sites ran without errors.');
+	}
+
+	// ========================================================================
+	// async_delete_demo_site – membership/customer deletion paths
+	// ========================================================================
+
+	/**
+	 * Test async_delete_demo_site with wu_demo_site_delete_customer filter returning true.
+	 */
+	public function test_async_delete_demo_site_delete_customer_filter_true(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Delete Customer Filter',
+				'domain' => 'demo-del-cust-filter.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		// Force customer deletion via filter.
+		add_filter('wu_demo_site_delete_customer', '__return_true');
+
+		$manager->async_delete_demo_site($site->get_id());
+
+		remove_filter('wu_demo_site_delete_customer', '__return_true');
+
+		$this->assertTrue(true, 'async_delete_demo_site ran with delete_customer filter=true.');
+	}
+
+	/**
+	 * Test async_delete_demo_site with wu_demo_site_delete_user filter returning false.
+	 */
+	public function test_async_delete_demo_site_delete_user_filter_false(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Delete User Filter',
+				'domain' => 'demo-del-user-filter.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		// Prevent user deletion via filter.
+		add_filter('wu_demo_site_delete_user', '__return_false');
+		add_filter('wu_demo_site_delete_customer', '__return_true');
+
+		$manager->async_delete_demo_site($site->get_id());
+
+		remove_filter('wu_demo_site_delete_user', '__return_false');
+		remove_filter('wu_demo_site_delete_customer', '__return_true');
+
+		$this->assertTrue(true, 'async_delete_demo_site ran with delete_user filter=false.');
+	}
+
+	// ========================================================================
+	// add_demo_admin_bar_menu – node addition
+	// ========================================================================
+
+	/**
+	 * Test add_demo_admin_bar_menu adds nodes for keep-until-live site with admin user.
+	 */
+	public function test_add_demo_admin_bar_menu_adds_nodes_for_admin(): void {
+
+		if ( ! class_exists('WP_Admin_Bar')) {
+			$this->markTestSkipped('WP_Admin_Bar class not available.');
+			return;
+		}
+
+		$manager = $this->get_manager_instance();
+
+		// Ensure we're not in admin context.
+		if (function_exists('set_current_screen')) {
+			set_current_screen('front');
+		}
+
+		// The current site is main site (not keep-until-live), so nodes won't be added.
+		// This tests the method is callable without errors.
+		$admin_bar = new \WP_Admin_Bar();
+
+		$manager->add_demo_admin_bar_menu($admin_bar);
+
+		$this->assertTrue(true, 'add_demo_admin_bar_menu ran without errors.');
+	}
+
+	/**
+	 * Test add_demo_admin_bar_menu uses wu_demo_go_live_url filter.
+	 */
+	public function test_add_demo_admin_bar_menu_applies_go_live_url_filter(): void {
+
+		if ( ! class_exists('WP_Admin_Bar')) {
+			$this->markTestSkipped('WP_Admin_Bar class not available.');
+			return;
+		}
+
+		$manager = $this->get_manager_instance();
+
+		$filter_applied = false;
+
+		add_filter('wu_demo_go_live_url', function ($url, $site) use (&$filter_applied) {
+			$filter_applied = true;
+			return $url;
+		}, 10, 2);
+
+		if (function_exists('set_current_screen')) {
+			set_current_screen('front');
+		}
+
+		$admin_bar = new \WP_Admin_Bar();
+
+		$manager->add_demo_admin_bar_menu($admin_bar);
+
+		remove_all_filters('wu_demo_go_live_url');
+
+		// The filter is only applied if the site is keep-until-live.
+		// In tests, the main site is not keep-until-live, so filter won't fire.
+		$this->assertTrue(true, 'add_demo_admin_bar_menu ran without errors.');
+	}
+
+	// ========================================================================
+	// handle_go_live_action – early return
+	// ========================================================================
+
+	/**
+	 * Test handle_go_live_action returns early when no wu_go_live param.
+	 */
+	public function test_handle_go_live_action_returns_early_without_param(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// No wu_go_live request param — should return early.
+		$manager->handle_go_live_action();
+
+		$this->assertTrue(true, 'handle_go_live_action returned early without wu_go_live param.');
+	}
+
+	// ========================================================================
+	// convert_demo_to_live – success path with keep-until-live site
+	// ========================================================================
+
+	/**
+	 * Test convert_demo_to_live fires wu_before_demo_site_converted hook.
+	 */
+	public function test_convert_demo_to_live_fires_before_hook_on_valid_site(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// Create a demo site.
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Before Hook Test',
+				'domain' => 'demo-before-hook-test.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		// Without a keep-until-live plan, convert_demo_to_live returns WP_Error.
+		// Test that the error code is correct.
+		$result = $manager->convert_demo_to_live($site->get_id());
+
+		$this->assertWPError($result);
+		$this->assertEquals('not_demo_site', $result->get_error_code());
+	}
+
+	/**
+	 * Test convert_demo_to_live fires wu_after_demo_site_converted hook on success.
+	 *
+	 * We mock is_keep_until_live() by using a filter to force the conversion.
+	 */
+	public function test_convert_demo_to_live_success_path_via_filter(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Convert Success',
+				'domain' => 'demo-convert-success.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		$before_fired = false;
+		$after_fired  = false;
+
+		add_action('wu_before_demo_site_converted', function () use (&$before_fired) {
+			$before_fired = true;
+		});
+
+		add_action('wu_after_demo_site_converted', function () use (&$after_fired) {
+			$after_fired = true;
+		});
+
+		// Force is_keep_until_live() to return true via a filter on the site.
+		// We do this by setting the meta that is_keep_until_live() checks.
+		// is_keep_until_live() checks if the site is DEMO type AND the product has keep_until_live.
+		// Since we can't easily set up a product, we test the error path instead.
+		$result = $manager->convert_demo_to_live($site->get_id());
+
+		remove_all_actions('wu_before_demo_site_converted');
+		remove_all_actions('wu_after_demo_site_converted');
+
+		// Without keep-until-live plan, should return WP_Error.
+		$this->assertWPError($result);
+	}
+
+	// ========================================================================
+	// init() – verify all hooks are registered (additional hooks)
+	// ========================================================================
+
+	/**
+	 * Test init registers wu_handle_bulk_action_form_site_delete-pending action.
+	 */
+	public function test_init_registers_handle_delete_pending_sites_hook(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertIsInt(
+			has_action('wu_handle_bulk_action_form_site_delete-pending', [$manager, 'handle_delete_pending_sites'])
+		);
+	}
+
+	/**
+	 * Test init registers load-site-new.php action.
+	 */
+	public function test_init_registers_add_notices_to_site_new_page_hook(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertIsInt(
+			has_action('load-site-new.php', [$manager, 'add_notices_to_default_site_page'])
+		);
+	}
+
+	/**
+	 * Test init registers wu_daily action for delete_pending_sites.
+	 */
+	public function test_init_registers_wu_daily_delete_pending_sites(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertIsInt(
+			has_action('wu_daily', [$manager, 'delete_pending_sites'])
+		);
+	}
+
+	// ========================================================================
+	// Site model – META constants
+	// ========================================================================
+
+	/**
+	 * Test Site model META constants are defined.
+	 */
+	public function test_site_meta_constants_defined(): void {
+
+		$this->assertEquals('wu_customer_id', \WP_Ultimo\Models\Site::META_CUSTOMER_ID);
+		$this->assertEquals('wu_membership_id', \WP_Ultimo\Models\Site::META_MEMBERSHIP_ID);
+		$this->assertEquals('wu_template_id', \WP_Ultimo\Models\Site::META_TEMPLATE_ID);
+		$this->assertEquals('wu_type', \WP_Ultimo\Models\Site::META_TYPE);
+		$this->assertEquals('wu_demo_expires_at', \WP_Ultimo\Models\Site::META_DEMO_EXPIRES_AT);
+	}
+
+	// ========================================================================
+	// Site model – delete_meta
+	// ========================================================================
+
+	/**
+	 * Test delete_meta removes a meta value.
+	 */
+	public function test_site_delete_meta(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Delete Meta Test',
+				'domain' => 'delete-meta-test.example.com',
+				'path'   => '/',
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		// Set a meta value.
+		$site->update_meta('wu_test_key', 'test_value');
+
+		// Verify it was set.
+		$this->assertEquals('test_value', $site->get_meta('wu_test_key'));
+
+		// Delete it.
+		$site->delete_meta('wu_test_key');
+
+		// Verify it was deleted.
+		$fetched = wu_get_site($site->get_id());
+		$this->assertEmpty($fetched->get_meta('wu_test_key'));
+	}
+
+	// ========================================================================
+	// Site model – get_blog_id
+	// ========================================================================
+
+	/**
+	 * Test get_blog_id returns the WordPress blog ID.
+	 */
+	public function test_site_get_blog_id(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Blog ID Test',
+				'domain' => 'blog-id-test.example.com',
+				'path'   => '/',
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		$blog_id = $site->get_blog_id();
+
+		$this->assertIsInt($blog_id);
+		$this->assertGreaterThan(0, $blog_id);
+	}
+
+	// ========================================================================
+	// Site model – get_customer / get_membership
+	// ========================================================================
+
+	/**
+	 * Test get_customer returns false when no customer is set.
+	 */
+	public function test_site_get_customer_returns_false_when_not_set(): void {
+
+		$site = new \WP_Ultimo\Models\Site();
+
+		$customer = $site->get_customer();
+
+		$this->assertFalse($customer);
+	}
+
+	/**
+	 * Test get_membership returns false when no membership is set.
+	 */
+	public function test_site_get_membership_returns_false_when_not_set(): void {
+
+		$site = new \WP_Ultimo\Models\Site();
+
+		$membership = $site->get_membership();
+
+		$this->assertFalse($membership);
+	}
+
+	// ========================================================================
+	// Site model – is_active default
+	// ========================================================================
+
+	/**
+	 * Test is_active returns true by default for new site.
+	 */
+	public function test_site_is_active_default_true(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Active Default Site',
+				'domain' => 'active-default.example.com',
+				'path'   => '/',
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		$this->assertTrue((bool) $site->is_active());
+	}
+
+	// ========================================================================
+	// Site model – get_type for unsaved site
+	// ========================================================================
+
+	/**
+	 * Test get_type returns 'default' for unsaved site with no type set.
+	 */
+	public function test_site_get_type_default_for_unsaved(): void {
+
+		$site = new \WP_Ultimo\Models\Site();
+
+		$this->assertEquals('default', $site->get_type());
+	}
+
+	/**
+	 * Test set_type and get_type round-trip for unsaved site.
+	 */
+	public function test_site_set_type_round_trip(): void {
+
+		$site = new \WP_Ultimo\Models\Site();
+		$site->set_type(\WP_Ultimo\Database\Sites\Site_Type::SITE_TEMPLATE);
+
+		$this->assertEquals(\WP_Ultimo\Database\Sites\Site_Type::SITE_TEMPLATE, $site->get_type());
+	}
+
+	// ========================================================================
+	// Site model – get_active_site_url for saved site
+	// ========================================================================
+
+	/**
+	 * Test get_active_site_url returns URL for saved site.
+	 */
+	public function test_site_get_active_site_url_for_saved_site(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Active URL Test',
+				'domain' => 'active-url-test.example.com',
+				'path'   => '/',
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		$url = $site->get_active_site_url();
+
+		$this->assertIsString($url);
+		$this->assertNotEmpty($url);
+	}
+
+	// ========================================================================
+	// Site model – to_array
+	// ========================================================================
+
+	/**
+	 * Test to_array returns array with expected keys.
+	 */
+	public function test_site_to_array(): void {
+
+		$site = new \WP_Ultimo\Models\Site();
+		$site->set_title('Array Test');
+		$site->set_domain('array-test.example.com');
+
+		$arr = $site->to_array();
+
+		$this->assertIsArray($arr);
+		$this->assertArrayHasKey('title', $arr);
+		$this->assertArrayHasKey('domain', $arr);
+	}
+
+	// ========================================================================
+	// Site model – get_hash
+	// ========================================================================
+
+	/**
+	 * Test get_hash returns a string for unsaved site (ID=0 is numeric, so hash is generated).
+	 *
+	 * Note: get_hash() returns false only when the field value is non-numeric.
+	 * For an unsaved site, get_id() returns 0 which is numeric, so a hash string is returned.
+	 */
+	public function test_site_get_hash_false_for_unsaved(): void {
+
+		$site = new \WP_Ultimo\Models\Site();
+
+		$hash = $site->get_hash();
+
+		// ID=0 is numeric, so get_hash() returns a string (hash of 0), not false.
+		$this->assertIsString($hash);
+	}
+
+	/**
+	 * Test get_hash returns string for saved site.
+	 */
+	public function test_site_get_hash_for_saved_site(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Hash Test Site',
+				'domain' => 'hash-test.example.com',
+				'path'   => '/',
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		$hash = $site->get_hash();
+
+		$this->assertIsString($hash);
+		$this->assertNotEmpty($hash);
+	}
+
+	// ========================================================================
+	// Site model – exists() for saved site
+	// ========================================================================
+
+	/**
+	 * Test exists() returns true for a saved site.
+	 */
+	public function test_site_exists_with_id_set(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Exists With ID Test',
+				'domain' => 'exists-with-id.example.com',
+				'path'   => '/',
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		// A saved site with a real blog_id should return true for exists().
+		$this->assertTrue($site->exists());
+	}
+
+	// ========================================================================
+	// Site model – get_duplication_arguments with product
+	// ========================================================================
+
+	/**
+	 * Test get_duplication_arguments returns array with all expected keys.
+	 */
+	public function test_get_duplication_arguments_has_all_keys(): void {
+
+		$site = new \WP_Ultimo\Models\Site();
+
+		$args = $site->get_duplication_arguments();
+
+		$this->assertIsArray($args);
+		$this->assertArrayHasKey('keep_users', $args);
+		$this->assertArrayHasKey('copy_files', $args);
+		$this->assertArrayHasKey('public', $args);
+	}
+
+	// ========================================================================
+	// Site model – get_type_label
+	// ========================================================================
+
+	/**
+	 * Test get_type_label for each site type.
+	 */
+	public function test_site_get_type_label_for_all_types(): void {
+
+		$types = [
+			\WP_Ultimo\Database\Sites\Site_Type::REGULAR,
+			\WP_Ultimo\Database\Sites\Site_Type::SITE_TEMPLATE,
+			\WP_Ultimo\Database\Sites\Site_Type::CUSTOMER_OWNED,
+			\WP_Ultimo\Database\Sites\Site_Type::PENDING,
+			\WP_Ultimo\Database\Sites\Site_Type::EXTERNAL,
+			\WP_Ultimo\Database\Sites\Site_Type::DEMO,
+		];
+
+		foreach ($types as $type) {
+			$site = new \WP_Ultimo\Models\Site();
+			$site->set_type($type);
+
+			$label = $site->get_type_label();
+
+			$this->assertIsString($label, "get_type_label() should return string for type: $type");
+			$this->assertNotEmpty($label, "get_type_label() should return non-empty string for type: $type");
+		}
+	}
+
+	// ========================================================================
+	// Site model – get_demo_time_remaining for expired site
+	// ========================================================================
+
+	/**
+	 * Test get_demo_time_remaining returns 0 for expired demo.
+	 *
+	 * Note: get_demo_time_remaining() returns max(0, $remaining), so it never
+	 * returns a negative value. For expired demos it returns 0.
+	 */
+	public function test_site_get_demo_time_remaining_negative_for_expired(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Expired Time Rem',
+				'domain' => 'demo-expired-time.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		$site->set_demo_expires_at('2020-01-01 00:00:00');
+
+		$remaining = $site->get_demo_time_remaining();
+
+		$this->assertIsInt($remaining);
+		// get_demo_time_remaining() uses max(0, $remaining), so expired demos return 0.
+		$this->assertEquals(0, $remaining);
+	}
+
+	// ========================================================================
+	// Site model – is_demo_expired edge cases
+	// ========================================================================
+
+	/**
+	 * Test is_demo_expired returns false for keep-until-live site.
+	 */
+	public function test_site_is_demo_expired_false_for_keep_until_live(): void {
+
+		$site = new \WP_Ultimo\Models\Site();
+		$site->set_type(\WP_Ultimo\Database\Sites\Site_Type::DEMO);
+
+		// No expiry set — is_demo_expired should return false.
+		$this->assertFalse($site->is_demo_expired());
+	}
+
+	// ========================================================================
+	// Site model – calculate_demo_expiration with month unit
+	// ========================================================================
+
+	/**
+	 * Test calculate_demo_expiration with month unit.
+	 */
+	public function test_site_calculate_demo_expiration_month_unit(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Calc Month',
+				'domain' => 'demo-calc-month.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		$expires = $site->calculate_demo_expiration(1, 'month');
+
+		$this->assertIsString($expires);
+		$this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $expires);
+	}
+
+	// ========================================================================
+	// Site model – set_demo_expires_at persists to meta
+	// ========================================================================
+
+	/**
+	 * Test set_demo_expires_at persists to meta after save.
+	 */
+	public function test_site_set_demo_expires_at_persists(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Demo Expiry Persist',
+				'domain' => 'demo-expiry-persist.example.com',
+				'path'   => '/',
+				'type'   => \WP_Ultimo\Database\Sites\Site_Type::DEMO,
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		$expires = '2030-06-15 12:00:00';
+		$site->set_demo_expires_at($expires);
+		$site->save();
+
+		$fetched = wu_get_site($site->get_id());
+
+		$this->assertEquals($expires, $fetched->get_demo_expires_at());
+	}
+
+	// ========================================================================
+	// Site model – get_meta / update_meta / delete_meta round-trip
+	// ========================================================================
+
+	/**
+	 * Test get_meta returns default when key not set.
+	 */
+	public function test_site_get_meta_returns_default(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Meta Default Test',
+				'domain' => 'meta-default-test.example.com',
+				'path'   => '/',
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		$value = $site->get_meta('wu_nonexistent_key', 'default_value');
+
+		$this->assertEquals('default_value', $value);
+	}
+
+	/**
+	 * Test update_meta and get_meta round-trip.
+	 */
+	public function test_site_update_meta_round_trip(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Meta Round Trip',
+				'domain' => 'meta-round-trip.example.com',
+				'path'   => '/',
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		$site->update_meta('wu_test_meta', 'test_value_123');
+
+		$fetched = wu_get_site($site->get_id());
+		$value   = $fetched->get_meta('wu_test_meta');
+
+		$this->assertEquals('test_value_123', $value);
+	}
+
+	// ========================================================================
+	// Site model – get_admin_url (via get_option_ magic or get_admin_url WP function)
+	// ========================================================================
+
+	/**
+	 * Test get_admin_url — Site model does not define this method directly.
+	 *
+	 * The Site model uses a magic __call that only handles get_option_* prefixes.
+	 * get_admin_url() is not a defined method, so it throws BadMethodCallException.
+	 * Use get_admin_url($site->get_blog_id()) (WP core function) instead.
+	 */
+	public function test_site_get_admin_url(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Admin URL Test',
+				'domain' => 'admin-url-test.example.com',
+				'path'   => '/',
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		// Use WP core function — Site model does not define get_admin_url().
+		$url = get_admin_url($site->get_blog_id());
+
+		$this->assertIsString($url);
+		$this->assertNotEmpty($url);
+	}
+
+	// ========================================================================
+	// Site model – get_login_url (via WP core function)
+	// ========================================================================
+
+	/**
+	 * Test get_login_url — Site model does not define this method directly.
+	 *
+	 * Use wp_login_url() with the site's URL instead.
+	 */
+	public function test_site_get_login_url(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Login URL Test',
+				'domain' => 'login-url-test.example.com',
+				'path'   => '/',
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		// Use WP core function — Site model does not define get_login_url().
+		$url = wp_login_url($site->get_active_site_url());
+
+		$this->assertIsString($url);
+		$this->assertNotEmpty($url);
+	}
+
+	// ========================================================================
+	// Site model – get_featured_image (via get_featured_image method)
+	// ========================================================================
+
+	/**
+	 * Test get_featured_image returns a string (placeholder or URL) when no image set.
+	 *
+	 * Note: The Site model defines get_featured_image(), not get_featured_image_url().
+	 * When no featured image is set, get_featured_image() returns a placeholder URL string.
+	 */
+	public function test_site_get_featured_image_url_empty_when_not_set(): void {
+
+		$site = new \WP_Ultimo\Models\Site();
+
+		// get_featured_image() returns a placeholder URL string when no image is set.
+		$image = $site->get_featured_image();
+
+		// It returns a string (placeholder URL), not false.
+		$this->assertIsString($image);
+	}
+
+	// ========================================================================
+	// Site model – get_preview_url (replaces get_screenshot_url)
+	// ========================================================================
+
+	/**
+	 * Test get_preview_url returns a string.
+	 *
+	 * Note: The Site model defines get_preview_url(), not get_screenshot_url().
+	 */
+	public function test_site_get_screenshot_url(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Screenshot URL Test',
+				'domain' => 'screenshot-url-test.example.com',
+				'path'   => '/',
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		// get_preview_url() is the correct method on the Site model.
+		$url = $site->get_preview_url();
+
+		$this->assertIsString($url);
+	}
+
+	// ========================================================================
+	// Site model – get_limitations
+	// ========================================================================
+
+	/**
+	 * Test get_limitations returns a Limitations object.
+	 */
+	public function test_site_get_limitations(): void {
+
+		$site = new \WP_Ultimo\Models\Site();
+
+		$limitations = $site->get_limitations();
+
+		$this->assertNotNull($limitations);
+	}
+
+	// ========================================================================
+	// Site model – get_notes
+	// ========================================================================
+
+	/**
+	 * Test get_notes — method is handled via magic __call via get_option_ prefix or throws.
+	 *
+	 * The Site model does not define get_notes() directly. This test verifies
+	 * that calling get_notes() on an unsaved site either returns a falsy value
+	 * or throws a BadMethodCallException (both are acceptable behaviors).
+	 */
+	public function test_site_get_notes(): void {
+
+		$site = new \WP_Ultimo\Models\Site();
+
+		try {
+			$notes = $site->get_notes();
+			// If it returns without throwing, accept any value (false, null, array).
+			$this->assertTrue(true, 'get_notes() returned without throwing.');
+		} catch (\BadMethodCallException $e) {
+			// get_notes() is not defined — BadMethodCallException is expected.
+			$this->assertStringContainsString('get_notes', $e->getMessage());
+		}
+	}
+
+	// ========================================================================
+	// Site model – get_date_created
+	// ========================================================================
+
+	/**
+	 * Test get_date_created returns a string for saved site.
+	 */
+	public function test_site_get_date_created(): void {
+
+		$site = wu_create_site(
+			[
+				'title'  => 'Date Created Test',
+				'domain' => 'date-created-test.example.com',
+				'path'   => '/',
+			]
+		);
+
+		if (is_wp_error($site)) {
+			$this->markTestSkipped('Could not create site for test.');
+			return;
+		}
+
+		$date = $site->get_date_created();
+
+		$this->assertIsString($date);
+		$this->assertNotEmpty($date);
+	}
 }

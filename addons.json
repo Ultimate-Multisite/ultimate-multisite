@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Ultimate Multisite addon manifest. Used by bin/clone-addons.sh and CI workflows.",
+  "addons": [
+    {
+      "slug": "multisite-ultimate-admin-page-creator",
+      "description": "Admin page creator",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-affiliatewp",
+      "description": "AffiliateWP integration",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-ai-site-builder",
+      "description": "AI site builder",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-domain-seller",
+      "description": "Domain seller",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-gocardless",
+      "description": "GoCardless gateway",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-language-selector",
+      "description": "Language selector",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-mailchimp",
+      "description": "Mailchimp integration",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-metered-plans",
+      "description": "Metered plans",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-metrics-and-onboarding",
+      "description": "Metrics and onboarding",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-payfast",
+      "description": "Payfast gateway",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-plugin-and-theme-manager",
+      "description": "Plugin and theme manager",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-site-exporter",
+      "description": "Site exporter",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-support-agents",
+      "description": "Support agents",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-support-tickets",
+      "description": "Support tickets",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-vat",
+      "description": "Value added taxes",
+      "active": true
+    },
+    {
+      "slug": "ultimate-multisite-analytics",
+      "description": "Analytics",
+      "active": false
+    },
+    {
+      "slug": "ultimate-multisite-captcha",
+      "description": "Captcha",
+      "active": true
+    },
+    {
+      "slug": "ultimate-multisite-chuck-norris-facts",
+      "description": "Chuck Norris facts (example addon)",
+      "active": false
+    },
+    {
+      "slug": "ultimate-multisite-content-sync",
+      "description": "Content sync (Elementor templates)",
+      "active": true
+    },
+    {
+      "slug": "ultimate-multisite-emails",
+      "description": "Email account selling and provisioning",
+      "active": true
+    },
+    {
+      "slug": "ultimate-multisite-fluent-forms",
+      "description": "Fluent Forms checkout integration",
+      "active": true
+    },
+    {
+      "slug": "ultimate-multisite-gravity-forms",
+      "description": "Gravity Forms integration",
+      "active": false
+    },
+    {
+      "slug": "ultimate-multisite-loco-translate",
+      "description": "Loco Translate multisite features",
+      "active": true
+    },
+    {
+      "slug": "ultimate-multisite-mailster",
+      "description": "Mailster email marketing integration",
+      "active": true
+    },
+    {
+      "slug": "ultimate-multisite-multi-tenancy",
+      "description": "Multi-tenancy",
+      "active": false
+    },
+    {
+      "slug": "ultimate-multisite-multinetwork",
+      "description": "Create and sell whole networks",
+      "active": true
+    },
+    {
+      "slug": "ultimate-multisite-woocommerce",
+      "description": "WooCommerce integration",
+      "active": true
+    },
+    {
+      "slug": "multisite-ultimate-fluent-forms",
+      "description": "Fluent Forms (legacy, empty repo)",
+      "active": false
+    }
+  ],
+  "non_addon_repos": [
+    "ultimate-multisite",
+    "ultimate-multisite-addon-template",
+    "addon-deployment-tool",
+    "ultimate-update-server-plugin",
+    "hook-profiler",
+    "pro-themes",
+    "material-wp",
+    "tutor-multisite-compatibility",
+    "wp-ultimo-v1",
+    "stripe-connect-proxy",
+    "wordpress-translated-tuned-llm",
+    "cron-service-plugin",
+    "opcache-preload-generator",
+    "gp-translate-with-openai",
+    "docs",
+    "the-perfect-wp-cron",
+    "ai-provider-for-any-compatible-endpoint",
+    "cli-abilities-bridge",
+    "gratis-ai-agent",
+    "trellis-cli",
+    "woocommerce-subscriptions-core",
+    "ultimate-ai-plugin-translations",
+    "ultimate-ai-translation-server"
+  ]
+}

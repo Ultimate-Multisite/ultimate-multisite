@@ -2218,4 +2218,622 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 		$this->assertArrayHasKey('conversion_snippets', $array, 'to_array() must include conversion_snippets.');
 		$this->assertNotNull($array['conversion_snippets'], 'conversion_snippets must not be null in to_array() output.');
 	}
+
+	/**
+	 * Test to_array() on a persisted form (has ID) triggers lazy-load of meta.
+	 */
+	public function test_to_array_on_persisted_form_triggers_meta_lazy_load(): void {
+		$form = wu_create_checkout_form([
+			'name' => 'Persisted Array Test',
+			'slug' => 'persisted-array-test-' . wp_generate_uuid4(),
+		]);
+
+		$this->assertNotWPError($form);
+
+		// Set meta values and save them
+		$form->set_thank_you_page_id(0);
+		$form->set_conversion_snippets('');
+
+		$array = $form->to_array();
+
+		$this->assertIsArray($array);
+		$this->assertArrayHasKey('thank_you_page_id', $array);
+		$this->assertArrayHasKey('conversion_snippets', $array);
+	}
+
+	/**
+	 * Test get_steps_to_show shows logged_only steps for logged-in users.
+	 */
+	public function test_get_steps_to_show_shows_logged_only_for_logged_in_users(): void {
+		// Create and log in a user.
+		$user_id = self::factory()->user->create(['role' => 'subscriber']);
+		wp_set_current_user($user_id);
+
+		$checkout_form = new Checkout_Form();
+
+		$settings = [
+			[
+				'id'     => 'always_step',
+				'logged' => 'always',
+				'fields' => [
+					[
+						'id'   => 'email',
+						'type' => 'email',
+					],
+				],
+			],
+			[
+				'id'     => 'logged_only_step',
+				'logged' => 'logged_only',
+				'fields' => [
+					[
+						'id'   => 'profile_name',
+						'type' => 'text',
+					],
+				],
+			],
+		];
+
+		$checkout_form->set_settings($settings);
+
+		$steps_to_show = $checkout_form->get_steps_to_show();
+
+		$step_ids = array_column($steps_to_show, 'id');
+		$this->assertContains('always_step', $step_ids);
+		$this->assertContains('logged_only_step', $step_ids);
+
+		// Reset user.
+		wp_set_current_user(0);
+	}
+
+	/**
+	 * Test convert_steps_to_v2 with template step when allow_template is true.
+	 */
+	public function test_convert_steps_to_v2_with_template_step_allow_template_true(): void {
+		$old_steps = [
+			'template' => [
+				'name'   => 'Choose Template',
+				'fields' => [],
+			],
+		];
+
+		$old_settings = [
+			'allow_template' => true,
+			'templates'      => ['template-a', 'template-b'],
+		];
+
+		$result = Checkout_Form::convert_steps_to_v2($old_steps, $old_settings);
+
+		// Template step should be included when allow_template is true and templates exist.
+		$step_ids = array_column($result, 'id');
+		$this->assertContains('template', $step_ids);
+
+		// Find the template step.
+		$template_step = null;
+		foreach ($result as $step) {
+			if ('template' === $step['id']) {
+				$template_step = $step;
+				break;
+			}
+		}
+
+		$this->assertNotNull($template_step);
+
+		// Should have a template_selection field.
+		$field_types = array_column($template_step['fields'], 'type');
+		$this->assertContains('template_selection', $field_types);
+	}
+
+	/**
+	 * Test convert_steps_to_v2 with template step using old_template_list.
+	 */
+	public function test_convert_steps_to_v2_template_step_uses_old_template_list(): void {
+		$old_steps = [
+			'template' => [
+				'name'   => 'Choose Template',
+				'fields' => [],
+			],
+		];
+
+		// Provide a non-empty template list so it uses array_flip of old_template_list.
+		$old_settings = [
+			'allow_template' => true,
+			'templates'      => [1, 2, 3],
+		];
+
+		$result = Checkout_Form::convert_steps_to_v2($old_steps, $old_settings);
+
+		$step_ids = array_column($result, 'id');
+		$this->assertContains('template', $step_ids);
+	}
+
+	/**
+	 * Test save() with template set applies the template before saving.
+	 */
+	public function test_save_with_template_applies_template(): void {
+		$form = wu_create_checkout_form([
+			'name'     => 'Template Save Test',
+			'slug'     => 'template-save-test-' . wp_generate_uuid4(),
+			'template' => 'single-step',
+		]);
+
+		$this->assertNotWPError($form);
+		$this->assertInstanceOf(Checkout_Form::class, $form);
+
+		// After save with template='single-step', settings should be populated.
+		$fetched = wu_get_checkout_form($form->get_id());
+		$settings = $fetched->get_settings();
+
+		$this->assertNotEmpty($settings);
+		$this->assertIsArray($settings);
+		$this->assertCount(1, $settings);
+		$this->assertEquals('checkout', $settings[0]['id']);
+	}
+
+	/**
+	 * Test save() with multi-step template applies the template before saving.
+	 */
+	public function test_save_with_multi_step_template_applies_template(): void {
+		$form = wu_create_checkout_form([
+			'name'     => 'Multi Template Save Test',
+			'slug'     => 'multi-template-save-test-' . wp_generate_uuid4(),
+			'template' => 'multi-step',
+		]);
+
+		$this->assertNotWPError($form);
+
+		$fetched = wu_get_checkout_form($form->get_id());
+		$settings = $fetched->get_settings();
+
+		$this->assertNotEmpty($settings);
+		$this->assertCount(4, $settings);
+	}
+
+	/**
+	 * Test finish_checkout_form_fields returns fields when payment_id is in request.
+	 */
+	public function test_finish_checkout_form_fields_with_payment_id_in_request(): void {
+		// Create a customer and payment.
+		$customer = wu_create_customer([
+			'username' => 'finish-checkout-test-' . wp_generate_uuid4(),
+			'email'    => 'finish-checkout-' . wp_generate_uuid4() . '@example.com',
+			'password' => 'password123',
+		]);
+
+		$this->assertNotWPError($customer);
+
+		$product = wu_create_product([
+			'name'         => 'Finish Checkout Plan',
+			'slug'         => 'finish-checkout-plan-' . wp_generate_uuid4(),
+			'pricing_type' => 'paid',
+			'amount'       => 50,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		]);
+
+		$this->assertNotWPError($product);
+
+		$membership = wu_create_membership([
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+		]);
+
+		$this->assertNotWPError($membership);
+
+		$payment = wu_create_payment([
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'currency'      => 'USD',
+			'subtotal'      => 50.00,
+			'total'         => 50.00,
+			'gateway'       => 'manual',
+		]);
+
+		$this->assertNotWPError($payment);
+
+		// Set payment_id in request.
+		$_REQUEST['payment_id'] = $payment->get_id();
+
+		$fields = Checkout_Form::finish_checkout_form_fields();
+
+		unset($_REQUEST['payment_id']);
+
+		$this->assertIsArray($fields);
+		$this->assertNotEmpty($fields);
+
+		// Should have one step with id 'checkout'.
+		$this->assertCount(1, $fields);
+		$this->assertEquals('checkout', $fields[0]['id']);
+
+		// Verify expected field types.
+		$field_types = array_column($fields[0]['fields'], 'type');
+		$this->assertContains('order_summary', $field_types);
+		$this->assertContains('payment', $field_types);
+		$this->assertContains('submit_button', $field_types);
+	}
+
+	/**
+	 * Test pay_invoice_form_fields returns empty array without payment.
+	 */
+	public function test_pay_invoice_form_fields_returns_empty_without_payment(): void {
+		$fields = Checkout_Form::pay_invoice_form_fields();
+		$this->assertEquals([], $fields);
+	}
+
+	/**
+	 * Test pay_invoice_form_fields returns fields when payment_id is in request.
+	 */
+	public function test_pay_invoice_form_fields_with_payment_id_in_request(): void {
+		// Create a customer and payment.
+		$customer = wu_create_customer([
+			'username' => 'pay-invoice-test-' . wp_generate_uuid4(),
+			'email'    => 'pay-invoice-' . wp_generate_uuid4() . '@example.com',
+			'password' => 'password123',
+		]);
+
+		$this->assertNotWPError($customer);
+
+		$product = wu_create_product([
+			'name'         => 'Invoice Plan',
+			'slug'         => 'invoice-plan-' . wp_generate_uuid4(),
+			'pricing_type' => 'paid',
+			'amount'       => 75,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		]);
+
+		$this->assertNotWPError($product);
+
+		$membership = wu_create_membership([
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+		]);
+
+		$this->assertNotWPError($membership);
+
+		$payment = wu_create_payment([
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'currency'      => 'USD',
+			'subtotal'      => 75.00,
+			'total'         => 75.00,
+			'gateway'       => 'manual',
+		]);
+
+		$this->assertNotWPError($payment);
+
+		// Set payment_id in request.
+		$_REQUEST['payment_id'] = $payment->get_id();
+
+		$fields = Checkout_Form::pay_invoice_form_fields();
+
+		unset($_REQUEST['payment_id']);
+
+		$this->assertIsArray($fields);
+		$this->assertNotEmpty($fields);
+
+		// Should have one step with id 'checkout'.
+		$this->assertCount(1, $fields);
+		$this->assertEquals('checkout', $fields[0]['id']);
+		$this->assertEquals('Pay Invoice', $fields[0]['name']);
+
+		// Verify expected field types.
+		$field_types = array_column($fields[0]['fields'], 'type');
+		$this->assertContains('order_summary', $field_types);
+		$this->assertContains('payment', $field_types);
+		$this->assertContains('submit_button', $field_types);
+	}
+
+	/**
+	 * Test membership_change_form_fields returns fields when membership_id is in request.
+	 */
+	public function test_membership_change_form_fields_with_membership_id_in_request(): void {
+		// Create a customer, product, and membership.
+		$customer = wu_create_customer([
+			'username' => 'membership-change-test-' . wp_generate_uuid4(),
+			'email'    => 'membership-change-' . wp_generate_uuid4() . '@example.com',
+			'password' => 'password123',
+		]);
+
+		$this->assertNotWPError($customer);
+
+		$product = wu_create_product([
+			'name'         => 'Change Plan',
+			'slug'         => 'change-plan-' . wp_generate_uuid4(),
+			'pricing_type' => 'paid',
+			'amount'       => 100,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		]);
+
+		$this->assertNotWPError($product);
+
+		$membership = wu_create_membership([
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+		]);
+
+		$this->assertNotWPError($membership);
+
+		// Set membership_id in request.
+		$_REQUEST['membership_id'] = $membership->get_id();
+
+		$fields = Checkout_Form::membership_change_form_fields();
+
+		unset($_REQUEST['membership_id']);
+
+		$this->assertIsArray($fields);
+		$this->assertNotEmpty($fields);
+
+		// Should have one step with id 'checkout'.
+		$this->assertCount(1, $fields);
+		$this->assertEquals('checkout', $fields[0]['id']);
+
+		// Verify expected field types in the step.
+		$field_types = array_column($fields[0]['fields'], 'type');
+		$this->assertContains('order_summary', $field_types);
+		$this->assertContains('payment', $field_types);
+		$this->assertContains('submit_button', $field_types);
+	}
+
+	/**
+	 * Test membership_change_form_fields with a plan that has a group.
+	 */
+	public function test_membership_change_form_fields_with_plan_group(): void {
+		$customer = wu_create_customer([
+			'username' => 'group-change-test-' . wp_generate_uuid4(),
+			'email'    => 'group-change-' . wp_generate_uuid4() . '@example.com',
+			'password' => 'password123',
+		]);
+
+		$this->assertNotWPError($customer);
+
+		$product = wu_create_product([
+			'name'          => 'Group Plan',
+			'slug'          => 'group-plan-' . wp_generate_uuid4(),
+			'pricing_type'  => 'paid',
+			'amount'        => 100,
+			'currency'      => 'USD',
+			'recurring'     => false,
+			'type'          => 'plan',
+			'product_group' => 'test-group',
+		]);
+
+		$this->assertNotWPError($product);
+
+		$membership = wu_create_membership([
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+		]);
+
+		$this->assertNotWPError($membership);
+
+		$_REQUEST['membership_id'] = $membership->get_id();
+
+		$fields = Checkout_Form::membership_change_form_fields();
+
+		unset($_REQUEST['membership_id']);
+
+		$this->assertIsArray($fields);
+		$this->assertNotEmpty($fields);
+	}
+
+	/**
+	 * Test add_new_site_form_fields returns fields when membership is set via currents.
+	 */
+	public function test_add_new_site_form_fields_with_membership_via_currents(): void {
+		$customer = wu_create_customer([
+			'username' => 'add-site-test-' . wp_generate_uuid4(),
+			'email'    => 'add-site-' . wp_generate_uuid4() . '@example.com',
+			'password' => 'password123',
+		]);
+
+		$this->assertNotWPError($customer);
+
+		$product = wu_create_product([
+			'name'         => 'Add Site Plan',
+			'slug'         => 'add-site-plan-' . wp_generate_uuid4(),
+			'pricing_type' => 'paid',
+			'amount'       => 100,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		]);
+
+		$this->assertNotWPError($product);
+
+		$membership = wu_create_membership([
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+		]);
+
+		$this->assertNotWPError($membership);
+
+		// Set membership via currents.
+		WP_Ultimo()->currents->set_membership($membership);
+
+		$fields = Checkout_Form::add_new_site_form_fields();
+
+		// Reset currents.
+		WP_Ultimo()->currents->set_membership(null);
+
+		$this->assertIsArray($fields);
+		$this->assertNotEmpty($fields);
+
+		// Should have at least one step (the 'create' step).
+		$step_ids = array_column($fields, 'id');
+		$this->assertContains('create', $step_ids);
+
+		// Find the create step.
+		$create_step = null;
+		foreach ($fields as $step) {
+			if ('create' === $step['id']) {
+				$create_step = $step;
+				break;
+			}
+		}
+
+		$this->assertNotNull($create_step);
+
+		$field_types = array_column($create_step['fields'], 'type');
+		$this->assertContains('site_title', $field_types);
+		$this->assertContains('site_url', $field_types);
+		$this->assertContains('submit_button', $field_types);
+	}
+
+	/**
+	 * Test get_steps_to_show hides guests_only steps for logged-in users.
+	 */
+	public function test_get_steps_to_show_hides_guest_steps_for_logged_in_users(): void {
+		$user_id = self::factory()->user->create(['role' => 'subscriber']);
+		wp_set_current_user($user_id);
+
+		$checkout_form = new Checkout_Form();
+
+		$settings = [
+			[
+				'id'     => 'always_step',
+				'logged' => 'always',
+				'fields' => [
+					[
+						'id'   => 'email',
+						'type' => 'email',
+					],
+				],
+			],
+			[
+				'id'     => 'guest_only_step',
+				'logged' => 'guests_only',
+				'fields' => [
+					[
+						'id'   => 'signup',
+						'type' => 'text',
+					],
+				],
+			],
+		];
+
+		$checkout_form->set_settings($settings);
+
+		$steps_to_show = $checkout_form->get_steps_to_show();
+
+		$step_ids = array_column($steps_to_show, 'id');
+		$this->assertContains('always_step', $step_ids);
+		$this->assertNotContains('guest_only_step', $step_ids);
+
+		wp_set_current_user(0);
+	}
+
+	/**
+	 * Test finish_checkout_form_fields returns fields when payment hash is in request.
+	 */
+	public function test_finish_checkout_form_fields_with_payment_hash_in_request(): void {
+		$customer = wu_create_customer([
+			'username' => 'hash-checkout-test-' . wp_generate_uuid4(),
+			'email'    => 'hash-checkout-' . wp_generate_uuid4() . '@example.com',
+			'password' => 'password123',
+		]);
+
+		$this->assertNotWPError($customer);
+
+		$product = wu_create_product([
+			'name'         => 'Hash Checkout Plan',
+			'slug'         => 'hash-checkout-plan-' . wp_generate_uuid4(),
+			'pricing_type' => 'paid',
+			'amount'       => 50,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		]);
+
+		$this->assertNotWPError($product);
+
+		$membership = wu_create_membership([
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+		]);
+
+		$this->assertNotWPError($membership);
+
+		$payment = wu_create_payment([
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'currency'      => 'USD',
+			'subtotal'      => 50.00,
+			'total'         => 50.00,
+			'gateway'       => 'manual',
+		]);
+
+		$this->assertNotWPError($payment);
+
+		// Use the payment hash in the request.
+		$_REQUEST['payment'] = $payment->get_hash();
+
+		$fields = Checkout_Form::finish_checkout_form_fields();
+
+		unset($_REQUEST['payment']);
+
+		$this->assertIsArray($fields);
+		$this->assertNotEmpty($fields);
+		$this->assertCount(1, $fields);
+		$this->assertEquals('checkout', $fields[0]['id']);
+	}
+
+	/**
+	 * Test pay_invoice_form_fields with payment hash in request.
+	 */
+	public function test_pay_invoice_form_fields_with_payment_hash_in_request(): void {
+		$customer = wu_create_customer([
+			'username' => 'hash-invoice-test-' . wp_generate_uuid4(),
+			'email'    => 'hash-invoice-' . wp_generate_uuid4() . '@example.com',
+			'password' => 'password123',
+		]);
+
+		$this->assertNotWPError($customer);
+
+		$product = wu_create_product([
+			'name'         => 'Hash Invoice Plan',
+			'slug'         => 'hash-invoice-plan-' . wp_generate_uuid4(),
+			'pricing_type' => 'paid',
+			'amount'       => 60,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
+		]);
+
+		$this->assertNotWPError($product);
+
+		$membership = wu_create_membership([
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $product->get_id(),
+		]);
+
+		$this->assertNotWPError($membership);
+
+		$payment = wu_create_payment([
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'currency'      => 'USD',
+			'subtotal'      => 60.00,
+			'total'         => 60.00,
+			'gateway'       => 'manual',
+		]);
+
+		$this->assertNotWPError($payment);
+
+		$_REQUEST['payment'] = $payment->get_hash();
+
+		$fields = Checkout_Form::pay_invoice_form_fields();
+
+		unset($_REQUEST['payment']);
+
+		$this->assertIsArray($fields);
+		$this->assertNotEmpty($fields);
+		$this->assertCount(1, $fields);
+		$this->assertEquals('checkout', $fields[0]['id']);
+		$this->assertEquals('Pay Invoice', $fields[0]['name']);
+	}
 }

@@ -248,7 +248,14 @@ class Tax {
 				function ($rate) use ($fetch_state_options) {
 
 					if ($fetch_state_options) {
-						$rate['state_options'] = wu_get_country_states($rate['country'], 'slug', 'name');
+						/*
+						 * Rates with country='*' (Apply to all countries) are wildcard
+						 * fallbacks and have no meaningful state list — skip the lookup
+						 * to avoid passing '*' to wu_get_country_states().
+						 */
+						$rate['state_options'] = ('*' !== $rate['country'])
+							? wu_get_country_states($rate['country'], 'slug', 'name')
+							: [];
 					}
 
 					$rate['tax_rate'] = is_numeric($rate['tax_rate']) ? $rate['tax_rate'] : 0;

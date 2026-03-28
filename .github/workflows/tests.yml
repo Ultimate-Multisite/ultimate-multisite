@@ -7,8 +7,38 @@ on:
     branches: [main]
 
 jobs:
+  php-lint:
+    name: PHP Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Check PHP syntax
+        run: |
+          echo "Checking PHP syntax across the codebase..."
+          errors=0
+          while IFS= read -r file; do
+            if ! php -l "$file" 2>&1 | grep -q "No syntax errors"; then
+              php -l "$file"
+              errors=$((errors + 1))
+            fi
+          done < <(find inc/ -name '*.php' -type f)
+          if [ "$errors" -gt 0 ]; then
+            echo ""
+            echo "Found $errors file(s) with syntax errors."
+            exit 1
+          fi
+          echo "All PHP files passed syntax check."
+
   php-tests:
     name: PHP ${{ matrix.php-version }}
+    needs: php-lint
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.php-version == '8.5' }}
     strategy:
@@ -30,7 +60,7 @@ jobs:
       image: cimg/php:${{ matrix.php-version }}
       options: --user root
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Composer global bin path
         run: |
@@ -88,7 +118,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: matrix.php-version == '8.3'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
         with:
           file: ./coverage.xml
           flags: unittests
@@ -106,10 +136,10 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2
         with:
           php-version: "8.2"
 
@@ -117,15 +147,15 @@ jobs:
         run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: lts/*
 
       - name: Checkout wp-performance-action
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: swissspidy/wp-performance-action
-          ref: b7e3ffcf0fc4a48b62492e021e0ebeb51430ff11
+          ref: 233d525186e4d41bc7574837a3baeb3b5698656f
           path: .wp-performance-action
 
       - name: Install performance action dependencies
@@ -172,7 +202,29 @@ jobs:
           exit 1
 
       - name: Run WP Performance Tests
-        run: npm run test:performance
+        # Retry up to 3 times: WP Playground server occasionally crashes between
+        # the readiness check and test execution, causing a transient TypeError.
+        # The job has continue-on-error:true so failures never block merging.
+        run: |
+          for attempt in 1 2 3; do
+            echo "--- Performance test attempt $attempt/3 ---"
+            # Verify server is still alive before each attempt
+            if ! curl -sf --max-time 5 http://127.0.0.1:9400/ > /dev/null 2>&1; then
+              echo "Server not responding on attempt $attempt — skipping"
+              continue
+            fi
+            if npm run test:performance; then
+              echo "Tests passed on attempt $attempt"
+              exit 0
+            fi
+            echo "Tests failed on attempt $attempt"
+            if [ "$attempt" -lt 3 ]; then
+              echo "Waiting 10s before retry..."
+              sleep 10
+            fi
+          done
+          echo "All 3 attempts failed"
+          exit 1
         working-directory: .wp-performance-action/env
         env:
           WP_BASE_URL: http://127.0.0.1:9400
@@ -183,6 +235,7 @@ jobs:
           DEBUG: "true"
           TEST_ITERATIONS: "20"
           TEST_REPETITIONS: "2"
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "true"
 
       - name: Stop server
         if: always()
@@ -214,7 +267,7 @@ jobs:
 
       - name: Upload performance results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: performance-results-${{ github.run_number }}
           path: .wp-performance-action/env/artifacts/
@@ -222,14 +275,16 @@ jobs:
 
       - name: Check if a comment was already made
         id: find-comment
-        if: github.event_name == 'pull_request'
+        # Fork PRs don't have write access to the base repo — skip comment steps.
+        # Performance results are still uploaded as artifacts and shown in the workflow summary.
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body-includes: Performance test results for
 
       - name: Comment on PR with performance results
-        if: github.event_name == 'pull_request' && hashFiles('.wp-performance-action/env/artifacts/performance-results.md') != ''
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && hashFiles('.wp-performance-action/env/artifacts/performance-results.md') != ''
         uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9
         with:
           issue-number: ${{ github.event.pull_request.number }}

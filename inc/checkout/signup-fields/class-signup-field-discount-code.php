@@ -191,7 +191,14 @@ class Signup_Field_Discount_Code extends Base_Signup_Field {
 			'html_attr'         => [
 				'v-model.lazy'                => 'discount_code',
 				'v-init:discount_code'        => "'{$this->get_value()}'",
-				'v-init:toggle_discount_code' => ! empty($this->get_value()),
+				/*
+				 * Use explicit 'true'/'false' strings so Vue evaluates them as
+				 * boolean literals. An empty PHP false value becomes an empty
+				 * attribute (""), which Vue treats as undefined — causing the
+				 * toggle_discount_code watcher to fire and clear discount_code
+				 * on page load even when no coupon is pre-applied.
+				 */
+				'v-init:toggle_discount_code' => ! empty($this->get_value()) ? 'true' : 'false',
 			],
 		];
 

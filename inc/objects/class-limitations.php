@@ -33,7 +33,7 @@ defined('ABSPATH') || exit;
  * @property-read \WP_Ultimo\Limitations\Limit_Customer_User_Role $customer_user_role
  * @property-read \WP_Ultimo\Limitations\Limit_Hide_Footer_Credits $hide_credits
  */
-class Limitations {
+class Limitations implements \JsonSerializable {
 
 	/**
 	 * Caches early limitation queries to prevent
@@ -381,6 +381,22 @@ class Limitations {
 	 */
 	public function to_array(): array {
 		return $this->raw_module_data;
+	}
+
+	/**
+	 * Returns a JSON-serializable representation of the limitations.
+	 *
+	 * Implements JsonSerializable so that json_encode() produces the same
+	 * output as to_array() instead of serializing only public properties
+	 * (which would yield {} because all properties are protected/private).
+	 *
+	 * @since 2.0.11
+	 * @return array
+	 */
+	#[\ReturnTypeWillChange]
+	public function jsonSerialize() {
+
+		return $this->to_array();
 	}
 
 	/**

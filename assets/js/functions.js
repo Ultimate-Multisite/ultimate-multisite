@@ -466,13 +466,19 @@ function wu_format_money(value) {
 
 	value = parseFloat(value.toString().replace(/[^0-9\.]/g, ''));
 
+	// Guard against empty-string or NaN precision (e.g. when the wizard saves
+	// the setting before the user fills in the currency options, the DB value
+	// can be '' which makes parseFloat('') === NaN and breaks accounting.js).
+	const rawPrecision = parseInt(wu_settings.precision, 10);
+	const safePrecision = isNaN(rawPrecision) ? 2 : Math.max(0, rawPrecision);
+
 	const settings = wp.hooks.applyFilters('wu_format_money', {
 		currency: {
 			symbol: wu_settings.currency_symbol, // default currency symbol is '$'
 			format: wu_settings.currency_position, // controls output: %s = symbol, %v = value/number (can be object: see below)
 			decimal: wu_settings.decimal_separator, // decimal point separator
 			thousand: wu_settings.thousand_separator, // thousands separator
-			precision: wu_settings.precision, // decimal places
+			precision: safePrecision, // decimal places
 		},
 		number: {
 			precision: 0, // default precision on numbers is 0
@@ -609,13 +615,20 @@ window.wu_initialize_code_editors = function() {
 }; // end wu_initialize_code_editors;
 
 /**
- * Get a timezone-d moment instance.
+ * Get a moment instance, optionally timezone-aware.
+ *
+ * WordPress bundles moment.js but not moment-timezone, so moment.tz may not
+ * be available. Fall back to plain moment() when moment-timezone is absent.
  *
  * @param {*} a The date.
  * @return {Object} moment instance
  */
 window.wu_moment = function(a) {
 
-	return moment.tz(a, 'Etc/UTC');
+	if (typeof moment.tz === 'function') {
+		return moment.tz(a, 'Etc/UTC');
+	}
+
+	return moment.utc(a);
 
 }; // end wu_moment;

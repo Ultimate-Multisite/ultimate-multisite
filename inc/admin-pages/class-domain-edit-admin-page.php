@@ -93,6 +93,33 @@ class Domain_Edit_Admin_Page extends Edit_Admin_Page {
 		add_filter('wu_form_fields_delete_domain_modal', [$this, 'domain_extra_delete_fields'], 10, 2);
 
 		add_action('wu_after_delete_domain_modal', [$this, 'domain_after_delete_actions']);
+
+		/*
+		 * Register admin DNS management forms.
+		 */
+		wu_register_form(
+			'admin_add_dns_record',
+			[
+				'render'  => [$this, 'render_admin_add_dns_record_modal'],
+				'handler' => [$this, 'handle_admin_add_dns_record_modal'],
+			]
+		);
+
+		wu_register_form(
+			'admin_edit_dns_record',
+			[
+				'render'  => [$this, 'render_admin_edit_dns_record_modal'],
+				'handler' => [$this, 'handle_admin_edit_dns_record_modal'],
+			]
+		);
+
+		wu_register_form(
+			'admin_delete_dns_record',
+			[
+				'render'  => [$this, 'render_admin_delete_dns_record_modal'],
+				'handler' => [$this, 'handle_admin_delete_dns_record_modal'],
+			]
+		);
 	}
 	/**
 	 * Registers the necessary scripts and styles for this admin page.
@@ -103,9 +130,23 @@ class Domain_Edit_Admin_Page extends Edit_Admin_Page {
 	public function register_scripts(): void {
 		parent::register_scripts();
 
+		$domain_id = $this->get_object()->get_id();
+
+		// Enqueue read-only DNS table for PHP DNS lookup fallback
 		wp_enqueue_script(
 			'wu-dns-table',
 			wu_get_asset('dns-table.js', 'js'),
+			['jquery', 'wu-vue'],
+			\WP_Ultimo::VERSION,
+			[
+				'in_footer' => true,
+			]
+		);
+
+		// Enqueue DNS management script for provider-based management
+		wp_enqueue_script(
+			'wu-dns-management',
+			wu_get_asset('dns-management.js', 'js'),
 			['jquery', 'wu-vue'],
 			\WP_Ultimo::VERSION,
 			[
@@ -123,11 +164,24 @@ class Domain_Edit_Admin_Page extends Edit_Admin_Page {
 			]
 		);
 
+		// Config for read-only DNS lookup
 		wp_localize_script(
 			'wu-dns-table',
 			'wu_dns_table_config',
 			[
 				'domain' => $this->get_object()->get_domain(),
+			]
+		);
+
+		// Config for DNS management (provider-based)
+		wp_localize_script(
+			'wu-dns-management',
+			'wu_dns_config',
+			[
+				'nonce'      => wp_create_nonce('wu_dns_nonce'),
+				'add_url'    => wu_get_form_url('admin_add_dns_record', ['domain_id' => $domain_id]),
+				'edit_url'   => wu_get_form_url('admin_edit_dns_record', ['domain_id' => $domain_id]),
+				'delete_url' => wu_get_form_url('admin_delete_dns_record', ['domain_id' => $domain_id]),
 			]
 		);
 
@@ -421,10 +475,20 @@ class Domain_Edit_Admin_Page extends Edit_Admin_Page {
 	 */
 	public function render_dns_widget(): void {
 
+		$dns_manager  = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+		$dns_provider = $dns_manager->get_dns_provider();
+		$domain       = $this->get_object();
+		$domain_id    = $domain->get_id();
+
 		wu_get_template(
-			'domain/dns-table',
+			'domain/admin-dns-management',
 			[
-				'domain' => $this->get_object(),
+				'domain'        => $domain,
+				'domain_id'     => $domain_id,
+				'can_manage'    => true, // Admins can always manage DNS
+				'has_provider'  => (bool) $dns_provider,
+				'provider_name' => $dns_provider ? $dns_provider->get_title() : '',
+				'add_url'       => wu_get_form_url('admin_add_dns_record', ['domain_id' => $domain_id]),
 			]
 		);
 	}
@@ -596,5 +660,275 @@ class Domain_Edit_Admin_Page extends Edit_Admin_Page {
 		wu_enqueue_async_action('wu_async_process_domain_stage', ['domain_id' => $this->get_object()->get_id()], 'domain');
 
 		return parent::handle_save();
+	}
+
+	/**
+	 * Renders the admin add DNS record modal.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function render_admin_add_dns_record_modal(): void {
+
+		$domain_id = wu_request('domain_id');
+		$domain    = wu_get_domain($domain_id);
+
+		if ( ! $domain) {
+			wp_die(esc_html__('Domain not found.', 'ultimate-multisite'));
+		}
+
+		$dns_manager  = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+		$dns_provider = $dns_manager->get_dns_provider();
+
+		wu_get_template(
+			'domain/dns-record-form',
+			[
+				'domain_id'     => $domain_id,
+				'domain_name'   => $domain->get_domain(),
+				'mode'          => 'add',
+				'record'        => [],
+				'allowed_types' => $dns_provider ? $dns_provider->get_supported_record_types() : ['A', 'AAAA', 'CNAME', 'MX', 'TXT'],
+				'show_proxied'  => $dns_provider && method_exists($dns_provider, 'get_id') && $dns_provider->get_id() === 'cloudflare',
+			]
+		);
+	}
+
+	/**
+	 * Handles the admin add DNS record modal submission.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function handle_admin_add_dns_record_modal(): void {
+
+		check_ajax_referer('wu_dns_nonce', 'nonce');
+
+		$domain_id = wu_request('domain_id');
+		$domain    = wu_get_domain($domain_id);
+
+		if ( ! $domain) {
+			wp_send_json_error(['message' => __('Domain not found.', 'ultimate-multisite')]);
+		}
+
+		$dns_manager  = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+		$dns_provider = $dns_manager->get_dns_provider();
+
+		if ( ! $dns_provider) {
+			wp_send_json_error(['message' => __('No DNS provider configured.', 'ultimate-multisite')]);
+		}
+
+		$record_data = wu_request('record', []);
+
+		$result = $dns_provider->create_dns_record($domain->get_domain(), $record_data);
+
+		if (is_wp_error($result)) {
+			wp_send_json_error(['message' => $result->get_error_message()]);
+		}
+
+		wp_send_json_success(
+			[
+				'message' => __('DNS record created successfully.', 'ultimate-multisite'),
+				'record'  => $result,
+			]
+		);
+	}
+
+	/**
+	 * Renders the admin edit DNS record modal.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function render_admin_edit_dns_record_modal(): void {
+
+		$domain_id = wu_request('domain_id');
+		$record_id = wu_request('record_id');
+		$domain    = wu_get_domain($domain_id);
+
+		if ( ! $domain) {
+			wp_die(esc_html__('Domain not found.', 'ultimate-multisite'));
+		}
+
+		$dns_manager  = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+		$dns_provider = $dns_manager->get_dns_provider();
+
+		// Get the record data from the provider
+		$records = $dns_provider ? $dns_provider->get_dns_records($domain->get_domain()) : [];
+		$record  = [];
+
+		if ( ! is_wp_error($records)) {
+			foreach ($records as $r) {
+				if ((string) $r->get_id() === (string) $record_id) {
+					$record = $r->to_array();
+					break;
+				}
+			}
+		}
+
+		wu_get_template(
+			'domain/dns-record-form',
+			[
+				'domain_id'     => $domain_id,
+				'domain_name'   => $domain->get_domain(),
+				'mode'          => 'edit',
+				'record'        => $record,
+				'allowed_types' => $dns_provider ? $dns_provider->get_supported_record_types() : ['A', 'AAAA', 'CNAME', 'MX', 'TXT'],
+				'show_proxied'  => $dns_provider && method_exists($dns_provider, 'get_id') && $dns_provider->get_id() === 'cloudflare',
+			]
+		);
+	}
+
+	/**
+	 * Handles the admin edit DNS record modal submission.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function handle_admin_edit_dns_record_modal(): void {
+
+		check_ajax_referer('wu_dns_nonce', 'nonce');
+
+		$domain_id = wu_request('domain_id');
+		$record_id = wu_request('record_id');
+		$domain    = wu_get_domain($domain_id);
+
+		if ( ! $domain) {
+			wp_send_json_error(['message' => __('Domain not found.', 'ultimate-multisite')]);
+		}
+
+		$dns_manager  = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+		$dns_provider = $dns_manager->get_dns_provider();
+
+		if ( ! $dns_provider) {
+			wp_send_json_error(['message' => __('No DNS provider configured.', 'ultimate-multisite')]);
+		}
+
+		$record_data = wu_request('record', []);
+
+		$result = $dns_provider->update_dns_record($domain->get_domain(), $record_id, $record_data);
+
+		if (is_wp_error($result)) {
+			wp_send_json_error(['message' => $result->get_error_message()]);
+		}
+
+		wp_send_json_success(
+			[
+				'message' => __('DNS record updated successfully.', 'ultimate-multisite'),
+				'record'  => $result,
+			]
+		);
+	}
+
+	/**
+	 * Renders the admin delete DNS record modal.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function render_admin_delete_dns_record_modal(): void {
+
+		$domain_id = wu_request('domain_id');
+		$record_id = wu_request('record_id');
+		$domain    = wu_get_domain($domain_id);
+
+		if ( ! $domain) {
+			wp_die(esc_html__('Domain not found.', 'ultimate-multisite'));
+		}
+
+		$dns_manager  = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+		$dns_provider = $dns_manager->get_dns_provider();
+
+		// Get the record data from the provider
+		$records     = $dns_provider ? $dns_provider->get_dns_records($domain->get_domain()) : [];
+		$record_name = $record_id;
+
+		if ( ! is_wp_error($records)) {
+			foreach ($records as $r) {
+				if ((string) $r->get_id() === (string) $record_id) {
+					$record_name = $r->get_type() . ' - ' . $r->get_name();
+					break;
+				}
+			}
+		}
+
+		$fields = [
+			'confirm_message' => [
+				'type' => 'note',
+				'desc' => sprintf(
+					/* translators: %s: Record name/identifier */
+					__('Are you sure you want to delete the DNS record <strong>%s</strong>? This action cannot be undone.', 'ultimate-multisite'),
+					esc_html($record_name)
+				),
+			],
+			'domain_id'       => [
+				'type'  => 'hidden',
+				'value' => $domain_id,
+			],
+			'record_id'       => [
+				'type'  => 'hidden',
+				'value' => $record_id,
+			],
+			'submit_button'   => [
+				'type'            => 'submit',
+				'title'           => __('Delete Record', 'ultimate-multisite'),
+				'value'           => 'delete',
+				'classes'         => 'button button-primary wu-w-full',
+				'wrapper_classes' => 'wu-items-end',
+			],
+		];
+
+		$form = new \WP_Ultimo\UI\Form(
+			'admin_delete_dns_record',
+			$fields,
+			[
+				'views'                 => 'admin-pages/fields',
+				'classes'               => 'wu-modal-form wu-widget-list wu-striped wu-m-0 wu-mt-0',
+				'field_wrapper_classes' => 'wu-w-full wu-box-border wu-items-center wu-flex wu-justify-between wu-p-4 wu-m-0 wu-border-t wu-border-l-0 wu-border-r-0 wu-border-b-0 wu-border-gray-300 wu-border-solid',
+				'html_attr'             => [
+					'data-wu-app' => 'delete_dns_record',
+					'data-state'  => wu_convert_to_state([]),
+				],
+			]
+		);
+
+		$form->render();
+	}
+
+	/**
+	 * Handles the admin delete DNS record modal submission.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function handle_admin_delete_dns_record_modal(): void {
+
+		check_ajax_referer('wu_dns_nonce', 'nonce');
+
+		$domain_id = wu_request('domain_id');
+		$record_id = wu_request('record_id');
+		$domain    = wu_get_domain($domain_id);
+
+		if ( ! $domain) {
+			wp_send_json_error(['message' => __('Domain not found.', 'ultimate-multisite')]);
+		}
+
+		$dns_manager  = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+		$dns_provider = $dns_manager->get_dns_provider();
+
+		if ( ! $dns_provider) {
+			wp_send_json_error(['message' => __('No DNS provider configured.', 'ultimate-multisite')]);
+		}
+
+		$result = $dns_provider->delete_dns_record($domain->get_domain(), $record_id);
+
+		if (is_wp_error($result)) {
+			wp_send_json_error(['message' => $result->get_error_message()]);
+		}
+
+		wp_send_json_success(
+			[
+				'message' => __('DNS record deleted successfully.', 'ultimate-multisite'),
+			]
+		);
 	}
 }

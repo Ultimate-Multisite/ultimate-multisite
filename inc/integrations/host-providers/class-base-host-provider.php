@@ -16,8 +16,12 @@ defined('ABSPATH') || exit;
 
 /**
  * This base class should be extended to implement new host integrations for SSL and domains.
+ *
+ * Implements DNS_Provider_Interface to provide default DNS management functionality.
+ * Providers that support DNS should add 'dns-management' to their $supports array
+ * and override the DNS methods.
  */
-abstract class Base_Host_Provider {
+abstract class Base_Host_Provider implements DNS_Provider_Interface {
 
 	/**
 	 * Holds the id of the integration.
@@ -652,5 +656,208 @@ abstract class Base_Host_Provider {
 	public function get_logo() {
 
 		return '';
+	}
+
+	/**
+	 * Check if this provider supports DNS record management.
+	 *
+	 * @since 2.3.0
+	 * @return bool
+	 */
+	public function supports_dns_management(): bool {
+
+		return $this->supports('dns-management');
+	}
+
+	/**
+	 * Get DNS records for a domain.
+	 *
+	 * Providers that support DNS management should override this method.
+	 *
+	 * @since 2.3.0
+	 *
+	 * @param string $domain The domain to query.
+	 * @return array|WP_Error Array of DNS_Record objects or WP_Error.
+	 */
+	public function get_dns_records(string $domain) {
+
+		return new \WP_Error(
+			'dns-not-supported',
+			__('DNS record management is not supported by this hosting provider.', 'ultimate-multisite')
+		);
+	}
+
+	/**
+	 * Create a DNS record for a domain.
+	 *
+	 * Providers that support DNS management should override this method.
+	 *
+	 * @since 2.3.0
+	 *
+	 * @param string $domain The domain.
+	 * @param array  $record Record data (type, name, content, ttl, priority).
+	 * @return array|WP_Error Created record data or WP_Error.
+	 */
+	public function create_dns_record(string $domain, array $record) {
+
+		return new \WP_Error(
+			'dns-not-supported',
+			__('DNS record management is not supported by this hosting provider.', 'ultimate-multisite')
+		);
+	}
+
+	/**
+	 * Update a DNS record for a domain.
+	 *
+	 * Providers that support DNS management should override this method.
+	 *
+	 * @since 2.3.0
+	 *
+	 * @param string $domain    The domain.
+	 * @param string $record_id The record identifier.
+	 * @param array  $record    Updated record data.
+	 * @return array|WP_Error Updated record data or WP_Error.
+	 */
+	public function update_dns_record(string $domain, string $record_id, array $record) {
+
+		return new \WP_Error(
+			'dns-not-supported',
+			__('DNS record management is not supported by this hosting provider.', 'ultimate-multisite')
+		);
+	}
+
+	/**
+	 * Delete a DNS record for a domain.
+	 *
+	 * Providers that support DNS management should override this method.
+	 *
+	 * @since 2.3.0
+	 *
+	 * @param string $domain    The domain.
+	 * @param string $record_id The record identifier.
+	 * @return bool|WP_Error True on success or WP_Error.
+	 */
+	public function delete_dns_record(string $domain, string $record_id) {
+
+		return new \WP_Error(
+			'dns-not-supported',
+			__('DNS record management is not supported by this hosting provider.', 'ultimate-multisite')
+		);
+	}
+
+	/**
+	 * Get the DNS record types supported by this provider.
+	 *
+	 * @since 2.3.0
+	 *
+	 * @return array Array of supported record types.
+	 */
+	public function get_supported_record_types(): array {
+
+		return ['A', 'AAAA', 'CNAME', 'MX', 'TXT'];
+	}
+
+	/**
+	 * Get the zone/domain identifier for DNS operations.
+	 *
+	 * Some providers require a zone ID rather than domain name.
+	 * Override this method to implement zone ID lookup.
+	 *
+	 * @since 2.3.0
+	 *
+	 * @param string $domain The domain name.
+	 * @return string|null Zone identifier or null if not found.
+	 */
+	public function get_zone_id(string $domain): ?string {
+
+		return null;
+	}
+
+	/**
+	 * Check if DNS management is enabled for this provider.
+	 *
+	 * This checks both support and whether the admin has enabled it.
+	 *
+	 * @since 2.3.0
+	 *
+	 * @return bool
+	 */
+	public function is_dns_enabled(): bool {
+
+		if (! $this->supports_dns_management()) {
+			return false;
+		}
+
+		// Check if DNS is enabled for this specific provider
+		$dns_enabled = get_network_option(null, 'wu_dns_integrations_enabled', []);
+
+		return ! empty($dns_enabled[ $this->get_id() ]);
+	}
+
+	/**
+	 * Enable DNS management for this provider.
+	 *
+	 * @since 2.3.0
+	 *
+	 * @return bool
+	 */
+	public function enable_dns(): bool {
+
+		if (! $this->supports_dns_management()) {
+			return false;
+		}
+
+		$dns_enabled                    = get_network_option(null, 'wu_dns_integrations_enabled', []);
+		$dns_enabled[ $this->get_id() ] = true;
+
+		return update_network_option(null, 'wu_dns_integrations_enabled', $dns_enabled);
+	}
+
+	/**
+	 * Disable DNS management for this provider.
+	 *
+	 * @since 2.3.0
+	 *
+	 * @return bool
+	 */
+	public function disable_dns(): bool {
+
+		$dns_enabled                    = get_network_option(null, 'wu_dns_integrations_enabled', []);
+		$dns_enabled[ $this->get_id() ] = false;
+
+		return update_network_option(null, 'wu_dns_integrations_enabled', $dns_enabled);
+	}
+
+	/**
+	 * Extract the zone name (root domain) from a domain.
+	 *
+	 * Handles common multi-part TLDs (e.g. .co.uk, .com.au). For providers that
+	 * need a more precise zone lookup (e.g. Cloudflare's iterative API search),
+	 * override this method in the concrete provider class.
+	 *
+	 * @since 2.3.0
+	 *
+	 * @param string $domain The domain name.
+	 * @return string The zone name (root domain).
+	 */
+	protected function extract_zone_name(string $domain): string {
+
+		$parts = explode('.', $domain);
+
+		// Known multi-part TLDs
+		$multi_tlds = ['.co.uk', '.com.au', '.co.nz', '.com.br', '.co.in', '.org.uk', '.net.au'];
+
+		foreach ($multi_tlds as $tld) {
+			if (str_ends_with($domain, $tld)) {
+				return implode('.', array_slice($parts, -3));
+			}
+		}
+
+		// Return last 2 parts for standard TLD
+		if (count($parts) >= 2) {
+			return implode('.', array_slice($parts, -2));
+		}
+
+		return $domain;
 	}
 }

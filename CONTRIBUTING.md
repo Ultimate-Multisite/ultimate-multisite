@@ -197,20 +197,127 @@ open coverage-html/index.html
 5. **Run checks**: `npm run check`
 6. **Commit and create PR**
 
+## Addon Development
+
+### Overview
+
+Ultimate Multisite has 28+ addon plugins in the `Ultimate-Multisite` GitHub org. Each addon is a separate repo with its own release cycle, but all depend on the core plugin and share a common test infrastructure.
+
+### Directory Layout
+
+```
+~/Git/
+├── ultimate-multisite/              # Core plugin (canonical repo)
+│   ├── addons.json                  # Addon manifest (all slugs + active status)
+│   ├── bin/clone-addons.sh          # Clone all addons
+│   ├── bin/generate-wp-env-override.sh  # Generate wp-env config for addons
+│   └── .github/workflows/
+│       └── addon-integration-test.yml   # Reusable CI workflow for addons
+├── ultimate-multisite-addons/       # All addon clones (created by clone-addons.sh)
+│   ├── multisite-ultimate-domain-seller/
+│   ├── ultimate-multisite-woocommerce/
+│   └── ...
+```
+
+### Working on an Addon
+
+1. **Clone addons** (first time only):
+   ```bash
+   cd ~/Git/ultimate-multisite
+   bin/clone-addons.sh --active-only
+   ```
+
+2. **Create a worktree** in the addon repo:
+   ```bash
+   cd ~/Git/ultimate-multisite-addons/<addon-slug>
+   git worktree add -b feature/my-change ../../<addon-slug>-feature-my-change main
+   cd ~/Git/<addon-slug>-feature-my-change
+   ```
+
+3. **Generate wp-env override** to include your addon:
+   ```bash
+   cd ~/Git/ultimate-multisite
+   bin/generate-wp-env-override.sh --addon <addon-slug>
+   ```
+
+4. **Start the test environment**:
+   ```bash
+   cd ~/Git/ultimate-multisite
+   npm run env:start
+   # WordPress Multisite is now running at http://localhost:8888
+   # with core + your addon loaded
+   ```
+
+5. **Make changes** in your addon worktree, then verify:
+   ```bash
+   # Run addon's PHPUnit tests
+   cd ~/Git/<addon-slug>-feature-my-change
+   composer install && vendor/bin/phpunit
+
+   # Run static analysis
+   vendor/bin/phpstan analyse
+
+   # Browse the running site to verify visually
+   # http://localhost:8888/wp-admin/network/
+   ```
+
+6. **Run E2E tests** (if the addon has them):
+   ```bash
+   cd ~/Git/ultimate-multisite
+   npx cypress run --config-file cypress.config.test.js \
+     --spec "../<addon-slug>-feature-my-change/tests/e2e/**/*.spec.js"
+   ```
+
+7. **Commit, push, and create PR** on the addon repo.
+
+8. **Stop the environment**:
+   ```bash
+   cd ~/Git/ultimate-multisite
+   npm run env:stop
+   ```
+
+### Addon CI
+
+Every addon has a `.github/workflows/ci.yml` that calls the core's reusable workflow:
+
+```yaml
+jobs:
+  integration-test:
+    uses: Ultimate-Multisite/ultimate-multisite/.github/workflows/addon-integration-test.yml@main
+    with:
+      addon-slug: <addon-slug>
+    secrets: inherit
+```
+
+This automatically:
+- Checks out the core plugin and the addon
+- Sets up a WordPress Multisite with MariaDB
+- Symlinks both plugins into the WP test environment
+- Runs the addon's PHPUnit tests
+
+To enable E2E tests, add `run-e2e: true` to the workflow inputs.
+
+### Creating a New Addon
+
+1. Use the template: `gh repo create Ultimate-Multisite/<slug> --template Ultimate-Multisite/ultimate-multisite-addon-template --private`
+2. Replace all `{{PLACEHOLDER}}` values in the template files
+3. Add the addon to `addons.json` in the core repo
+4. Register it in `~/.config/aidevops/repos.json`
+
 ## Directory Structure
 
 ```
-multisite-ultimate/
-├── .github/workflows/     # GitHub Actions
+ultimate-multisite/
+├── .github/workflows/     # GitHub Actions (including addon-integration-test.yml)
 ├── .githooks/            # Custom Git hooks
-├── bin/                  # Development scripts
+├── addons.json           # Addon manifest
+├── bin/                  # Development scripts (including clone-addons.sh)
 ├── inc/                  # Core PHP classes
-├── tests/               # PHPUnit tests
+├── tests/               # PHPUnit + E2E tests
 ├── assets/              # CSS/JS/images
 ├── views/               # Template files
 ├── vendor/              # Composer dependencies
 ├── node_modules/        # NPM dependencies
-├── Makefile             # Development commands
 └── composer.json        # PHP dependencies
 ```
 

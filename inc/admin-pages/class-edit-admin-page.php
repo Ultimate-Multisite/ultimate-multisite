@@ -460,7 +460,7 @@ abstract class Edit_Admin_Page extends Base_Admin_Page {
 	 * @param array  $atts Array of attributes to pass to the form.
 	 * @return void
 	 */
-	protected function add_fields_widget($id, $atts = []) {
+	public function add_fields_widget($id, $atts = []) {
 
 		$atts = wp_parse_args(
 			$atts,

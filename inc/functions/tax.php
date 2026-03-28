@@ -116,12 +116,17 @@ function wu_get_tax_amount($base_price, $amount, $type, $format = true, $inclusi
 /**
  * Searches for applicable tax rates based on the country.
  *
+ * Rates with country set to '*' (Apply to all countries) act as a universal
+ * fallback: they are returned only when no country-specific rate matches the
+ * customer's country. Country-specific rates always take precedence over the
+ * wildcard fallback.
+ *
  * @todo This can be greatly improved and should support multiple rates
  * in the future.
  *
  * @since 2.0.0
  *
- * @param string $country The country to search for.
+ * @param string $country The country to search for. Pass '*' to match only wildcard rates.
  * @param string $tax_category The tax category of the product.
  * @param string $state The state to filter by.
  * @param string $city The city to filter by.

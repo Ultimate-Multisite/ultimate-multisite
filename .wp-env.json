@@ -4,8 +4,7 @@
     "development": {
       "multisite": true,
       "plugins": [
-        ".",
-        "../addons/ultimate-multisite-domain-seller"
+        "."
       ],
       "mappings": {
         "wp-content/mu-plugins/email-smtp-dev.php": "./mu-plugins/email-smtp-dev/email-smtp-dev.php",
@@ -24,8 +23,7 @@
     "tests": {
       "multisite": true,
       "plugins": [
-        ".",
-        "../addons/ultimate-multisite-domain-seller"
+        "."
       ],
       "mappings": {
         "wp-content/mu-plugins/email-smtp-test.php": "./mu-plugins/email-smtp-test/email-smtp-test.php",

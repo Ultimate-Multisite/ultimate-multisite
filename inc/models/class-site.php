@@ -1721,12 +1721,24 @@ class Site extends Base_Model implements Limitable, Notable {
 			$this->get_categories();
 			$this->get_type();
 			$this->is_active();
+			// Lazy-load description from blogdescription option so it is not null
+			// in REST API responses (get_description() calls get_blog_option()).
+			$this->description = $this->get_description();
 		}
 
 		$array = parent::to_array();
 
 		// Expose blog_id as id so callers get the correct non-zero value.
 		$array['id'] = $this->get_id();
+
+		// Description is lazy-loaded from wp_options (blogdescription), not a column.
+		$array['description'] = $this->get_description();
+
+		// Notes are lazy-loaded from metadata via the Notable trait.
+		$array['notes'] = $this->get_notes();
+
+		// Limitations are lazy-loaded from metadata via the Limitable trait.
+		$array['limitations'] = $this->get_limitations();
 
 		return $array;
 	}

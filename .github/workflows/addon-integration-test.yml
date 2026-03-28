@@ -1,0 +1,274 @@
+name: Addon Integration Test
+
+# Reusable workflow for testing Ultimate Multisite addons.
+# Called by individual addon repos to run PHPUnit and E2E tests
+# against a full WordPress Multisite environment with the core plugin.
+#
+# Usage in addon repo (.github/workflows/ci.yml):
+#
+#   on: [push, pull_request]
+#   jobs:
+#     test:
+#       uses: Ultimate-Multisite/ultimate-multisite/.github/workflows/addon-integration-test.yml@main
+#       with:
+#         addon-slug: multisite-ultimate-plugin-and-theme-manager
+#       secrets: inherit
+
+on:
+  workflow_call:
+    inputs:
+      addon-slug:
+        description: "Addon directory name (e.g., multisite-ultimate-plugin-and-theme-manager)"
+        required: true
+        type: string
+      addon-ref:
+        description: "Git ref to checkout for the addon (default: triggering ref)"
+        required: false
+        type: string
+        default: ""
+      php-versions:
+        description: "JSON array of PHP versions to test"
+        required: false
+        type: string
+        default: '["8.2"]'
+      run-e2e:
+        description: "Whether to run E2E (Cypress) tests"
+        required: false
+        type: boolean
+        default: false
+      core-ref:
+        description: "Git ref for the core plugin (default: main)"
+        required: false
+        type: string
+        default: "main"
+
+jobs:
+  phpunit:
+    name: "PHPUnit (PHP ${{ matrix.php }})"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ${{ fromJson(inputs.php-versions) }}
+    services:
+      mysql:
+        image: mariadb:11.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports: [3306]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    container:
+      image: cimg/php:${{ matrix.php }}
+      options: --user root
+    steps:
+      - name: Checkout core plugin
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: Ultimate-Multisite/ultimate-multisite
+          ref: ${{ inputs.core-ref }}
+          path: core
+
+      - name: Checkout addon
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.addon-ref || github.ref }}
+          path: addon
+
+      - name: Install system dependencies
+        run: apt-get update && apt-get install -y subversion mariadb-client
+
+      - name: Install PHP extensions
+        run: install-php-extensions mysqli gd bcmath || echo "Extensions may already be installed."
+
+      - name: Set up Composer global bin path
+        run: |
+          mkdir -p "$HOME/.config/composer/vendor/bin"
+          echo "PATH=$HOME/.config/composer/vendor/bin:$PATH" >> "$GITHUB_ENV"
+
+      - name: Install core Composer dependencies
+        working-directory: core
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Install addon Composer dependencies
+        working-directory: addon
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Wait for MySQL
+        run: |
+          for i in $(seq 1 30); do
+            if mysqladmin ping -h mysql --silent; then
+              echo "MySQL is up"
+              break
+            fi
+            echo "Waiting for MySQL... ($i/30)"
+            sleep 2
+          done
+
+      - name: Prepare WordPress test suite
+        working-directory: core
+        run: |
+          rm -rf /tmp/wordpress-tests-lib /tmp/wordpress/
+          bash bin/install-wp-tests.sh wordpress_test root root mysql latest
+          # Symlink core plugin into WP plugins dir
+          ln -s "$GITHUB_WORKSPACE/core" /tmp/wordpress/wp-content/plugins/ultimate-multisite
+          # Symlink addon into WP plugins dir
+          ln -s "$GITHUB_WORKSPACE/addon" "/tmp/wordpress/wp-content/plugins/${{ inputs.addon-slug }}"
+
+      - name: Run addon PHPUnit tests
+        working-directory: addon
+        run: |
+          if [[ -f phpunit.xml.dist ]] || [[ -f phpunit.xml ]]; then
+            vendor/bin/phpunit
+          else
+            echo "No phpunit.xml.dist found — skipping PHPUnit"
+          fi
+
+  e2e:
+    name: "E2E Tests"
+    if: inputs.run-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mailpit:
+        image: axllent/mailpit:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
+        options: >-
+          --health-cmd="wget --spider -q http://localhost:8025 || exit 1"
+          --health-interval=2s
+          --health-timeout=2s
+          --health-retries=10
+    steps:
+      - name: Checkout core plugin
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: Ultimate-Multisite/ultimate-multisite
+          ref: ${{ inputs.core-ref }}
+          path: core
+
+      - name: Checkout addon
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.addon-ref || github.ref }}
+          path: addon
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 18
+
+      - name: Cache NPM dependencies
+        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-e2e
+
+      - name: Install core NPM dependencies
+        working-directory: core
+        run: npm ci
+
+      - name: Install core Composer dependencies
+        working-directory: core
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Install addon NPM dependencies
+        working-directory: addon
+        run: |
+          if [[ -f package.json ]]; then
+            npm ci
+          fi
+
+      - name: Install addon Composer dependencies
+        working-directory: addon
+        run: |
+          if [[ -f composer.json ]]; then
+            composer install --no-interaction --prefer-dist
+          fi
+
+      - name: Generate wp-env override for addon
+        working-directory: core
+        run: |
+          # Create override that includes core + this addon
+          cat > .wp-env.override.json <<ENDJSON
+          {
+            "env": {
+              "development": {
+                "plugins": [".", "../addon"]
+              },
+              "tests": {
+                "plugins": [".", "../addon"]
+              }
+            }
+          }
+          ENDJSON
+
+      - name: Start WordPress test environment
+        working-directory: core
+        run: npm run env:start:test
+
+      - name: Wait for WordPress to be ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -s http://localhost:8889 | grep -q "WordPress"; then
+              echo "WordPress is ready"
+              break
+            fi
+            echo "Waiting for WordPress... ($i/60)"
+            sleep 5
+          done
+
+      - name: Run core setup test (activates plugins)
+        working-directory: core
+        run: |
+          if [[ -f tests/e2e/cypress/integration/000-setup.spec.js ]]; then
+            npx cypress run \
+              --config-file cypress.config.test.js \
+              --spec "tests/e2e/cypress/integration/000-setup.spec.js" \
+              --browser chrome
+          fi
+
+      - name: Run addon E2E tests
+        working-directory: addon
+        run: |
+          if [[ -d tests/e2e ]] && [[ -f cypress.config.js ]]; then
+            npx cypress run --browser chrome
+          elif [[ -d tests/e2e ]]; then
+            # Use core's Cypress config with addon's test specs
+            cd "$GITHUB_WORKSPACE/core"
+            npx cypress run \
+              --config-file cypress.config.test.js \
+              --spec "$GITHUB_WORKSPACE/addon/tests/e2e/**/*.spec.js" \
+              --browser chrome
+          else
+            echo "No E2E tests found — skipping"
+          fi
+
+      - name: Upload Cypress screenshots
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cypress-screenshots-${{ inputs.addon-slug }}
+          path: |
+            core/tests/e2e/cypress/screenshots
+            addon/tests/e2e/cypress/screenshots
+
+      - name: Upload Cypress videos
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cypress-videos-${{ inputs.addon-slug }}
+          path: |
+            core/tests/e2e/cypress/videos
+            addon/tests/e2e/cypress/videos
+
+      - name: Stop WordPress environment
+        if: always()
+        working-directory: core
+        run: npm run env:stop

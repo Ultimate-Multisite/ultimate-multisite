@@ -275,6 +275,45 @@ class Domain_Mapping_Element extends Base_Element {
 				'capability' => 'exist',
 			]
 		);
+
+		/*
+		 * DNS Management Forms
+		 */
+		wu_register_form(
+			'user_manage_dns_records',
+			[
+				'render'     => [$this, 'render_dns_management_modal'],
+				'handler'    => false,
+				'capability' => 'exist',
+			]
+		);
+
+		wu_register_form(
+			'user_add_dns_record',
+			[
+				'render'     => [$this, 'render_add_dns_record_modal'],
+				'handler'    => [$this, 'handle_add_dns_record'],
+				'capability' => 'exist',
+			]
+		);
+
+		wu_register_form(
+			'user_edit_dns_record',
+			[
+				'render'     => [$this, 'render_edit_dns_record_modal'],
+				'handler'    => [$this, 'handle_edit_dns_record'],
+				'capability' => 'exist',
+			]
+		);
+
+		wu_register_form(
+			'user_delete_dns_record',
+			[
+				'render'     => [$this, 'render_delete_dns_record_modal'],
+				'handler'    => [$this, 'handle_delete_dns_record'],
+				'capability' => 'exist',
+			]
+		);
 	}
 
 	/**
@@ -650,6 +689,362 @@ class Domain_Mapping_Element extends Base_Element {
 		}
 
 		wp_send_json_error(new \WP_Error('error', __('Something wrong happenned.', 'ultimate-multisite')));
+	}
+
+	/**
+	 * Renders the DNS management modal.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function render_dns_management_modal(): void {
+
+		$domain_id = wu_request('domain_id');
+		$domain    = wu_get_domain($domain_id);
+
+		if (! $domain) {
+			wp_send_json_error(new \WP_Error('invalid-domain', __('Invalid domain.', 'ultimate-multisite')));
+			return;
+		}
+
+		$dns_manager = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+		$provider    = $dns_manager->get_dns_provider();
+
+		wu_get_template(
+			'domain/dns-management-modal',
+			[
+				'domain'        => $domain,
+				'domain_id'     => $domain_id,
+				'site_id'       => $domain->get_blog_id(),
+				'can_manage'    => $dns_manager->customer_can_manage_dns(get_current_user_id(), $domain->get_domain()),
+				'has_provider'  => null !== $provider,
+				'provider_name' => $provider ? $provider->get_title() : '',
+			]
+		);
+	}
+
+	/**
+	 * Renders the add DNS record modal.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function render_add_dns_record_modal(): void {
+
+		$domain_id = wu_request('domain_id');
+		$domain    = wu_get_domain($domain_id);
+
+		if (! $domain) {
+			wp_send_json_error(new \WP_Error('invalid-domain', __('Invalid domain.', 'ultimate-multisite')));
+			return;
+		}
+
+		$dns_manager = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+		$provider    = $dns_manager->get_dns_provider();
+
+		wu_get_template(
+			'domain/dns-record-form',
+			[
+				'domain_id'     => $domain_id,
+				'domain_name'   => $domain->get_domain(),
+				'mode'          => 'add',
+				'record'        => [],
+				'allowed_types' => $dns_manager->get_allowed_record_types(get_current_user_id()),
+				'show_proxied'  => $provider && $provider->get_id() === 'cloudflare',
+			]
+		);
+	}
+
+	/**
+	 * Handles adding a DNS record.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function handle_add_dns_record(): void {
+
+		$domain_id = wu_request('domain_id');
+		$domain    = wu_get_domain($domain_id);
+		$record    = wu_request('record', []);
+
+		if (! $domain) {
+			wp_send_json_error(new \WP_Error('invalid-domain', __('Invalid domain.', 'ultimate-multisite')));
+			return;
+		}
+
+		$dns_manager = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+
+		if (! $dns_manager->customer_can_manage_dns(get_current_user_id(), $domain->get_domain())) {
+			wp_send_json_error(new \WP_Error('permission-denied', __('You do not have permission to manage DNS for this domain.', 'ultimate-multisite')));
+			return;
+		}
+
+		$provider = $dns_manager->get_dns_provider();
+
+		if (! $provider) {
+			wp_send_json_error(new \WP_Error('no-provider', __('No DNS provider configured.', 'ultimate-multisite')));
+			return;
+		}
+
+		// Sanitize record data before passing to provider (mirrors DNS_Record_Manager::sanitize_record_data()).
+		$record = [
+			'type'     => strtoupper(sanitize_text_field($record['type'] ?? 'A')),
+			'name'     => sanitize_text_field($record['name'] ?? ''),
+			'content'  => sanitize_text_field($record['content'] ?? ''),
+			'ttl'      => absint($record['ttl'] ?? 3600),
+			'priority' => isset($record['priority']) ? absint($record['priority']) : null,
+			'proxied'  => ! empty($record['proxied']),
+		];
+
+		// Enforce allowed record types server-side.
+		$allowed_types = $dns_manager->get_allowed_record_types(get_current_user_id());
+		if (! in_array($record['type'], $allowed_types, true)) {
+			wp_send_json_error(new \WP_Error('type-not-allowed', __('You are not allowed to create this type of DNS record.', 'ultimate-multisite')));
+			return;
+		}
+
+		$result = $provider->create_dns_record($domain->get_domain(), $record);
+
+		if (is_wp_error($result)) {
+			wp_send_json_error($result);
+			return;
+		}
+
+		wp_send_json_success(
+			[
+				'redirect_url' => wu_get_form_url('user_manage_dns_records', ['domain_id' => $domain_id]),
+			]
+		);
+	}
+
+	/**
+	 * Renders the edit DNS record modal.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function render_edit_dns_record_modal(): void {
+
+		$domain_id = wu_request('domain_id');
+		$record_id = wu_request('record_id');
+		$domain    = wu_get_domain($domain_id);
+
+		if (! $domain) {
+			wp_send_json_error(new \WP_Error('invalid-domain', __('Invalid domain.', 'ultimate-multisite')));
+			return;
+		}
+
+		$dns_manager = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+
+		if (! $dns_manager->customer_can_manage_dns(get_current_user_id(), $domain->get_domain())) {
+			wp_send_json_error(new \WP_Error('permission-denied', __('You do not have permission to manage DNS for this domain.', 'ultimate-multisite')));
+			return;
+		}
+
+		$provider = $dns_manager->get_dns_provider();
+
+		if (! $provider) {
+			wp_send_json_error(new \WP_Error('no-provider', __('No DNS provider configured.', 'ultimate-multisite')));
+			return;
+		}
+
+		// Get current record data
+		$records = $provider->get_dns_records($domain->get_domain());
+		$record  = [];
+
+		if (! is_wp_error($records)) {
+			foreach ($records as $r) {
+				$record_data = $r instanceof \WP_Ultimo\Integrations\Host_Providers\DNS_Record ? $r->to_array() : $r;
+				if (($record_data['id'] ?? '') === $record_id) {
+					$record = $record_data;
+					break;
+				}
+			}
+		}
+
+		wu_get_template(
+			'domain/dns-record-form',
+			[
+				'domain_id'     => $domain_id,
+				'domain_name'   => $domain->get_domain(),
+				'mode'          => 'edit',
+				'record'        => $record,
+				'allowed_types' => $dns_manager->get_allowed_record_types(get_current_user_id()),
+				'show_proxied'  => $provider->get_id() === 'cloudflare',
+			]
+		);
+	}
+
+	/**
+	 * Handles editing a DNS record.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function handle_edit_dns_record(): void {
+
+		$domain_id = wu_request('domain_id');
+		$record_id = wu_request('record_id');
+		$domain    = wu_get_domain($domain_id);
+		$record    = wu_request('record', []);
+
+		if (! $domain) {
+			wp_send_json_error(new \WP_Error('invalid-domain', __('Invalid domain.', 'ultimate-multisite')));
+			return;
+		}
+
+		$dns_manager = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+
+		if (! $dns_manager->customer_can_manage_dns(get_current_user_id(), $domain->get_domain())) {
+			wp_send_json_error(new \WP_Error('permission-denied', __('You do not have permission to manage DNS for this domain.', 'ultimate-multisite')));
+			return;
+		}
+
+		$provider = $dns_manager->get_dns_provider();
+
+		if (! $provider) {
+			wp_send_json_error(new \WP_Error('no-provider', __('No DNS provider configured.', 'ultimate-multisite')));
+			return;
+		}
+
+		// Sanitize record data before passing to provider.
+		$record = [
+			'type'     => strtoupper(sanitize_text_field($record['type'] ?? 'A')),
+			'name'     => sanitize_text_field($record['name'] ?? ''),
+			'content'  => sanitize_text_field($record['content'] ?? ''),
+			'ttl'      => absint($record['ttl'] ?? 3600),
+			'priority' => isset($record['priority']) ? absint($record['priority']) : null,
+			'proxied'  => ! empty($record['proxied']),
+		];
+
+		// Enforce allowed record types server-side.
+		$allowed_types = $dns_manager->get_allowed_record_types(get_current_user_id());
+		if (! in_array($record['type'], $allowed_types, true)) {
+			wp_send_json_error(new \WP_Error('type-not-allowed', __('You are not allowed to modify this type of DNS record.', 'ultimate-multisite')));
+			return;
+		}
+
+		$result = $provider->update_dns_record($domain->get_domain(), $record_id, $record);
+
+		if (is_wp_error($result)) {
+			wp_send_json_error($result);
+			return;
+		}
+
+		wp_send_json_success(
+			[
+				'redirect_url' => wu_get_form_url('user_manage_dns_records', ['domain_id' => $domain_id]),
+			]
+		);
+	}
+
+	/**
+	 * Renders the delete DNS record confirmation modal.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function render_delete_dns_record_modal(): void {
+
+		$domain_id = wu_request('domain_id');
+		$record_id = wu_request('record_id');
+		$domain    = wu_get_domain($domain_id);
+
+		if (! $domain) {
+			wp_send_json_error(new \WP_Error('invalid-domain', __('Invalid domain.', 'ultimate-multisite')));
+			return;
+		}
+
+		$fields = [
+			'confirm'       => [
+				'type'      => 'toggle',
+				'title'     => __('Confirm Deletion', 'ultimate-multisite'),
+				'desc'      => __('I understand this action cannot be undone.', 'ultimate-multisite'),
+				'html_attr' => [
+					'v-model' => 'confirmed',
+				],
+			],
+			'domain_id'     => [
+				'type'  => 'hidden',
+				'value' => $domain_id,
+			],
+			'record_id'     => [
+				'type'  => 'hidden',
+				'value' => $record_id,
+			],
+			'submit_button' => [
+				'type'            => 'submit',
+				'title'           => __('Delete Record', 'ultimate-multisite'),
+				'placeholder'     => __('Delete Record', 'ultimate-multisite'),
+				'value'           => 'save',
+				'classes'         => 'button button-primary wu-w-full',
+				'wrapper_classes' => 'wu-items-end',
+				'html_attr'       => [
+					'v-bind:disabled' => '!confirmed',
+				],
+			],
+		];
+
+		$form = new \WP_Ultimo\UI\Form(
+			'delete_dns_record',
+			$fields,
+			[
+				'views'                 => 'admin-pages/fields',
+				'classes'               => 'wu-modal-form wu-widget-list wu-striped wu-m-0 wu-mt-0',
+				'field_wrapper_classes' => 'wu-w-full wu-box-border wu-items-center wu-flex wu-justify-between wu-p-4 wu-m-0 wu-border-t wu-border-l-0 wu-border-r-0 wu-border-b-0 wu-border-gray-300 wu-border-solid',
+				'html_attr'             => [
+					'data-wu-app' => 'delete_dns_record',
+					'data-state'  => wp_json_encode(['confirmed' => false]),
+				],
+			]
+		);
+
+		$form->render();
+	}
+
+	/**
+	 * Handles deleting a DNS record.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function handle_delete_dns_record(): void {
+
+		$domain_id = wu_request('domain_id');
+		$record_id = wu_request('record_id');
+		$domain    = wu_get_domain($domain_id);
+
+		if (! $domain) {
+			wp_send_json_error(new \WP_Error('invalid-domain', __('Invalid domain.', 'ultimate-multisite')));
+			return;
+		}
+
+		$dns_manager = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+
+		if (! $dns_manager->customer_can_manage_dns(get_current_user_id(), $domain->get_domain())) {
+			wp_send_json_error(new \WP_Error('permission-denied', __('You do not have permission to manage DNS for this domain.', 'ultimate-multisite')));
+			return;
+		}
+
+		$provider = $dns_manager->get_dns_provider();
+
+		if (! $provider) {
+			wp_send_json_error(new \WP_Error('no-provider', __('No DNS provider configured.', 'ultimate-multisite')));
+			return;
+		}
+
+		$result = $provider->delete_dns_record($domain->get_domain(), $record_id);
+
+		if (is_wp_error($result)) {
+			wp_send_json_error($result);
+			return;
+		}
+
+		wp_send_json_success(
+			[
+				'redirect_url' => wu_get_form_url('user_manage_dns_records', ['domain_id' => $domain_id]),
+			]
+		);
 	}
 
 	/**

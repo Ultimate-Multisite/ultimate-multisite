@@ -79,6 +79,21 @@ defined('ABSPATH') || exit;
 
 						$second_row_actions = [];
 
+						// Check if DNS management is available
+						$dns_manager    = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
+						$dns_provider   = $dns_manager->get_dns_provider();
+						$can_manage_dns = $dns_manager->customer_can_manage_dns(get_current_user_id(), $item->get_domain());
+
+						if ($dns_provider || wu_get_setting('enable_customer_dns_management', false)) {
+							$second_row_actions['manage_dns'] = [
+								'wrapper_classes' => 'wubox',
+								'icon'            => 'dashicons-wu-globe wu-align-middle wu-mr-1',
+								'label'           => '',
+								'url'             => wu_get_form_url('user_manage_dns_records', ['domain_id' => $item->get_id()]),
+								'value'           => __('DNS Records', 'ultimate-multisite'),
+							];
+						}
+
 						if ( ! $item->is_primary_domain()) {
 							$second_row_actions['make_primary'] = [
 								'wrapper_classes' => 'wubox',

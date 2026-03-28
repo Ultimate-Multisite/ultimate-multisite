@@ -32,3 +32,6 @@ performance-report.md
 tests/simple-performance-results-*.json
 # AI agent loop state (framework artifacts)
 .agents/loop-state/
+
+# Generated wp-env override (addon-specific, not committed)
+.wp-env.override.json
