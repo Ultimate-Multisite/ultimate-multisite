@@ -1013,10 +1013,18 @@ final class WP_Ultimo {
 		 */
 		WP_Ultimo\Views::get_instance();
 
-		/*
+		/**
 		 * Loads the External Cron manager.
+		 *
+		 * This is behind a feature flag as server-side functionality
+		 * is not yet complete. Define WU_EXTERNAL_CRON_ENABLED as true
+		 * in wp-config.php to enable for development/testing.
+		 *
+		 * @since 2.5.0
 		 */
-		WP_Ultimo\External_Cron\External_Cron_Manager::get_instance();
+		if (defined('WU_EXTERNAL_CRON_ENABLED') && WU_EXTERNAL_CRON_ENABLED) {
+			WP_Ultimo\External_Cron\External_Cron_Manager::get_instance();
+		}
 	}
 
 	/**
