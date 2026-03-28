@@ -656,39 +656,68 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * Test register_forms adds the delete redirect filter.
 	 */
 	public function test_register_forms_adds_delete_redirect_filter(): void {
+		global $wp_filter;
+
+		// Snapshot the hook state before register_forms() so we only remove what we added.
+		$hook_key        = 'wu_data_json_success_delete_membership_modal';
+		$original_filter = $wp_filter[ $hook_key ] ?? null;
+
 		$this->page->register_forms();
 
 		$this->assertGreaterThan(
 			0,
-			has_filter('wu_data_json_success_delete_membership_modal')
+			has_filter($hook_key)
 		);
 
-		remove_all_filters('wu_data_json_success_delete_membership_modal');
+		// Restore the original hook state.
+		if (null === $original_filter) {
+			unset($wp_filter[ $hook_key ]);
+		} else {
+			$wp_filter[ $hook_key ] = $original_filter;
+		}
 	}
 
 	/**
 	 * Test register_forms delete filter returns redirect_url key.
 	 */
 	public function test_register_forms_delete_filter_returns_redirect_url(): void {
+		global $wp_filter;
+
+		$hook_key        = 'wu_data_json_success_delete_membership_modal';
+		$original_filter = $wp_filter[ $hook_key ] ?? null;
+
 		$this->page->register_forms();
 
-		$result = apply_filters('wu_data_json_success_delete_membership_modal', []);
+		$result = apply_filters($hook_key, []);
 
 		$this->assertArrayHasKey('redirect_url', $result);
 		$this->assertIsString($result['redirect_url']);
 
-		remove_all_filters('wu_data_json_success_delete_membership_modal');
+		if (null === $original_filter) {
+			unset($wp_filter[ $hook_key ]);
+		} else {
+			$wp_filter[ $hook_key ] = $original_filter;
+		}
 	}
 
 	/**
 	 * Test register_forms does not throw.
 	 */
 	public function test_register_forms_does_not_throw(): void {
+		global $wp_filter;
+
+		$hook_key        = 'wu_data_json_success_delete_membership_modal';
+		$original_filter = $wp_filter[ $hook_key ] ?? null;
+
 		$this->page->register_forms();
 
 		$this->assertTrue(true);
 
-		remove_all_filters('wu_data_json_success_delete_membership_modal');
+		if (null === $original_filter) {
+			unset($wp_filter[ $hook_key ]);
+		} else {
+			$wp_filter[ $hook_key ] = $original_filter;
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -758,7 +787,11 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * Test register_widgets with swap preview mode hides events widget.
 	 */
 	public function test_register_widgets_in_swap_preview_mode(): void {
+		global $wp_meta_boxes;
+
 		set_current_screen('dashboard-network');
+
+		$screen_id = get_current_screen()->id;
 
 		$reflection = new \ReflectionClass($this->page);
 		$property   = $reflection->getProperty('is_swap_preview');
@@ -770,7 +803,20 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		$this->page->register_widgets();
 
-		$this->assertTrue(true);
+		// When is_swap_preview is true, the events widget must NOT be registered.
+		$events_registered = false;
+		if ( ! empty($wp_meta_boxes[ $screen_id ])) {
+			foreach ($wp_meta_boxes[ $screen_id ] as $context => $priorities) {
+				foreach ($priorities as $priority => $boxes) {
+					if (isset($boxes['wp-ultimo-list-table-events'])) {
+						$events_registered = true;
+						break 2;
+					}
+				}
+			}
+		}
+
+		$this->assertFalse($events_registered, 'The events widget must not be registered when is_swap_preview is true.');
 	}
 
 	/**
@@ -1098,7 +1144,10 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$mock_membership = $this->createMock(Membership::class);
 		$mock_membership->method('get_billing_address')->willReturn($mock_billing_address);
 		$mock_membership->method('set_billing_address')->willReturn(null);
-		$mock_membership->method('set_date_expiration')->willReturn(null);
+		// Expect set_date_expiration(null) to be called exactly once — proves routing to handle_convert_to_lifetime().
+		$mock_membership->expects($this->once())
+			->method('set_date_expiration')
+			->with(null);
 		$mock_membership->method('save')->willReturn(new \WP_Error('test', 'Error'));
 
 		$this->page->object = $mock_membership;
@@ -1350,9 +1399,25 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['product_id'] = $product->get_id();
 		$_REQUEST['quantity']   = 1;
 
-		$this->expectException(\WPDieException::class);
+		// Capture the WPDieException to inspect the JSON payload from wp_send_json_success/error.
+		try {
+			$this->page->handle_edit_membership_product_modal();
+			$this->fail('Expected WPDieException was not thrown.');
+		} catch (\WPDieException $e) {
+			$payload = json_decode($e->getMessage(), true);
 
-		$this->page->handle_edit_membership_product_modal();
+			// Assert the response indicates success (not an error).
+			$this->assertIsArray($payload, 'Response payload must be valid JSON.');
+			$this->assertTrue($payload['success'], 'handle_edit_membership_product_modal must call wp_send_json_success, not wp_send_json_error.');
+		}
+
+		// Also verify the product was persisted on the membership.
+		$reloaded = wu_get_membership($this->membership->get_id());
+		$this->assertNotFalse($reloaded, 'Membership must still exist after product add.');
+
+		$all_products    = $reloaded->get_all_products();
+		$product_ids     = array_map(fn($entry) => $entry['product']->get_id(), $all_products);
+		$this->assertContains($product->get_id(), $product_ids, 'The added product must be present on the reloaded membership.');
 	}
 
 	// -------------------------------------------------------------------------
