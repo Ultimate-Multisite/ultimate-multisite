@@ -48,6 +48,8 @@ class Site_Template_Limits {
 		add_filter('wu_checkout_template_id', [$this, 'maybe_force_template_selection'], 10, 2);
 
 		add_filter('wu_cart_get_extra_params', [$this, 'maybe_force_template_selection_on_cart'], 10, 2);
+
+		add_action('wu_async_after_membership_update_products', [$this, 'handle_downgrade']);
 	}
 
 	/**
@@ -183,5 +185,44 @@ class Site_Template_Limits {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Fires an action after a membership product change so developers can react to
+	 * site-template restriction changes on downgrade.
+	 *
+	 * Site templates govern which template a customer may use when creating a new site.
+	 * Existing sites are not affected by a template restriction change, so no content is
+	 * moved or deleted here. The `wu_membership_downgrade_site_templates` action is fired
+	 * with the new limitations so that developers can implement custom behaviour (e.g.
+	 * notify the customer or restrict future site creation).
+	 *
+	 * @since 2.1.2
+	 *
+	 * @param int $membership_id The membership that was updated.
+	 * @return void
+	 */
+	public function handle_downgrade($membership_id): void {
+
+		$membership = wu_get_membership($membership_id);
+
+		if ( ! $membership) {
+			return;
+		}
+
+		$site_template_limits = $membership->get_limitations()->site_templates;
+
+		/**
+		 * Fires after a membership product change when site-template restrictions may have changed.
+		 *
+		 * Developers can hook here to notify the customer or enforce additional restrictions.
+		 * Existing sites are not modified by this action.
+		 *
+		 * @since 2.1.2
+		 *
+		 * @param \WP_Ultimo\Limitations\Limit_Site_Templates $site_template_limits The new site-template limitations.
+		 * @param int                                         $membership_id        The membership ID.
+		 */
+		do_action('wu_membership_downgrade_site_templates', $site_template_limits, $membership_id);
 	}
 }

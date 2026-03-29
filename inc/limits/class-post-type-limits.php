@@ -65,6 +65,8 @@ class Post_Type_Limits {
 		add_action('current_screen', [$this, 'limit_restoring'], 10);
 
 		add_filter('wp_insert_post_data', [$this, 'limit_draft_publishing'], 10, 2);
+
+		add_action('wu_async_after_membership_update_products', [$this, 'handle_downgrade']);
 	}
 
 	/**
@@ -296,5 +298,87 @@ class Post_Type_Limits {
 		}
 
 		return $tabs;
+	}
+
+	/**
+	 * Handles post-type enforcement after a membership product change (upgrade/downgrade).
+	 *
+	 * When a membership is downgraded to a plan with lower post-type quotas, posts that
+	 * exceed the new limit are moved to the trash. Trashing is reversible, so the customer
+	 * can recover content if they upgrade again. The `wu_membership_downgrade_post_types`
+	 * action fires before any trashing, allowing developers to override the behaviour.
+	 *
+	 * @since 2.1.2
+	 *
+	 * @param int $membership_id The membership that was updated.
+	 * @return void
+	 */
+	public function handle_downgrade($membership_id): void {
+
+		$membership = wu_get_membership($membership_id);
+
+		if ( ! $membership) {
+			return;
+		}
+
+		$sites = $membership->get_sites(false);
+
+		if (empty($sites)) {
+			return;
+		}
+
+		$post_type_limits = $membership->get_limitations()->post_types;
+
+		foreach ($sites as $site) {
+			$blog_id = $site->get_id();
+
+			switch_to_blog($blog_id);
+
+			$over_limit = $post_type_limits->check_all_post_types();
+
+			if ( ! empty($over_limit)) {
+				/**
+				 * Fires before excess posts are trashed on a membership downgrade.
+				 *
+				 * Return a falsy value from this filter to prevent automatic trashing.
+				 *
+				 * @since 2.1.2
+				 *
+				 * @param array $over_limit    Map of post_type => ['current' => int, 'limit' => int].
+				 * @param int   $blog_id       The site ID being enforced.
+				 * @param int   $membership_id The membership ID.
+				 */
+				$over_limit = apply_filters('wu_membership_downgrade_post_types', $over_limit, $blog_id, $membership_id);
+			}
+
+			if ( ! empty($over_limit)) {
+				foreach ($over_limit as $post_type => $counts) {
+					$excess = $counts['current'] - $counts['limit'];
+
+					if ($excess <= 0) {
+						continue;
+					}
+
+					$statuses = 'attachment' === $post_type ? ['inherit'] : ['publish', 'private'];
+
+					$posts_to_trash = get_posts(
+						[
+							'post_type'      => sanitize_key($post_type),
+							'post_status'    => $statuses,
+							'posts_per_page' => $excess,
+							'orderby'        => 'date',
+							'order'          => 'ASC',
+							'fields'         => 'ids',
+						]
+					);
+
+					foreach ($posts_to_trash as $post_id) {
+						wp_trash_post($post_id);
+					}
+				}
+			}
+
+			restore_current_blog();
+		}
 	}
 }

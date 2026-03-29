@@ -205,6 +205,91 @@ class Site_Template_Limits_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test handle_downgrade method exists.
+	 */
+	public function test_handle_downgrade_exists(): void {
+
+		$instance = $this->get_instance();
+
+		$this->assertTrue(method_exists($instance, 'handle_downgrade'));
+	}
+
+	/**
+	 * Test handle_downgrade returns early for invalid membership ID.
+	 */
+	public function test_handle_downgrade_invalid_membership(): void {
+
+		$instance = $this->get_instance();
+
+		// Should not throw with an invalid membership ID.
+		$instance->handle_downgrade(0);
+
+		$this->assertTrue(true);
+	}
+
+	/**
+	 * Test handle_downgrade fires wu_membership_downgrade_site_templates action.
+	 */
+	public function test_handle_downgrade_fires_action(): void {
+
+		$instance = $this->get_instance();
+
+		$action_fired  = false;
+		$captured_args = [];
+
+		add_action(
+			'wu_membership_downgrade_site_templates',
+			function($site_template_limits, $membership_id) use (&$action_fired, &$captured_args) {
+				$action_fired  = true;
+				$captured_args = compact('site_template_limits', 'membership_id');
+			},
+			10,
+			2
+		);
+
+		$product = wu_create_product(
+			[
+				'name'  => 'Template Downgrade Plan',
+				'slug'  => 'template-downgrade-plan-' . wp_rand(),
+				'type'  => 'plan',
+				'price' => 10,
+			]
+		);
+
+		$this->assertNotWPError($product);
+
+		$customer = wu_create_customer(
+			[
+				'user_id' => self::factory()->user->create(),
+			]
+		);
+
+		$this->assertNotWPError($customer);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id' => $customer->get_id(),
+				'plan_id'     => $product->get_id(),
+				'status'      => 'active',
+			]
+		);
+
+		$this->assertNotWPError($membership);
+
+		$instance->handle_downgrade($membership->get_id());
+
+		$this->assertTrue($action_fired, 'wu_membership_downgrade_site_templates action should fire on handle_downgrade.');
+		$this->assertSame($membership->get_id(), $captured_args['membership_id'], 'Action should receive the correct membership ID.');
+		$this->assertInstanceOf(
+			\WP_Ultimo\Limitations\Limit_Site_Templates::class,
+			$captured_args['site_template_limits'],
+			'Action should receive a Limit_Site_Templates instance.'
+		);
+
+		remove_all_filters('wu_membership_downgrade_site_templates');
+	}
+
+	/**
 	 * Test maybe_force_template_selection_on_cart sets template_id in extra params.
 	 */
 	public function test_maybe_force_template_selection_on_cart_assign_mode(): void {

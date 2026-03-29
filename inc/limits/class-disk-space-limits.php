@@ -49,6 +49,8 @@ class Disk_Space_Limits {
 		add_filter('site_option_upload_space_check_disabled', [$this, 'upload_space_check_disabled']);
 
 		add_filter('get_space_allowed', [$this, 'apply_disk_space_limitations']);
+
+		add_action('wu_async_after_membership_update_products', [$this, 'handle_downgrade']);
 	}
 
 	/**
@@ -126,5 +128,69 @@ class Disk_Space_Limits {
 		}
 
 		return $disk_space;
+	}
+
+	/**
+	 * Handles disk space enforcement after a membership product change (upgrade/downgrade).
+	 *
+	 * When a membership is downgraded to a plan with a lower disk quota, the site may
+	 * already be using more space than the new limit allows. Because deleting uploads
+	 * is irreversible, this method fires the `wu_membership_downgrade_disk_space` action
+	 * so that site owners and developers can react (e.g. notify the customer, block new
+	 * uploads, or schedule a cleanup). No files are deleted automatically.
+	 *
+	 * @since 2.1.2
+	 *
+	 * @param int $membership_id The membership that was updated.
+	 * @return void
+	 */
+	public function handle_downgrade($membership_id): void {
+
+		$membership = wu_get_membership($membership_id);
+
+		if ( ! $membership) {
+			return;
+		}
+
+		$sites = $membership->get_sites(false);
+
+		if (empty($sites)) {
+			return;
+		}
+
+		foreach ($sites as $site) {
+			$blog_id = $site->get_id();
+
+			switch_to_blog($blog_id);
+
+			$new_quota_mb = $membership->get_limitations()->disk_space->get_limit();
+
+			// No disk-space limitation on the new plan — nothing to enforce.
+			if ( ! is_numeric($new_quota_mb) || (int) $new_quota_mb <= 0) {
+				restore_current_blog();
+				continue;
+			}
+
+			$used_mb = get_space_used();
+
+			if ($used_mb > (float) $new_quota_mb) {
+				/**
+				 * Fires when a site's disk usage exceeds the new quota after a membership downgrade.
+				 *
+				 * Developers can hook here to notify the customer, block further uploads, or
+				 * schedule a cleanup. Files are NOT deleted automatically.
+				 *
+				 * @since 2.1.2
+				 *
+				 * @param int   $blog_id       The site ID that is over quota.
+				 * @param float $used_mb       Current disk usage in megabytes.
+				 * @param int   $new_quota_mb  New allowed quota in megabytes.
+				 * @param int   $membership_id The membership ID.
+				 */
+				do_action('wu_membership_downgrade_disk_space', $blog_id, $used_mb, (int) $new_quota_mb, $membership_id);
+			}
+
+			restore_current_blog();
+		}
 	}
 }

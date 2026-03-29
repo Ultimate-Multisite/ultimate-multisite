@@ -33,6 +33,8 @@ class Customer_User_Role_Limits {
 
 		add_action('wu_async_after_membership_update_products', [$this, 'update_site_user_roles']);
 
+		add_action('wu_async_after_membership_update_products', [$this, 'handle_downgrade']);
+
 		add_filter('editable_roles', [$this, 'filter_editable_roles']);
 
 		if ( ! wu_get_current_site()->has_module_limitation('customer_user_role')) {
@@ -146,6 +148,117 @@ class Customer_User_Role_Limits {
 					add_user_to_blog($site->get_id(), $customer->get_user_id(), $role);
 				}
 			}
+		}
+	}
+
+	/**
+	 * Enforces user-count limits per role after a membership product change (upgrade/downgrade).
+	 *
+	 * When a membership is downgraded to a plan with lower per-role user quotas, users that
+	 * exceed the new limit are removed from the site. The customer (membership owner) is never
+	 * removed. The `wu_membership_downgrade_user_roles` action fires before any removal so
+	 * developers can override the behaviour or notify affected users.
+	 *
+	 * @since 2.1.2
+	 *
+	 * @param int $membership_id The membership that was updated.
+	 * @return void
+	 */
+	public function handle_downgrade($membership_id): void {
+
+		$membership = wu_get_membership($membership_id);
+
+		if ( ! $membership) {
+			return;
+		}
+
+		$customer = $membership->get_customer();
+
+		if ( ! $customer) {
+			return;
+		}
+
+		$sites = $membership->get_sites(false);
+
+		if (empty($sites)) {
+			return;
+		}
+
+		$users_limitation = $membership->get_limitations()->users;
+
+		foreach ($sites as $site) {
+			$blog_id = $site->get_id();
+
+			switch_to_blog($blog_id);
+
+			$user_count = count_users();
+
+			$roles_over_limit = [];
+
+			foreach ($user_count['avail_roles'] as $role => $count) {
+				$limit = $users_limitation->{$role};
+
+				if ( ! property_exists($limit, 'enabled') || ! $limit->enabled) {
+					restore_current_blog();
+					continue 2;
+				}
+
+				$number = (int) $limit->number;
+
+				if (0 === $number) {
+					continue; // 0 means unlimited.
+				}
+
+				if ($count > $number) {
+					$roles_over_limit[ $role ] = [
+						'current' => $count,
+						'limit'   => $number,
+					];
+				}
+			}
+
+			if ( ! empty($roles_over_limit)) {
+				/**
+				 * Fires before excess users are removed from a site on a membership downgrade.
+				 *
+				 * Return a falsy value from this filter to prevent automatic removal.
+				 *
+				 * @since 2.1.2
+				 *
+				 * @param array $roles_over_limit Map of role => ['current' => int, 'limit' => int].
+				 * @param int   $blog_id          The site ID being enforced.
+				 * @param int   $membership_id    The membership ID.
+				 */
+				$roles_over_limit = apply_filters('wu_membership_downgrade_user_roles', $roles_over_limit, $blog_id, $membership_id);
+			}
+
+			if ( ! empty($roles_over_limit)) {
+				foreach ($roles_over_limit as $role => $counts) {
+					$excess = $counts['current'] - $counts['limit'];
+
+					if ($excess <= 0) {
+						continue;
+					}
+
+					$users_to_remove = get_users(
+						[
+							'blog_id'     => $blog_id,
+							'role'        => $role,
+							'number'      => $excess,
+							'orderby'     => 'registered',
+							'order'       => 'ASC',
+							'exclude'     => [$customer->get_user_id()],
+							'fields'      => 'ID',
+						]
+					);
+
+					foreach ($users_to_remove as $user_id) {
+						remove_user_from_blog($user_id, $blog_id);
+					}
+				}
+			}
+
+			restore_current_blog();
 		}
 	}
 }
