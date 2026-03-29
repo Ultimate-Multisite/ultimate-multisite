@@ -416,7 +416,6 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 	/**
 	 * Gets the customer object associated with this membership.
 	 *
-	 * @todo Implement this.
 	 * @since 2.0.0
 	 * @return \WP_Ultimo\Models\Customer;
 	 */

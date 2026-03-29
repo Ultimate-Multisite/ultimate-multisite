@@ -2,7 +2,6 @@
 /**
  * Handles limitations to disk space
  *
- * @todo We need to move posts on downgrade.
  * @package WP_Ultimo
  * @subpackage Limits
  * @since 2.0.0

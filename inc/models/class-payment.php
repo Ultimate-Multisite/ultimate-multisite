@@ -256,7 +256,6 @@ class Payment extends Base_Model implements Notable {
 	/**
 	 * Gets the customer object associated with this payment.
 	 *
-	 * @todo Implement this.
 	 * @since 2.0.0
 	 * @return \WP_Ultimo\Models\Customer;
 	 */
@@ -291,7 +290,6 @@ class Payment extends Base_Model implements Notable {
 	/**
 	 * Gets the membership object associated with this payment.
 	 *
-	 * @todo Implement this.
 	 * @since 2.0.0
 	 * @return \WP_Ultimo\Models\Membership|false
 	 */

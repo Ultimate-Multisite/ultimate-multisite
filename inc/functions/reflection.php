@@ -24,9 +24,6 @@ function wu_reflection_parse_object_arguments($class_name) {
 	$base_schema = wu_reflection_parse_arguments_from_setters($class_name, true);
 
 	if (wu_are_code_comments_available() === false) {
-		/*
-		 * @todo add a logger.
-		 */
 		return $base_schema;
 	}
 
