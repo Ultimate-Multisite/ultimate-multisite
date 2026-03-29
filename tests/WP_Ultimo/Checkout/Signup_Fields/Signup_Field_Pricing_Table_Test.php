@@ -183,9 +183,9 @@ class Signup_Field_Pricing_Table_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test to_fields_array returns empty array when hide_when_pre_selected applies.
+	 * Test to_fields_array returns empty array when no products are configured.
 	 */
-	public function test_to_fields_array_returns_empty_when_hidden(): void {
+	public function test_to_fields_array_returns_empty_when_no_products(): void {
 		$attributes = array(
 			'id'                                   => 'pricing_table',
 			'type'                                 => 'pricing_table',
@@ -201,7 +201,7 @@ class Signup_Field_Pricing_Table_Test extends WP_UnitTestCase {
 		$this->field->set_attributes( $attributes );
 		$fields = $this->field->to_fields_array( $attributes );
 
-		// With no products, the result should be an array (possibly empty after filtering).
+		// With no valid products, the result should be an array with one note field (template rendered).
 		$this->assertIsArray( $fields );
 	}
 
