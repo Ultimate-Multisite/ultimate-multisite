@@ -168,4 +168,309 @@ class Customer_User_Role_Limits_Test extends \WP_UnitTestCase {
 		$this->assertArrayHasKey('administrator', $filtered);
 		restore_current_blog();
 	}
+
+	/**
+	 * Test handle_downgrade method exists.
+	 */
+	public function test_handle_downgrade_method_exists(): void {
+
+		$instance = Customer_User_Role_Limits::get_instance();
+
+		$this->assertTrue(method_exists($instance, 'handle_downgrade'));
+	}
+
+	/**
+	 * Test handle_downgrade returns early for invalid membership ID.
+	 */
+	public function test_handle_downgrade_invalid_membership(): void {
+
+		$instance = Customer_User_Role_Limits::get_instance();
+
+		// Should not throw — wu_get_membership(0) returns false.
+		$instance->handle_downgrade(0);
+
+		$this->assertTrue(true);
+	}
+
+	/**
+	 * Test handle_downgrade demotes excess users to subscriber when over role quota.
+	 */
+	public function test_handle_downgrade_demotes_excess_users(): void {
+
+		$instance = Customer_User_Role_Limits::get_instance();
+
+		$product = wu_create_product(
+			[
+				'name'  => 'Role Limit Plan',
+				'slug'  => 'role-limit-plan-' . wp_rand(),
+				'type'  => 'plan',
+				'price' => 10,
+			]
+		);
+
+		$this->assertNotWPError($product);
+
+		// Set a users limitation: max 1 editor.
+		$product->update_meta(
+			'wu_limitations',
+			[
+				'users' => [
+					'enabled' => true,
+					'limit'   => [
+						'editor' => [
+							'enabled' => true,
+							'number'  => 1,
+						],
+					],
+				],
+			]
+		);
+
+		$customer = wu_create_customer(
+			[
+				'user_id' => self::factory()->user->create(),
+			]
+		);
+
+		$this->assertNotWPError($customer);
+
+		$site = wu_create_site(
+			[
+				'title'       => 'Role Downgrade Site',
+				'domain'      => 'role-downgrade-' . wp_rand() . '.example.com',
+				'template_id' => 1,
+				'type'        => Site_Type::CUSTOMER_OWNED,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id' => $customer->get_id(),
+				'plan_id'     => $product->get_id(),
+				'status'      => 'active',
+			]
+		);
+
+		$this->assertNotWPError($membership);
+
+		$site->update_meta('wu_membership_id', $membership->get_id());
+
+		$blog_id = $site->get_id();
+
+		switch_to_blog($blog_id);
+
+		// Create 3 editor users on the site (limit is 1, so 2 should be demoted).
+		$editor_ids = [];
+
+		for ($i = 0; $i < 3; $i++) {
+			$uid          = self::factory()->user->create();
+			$editor_ids[] = $uid;
+			add_user_to_blog($blog_id, $uid, 'editor');
+		}
+
+		restore_current_blog();
+
+		$instance->handle_downgrade($membership->get_id());
+
+		switch_to_blog($blog_id);
+
+		// Sort descending by ID — highest IDs are demoted first.
+		rsort($editor_ids);
+
+		// The 2 most recently added editors (highest IDs) should be demoted to subscriber.
+		$user_0 = new \WP_User($editor_ids[0], '', $blog_id);
+		$user_1 = new \WP_User($editor_ids[1], '', $blog_id);
+
+		$this->assertTrue(in_array('subscriber', $user_0->roles, true), 'Most recently added editor should be demoted to subscriber.');
+		$this->assertTrue(in_array('subscriber', $user_1->roles, true), 'Second most recently added editor should be demoted to subscriber.');
+
+		// The oldest editor (lowest ID) should remain as editor.
+		$user_2 = new \WP_User($editor_ids[2], '', $blog_id);
+
+		$this->assertTrue(in_array('editor', $user_2->roles, true), 'Oldest editor should remain as editor.');
+
+		restore_current_blog();
+	}
+
+	/**
+	 * Test handle_downgrade fires wu_customer_user_role_downgrade_demoted action.
+	 */
+	public function test_handle_downgrade_fires_demoted_action(): void {
+
+		$demoted_user_ids = [];
+
+		add_action(
+			'wu_customer_user_role_downgrade_demoted',
+			function($user_id) use (&$demoted_user_ids) {
+				$demoted_user_ids[] = $user_id;
+			}
+		);
+
+		$product = wu_create_product(
+			[
+				'name'  => 'Demote Action Plan',
+				'slug'  => 'demote-action-plan-' . wp_rand(),
+				'type'  => 'plan',
+				'price' => 10,
+			]
+		);
+
+		$this->assertNotWPError($product);
+
+		$product->update_meta(
+			'wu_limitations',
+			[
+				'users' => [
+					'enabled' => true,
+					'limit'   => [
+						'editor' => [
+							'enabled' => true,
+							'number'  => 1,
+						],
+					],
+				],
+			]
+		);
+
+		$customer = wu_create_customer(
+			[
+				'user_id' => self::factory()->user->create(),
+			]
+		);
+
+		$this->assertNotWPError($customer);
+
+		$site = wu_create_site(
+			[
+				'title'       => 'Demote Action Site',
+				'domain'      => 'demote-action-' . wp_rand() . '.example.com',
+				'template_id' => 1,
+				'type'        => Site_Type::CUSTOMER_OWNED,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id' => $customer->get_id(),
+				'plan_id'     => $product->get_id(),
+				'status'      => 'active',
+			]
+		);
+
+		$this->assertNotWPError($membership);
+
+		$site->update_meta('wu_membership_id', $membership->get_id());
+
+		$blog_id = $site->get_id();
+
+		switch_to_blog($blog_id);
+
+		// Create 2 editors (limit is 1, so 1 should be demoted).
+		$u1 = self::factory()->user->create();
+		$u2 = self::factory()->user->create();
+		add_user_to_blog($blog_id, $u1, 'editor');
+		add_user_to_blog($blog_id, $u2, 'editor');
+
+		restore_current_blog();
+
+		$instance = Customer_User_Role_Limits::get_instance();
+
+		$instance->handle_downgrade($membership->get_id());
+
+		$this->assertCount(1, $demoted_user_ids, 'Exactly one user should have been demoted.');
+	}
+
+	/**
+	 * Test handle_downgrade does not demote users when within quota.
+	 */
+	public function test_handle_downgrade_no_demotion_within_quota(): void {
+
+		$demoted_user_ids = [];
+
+		add_action(
+			'wu_customer_user_role_downgrade_demoted',
+			function($user_id) use (&$demoted_user_ids) {
+				$demoted_user_ids[] = $user_id;
+			}
+		);
+
+		$product = wu_create_product(
+			[
+				'name'  => 'Within Role Quota Plan',
+				'slug'  => 'within-role-quota-plan-' . wp_rand(),
+				'type'  => 'plan',
+				'price' => 10,
+			]
+		);
+
+		$this->assertNotWPError($product);
+
+		// Set a limit of 5 editors — we'll only create 2.
+		$product->update_meta(
+			'wu_limitations',
+			[
+				'users' => [
+					'enabled' => true,
+					'limit'   => [
+						'editor' => [
+							'enabled' => true,
+							'number'  => 5,
+						],
+					],
+				],
+			]
+		);
+
+		$customer = wu_create_customer(
+			[
+				'user_id' => self::factory()->user->create(),
+			]
+		);
+
+		$this->assertNotWPError($customer);
+
+		$site = wu_create_site(
+			[
+				'title'       => 'Within Role Quota Site',
+				'domain'      => 'within-role-quota-' . wp_rand() . '.example.com',
+				'template_id' => 1,
+				'type'        => Site_Type::CUSTOMER_OWNED,
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id' => $customer->get_id(),
+				'plan_id'     => $product->get_id(),
+				'status'      => 'active',
+			]
+		);
+
+		$this->assertNotWPError($membership);
+
+		$site->update_meta('wu_membership_id', $membership->get_id());
+
+		$blog_id = $site->get_id();
+
+		switch_to_blog($blog_id);
+
+		$u1 = self::factory()->user->create();
+		$u2 = self::factory()->user->create();
+		add_user_to_blog($blog_id, $u1, 'editor');
+		add_user_to_blog($blog_id, $u2, 'editor');
+
+		restore_current_blog();
+
+		$instance = Customer_User_Role_Limits::get_instance();
+
+		$instance->handle_downgrade($membership->get_id());
+
+		$this->assertEmpty($demoted_user_ids, 'No users should be demoted when within quota.');
+	}
 }
