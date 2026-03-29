@@ -32,6 +32,39 @@ class Primary_Domain {
 	public function init(): void {
 
 		add_action('wu_domain_mapping_load', [$this, 'add_hooks'], -20);
+
+		add_filter('allowed_redirect_hosts', [$this, 'allow_mapped_domain_redirect_hosts']);
+	}
+
+	/**
+	 * Adds mapped domain hosts to the list of allowed redirect hosts.
+	 *
+	 * wp_safe_redirect() validates the redirect target host against this list.
+	 * Without this filter, redirects to mapped domains (which differ from the
+	 * network's own host) would be blocked and fall back to wp_admin_url().
+	 *
+	 * @since 2.1.0
+	 * @param string[] $hosts Allowed redirect hosts.
+	 * @return string[]
+	 */
+	public function allow_mapped_domain_redirect_hosts(array $hosts): array {
+
+		if ( ! function_exists('wu_get_domains')) {
+			return $hosts;
+		}
+
+		$domains = wu_get_domains(
+			[
+				'blog_id' => get_current_blog_id(),
+				'active'  => 1,
+			]
+		);
+
+		foreach ($domains as $domain) {
+			$hosts[] = $domain->get_domain();
+		}
+
+		return $hosts;
 	}
 
 	/**
@@ -106,8 +139,7 @@ class Primary_Domain {
 			$new_url = Domain_Mapping::get_instance()->replace_url($url, $primary_domain);
 
 			if ($url !== $new_url ) {
-				// TODO: Use wp_safe_redirect
-				wp_redirect(set_url_scheme($new_url)); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
+				wp_safe_redirect(set_url_scheme($new_url));
 
 				exit;
 			}
@@ -175,7 +207,7 @@ class Primary_Domain {
 			 * full URL including the query string, so separate query arg
 			 * processing is not needed.
 			 */
-			wp_redirect($redirect_url); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
+			wp_safe_redirect($redirect_url);
 
 			exit;
 		}
