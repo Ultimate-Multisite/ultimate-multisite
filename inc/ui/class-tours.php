@@ -91,23 +91,39 @@ class Tours {
 	public function enqueue_scripts(): void {
 
 		if ($this->has_tours()) {
-			// It's not possible to localize a module so we'll just use wu-admin which will always be there. See https://core.trac.wordpress.org/ticket/60234
-			wp_localize_script('wu-admin', 'wu_tours', $this->tours);
+			/*
+			 * We cannot use wp_localize_script() on a module script (wu-tours), and
+			 * we cannot rely on wu-admin being enqueued on every admin page — since
+			 * PR #433 it is only enqueued on WP Ultimo pages. The network dashboard
+			 * (index.php, hook suffix dashboard-network) is not a WP Ultimo page, so
+			 * wu-admin is absent there and localizing onto it silently does nothing,
+			 * leaving wu_tours undefined when tours.js executes.
+			 *
+			 * Fix: use wp_add_inline_script() on 'underscore', which is a WordPress
+			 * core script always present in the admin. This injects wu_tours and
+			 * wu_tours_vars as globals immediately after underscore loads, making them
+			 * available to the wu-tours module regardless of whether wu-admin is
+			 * enqueued. See https://core.trac.wordpress.org/ticket/60234.
+			 */
+			wp_enqueue_script('underscore');
 
-			wp_localize_script(
-				'wu-admin',
-				'wu_tours_vars',
-				[
-					'ajaxurl' => wu_ajax_url(),
-					'nonce'   => wp_create_nonce('wu_tour_finished'),
-					'i18n'    => [
-						'next'   => __('Next', 'ultimate-multisite'),
-						'finish' => __('Close', 'ultimate-multisite'),
-					],
-				]
+			$inline_data = sprintf(
+				'var wu_tours = %s; var wu_tours_vars = %s;',
+				wp_json_encode($this->tours),
+				wp_json_encode(
+					[
+						'ajaxurl' => wu_ajax_url(),
+						'nonce'   => wp_create_nonce('wu_tour_finished'),
+						'i18n'    => [
+							'next'   => __('Next', 'ultimate-multisite'),
+							'finish' => __('Close', 'ultimate-multisite'),
+						],
+					]
+				)
 			);
 
-			wp_enqueue_script('underscore');
+			wp_add_inline_script('underscore', $inline_data, 'after');
+
 			wp_enqueue_script_module('wu-tours');
 			wp_enqueue_style('shepherd');
 		}
