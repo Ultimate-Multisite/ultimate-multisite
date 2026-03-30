@@ -85,6 +85,17 @@ class Dashboard_Widgets implements \WP_Ultimo\Interfaces\Singleton {
 		 * we must enqueue wu-functions explicitly here.
 		 */
 		wp_enqueue_script('wu-functions');
+
+		/*
+		 * Enqueue the activity-stream script here — during admin_enqueue_scripts —
+		 * so WordPress resolves the full dependency chain (wu-functions, moment, etc.)
+		 * before the script runs. Previously this was enqueued inside the view
+		 * template during widget rendering, which fires after admin_enqueue_scripts
+		 * and caused wu_moment to be undefined.
+		 */
+		wp_enqueue_script('wu-activity-stream', wu_get_asset('activity-stream.js', 'js'), ['wu-vue', 'wu-functions', 'moment'], wu_get_version(), true);
+
+		wp_add_inline_script('wu-activity-stream', 'var wu_activity_stream_nonce = "' . esc_js(wp_create_nonce('wu_activity_stream')) . '";', 'before');
 	}
 
 	/**

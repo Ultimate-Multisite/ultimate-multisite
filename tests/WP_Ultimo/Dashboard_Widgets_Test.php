@@ -114,6 +114,45 @@ class Dashboard_Widgets_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test enqueue_scripts enqueues activity-stream with correct deps on index.php.
+	 */
+	public function test_enqueue_scripts_enqueues_activity_stream_on_index(): void {
+
+		global $pagenow, $wp_scripts;
+
+		$original       = $pagenow;
+		$original_queue = isset($wp_scripts) ? $wp_scripts->queue : [];
+		$pagenow        = 'index.php';
+
+		if (isset($wp_scripts)) {
+			$wp_scripts->queue = [];
+			$wp_scripts->done  = [];
+		}
+
+		// Ensure wu-functions is registered so the dependency chain resolves.
+		\WP_Ultimo\Scripts::get_instance()->register_default_scripts();
+
+		$instance = $this->get_instance();
+		$instance->enqueue_scripts();
+
+		$this->assertTrue(
+			wp_script_is('wu-activity-stream', 'enqueued'),
+			'wu-activity-stream should be enqueued on index.php'
+		);
+
+		// Verify wu-functions and moment are declared dependencies.
+		$script = $wp_scripts->registered['wu-activity-stream'] ?? null;
+		$this->assertNotNull($script, 'wu-activity-stream should be registered');
+		$this->assertContains('wu-functions', $script->deps);
+		$this->assertContains('moment', $script->deps);
+
+		if (isset($wp_scripts)) {
+			$wp_scripts->queue = $original_queue;
+		}
+		$pagenow = $original;
+	}
+
+	/**
 	 * Test get_registered_dashboard_widgets returns array.
 	 *
 	 * Note: The method uses ob_start/ob_clean internally which

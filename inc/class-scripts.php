@@ -190,7 +190,7 @@ class Scripts {
 		/*
 		 * Adds General Functions
 		 */
-		$this->register_script('wu-functions', wu_get_asset('functions.js', 'js'), ['jquery-core', 'wu-tiptip', 'wu-flatpicker', 'wu-block-ui', 'wu-accounting', 'clipboard', 'wp-hooks']);
+		$this->register_script('wu-functions', wu_get_asset('functions.js', 'js'), ['jquery-core', 'moment', 'wu-tiptip', 'wu-flatpicker', 'wu-block-ui', 'wu-accounting', 'clipboard', 'wp-hooks']);
 
 		wp_localize_script(
 			'wu-functions',
