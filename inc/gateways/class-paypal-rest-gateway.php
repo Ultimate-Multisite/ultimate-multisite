@@ -259,7 +259,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 
 		return sprintf(
 			'<span style="display:flex;align-items:center;flex:1;min-width:0"><span>%s</span><img src="%s" alt="PayPal" height="20" style="margin-left:auto;max-height:20px;display:block" loading="lazy"></span>',
-			esc_html__('PayPal', 'ultimate-multisite'),
+			esc_html($title),
 			esc_url('https://www.paypalobjects.com/webstatic/mktg/Logo/pp-logo-100px.png')
 		);
 	}

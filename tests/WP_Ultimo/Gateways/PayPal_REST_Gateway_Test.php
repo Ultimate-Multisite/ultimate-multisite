@@ -746,13 +746,14 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test checkout label HTML includes the title text.
+	 * Test checkout label HTML includes the custom title text and PayPal logo alt text.
 	 */
 	public function test_get_checkout_label_html_includes_title(): void {
 
 		$html = $this->gateway->get_checkout_label_html('Custom Title');
 
-		$this->assertStringContainsString('PayPal', $html); // Always shows PayPal
+		$this->assertStringContainsString('Custom Title', $html);
+		$this->assertStringContainsString('PayPal', $html);
 	}
 
 	// -------------------------------------------------------------------------
