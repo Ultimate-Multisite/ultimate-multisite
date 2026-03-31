@@ -137,7 +137,7 @@ class Command_Palette_Manager {
 		wp_enqueue_script(
 			'wu-command-palette',
 			wu_get_asset('command-palette.js', 'js'),
-			['wp-commands', 'wp-element', 'wp-i18n', 'wp-api-fetch', 'wp-components', 'wp-icons'],
+			['wp-commands', 'wp-data', 'wp-element', 'wp-i18n', 'wp-api-fetch', 'wp-components', 'wp-primitives'],
 			wu_get_version(),
 			true
 		);
