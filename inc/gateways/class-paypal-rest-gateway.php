@@ -193,6 +193,9 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 		// Hide PayPal from checkout when currency is not supported
 		add_filter('wu_get_active_gateways', [$this, 'maybe_remove_for_unsupported_currency']);
 
+		// Hide PayPal from checkout when merchant cannot receive payments
+		add_filter('wu_get_active_gateways', [$this, 'maybe_remove_for_invalid_merchant_status']);
+
 		// Register PayPal checkout scripts (button branding)
 		add_action('wu_checkout_scripts', [$this, 'register_scripts']);
 
@@ -240,6 +243,37 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 	public function maybe_remove_for_unsupported_currency(array $gateways): array {
 
 		if (! self::is_currency_supported()) {
+			unset($gateways['paypal-rest']);
+		}
+
+		return $gateways;
+	}
+
+	/**
+	 * Removes PayPal from the active gateways list when the merchant cannot receive payments.
+	 *
+	 * PayPal requires that merchants with `payments_receivable=false` or
+	 * `email_confirmed=false` are blocked from processing payments until
+	 * their account setup is complete.
+	 *
+	 * Hooked to 'wu_get_active_gateways'.
+	 *
+	 * @since 2.0.0
+	 * @param array $gateways The registered active gateways.
+	 * @return array
+	 */
+	public function maybe_remove_for_invalid_merchant_status(array $gateways): array {
+
+		// Only applies when connected via OAuth
+		if (empty($this->merchant_id)) {
+			return $gateways;
+		}
+
+		$mode_prefix         = $this->test_mode ? 'sandbox' : 'live';
+		$payments_receivable = wu_get_setting("paypal_rest_{$mode_prefix}_payments_receivable", true);
+		$email_confirmed     = wu_get_setting("paypal_rest_{$mode_prefix}_email_confirmed", true);
+
+		if (! $payments_receivable || ! $email_confirmed) {
 			unset($gateways['paypal-rest']);
 		}
 
@@ -678,6 +712,12 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 			return $response;
 		}
 
+		// Log PayPal-Debug-Id for every response to aid support and review submissions.
+		$debug_id = wp_remote_retrieve_header($response, 'paypal-debug-id');
+		if ($debug_id) {
+			$this->log(sprintf('PayPal-Debug-Id: %s [%s %s]', $debug_id, $method, $endpoint));
+		}
+
 		$body = json_decode(wp_remote_retrieve_body($response), true);
 		$code = wp_remote_retrieve_response_code($response);
 
@@ -1010,6 +1050,35 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 		$currency    = $this->get_payment_currency_code($payment);
 		$description = $this->get_subscription_description($cart);
 
+		$purchase_unit = [
+			'reference_id' => $payment->get_hash(),
+			'description'  => substr($description, 0, 127),
+			'custom_id'    => sprintf('%s|%s|%s', $payment->get_id(), $membership->get_id(), $customer->get_id()),
+			'amount'       => [
+				'currency_code' => $currency,
+				'value'         => $this->format_amount($payment->get_total(), $currency),
+				'breakdown'     => [
+					'item_total' => [
+						'currency_code' => $currency,
+						'value'         => $this->format_amount($payment->get_subtotal(), $currency),
+					],
+					'tax_total'  => [
+						'currency_code' => $currency,
+						'value'         => $this->format_amount($payment->get_tax_total(), $currency),
+					],
+				],
+			],
+			'items'        => $this->build_order_items($cart, $currency),
+		];
+
+		// Include payee.merchant_id when connected via OAuth so PayPal routes
+		// the payment to the correct merchant account (required for PPCP compliance).
+		if (! empty($this->merchant_id)) {
+			$purchase_unit['payee'] = [
+				'merchant_id' => $this->merchant_id,
+			];
+		}
+
 		$order_data = [
 			'intent'         => 'CAPTURE',
 			'payment_source' => [
@@ -1025,28 +1094,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 					'email_address'      => $customer->get_email_address(),
 				],
 			],
-			'purchase_units' => [
-				[
-					'reference_id' => $payment->get_hash(),
-					'description'  => substr($description, 0, 127),
-					'custom_id'    => sprintf('%s|%s|%s', $payment->get_id(), $membership->get_id(), $customer->get_id()),
-					'amount'       => [
-						'currency_code' => $currency,
-						'value'         => $this->format_amount($payment->get_total(), $currency),
-						'breakdown'     => [
-							'item_total' => [
-								'currency_code' => $currency,
-								'value'         => $this->format_amount($payment->get_subtotal(), $currency),
-							],
-							'tax_total'  => [
-								'currency_code' => $currency,
-								'value'         => $this->format_amount($payment->get_tax_total(), $currency),
-							],
-						],
-					],
-					'items'        => $this->build_order_items($cart, $currency),
-				],
-			],
+			'purchase_units' => [ $purchase_unit ],
 		];
 
 		/**
@@ -1890,7 +1938,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 
 				$(".wu-paypal-disconnect").on("click", function(e) {
 					e.preventDefault();
-					if (!confirm(<?php echo wp_json_encode(__('Are you sure you want to disconnect PayPal?', 'ultimate-multisite')); ?>)) return;
+					if (!confirm(<?php echo wp_json_encode(__('Disconnecting your PayPal account will prevent you from offering PayPal services and products on your website. Do you wish to continue?', 'ultimate-multisite')); ?>)) return;
 
 					var $btn = $(this);
 					$btn.prop("disabled", true);
