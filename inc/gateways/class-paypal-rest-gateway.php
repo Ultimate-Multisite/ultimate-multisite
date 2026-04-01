@@ -1739,6 +1739,27 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 			$identifier = $status['details']['merchant_id']
 				?? ($status['details']['email'] ?? ($status['details']['client_id'] ?? ''));
 
+			$mode_prefix         = $this->test_mode ? 'sandbox' : 'live';
+			$payments_receivable = (bool) wu_get_setting("paypal_rest_{$mode_prefix}_payments_receivable", true);
+			$email_confirmed     = (bool) wu_get_setting("paypal_rest_{$mode_prefix}_email_confirmed", true);
+
+			// Show required PayPal error banners when merchant status is incomplete
+			if (! $payments_receivable) {
+				printf(
+					'<div class="wu-oauth-status-warning wu-p-4 wu-bg-red-50 wu-border wu-border-red-300 wu-rounded wu-mb-3">
+						<p class="wu-text-sm wu-text-red-800 wu-m-0">%s</p>
+					</div>',
+					esc_html__('Attention: You currently cannot receive payments due to restriction on your PayPal account. Please reach out to PayPal Customer Support or connect to https://www.paypal.com for more information.', 'ultimate-multisite')
+				);
+			} elseif (! $email_confirmed) {
+				printf(
+					'<div class="wu-oauth-status-warning wu-p-4 wu-bg-red-50 wu-border wu-border-red-300 wu-rounded wu-mb-3">
+						<p class="wu-text-sm wu-text-red-800 wu-m-0">%s</p>
+					</div>',
+					esc_html__('Attention: Please confirm your email address on https://www.paypal.com/businessprofile/settings in order to receive payments! You currently cannot receive payments.', 'ultimate-multisite')
+				);
+			}
+
 			// Connected state
 			printf(
 				'<div class="wu-oauth-status wu-connected wu-p-4 wu-bg-green-50 wu-border wu-border-green-200 wu-rounded">
@@ -1888,22 +1909,22 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 					});
 				});
 
-				$(".wu-paypal-disconnect").on("click", function(e) {
-					e.preventDefault();
-					if (!confirm(<?php echo wp_json_encode(__('Are you sure you want to disconnect PayPal?', 'ultimate-multisite')); ?>)) return;
+			$(".wu-paypal-disconnect").on("click", function(e) {
+				e.preventDefault();
+				if (!confirm(<?php echo wp_json_encode(__('Disconnecting your PayPal account will prevent you from offering PayPal services and products on your website. Do you wish to continue?', 'ultimate-multisite')); ?>)) return;
 
-					var $btn = $(this);
-					$btn.prop("disabled", true);
+				var $btn = $(this);
+				$btn.prop("disabled", true);
 
-					$.post(ajaxurl, {
-						action: "wu_paypal_disconnect",
-						nonce: wuPayPalNonce
-					}, function(response) {
-						window.location.reload();
-					});
+				$.post(ajaxurl, {
+					action: "wu_paypal_disconnect",
+					nonce: wuPayPalNonce
+				}, function(response) {
+					window.location.reload();
 				});
 			});
-			</script>
+		});
+		</script>
 				<?php
 			}
 		);
