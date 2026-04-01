@@ -723,13 +723,14 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 
 		if ($code >= 400) {
 			$error_msg = $body['message'] ?? ($body['error_description'] ?? __('API request failed', 'ultimate-multisite'));
-			$this->log(sprintf('API Error (%d): %s', $code, wp_json_encode($body)), LogLevel::ERROR);
+			$this->log(sprintf('API Error (%d): %s [Debug-Id: %s]', $code, wp_json_encode($body), $debug_id ?: 'n/a'), LogLevel::ERROR);
 			return new \WP_Error(
 				'wu_paypal_api_error',
 				$error_msg,
 				[
-					'status'   => $code,
-					'response' => $body,
+					'status'    => $code,
+					'response'  => $body,
+					'debug_id'  => $debug_id,
 				]
 			);
 		}
