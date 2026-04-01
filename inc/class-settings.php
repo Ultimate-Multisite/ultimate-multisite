@@ -1629,16 +1629,6 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			]
 		);
 
-		/**
-		 * Fires to allow transactional email provider settings to be registered.
-		 *
-		 * Use this hook to add settings fields for configuring the active
-		 * transactional email provider (e.g. Amazon SES, SendGrid, Mailgun).
-		 *
-		 * @since 2.5.0
-		 */
-		do_action('wu_settings_transactional_email');
-
 		/*
 		 * Domain Mapping
 		 * This section holds the Domain Mapping settings of the Ultimate Multisite Plugin.
