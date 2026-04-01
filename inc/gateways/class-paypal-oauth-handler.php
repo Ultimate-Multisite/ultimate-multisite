@@ -260,23 +260,34 @@ class PayPal_OAuth_Handler {
 		wu_save_setting('paypal_rest_connection_mode', $mode_prefix);
 
 		// Store additional status info if available
-		if (! empty($merchant_status['paymentsReceivable'])) {
-			wu_save_setting("paypal_rest_{$mode_prefix}_payments_receivable", $merchant_status['paymentsReceivable']);
-		}
+		$payments_receivable = isset($merchant_status['paymentsReceivable']) ? (bool) $merchant_status['paymentsReceivable'] : true;
+		$email_confirmed     = isset($merchant_status['emailConfirmed']) ? (bool) $merchant_status['emailConfirmed'] : true;
 
-		if (! empty($merchant_status['emailConfirmed'])) {
-			wu_save_setting("paypal_rest_{$mode_prefix}_email_confirmed", $merchant_status['emailConfirmed']);
-		}
+		wu_save_setting("paypal_rest_{$mode_prefix}_payments_receivable", $payments_receivable);
+		wu_save_setting("paypal_rest_{$mode_prefix}_email_confirmed", $email_confirmed);
 
 		// Clean up the tracking transient
 		delete_site_transient('wu_paypal_onboarding_' . $tracking_id);
 
-		wu_log_add('paypal', sprintf('PayPal OAuth completed. Merchant ID: %s, Mode: %s', $merchant_id, $mode_prefix));
+		wu_log_add('paypal', sprintf('PayPal OAuth completed. Merchant ID: %s, Mode: %s, payments_receivable: %s, email_confirmed: %s', $merchant_id, $mode_prefix, $payments_receivable ? 'true' : 'false', $email_confirmed ? 'true' : 'false'));
 
 		// Automatically install webhooks for the connected account
 		$this->install_webhook_after_oauth($mode_prefix);
 
-		$this->add_oauth_notice('success', __('PayPal account connected successfully!', 'ultimate-multisite'));
+		// Show required PayPal error messages when merchant status is incomplete
+		if (! $payments_receivable) {
+			$this->add_oauth_notice(
+				'error',
+				__('Your PayPal account is not yet able to receive payments. Please complete your PayPal account setup and try connecting again.', 'ultimate-multisite')
+			);
+		} elseif (! $email_confirmed) {
+			$this->add_oauth_notice(
+				'error',
+				__('Your PayPal account email address is not confirmed. Please confirm your email with PayPal and try connecting again.', 'ultimate-multisite')
+			);
+		} else {
+			$this->add_oauth_notice('success', __('PayPal account connected successfully!', 'ultimate-multisite'));
+		}
 
 		// Redirect to remove query parameters
 		wp_safe_redirect(

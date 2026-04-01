@@ -286,7 +286,7 @@
 				label: entity.label_plural || entity.label + 's',
 				callback: ({ close }) => {
 					close();
-					window.location.href = networkAdminUrl + 'admin.php?page=wu-' + slug.replace(/_/g, '-') + 's';
+					window.location.href = networkAdminUrl + 'admin.php?page=wu-' + slug.replaceAll('_', '-') + 's';
 				}
 			};
 
