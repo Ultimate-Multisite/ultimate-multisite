@@ -351,8 +351,8 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 		$records = $this->extract_dns_records($result, $domain);
 
 		return [
-			'success' => true,
-			'records' => $records,
+			'success'     => true,
+			'dns_records' => $records,
 		];
 	}
 
@@ -552,7 +552,7 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 	 */
 	private function build_ses_body(string $message): array {
 
-		$is_html = $message !== wp_strip_all_tags($message);
+		$is_html = wp_strip_all_tags($message) !== $message;
 
 		if ($is_html) {
 			return [
@@ -600,8 +600,6 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 		}
 
 		// DKIM EasyDKIM records (newer format).
-		$dkim_records = $response['DkimAttributes']['DomainSigningPrivateKey'] ?? [];
-
 		if ( ! empty($response['DkimAttributes']['DomainSigningSelector'])) {
 			$selector  = $response['DkimAttributes']['DomainSigningSelector'];
 			$records[] = [

@@ -56,7 +56,7 @@ class Amazon_SES_Transactional_Email_Test extends WP_UnitTestCase {
 		$this->assertIsInt(has_action('wu_domain_removed', [$this->module, 'on_domain_removed']));
 	}
 
-	public function test_intercept_wp_mail_returns_null_when_return_is_not_null(): void {
+	public function test_intercept_wp_mail_returns_original_when_return_is_not_null(): void {
 
 		$result = $this->module->intercept_wp_mail(
 			true,
@@ -185,9 +185,9 @@ class Amazon_SES_Transactional_Email_Test extends WP_UnitTestCase {
 		$result = $this->module->get_domain_dns_records('example.com');
 
 		$this->assertTrue($result['success']);
-		$this->assertCount(2, $result['records']);
+		$this->assertCount(2, $result['dns_records']);
 
-		foreach ($result['records'] as $record) {
+		foreach ($result['dns_records'] as $record) {
 			$this->assertSame('CNAME', $record['type']);
 			$this->assertStringContainsString('example.com', $record['name']);
 			$this->assertStringContainsString('amazonses.com', $record['value']);
@@ -295,11 +295,18 @@ class Amazon_SES_Transactional_Email_Test extends WP_UnitTestCase {
 
 	public function test_test_connection_delegates_to_integration(): void {
 
-		$this->integration->expects($this->once())
-			->method('ses_api_call')
-			->willReturn(['SendingEnabled' => true]);
+		$integration = $this->getMockBuilder(Amazon_SES_Integration::class)
+			->onlyMethods(['test_connection'])
+			->getMock();
 
-		$result = $this->module->test_connection();
+		$integration->expects($this->once())
+			->method('test_connection')
+			->willReturn(true);
+
+		$module = new Amazon_SES_Transactional_Email();
+		$module->set_integration($integration);
+
+		$result = $module->test_connection();
 
 		$this->assertTrue($result);
 	}

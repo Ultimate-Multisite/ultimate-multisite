@@ -69,7 +69,7 @@ interface Transactional_Email_Capability {
 	 * @param string $domain The domain name.
 	 * @return array{
 	 *   success: bool,
-	 *   records?: array<array{type: string, name: string, value: string}>,
+	 *   dns_records?: array<array{type: string, name: string, value: string}>,
 	 *   message?: string
 	 * }
 	 */

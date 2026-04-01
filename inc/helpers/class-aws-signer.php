@@ -84,14 +84,13 @@ class AWS_Signer {
 	 * @param string $method  HTTP method (GET, POST, etc.).
 	 * @param string $url     Full request URL.
 	 * @param string $payload Request body (empty string for GET requests).
-	 * @param array  $headers Additional headers to include in the signature.
 	 * @return array{
 	 *   Authorization: string,
 	 *   x-amz-date: string,
 	 *   x-amz-content-sha256: string
 	 * }
 	 */
-	public function sign(string $method, string $url, string $payload = '', array $headers = []): array {
+	public function sign(string $method, string $url, string $payload = ''): array {
 
 		$parsed      = wp_parse_url($url);
 		$uri         = $parsed['path'] ?? '/';

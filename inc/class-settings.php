@@ -1616,6 +1616,19 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			]
 		);
 
+		$this->add_field(
+			'emails',
+			'transactional_email_provider_note',
+			[
+				'type' => 'note',
+				'desc' => sprintf(
+					/* translators: %s is a link to the Integrations settings page. */
+					__('To configure a transactional email provider (e.g. Amazon SES), go to the <a href="%s">Integrations settings</a> and set up the provider there.', 'ultimate-multisite'),
+					esc_url(wu_network_admin_url('wp-ultimo-settings', ['tab' => 'integrations']))
+				),
+			]
+		);
+
 		/**
 		 * Fires to allow transactional email provider settings to be registered.
 		 *
