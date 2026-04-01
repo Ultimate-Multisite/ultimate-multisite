@@ -411,12 +411,28 @@ class Domain_Manager extends Base_Manager {
 	public function handle_domain_deleted($result, $domain): void {
 
 		if ($result) {
+			$domain_name = $domain->get_domain();
+			$site_id     = $domain->get_site_id();
+
 			$args = [
-				'domain'  => $domain->get_domain(),
-				'site_id' => $domain->get_site_id(),
+				'domain'  => $domain_name,
+				'site_id' => $site_id,
 			];
 
 			wu_enqueue_async_action('wu_remove_domain', $args, 'domain');
+
+			/**
+			 * Fires when a custom domain is removed from the network.
+			 *
+			 * Use this hook to react to domain removal events, for example to
+			 * clean up transactional email identities or DNS records.
+			 *
+			 * @since 2.5.0
+			 *
+			 * @param string $domain_name The domain name that was removed.
+			 * @param int    $site_id     The site ID the domain was removed from.
+			 */
+			do_action('wu_domain_removed', $domain_name, $site_id);
 		}
 	}
 
@@ -702,14 +718,28 @@ class Domain_Manager extends Base_Manager {
 	public function send_domain_to_host($old_value, $new_value, $item_id): void {
 
 		if ($old_value !== $new_value) {
-			$domain = wu_get_domain($item_id);
+			$domain  = wu_get_domain($item_id);
+			$site_id = $domain->get_site_id();
 
 			$args = [
 				'domain'  => $new_value,
-				'site_id' => $domain->get_site_id(),
+				'site_id' => $site_id,
 			];
 
 			wu_enqueue_async_action('wu_add_domain', $args, 'domain');
+
+			/**
+			 * Fires when a custom domain is added to the network.
+			 *
+			 * Use this hook to react to domain addition events, for example to
+			 * initiate transactional email domain verification or DNS record creation.
+			 *
+			 * @since 2.5.0
+			 *
+			 * @param string $new_value The domain name that was added.
+			 * @param int    $site_id   The site ID the domain was added to.
+			 */
+			do_action('wu_domain_added', $new_value, $site_id);
 		}
 	}
 

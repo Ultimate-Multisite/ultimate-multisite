@@ -1605,6 +1605,27 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 		do_action('wu_settings_emails');
 
+		$this->add_field(
+			'emails',
+			'transactional_email_header',
+			[
+				'title'           => __('Transactional Email Delivery', 'ultimate-multisite'),
+				'desc'            => __('Configure how WordPress sends transactional email (password resets, notifications, admin alerts) on a per-site basis. When a provider is configured, outbound email is routed through the provider using each site\'s own domain as the from-address.', 'ultimate-multisite'),
+				'type'            => 'header',
+				'show_as_submenu' => true,
+			]
+		);
+
+		/**
+		 * Fires to allow transactional email provider settings to be registered.
+		 *
+		 * Use this hook to add settings fields for configuring the active
+		 * transactional email provider (e.g. Amazon SES, SendGrid, Mailgun).
+		 *
+		 * @since 2.5.0
+		 */
+		do_action('wu_settings_transactional_email');
+
 		/*
 		 * Domain Mapping
 		 * This section holds the Domain Mapping settings of the Ultimate Multisite Plugin.

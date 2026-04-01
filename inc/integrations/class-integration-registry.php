@@ -134,6 +134,7 @@ class Integration_Registry {
 		$this->register(new Providers\WPMUDEV\WPMUDEV_Integration());
 		$this->register(new Providers\BunnyNet\BunnyNet_Integration());
 		$this->register(new Providers\LaravelForge\LaravelForge_Integration());
+		$this->register(new Providers\Amazon_SES\Amazon_SES_Integration());
 	}
 
 	/**
@@ -182,6 +183,7 @@ class Integration_Registry {
 		$this->add_capability('wpmudev', new Providers\WPMUDEV\WPMUDEV_Domain_Mapping());
 		$this->add_capability('bunnynet', new Providers\BunnyNet\BunnyNet_Domain_Mapping());
 		$this->add_capability('laravel-forge', new Providers\LaravelForge\LaravelForge_Domain_Mapping());
+		$this->add_capability('amazon-ses', new Providers\Amazon_SES\Amazon_SES_Transactional_Email());
 	}
 
 	/**
