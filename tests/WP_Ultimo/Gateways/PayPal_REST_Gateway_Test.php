@@ -1648,6 +1648,166 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	// -------------------------------------------------------------------------
+	// create_order() — payee.merchant_id
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Build a minimal customer + membership + payment for create_order() tests.
+	 *
+	 * @return array{customer: \WP_Ultimo\Models\Customer, membership: \WP_Ultimo\Models\Membership, payment: \WP_Ultimo\Models\Payment}
+	 */
+	private function create_order_test_fixtures(): array {
+
+		$user_id = self::factory()->user->create(
+			[
+				'user_email' => 'paypal-rest-test-' . wp_rand() . '@example.com',
+			]
+		);
+
+		$customer = wu_create_customer(
+			[
+				'user_id'  => $user_id,
+				'email'    => get_userdata($user_id)->user_email,
+				'username' => get_userdata($user_id)->user_login,
+			]
+		);
+
+		if (is_wp_error($customer)) {
+			return [];
+		}
+
+		$membership = wu_create_membership(
+			[
+				'customer_id' => $customer->get_id(),
+				'status'      => 'active',
+				'gateway'     => 'paypal-rest',
+				'product_id'  => 0,
+			]
+		);
+
+		if (is_wp_error($membership)) {
+			return [];
+		}
+
+		$payment = new \WP_Ultimo\Models\Payment();
+		$payment->set_currency('USD');
+		$payment->set_total(50.00);
+		$payment->set_subtotal(50.00);
+		$payment->set_tax_total(0.00);
+		$payment->set_gateway('paypal-rest');
+		$payment->set_membership_id($membership->get_id());
+		$payment->set_customer_id($customer->get_id());
+		$payment->save();
+
+		return [
+			'customer'   => $customer,
+			'membership' => $membership,
+			'payment'    => $payment,
+		];
+	}
+
+	/**
+	 * Invoke create_order() and capture the order_data via filter before the API call.
+	 *
+	 * Sets $this->payment on the gateway (required by get_confirm_url()) and hooks
+	 * wu_paypal_rest_order_data to capture the data then abort before wp_redirect().
+	 *
+	 * @param PayPal_REST_Gateway $gateway  The gateway instance.
+	 * @param array               $fixtures Fixtures from create_order_test_fixtures().
+	 * @return array|null The captured order_data, or null if filter was not triggered.
+	 */
+	private function invoke_create_order_and_capture(PayPal_REST_Gateway $gateway, array $fixtures): ?array {
+
+		// Set $this->payment on the gateway so get_confirm_url() can call get_hash().
+		$reflection    = new \ReflectionClass($gateway);
+		$payment_prop  = $reflection->getParentClass()->getProperty('payment');
+		$payment_prop->setAccessible(true);
+		$payment_prop->setValue($gateway, $fixtures['payment']);
+
+		$captured_order_data = null;
+
+		add_filter(
+			'wu_paypal_rest_order_data',
+			function ($order_data) use (&$captured_order_data) {
+				$captured_order_data = $order_data;
+				throw new \RuntimeException('abort-before-api');
+			}
+		);
+
+		$cart = $this->createMock(\WP_Ultimo\Checkout\Cart::class);
+		$cart->method('get_line_items')->willReturn([]);
+		$cart->method('get_cart_descriptor')->willReturn('Test Plan');
+
+		$method = $reflection->getMethod('create_order');
+
+		try {
+			$method->invoke($gateway, $fixtures['payment'], $fixtures['membership'], $fixtures['customer'], $cart, 'new');
+		} catch (\RuntimeException $e) {
+			// Expected — thrown by the filter to abort before wp_redirect().
+		}
+
+		remove_all_filters('wu_paypal_rest_order_data');
+
+		return $captured_order_data;
+	}
+
+	/**
+	 * Test create_order includes payee.merchant_id when merchant_id is set (OAuth mode).
+	 *
+	 * Uses the wu_paypal_rest_order_data filter to capture order_data before the
+	 * API call, then throws to abort execution before wp_redirect().
+	 */
+	public function test_create_order_includes_payee_merchant_id_when_set(): void {
+
+		wu_save_setting('paypal_rest_sandbox_merchant_id', 'MERCHANT_ABC123');
+		wu_save_setting('paypal_rest_sandbox_mode', 1);
+
+		$gateway = new PayPal_REST_Gateway();
+		$gateway->init();
+
+		$fixtures = $this->create_order_test_fixtures();
+
+		if (empty($fixtures)) {
+			$this->markTestSkipped('Could not create test fixtures.');
+			return;
+		}
+
+		$order_data = $this->invoke_create_order_and_capture($gateway, $fixtures);
+
+		$this->assertNotNull($order_data, 'wu_paypal_rest_order_data filter was not triggered');
+		$this->assertArrayHasKey('purchase_units', $order_data);
+		$this->assertArrayHasKey('payee', $order_data['purchase_units'][0]);
+		$this->assertEquals('MERCHANT_ABC123', $order_data['purchase_units'][0]['payee']['merchant_id']);
+	}
+
+	/**
+	 * Test create_order omits payee when merchant_id is empty (manual credentials mode).
+	 */
+	public function test_create_order_omits_payee_when_merchant_id_empty(): void {
+
+		wu_save_setting('paypal_rest_sandbox_client_id', 'manual_client_id');
+		wu_save_setting('paypal_rest_sandbox_client_secret', 'manual_client_secret');
+		wu_save_setting('paypal_rest_sandbox_merchant_id', '');
+		wu_save_setting('paypal_rest_sandbox_mode', 1);
+
+		$gateway = new PayPal_REST_Gateway();
+		$gateway->init();
+
+		$fixtures = $this->create_order_test_fixtures();
+
+		if (empty($fixtures)) {
+			$this->markTestSkipped('Could not create test fixtures.');
+			return;
+		}
+
+		$order_data = $this->invoke_create_order_and_capture($gateway, $fixtures);
+
+		$this->assertNotNull($order_data, 'wu_paypal_rest_order_data filter was not triggered');
+		$this->assertArrayHasKey('purchase_units', $order_data);
+		$this->assertArrayNotHasKey('payee', $order_data['purchase_units'][0]);
+	}
+
+	// -------------------------------------------------------------------------
 	// Supported currencies list
 	// -------------------------------------------------------------------------
 

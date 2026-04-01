@@ -1010,6 +1010,35 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 		$currency    = $this->get_payment_currency_code($payment);
 		$description = $this->get_subscription_description($cart);
 
+		$purchase_unit = [
+			'reference_id' => $payment->get_hash(),
+			'description'  => substr($description, 0, 127),
+			'custom_id'    => sprintf('%s|%s|%s', $payment->get_id(), $membership->get_id(), $customer->get_id()),
+			'amount'       => [
+				'currency_code' => $currency,
+				'value'         => $this->format_amount($payment->get_total(), $currency),
+				'breakdown'     => [
+					'item_total' => [
+						'currency_code' => $currency,
+						'value'         => $this->format_amount($payment->get_subtotal(), $currency),
+					],
+					'tax_total'  => [
+						'currency_code' => $currency,
+						'value'         => $this->format_amount($payment->get_tax_total(), $currency),
+					],
+				],
+			],
+			'items'        => $this->build_order_items($cart, $currency),
+		];
+
+		// PayPal partner model requires payee.merchant_id in each purchase_unit
+		// to ensure payments route to the correct merchant account.
+		if (! empty($this->merchant_id)) {
+			$purchase_unit['payee'] = [
+				'merchant_id' => $this->merchant_id,
+			];
+		}
+
 		$order_data = [
 			'intent'         => 'CAPTURE',
 			'payment_source' => [
@@ -1025,28 +1054,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 					'email_address'      => $customer->get_email_address(),
 				],
 			],
-			'purchase_units' => [
-				[
-					'reference_id' => $payment->get_hash(),
-					'description'  => substr($description, 0, 127),
-					'custom_id'    => sprintf('%s|%s|%s', $payment->get_id(), $membership->get_id(), $customer->get_id()),
-					'amount'       => [
-						'currency_code' => $currency,
-						'value'         => $this->format_amount($payment->get_total(), $currency),
-						'breakdown'     => [
-							'item_total' => [
-								'currency_code' => $currency,
-								'value'         => $this->format_amount($payment->get_subtotal(), $currency),
-							],
-							'tax_total'  => [
-								'currency_code' => $currency,
-								'value'         => $this->format_amount($payment->get_tax_total(), $currency),
-							],
-						],
-					],
-					'items'        => $this->build_order_items($cart, $currency),
-				],
-			],
+			'purchase_units' => [ $purchase_unit ],
 		];
 
 		/**
