@@ -193,7 +193,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 		// Hide PayPal from checkout when currency is not supported
 		add_filter('wu_get_active_gateways', [$this, 'maybe_remove_for_unsupported_currency']);
 
-		// Hide PayPal from checkout when merchant cannot receive payments
+		// Hide PayPal from checkout when merchant status is invalid (payments_receivable or email_confirmed false)
 		add_filter('wu_get_active_gateways', [$this, 'maybe_remove_for_invalid_merchant_status']);
 
 		// Register PayPal checkout scripts (button branding)
@@ -250,13 +250,41 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 	}
 
 	/**
-	 * Removes PayPal from the active gateways list when the merchant cannot receive payments.
+	 * Checks whether the connected PayPal merchant account is in a valid state to receive payments.
 	 *
-	 * PayPal requires that merchants with `payments_receivable=false` or
-	 * `email_confirmed=false` are blocked from processing payments until
-	 * their account setup is complete.
+	 * Returns true only when both conditions are met for the current mode (sandbox or live):
+	 * - payments_receivable is truthy
+	 * - email_confirmed is truthy
 	 *
-	 * Hooked to 'wu_get_active_gateways'.
+	 * When no OAuth merchant is connected the check is skipped (returns true) so that
+	 * manual-credentials setups are not affected.
+	 *
+	 * @since 2.0.0
+	 * @return bool
+	 */
+	public function is_merchant_status_valid(): bool {
+
+		$mode_prefix = $this->test_mode ? 'sandbox' : 'live';
+
+		// Only enforce when an OAuth merchant is connected.
+		$merchant_id = wu_get_setting("paypal_rest_{$mode_prefix}_merchant_id", '');
+
+		if (empty($merchant_id)) {
+			return true;
+		}
+
+		$payments_receivable = wu_get_setting("paypal_rest_{$mode_prefix}_payments_receivable", false);
+		$email_confirmed     = wu_get_setting("paypal_rest_{$mode_prefix}_email_confirmed", false);
+
+		return (bool) $payments_receivable && (bool) $email_confirmed;
+	}
+
+	/**
+	 * Removes PayPal from the active gateways list when the merchant account status is invalid.
+	 *
+	 * Hooked to 'wu_get_active_gateways'. Hides the gateway when payments_receivable or
+	 * email_confirmed is false so customers cannot attempt a payment that would be rejected
+	 * by PayPal.
 	 *
 	 * @since 2.0.0
 	 * @param array $gateways The registered active gateways.
@@ -264,16 +292,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 	 */
 	public function maybe_remove_for_invalid_merchant_status(array $gateways): array {
 
-		// Only applies when connected via OAuth
-		if (empty($this->merchant_id)) {
-			return $gateways;
-		}
-
-		$mode_prefix         = $this->test_mode ? 'sandbox' : 'live';
-		$payments_receivable = wu_get_setting("paypal_rest_{$mode_prefix}_payments_receivable", true);
-		$email_confirmed     = wu_get_setting("paypal_rest_{$mode_prefix}_email_confirmed", true);
-
-		if (! $payments_receivable || ! $email_confirmed) {
+		if (! $this->is_merchant_status_valid()) {
 			unset($gateways['paypal-rest']);
 		}
 

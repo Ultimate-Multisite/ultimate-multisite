@@ -720,6 +720,201 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	// -------------------------------------------------------------------------
+	// is_merchant_status_valid()
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Test merchant status is valid when no OAuth merchant is connected.
+	 *
+	 * Manual-credentials setups must not be blocked by the merchant status check.
+	 */
+	public function test_is_merchant_status_valid_without_oauth_merchant(): void {
+
+		// No merchant ID set — manual credentials only
+		wu_save_setting('paypal_rest_sandbox_merchant_id', '');
+
+		$gateway = new PayPal_REST_Gateway();
+		$gateway->init();
+
+		$this->assertTrue($gateway->is_merchant_status_valid());
+	}
+
+	/**
+	 * Test merchant status is valid when both flags are true.
+	 */
+	public function test_is_merchant_status_valid_both_flags_true(): void {
+
+		wu_save_setting('paypal_rest_sandbox_merchant_id', 'MERCHANT123');
+		wu_save_setting('paypal_rest_sandbox_payments_receivable', true);
+		wu_save_setting('paypal_rest_sandbox_email_confirmed', true);
+		wu_save_setting('paypal_rest_sandbox_mode', 1);
+
+		$gateway = new PayPal_REST_Gateway();
+		$gateway->init();
+
+		$this->assertTrue($gateway->is_merchant_status_valid());
+	}
+
+	/**
+	 * Test merchant status is invalid when payments_receivable is false.
+	 */
+	public function test_is_merchant_status_invalid_when_payments_receivable_false(): void {
+
+		wu_save_setting('paypal_rest_sandbox_merchant_id', 'MERCHANT123');
+		wu_save_setting('paypal_rest_sandbox_payments_receivable', false);
+		wu_save_setting('paypal_rest_sandbox_email_confirmed', true);
+		wu_save_setting('paypal_rest_sandbox_mode', 1);
+
+		$gateway = new PayPal_REST_Gateway();
+		$gateway->init();
+
+		$this->assertFalse($gateway->is_merchant_status_valid());
+	}
+
+	/**
+	 * Test merchant status is invalid when email_confirmed is false.
+	 */
+	public function test_is_merchant_status_invalid_when_email_confirmed_false(): void {
+
+		wu_save_setting('paypal_rest_sandbox_merchant_id', 'MERCHANT123');
+		wu_save_setting('paypal_rest_sandbox_payments_receivable', true);
+		wu_save_setting('paypal_rest_sandbox_email_confirmed', false);
+		wu_save_setting('paypal_rest_sandbox_mode', 1);
+
+		$gateway = new PayPal_REST_Gateway();
+		$gateway->init();
+
+		$this->assertFalse($gateway->is_merchant_status_valid());
+	}
+
+	/**
+	 * Test merchant status is invalid when both flags are false.
+	 */
+	public function test_is_merchant_status_invalid_when_both_flags_false(): void {
+
+		wu_save_setting('paypal_rest_sandbox_merchant_id', 'MERCHANT123');
+		wu_save_setting('paypal_rest_sandbox_payments_receivable', false);
+		wu_save_setting('paypal_rest_sandbox_email_confirmed', false);
+		wu_save_setting('paypal_rest_sandbox_mode', 1);
+
+		$gateway = new PayPal_REST_Gateway();
+		$gateway->init();
+
+		$this->assertFalse($gateway->is_merchant_status_valid());
+	}
+
+	/**
+	 * Test merchant status check uses live settings in live mode.
+	 */
+	public function test_is_merchant_status_valid_uses_live_settings_in_live_mode(): void {
+
+		wu_save_setting('paypal_rest_sandbox_mode', 0);
+		wu_save_setting('paypal_rest_live_merchant_id', 'LIVE_MERCHANT');
+		wu_save_setting('paypal_rest_live_payments_receivable', false);
+		wu_save_setting('paypal_rest_live_email_confirmed', true);
+
+		$gateway = new PayPal_REST_Gateway();
+		$gateway->init();
+
+		$this->assertFalse($gateway->is_merchant_status_valid());
+	}
+
+	// -------------------------------------------------------------------------
+	// maybe_remove_for_invalid_merchant_status()
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Test gateway is kept when merchant status is valid.
+	 */
+	public function test_maybe_remove_for_invalid_merchant_status_keeps_when_valid(): void {
+
+		wu_save_setting('paypal_rest_sandbox_merchant_id', 'MERCHANT123');
+		wu_save_setting('paypal_rest_sandbox_payments_receivable', true);
+		wu_save_setting('paypal_rest_sandbox_email_confirmed', true);
+		wu_save_setting('paypal_rest_sandbox_mode', 1);
+
+		$gateway  = new PayPal_REST_Gateway();
+		$gateway->init();
+		$gateways = ['paypal-rest' => $gateway, 'stripe' => 'stripe'];
+		$result   = $gateway->maybe_remove_for_invalid_merchant_status($gateways);
+
+		$this->assertArrayHasKey('paypal-rest', $result);
+	}
+
+	/**
+	 * Test gateway is removed when payments_receivable is false.
+	 */
+	public function test_maybe_remove_for_invalid_merchant_status_removes_when_payments_receivable_false(): void {
+
+		wu_save_setting('paypal_rest_sandbox_merchant_id', 'MERCHANT123');
+		wu_save_setting('paypal_rest_sandbox_payments_receivable', false);
+		wu_save_setting('paypal_rest_sandbox_email_confirmed', true);
+		wu_save_setting('paypal_rest_sandbox_mode', 1);
+
+		$gateway  = new PayPal_REST_Gateway();
+		$gateway->init();
+		$gateways = ['paypal-rest' => $gateway, 'stripe' => 'stripe'];
+		$result   = $gateway->maybe_remove_for_invalid_merchant_status($gateways);
+
+		$this->assertArrayNotHasKey('paypal-rest', $result);
+		$this->assertArrayHasKey('stripe', $result);
+	}
+
+	/**
+	 * Test gateway is removed when email_confirmed is false.
+	 */
+	public function test_maybe_remove_for_invalid_merchant_status_removes_when_email_confirmed_false(): void {
+
+		wu_save_setting('paypal_rest_sandbox_merchant_id', 'MERCHANT123');
+		wu_save_setting('paypal_rest_sandbox_payments_receivable', true);
+		wu_save_setting('paypal_rest_sandbox_email_confirmed', false);
+		wu_save_setting('paypal_rest_sandbox_mode', 1);
+
+		$gateway  = new PayPal_REST_Gateway();
+		$gateway->init();
+		$gateways = ['paypal-rest' => $gateway, 'stripe' => 'stripe'];
+		$result   = $gateway->maybe_remove_for_invalid_merchant_status($gateways);
+
+		$this->assertArrayNotHasKey('paypal-rest', $result);
+		$this->assertArrayHasKey('stripe', $result);
+	}
+
+	/**
+	 * Test gateway is kept when no OAuth merchant is connected (manual credentials).
+	 */
+	public function test_maybe_remove_for_invalid_merchant_status_keeps_without_oauth(): void {
+
+		// No merchant ID — manual credentials only
+		wu_save_setting('paypal_rest_sandbox_merchant_id', '');
+		wu_save_setting('paypal_rest_sandbox_payments_receivable', false);
+		wu_save_setting('paypal_rest_sandbox_email_confirmed', false);
+
+		$gateways = ['paypal-rest' => $this->gateway, 'stripe' => 'stripe'];
+		$result   = $this->gateway->maybe_remove_for_invalid_merchant_status($gateways);
+
+		$this->assertArrayHasKey('paypal-rest', $result);
+	}
+
+	/**
+	 * Test other gateways are not affected by merchant status check.
+	 */
+	public function test_maybe_remove_for_invalid_merchant_status_preserves_other_gateways(): void {
+
+		wu_save_setting('paypal_rest_sandbox_merchant_id', 'MERCHANT123');
+		wu_save_setting('paypal_rest_sandbox_payments_receivable', false);
+		wu_save_setting('paypal_rest_sandbox_email_confirmed', false);
+		wu_save_setting('paypal_rest_sandbox_mode', 1);
+
+		$gateway  = new PayPal_REST_Gateway();
+		$gateway->init();
+		$gateways = ['paypal-rest' => $gateway, 'stripe' => 'stripe', 'manual' => 'manual'];
+		$result   = $gateway->maybe_remove_for_invalid_merchant_status($gateways);
+
+		$this->assertArrayHasKey('stripe', $result);
+		$this->assertArrayHasKey('manual', $result);
+	}
+
+	// -------------------------------------------------------------------------
 	// get_checkout_label_html()
 	// -------------------------------------------------------------------------
 
