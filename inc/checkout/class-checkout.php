@@ -2140,7 +2140,40 @@ class Checkout {
 	 */
 	public function get_js_validation_rules(): array {
 
+		/*
+		 * When the checkout form has a password field with auto_generate_password
+		 * enabled, the hidden flag is submitted with the form but is not present
+		 * in the GET request at render time. We detect this from the form settings
+		 * so the JS validator knows to skip password rules without needing the
+		 * flag to be in the request.
+		 */
+		$form_auto_generates_password = false;
+
+		if ($this->checkout_form) {
+			$password_fields = $this->checkout_form->get_all_fields_by_type('password');
+
+			foreach ($password_fields as $field) {
+				if (! empty($field['auto_generate_password'])) {
+					$form_auto_generates_password = true;
+					break;
+				}
+			}
+		}
+
 		$raw_rules = $this->validation_rules();
+
+		/*
+		 * When the form auto-generates the password, clear the password rules
+		 * so the JS validator does not require a password field that is not
+		 * rendered. The server-side validation_rules() already handles this via
+		 * request_or_session(), but at render time the flag is not in the request
+		 * so we must detect it from the form settings instead.
+		 */
+		if ($form_auto_generates_password) {
+			$raw_rules['password']       = '';
+			$raw_rules['password_conf']  = '';
+			$raw_rules['valid_password'] = '';
+		}
 
 		/*
 		 * Rules that require a database lookup or complex server-side logic.

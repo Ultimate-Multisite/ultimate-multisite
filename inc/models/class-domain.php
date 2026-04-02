@@ -694,6 +694,16 @@ class Domain extends Base_Model {
 
 		$placeholders_in = implode(',', $placeholders);
 
+		/*
+		 * Ensure wu_dmtable is set on $wpdb. In normal (non-sunrise) plugin load
+		 * paths Domain_Mapping::startup() may not have run yet, which causes a
+		 * PHP notice about an undefined property. Set it here as a fallback so
+		 * the query can proceed without warnings.
+		 */
+		if (empty($wpdb->wu_dmtable)) {
+			$wpdb->wu_dmtable = $wpdb->base_prefix . 'wu_domain_mappings';
+		}
+
 		// Prepare the query
 		$query = "SELECT * FROM {$wpdb->wu_dmtable} WHERE domain IN ($placeholders_in) ORDER BY primary_domain DESC, active DESC, secure DESC LIMIT 1";
 

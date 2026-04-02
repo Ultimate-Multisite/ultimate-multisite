@@ -116,6 +116,21 @@ final class WP_Ultimo {
 	 */
 	public function init(): void {
 
+		/*
+		 * Ensure wu_dmtable is registered on $wpdb early in the plugin load.
+		 * Domain_Mapping::startup() only runs during the sunrise/mu-plugins phase
+		 * (it returns early if muplugins_loaded has already fired). Without this,
+		 * any code that accesses $wpdb->wu_dmtable before Domain_Mapping::startup()
+		 * runs triggers a PHP notice about an undefined property, which causes
+		 * "headers already sent" errors that break admin redirects and AJAX.
+		 */
+		global $wpdb;
+
+		if (empty($wpdb->wu_dmtable)) {
+			$wpdb->wu_dmtable        = $wpdb->base_prefix . 'wu_domain_mappings';
+			$wpdb->ms_global_tables[] = 'wu_domain_mappings';
+		}
+
 		add_filter('extra_plugin_headers', [$this, 'register_addon_headers']);
 		add_action('admin_init', [$this, 'check_addon_compatibility']);
 

@@ -139,6 +139,10 @@ class Checkout_Form_List_Admin_Page extends List_Admin_Page {
 						'title' => __('Multi-Step', 'ultimate-multisite'),
 						'icon'  => 'dashicons-before dashicons-excerpt-view',
 					],
+					'simple'      => [
+						'title' => __('Simple (Email Only)', 'ultimate-multisite'),
+						'icon'  => 'dashicons-before dashicons-email-alt',
+					],
 					'blank'       => [
 						'title' => __('Blank', 'ultimate-multisite'),
 						'icon'  => 'dashicons-before dashicons-admin-page',
