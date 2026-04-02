@@ -60,13 +60,14 @@ return [
 		'required'    => false,
 	],
 	'template'            => [
-		'description' => __("Template mode. Can be either 'blank', 'single-step' or 'multi-step'.", 'ultimate-multisite'),
+		'description' => __("Template mode. Can be either 'blank', 'single-step', 'multi-step' or 'simple'.", 'ultimate-multisite'),
 		'type'        => 'string',
 		'required'    => false,
 		'enum'        => [
 			'blank',
 			'single-step',
 			'multi-step',
+			'simple',
 		],
 	],
 	'date_created'        => [

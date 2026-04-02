@@ -148,7 +148,7 @@ class Checkout_Form extends Base_Model {
 			'allowed_countries'   => 'default:',
 			'thank_you_page_id'   => 'integer',
 			'conversion_snippets' => 'nullable|default:',
-			'template'            => 'in:blank,single-step,multi-step',
+			'template'            => 'in:blank,single-step,multi-step,simple',
 		];
 	}
 
@@ -527,6 +527,8 @@ class Checkout_Form extends Base_Model {
 			$this->set_settings($fields);
 		} elseif ('single-step' === $template) {
 			$fields = $this->get_single_step_template();
+		} elseif ('simple' === $template) {
+			$fields = $this->get_simple_template();
 		}
 
 		$this->set_settings($fields);
@@ -639,6 +641,127 @@ class Checkout_Form extends Base_Model {
 		];
 
 		return apply_filters('wu_checkout_form_single_step_template', $steps);
+	}
+
+	/**
+	 * Get the contents of the simple template.
+	 *
+	 * A minimal single-step form where the customer only enters their email
+	 * address. Username, password, site title, and site URL are all
+	 * auto-generated. A product must be pre-selected; template selection is
+	 * shown only when no template has been pre-selected via the URL.
+	 *
+	 * @since 2.0.20
+	 * @return array
+	 */
+	private function get_simple_template() {
+
+		$plan_ids = wu_get_plans(['fields' => 'ids']);
+
+		$steps = [
+			[
+				'id'     => 'checkout',
+				'name'   => __('Checkout', 'ultimate-multisite'),
+				'desc'   => '',
+				'fields' => [
+					[
+						'step'     => 'checkout',
+						'name'     => __('Pre-selected Products', 'ultimate-multisite'),
+						'type'     => 'products',
+						'id'       => 'products',
+						'products' => implode(',', $plan_ids),
+					],
+					[
+						'step'        => 'checkout',
+						'name'        => __('Email', 'ultimate-multisite'),
+						'type'        => 'email',
+						'id'          => 'email_address',
+						'required'    => true,
+						'placeholder' => '',
+						'tooltip'     => '',
+					],
+					[
+						'step'                   => 'checkout',
+						'name'                   => __('Username', 'ultimate-multisite'),
+						'type'                   => 'username',
+						'id'                     => 'username',
+						'required'               => true,
+						'placeholder'            => '',
+						'tooltip'                => '',
+						'auto_generate_username' => true,
+					],
+					[
+						'step'                   => 'checkout',
+						'name'                   => __('Password', 'ultimate-multisite'),
+						'type'                   => 'password',
+						'id'                     => 'password',
+						'required'               => true,
+						'placeholder'            => '',
+						'tooltip'                => '',
+						'auto_generate_password' => true,
+					],
+					[
+						'step'                     => 'checkout',
+						'name'                     => __('Site Title', 'ultimate-multisite'),
+						'type'                     => 'site_title',
+						'id'                       => 'site_title',
+						'required'                 => true,
+						'placeholder'              => '',
+						'tooltip'                  => '',
+						'auto_generate_site_title' => true,
+					],
+					[
+						'step'                   => 'checkout',
+						'name'                   => __('Site URL', 'ultimate-multisite'),
+						'type'                   => 'site_url',
+						'id'                     => 'site_url',
+						'required'               => true,
+						'placeholder'            => '',
+						'tooltip'                => '',
+						'auto_generate_site_url' => true,
+					],
+					[
+						'step'                                      => 'checkout',
+						'name'                                      => __('Template Selection', 'ultimate-multisite'),
+						'type'                                      => 'template_selection',
+						'id'                                        => 'template_selection',
+						'template_selection_type'                   => 'all',
+						'template_selection_template'               => 'clean',
+						'hide_template_selection_when_pre_selected' => true,
+					],
+					[
+						'step'                   => 'checkout',
+						'name'                   => __('Your Order', 'ultimate-multisite'),
+						'type'                   => 'order_summary',
+						'id'                     => 'order_summary',
+						'order_summary_template' => 'clean',
+						'table_columns'          => 'simple',
+					],
+					[
+						'step' => 'checkout',
+						'name' => __('Payment Method', 'ultimate-multisite'),
+						'type' => 'payment',
+						'id'   => 'payment',
+					],
+					[
+						'step'            => 'checkout',
+						'name'            => __('Billing Address', 'ultimate-multisite'),
+						'type'            => 'billing_address',
+						'id'              => 'billing_address',
+						'required'        => true,
+						'zip_and_country' => '1',
+					],
+					[
+						'step' => 'checkout',
+						'name' => __('Checkout', 'ultimate-multisite'),
+						'type' => 'submit_button',
+						'id'   => 'checkout',
+					],
+				],
+			],
+		];
+
+		return apply_filters('wu_checkout_form_simple_template', $steps);
 	}
 
 	/**
@@ -1160,6 +1283,7 @@ class Checkout_Form extends Base_Model {
 		$step_types = [
 			'multi-step',
 			'single-step',
+			'simple',
 		];
 
 		if ($this->template && in_array($this->template, $step_types, true)) {

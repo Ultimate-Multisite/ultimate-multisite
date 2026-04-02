@@ -123,6 +123,7 @@ class Signup_Field_Password extends Base_Signup_Field {
 	public function defaults() {
 
 		return [
+			'auto_generate_password' => false,
 			'password_confirm_field' => false,
 			'password_confirm_label' => __('Confirm Password', 'ultimate-multisite'),
 		];
@@ -166,17 +167,33 @@ class Signup_Field_Password extends Base_Signup_Field {
 	public function get_fields() {
 
 		return [
+			'auto_generate_password'  => [
+				'type'      => 'toggle',
+				'title'     => __('Auto-generate', 'ultimate-multisite'),
+				'desc'      => __('Check this option to auto-generate a secure password for the customer. The password will be emailed to them after signup.', 'ultimate-multisite'),
+				'tooltip'   => '',
+				'value'     => 0,
+				'html_attr' => [
+					'v-model' => 'auto_generate_password',
+				],
+			],
 			'password_strength_meter' => [
-				'type'  => 'toggle',
-				'title' => __('Display Password Strength Meter', 'ultimate-multisite'),
-				'desc'  => __('Adds a password strength meter below the password field. Enabling this option also enforces passwords to be strong.', 'ultimate-multisite'),
-				'value' => 1,
+				'type'              => 'toggle',
+				'title'             => __('Display Password Strength Meter', 'ultimate-multisite'),
+				'desc'              => __('Adds a password strength meter below the password field. Enabling this option also enforces passwords to be strong.', 'ultimate-multisite'),
+				'value'             => 1,
+				'wrapper_html_attr' => [
+					'v-show' => '!auto_generate_password',
+				],
 			],
 			'password_confirm_field'  => [
-				'type'  => 'toggle',
-				'title' => __('Display Password Confirm Field', 'ultimate-multisite'),
-				'desc'  => __('Adds a "Confirm your Password" field below the default password field to reduce the chance of making a mistake.', 'ultimate-multisite'),
-				'value' => 1,
+				'type'              => 'toggle',
+				'title'             => __('Display Password Confirm Field', 'ultimate-multisite'),
+				'desc'              => __('Adds a "Confirm your Password" field below the default password field to reduce the chance of making a mistake.', 'ultimate-multisite'),
+				'value'             => 1,
+				'wrapper_html_attr' => [
+					'v-show' => '!auto_generate_password',
+				],
 			],
 		];
 	}
@@ -195,6 +212,20 @@ class Signup_Field_Password extends Base_Signup_Field {
 		 */
 		if (is_user_logged_in()) {
 			return [];
+		}
+
+		/*
+		 * Auto-generate mode: emit a hidden flag so the checkout handler
+		 * knows to generate a password server-side. No visible fields needed.
+		 */
+		if (! empty($attributes['auto_generate_password'])) {
+			return [
+				'auto_generate_password' => [
+					'type'  => 'hidden',
+					'id'    => 'auto_generate_password',
+					'value' => '1',
+				],
+			];
 		}
 
 		$checkout_fields = [];

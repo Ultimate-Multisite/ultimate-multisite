@@ -1057,6 +1057,16 @@ class Checkout {
 			}
 
 			/*
+			 * Resolve the password: use the submitted value, or generate one
+			 * when the auto_generate_password flag is present in the session.
+			 */
+			$password = $this->request_or_session('password');
+
+			if ($this->request_or_session('auto_generate_password')) {
+				$password = wp_generate_password(16, true, false);
+			}
+
+			/*
 			 * If we get to this point,
 			 * we don't have an existing customer.
 			 *
@@ -1065,7 +1075,7 @@ class Checkout {
 			$customer_data = [
 				'username'           => $username,
 				'email'              => $this->request_or_session('email_address'),
-				'password'           => $this->request_or_session('password'),
+				'password'           => $password,
 				'email_verification' => $this->get_customer_email_verification_status(),
 				'signup_form'        => $form_slug,
 				'meta'               => [],
@@ -2260,16 +2270,22 @@ class Checkout {
 		 *
 		 * First, let's set upm the general rules:
 		 */
+		/*
+		 * When the password field is set to auto-generate, the customer does
+		 * not submit a password value, so we must not require it.
+		 */
+		$auto_generate_password = $this->request_or_session('auto_generate_password');
+
 		$rules = [
 			'email_address'              => 'required_without:user_id|email|unique:\WP_User,email',
 			'email_address_confirmation' => 'same:email_address',
 			'username'                   => 'required_without:user_id|alpha_dash|min:4|lowercase|unique:\WP_User,login',
-			'password'                   => 'required_without:user_id|min:6',
-			'password_conf'              => 'same:password',
+			'password'                   => $auto_generate_password ? '' : 'required_without:user_id|min:6',
+			'password_conf'              => $auto_generate_password ? '' : 'same:password',
 			'template_id'                => 'integer|site_template',
 			'products'                   => 'products',
 			'gateway'                    => '',
-			'valid_password'             => 'accepted',
+			'valid_password'             => $auto_generate_password ? '' : 'accepted',
 			'billing_country'            => 'country|required_with:billing_country',
 			'billing_zip_code'           => 'required_with:billing_zip_code',
 			'billing_state'              => 'state',
