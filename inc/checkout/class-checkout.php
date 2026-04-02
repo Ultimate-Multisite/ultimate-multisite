@@ -2124,6 +2124,33 @@ class Checkout {
 	}
 
 	/**
+	 * Returns true when the current checkout form has a password field
+	 * configured with auto_generate_password enabled.
+	 *
+	 * Used to suppress client-side password validation rules when no
+	 * password input is rendered.
+	 *
+	 * @since 2.0.20
+	 * @return bool
+	 */
+	protected function form_has_auto_generate_password(): bool {
+
+		if ( ! $this->checkout_form) {
+			return false;
+		}
+
+		foreach ($this->checkout_form->get_settings() as $step) {
+			foreach (wu_get_isset($step, 'fields', []) as $field) {
+				if ('password' === wu_get_isset($field, 'type') && ! empty($field['auto_generate_password'])) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Converts the PHP validation rules into a JS-friendly structure.
 	 *
 	 * Each rule string (e.g. "required|min:4|email") is parsed into an array of
@@ -2141,6 +2168,15 @@ class Checkout {
 	public function get_js_validation_rules(): array {
 
 		$raw_rules = $this->validation_rules();
+
+		/*
+		 * When the checkout form uses auto-generated passwords, strip the
+		 * password-related rules from the JS ruleset so the client-side
+		 * validator does not block submission on a field that is never shown.
+		 */
+		if ($this->form_has_auto_generate_password()) {
+			unset($raw_rules['password'], $raw_rules['password_conf'], $raw_rules['valid_password']);
+		}
 
 		/*
 		 * Rules that require a database lookup or complex server-side logic.
