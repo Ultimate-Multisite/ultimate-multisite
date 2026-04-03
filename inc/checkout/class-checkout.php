@@ -2124,6 +2124,33 @@ class Checkout {
 	}
 
 	/**
+	 * Returns true when the current checkout form has a password field
+	 * configured with auto_generate_password enabled.
+	 *
+	 * Used to suppress client-side password validation rules when no
+	 * password input is rendered.
+	 *
+	 * @since 2.0.20
+	 * @return bool
+	 */
+	protected function form_has_auto_generate_password(): bool {
+
+		if ( ! $this->checkout_form) {
+			return false;
+		}
+
+		foreach ($this->checkout_form->get_settings() as $step) {
+			foreach (wu_get_isset($step, 'fields', []) as $field) {
+				if ('password' === wu_get_isset($field, 'type') && ! empty($field['auto_generate_password'])) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Converts the PHP validation rules into a JS-friendly structure.
 	 *
 	 * Each rule string (e.g. "required|min:4|email") is parsed into an array of
@@ -2140,39 +2167,15 @@ class Checkout {
 	 */
 	public function get_js_validation_rules(): array {
 
-		/*
-		 * When the checkout form has a password field with auto_generate_password
-		 * enabled, the hidden flag is submitted with the form but is not present
-		 * in the GET request at render time. We detect this from the form settings
-		 * so the JS validator knows to skip password rules without needing the
-		 * flag to be in the request.
-		 */
-		$form_auto_generates_password = false;
-
-		if ($this->checkout_form) {
-			$password_fields = $this->checkout_form->get_all_fields_by_type('password');
-
-			foreach ($password_fields as $field) {
-				if (! empty($field['auto_generate_password'])) {
-					$form_auto_generates_password = true;
-					break;
-				}
-			}
-		}
-
 		$raw_rules = $this->validation_rules();
 
 		/*
-		 * When the form auto-generates the password, clear the password rules
-		 * so the JS validator does not require a password field that is not
-		 * rendered. The server-side validation_rules() already handles this via
-		 * request_or_session(), but at render time the flag is not in the request
-		 * so we must detect it from the form settings instead.
+		 * When the checkout form uses auto-generated passwords, strip the
+		 * password-related rules from the JS ruleset so the client-side
+		 * validator does not block submission on a field that is never shown.
 		 */
-		if ($form_auto_generates_password) {
-			$raw_rules['password']       = '';
-			$raw_rules['password_conf']  = '';
-			$raw_rules['valid_password'] = '';
+		if ($this->form_has_auto_generate_password()) {
+			unset($raw_rules['password'], $raw_rules['password_conf'], $raw_rules['valid_password']);
 		}
 
 		/*
