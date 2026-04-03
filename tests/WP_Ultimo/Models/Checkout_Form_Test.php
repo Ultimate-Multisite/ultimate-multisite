@@ -2836,4 +2836,202 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 		$this->assertEquals('checkout', $fields[0]['id']);
 		$this->assertEquals('Pay Invoice', $fields[0]['name']);
 	}
+
+	/**
+	 * Test simple template is accepted by validation rules.
+	 */
+	public function test_validation_rules_accept_simple_template(): void {
+		$checkout_form = new Checkout_Form();
+		$rules         = $checkout_form->validation_rules();
+
+		$this->assertStringContainsString('simple', $rules['template']);
+	}
+
+	/**
+	 * Test use_template with simple template returns non-empty settings.
+	 */
+	public function test_use_template_simple_returns_settings(): void {
+		$checkout_form = new Checkout_Form();
+
+		$checkout_form->use_template('simple');
+		$settings = $checkout_form->get_settings();
+
+		$this->assertNotEmpty($settings);
+		$this->assertIsArray($settings);
+	}
+
+	/**
+	 * Test simple template has exactly one step.
+	 */
+	public function test_simple_template_has_one_step(): void {
+		$checkout_form = new Checkout_Form();
+
+		$checkout_form->use_template('simple');
+		$settings = $checkout_form->get_settings();
+
+		$this->assertCount(1, $settings);
+		$this->assertEquals('checkout', $settings[0]['id']);
+	}
+
+	/**
+	 * Test simple template contains email field.
+	 */
+	public function test_simple_template_contains_email_field(): void {
+		$checkout_form = new Checkout_Form();
+
+		$checkout_form->use_template('simple');
+		$settings = $checkout_form->get_settings();
+
+		$field_types = array_column($settings[0]['fields'], 'type');
+		$this->assertContains('email', $field_types);
+	}
+
+	/**
+	 * Test simple template has password field with auto_generate_password enabled.
+	 */
+	public function test_simple_template_password_field_has_auto_generate(): void {
+		$checkout_form = new Checkout_Form();
+
+		$checkout_form->use_template('simple');
+		$settings = $checkout_form->get_settings();
+
+		$password_field = null;
+		foreach ($settings[0]['fields'] as $field) {
+			if ('password' === $field['type']) {
+				$password_field = $field;
+				break;
+			}
+		}
+
+		$this->assertNotNull($password_field, 'Password field must exist in simple template');
+		$this->assertArrayHasKey('auto_generate_password', $password_field);
+		$this->assertTrue((bool) $password_field['auto_generate_password']);
+	}
+
+	/**
+	 * Test simple template has username field with auto_generate_username enabled.
+	 */
+	public function test_simple_template_username_field_has_auto_generate(): void {
+		$checkout_form = new Checkout_Form();
+
+		$checkout_form->use_template('simple');
+		$settings = $checkout_form->get_settings();
+
+		$username_field = null;
+		foreach ($settings[0]['fields'] as $field) {
+			if ('username' === $field['type']) {
+				$username_field = $field;
+				break;
+			}
+		}
+
+		$this->assertNotNull($username_field, 'Username field must exist in simple template');
+		$this->assertArrayHasKey('auto_generate_username', $username_field);
+		$this->assertTrue((bool) $username_field['auto_generate_username']);
+	}
+
+	/**
+	 * Test simple template has site_title field with auto_generate_site_title enabled.
+	 */
+	public function test_simple_template_site_title_has_auto_generate(): void {
+		$checkout_form = new Checkout_Form();
+
+		$checkout_form->use_template('simple');
+		$settings = $checkout_form->get_settings();
+
+		$site_title_field = null;
+		foreach ($settings[0]['fields'] as $field) {
+			if ('site_title' === $field['type']) {
+				$site_title_field = $field;
+				break;
+			}
+		}
+
+		$this->assertNotNull($site_title_field, 'Site title field must exist in simple template');
+		$this->assertArrayHasKey('auto_generate_site_title', $site_title_field);
+		$this->assertTrue((bool) $site_title_field['auto_generate_site_title']);
+	}
+
+	/**
+	 * Test simple template has site_url field with auto_generate_site_url enabled.
+	 */
+	public function test_simple_template_site_url_has_auto_generate(): void {
+		$checkout_form = new Checkout_Form();
+
+		$checkout_form->use_template('simple');
+		$settings = $checkout_form->get_settings();
+
+		$site_url_field = null;
+		foreach ($settings[0]['fields'] as $field) {
+			if ('site_url' === $field['type']) {
+				$site_url_field = $field;
+				break;
+			}
+		}
+
+		$this->assertNotNull($site_url_field, 'Site URL field must exist in simple template');
+		$this->assertArrayHasKey('auto_generate_site_url', $site_url_field);
+		$this->assertTrue((bool) $site_url_field['auto_generate_site_url']);
+	}
+
+	/**
+	 * Test simple template contains all required checkout fields.
+	 */
+	public function test_simple_template_contains_required_checkout_fields(): void {
+		$checkout_form = new Checkout_Form();
+
+		$checkout_form->use_template('simple');
+		$settings = $checkout_form->get_settings();
+
+		$field_types = array_column($settings[0]['fields'], 'type');
+
+		$this->assertContains('email', $field_types);
+		$this->assertContains('username', $field_types);
+		$this->assertContains('password', $field_types);
+		$this->assertContains('site_title', $field_types);
+		$this->assertContains('site_url', $field_types);
+		$this->assertContains('order_summary', $field_types);
+		$this->assertContains('payment', $field_types);
+		$this->assertContains('submit_button', $field_types);
+	}
+
+	/**
+	 * Test simple template is filterable via wu_checkout_form_simple_template hook.
+	 */
+	public function test_simple_template_is_filterable(): void {
+		$filter_called = false;
+
+		add_filter('wu_checkout_form_simple_template', function ($steps) use (&$filter_called) {
+			$filter_called = true;
+			return $steps;
+		});
+
+		$checkout_form = new Checkout_Form();
+		$checkout_form->use_template('simple');
+
+		remove_all_filters('wu_checkout_form_simple_template');
+
+		$this->assertTrue($filter_called, 'wu_checkout_form_simple_template filter must be applied');
+	}
+
+	/**
+	 * Test simple template is applied on save when template is set to simple.
+	 */
+	public function test_simple_template_applied_on_save(): void {
+		$checkout_form = wu_create_checkout_form([
+			'name'     => 'Simple Template Save Test',
+			'slug'     => 'simple-template-save-test',
+			'template' => 'simple',
+		]);
+
+		$this->assertNotWPError($checkout_form);
+
+		$fetched  = wu_get_checkout_form($checkout_form->get_id());
+		$settings = $fetched->get_settings();
+
+		$this->assertNotEmpty($settings);
+		$field_types = array_column($settings[0]['fields'], 'type');
+		$this->assertContains('email', $field_types);
+		$this->assertContains('password', $field_types);
+	}
 }

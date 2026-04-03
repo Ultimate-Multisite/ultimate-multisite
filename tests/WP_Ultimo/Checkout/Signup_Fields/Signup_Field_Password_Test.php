@@ -208,4 +208,93 @@ class Signup_Field_Password_Test extends WP_UnitTestCase {
 		$this->assertArrayHasKey('password_conf', $fields);
 		$this->assertEquals('Confirm Password', $fields['password_conf']['name']);
 	}
+
+	/**
+	 * Test defaults includes auto_generate_password key set to false.
+	 */
+	public function test_defaults_includes_auto_generate_password(): void {
+		$defaults = $this->field->defaults();
+
+		$this->assertArrayHasKey('auto_generate_password', $defaults);
+		$this->assertFalse($defaults['auto_generate_password']);
+	}
+
+	/**
+	 * Test get_fields includes auto_generate_password toggle.
+	 */
+	public function test_get_fields_includes_auto_generate_toggle(): void {
+		$fields = $this->field->get_fields();
+
+		$this->assertArrayHasKey('auto_generate_password', $fields);
+		$this->assertEquals('toggle', $fields['auto_generate_password']['type']);
+	}
+
+	/**
+	 * Test to_fields_array with auto_generate_password emits hidden flag only.
+	 */
+	public function test_to_fields_array_with_auto_generate_emits_hidden_flag(): void {
+		wp_set_current_user(0);
+
+		$attributes = [
+			'name'                    => 'Password',
+			'placeholder'             => '',
+			'tooltip'                 => '',
+			'auto_generate_password'  => true,
+			'password_strength_meter' => false,
+			'password_confirm_field'  => false,
+		];
+
+		$this->field->set_attributes($attributes);
+		$fields = $this->field->to_fields_array($attributes);
+
+		$this->assertIsArray($fields);
+		$this->assertArrayHasKey('auto_generate_password', $fields);
+		$this->assertEquals('hidden', $fields['auto_generate_password']['type']);
+		$this->assertEquals('1', $fields['auto_generate_password']['value']);
+		$this->assertArrayNotHasKey('password', $fields);
+	}
+
+	/**
+	 * Test to_fields_array with auto_generate_password does not render visible password field.
+	 */
+	public function test_to_fields_array_auto_generate_no_visible_password(): void {
+		wp_set_current_user(0);
+
+		$attributes = [
+			'name'                   => 'Password',
+			'placeholder'            => '',
+			'tooltip'                => '',
+			'auto_generate_password' => true,
+		];
+
+		$this->field->set_attributes($attributes);
+		$fields = $this->field->to_fields_array($attributes);
+
+		$this->assertArrayNotHasKey('password', $fields);
+		$this->assertArrayNotHasKey('password_conf', $fields);
+	}
+
+	/**
+	 * Test password_strength_meter field has v-show guard when auto_generate is on.
+	 */
+	public function test_password_strength_meter_has_v_show_guard(): void {
+		$fields = $this->field->get_fields();
+
+		$this->assertArrayHasKey('password_strength_meter', $fields);
+		$this->assertArrayHasKey('wrapper_html_attr', $fields['password_strength_meter']);
+		$this->assertArrayHasKey('v-show', $fields['password_strength_meter']['wrapper_html_attr']);
+		$this->assertEquals('!auto_generate_password', $fields['password_strength_meter']['wrapper_html_attr']['v-show']);
+	}
+
+	/**
+	 * Test password_confirm_field has v-show guard when auto_generate is on.
+	 */
+	public function test_password_confirm_field_has_v_show_guard(): void {
+		$fields = $this->field->get_fields();
+
+		$this->assertArrayHasKey('password_confirm_field', $fields);
+		$this->assertArrayHasKey('wrapper_html_attr', $fields['password_confirm_field']);
+		$this->assertArrayHasKey('v-show', $fields['password_confirm_field']['wrapper_html_attr']);
+		$this->assertEquals('!auto_generate_password', $fields['password_confirm_field']['wrapper_html_attr']['v-show']);
+	}
 }
