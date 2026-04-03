@@ -1629,6 +1629,17 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			]
 		);
 
+		/**
+		 * Fires after the Transactional Email Delivery settings fields are registered.
+		 *
+		 * Providers implementing the Transactional_Email_Capability interface should hook
+		 * here to register provider-specific settings fields (e.g. status indicators,
+		 * per-provider configuration options) in the Emails settings section.
+		 *
+		 * @since 2.5.0
+		 */
+		do_action('wu_settings_transactional_email');
+
 		/*
 		 * Domain Mapping
 		 * This section holds the Domain Mapping settings of the Ultimate Multisite Plugin.

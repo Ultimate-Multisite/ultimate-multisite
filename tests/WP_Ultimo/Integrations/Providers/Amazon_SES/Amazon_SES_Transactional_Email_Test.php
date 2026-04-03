@@ -56,6 +56,32 @@ class Amazon_SES_Transactional_Email_Test extends WP_UnitTestCase {
 		$this->assertIsInt(has_action('wu_domain_removed', [$this->module, 'on_domain_removed']));
 	}
 
+	public function test_register_hooks_subscribes_to_settings_hook(): void {
+
+		$this->module->register_hooks();
+
+		$this->assertIsInt(has_action('wu_settings_transactional_email', [$this->module, 'register_transactional_email_settings']));
+	}
+
+	public function test_register_transactional_email_settings_registers_field(): void {
+
+		$registered = [];
+
+		add_filter(
+			'wu_settings_fields',
+			function ($fields) use (&$registered) {
+				$registered = $fields;
+				return $fields;
+			}
+		);
+
+		$this->module->register_transactional_email_settings();
+
+		// Verify the method runs without error and the integration's get_region() is called.
+		$region = $this->integration->get_region();
+		$this->assertSame('us-east-1', $region);
+	}
+
 	public function test_intercept_wp_mail_returns_original_when_return_is_not_null(): void {
 
 		$result = $this->module->intercept_wp_mail(

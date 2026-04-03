@@ -71,6 +71,37 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 		// React to domain lifecycle events.
 		add_action('wu_domain_added', [$this, 'on_domain_added'], 10, 2);
 		add_action('wu_domain_removed', [$this, 'on_domain_removed'], 10, 2);
+
+		// Register provider status field in the Emails settings section.
+		add_action('wu_settings_transactional_email', [$this, 'register_transactional_email_settings']);
+	}
+
+	/**
+	 * Registers a status field in the Transactional Email Delivery settings section.
+	 *
+	 * Hooked to `wu_settings_transactional_email`. Displays the active SES region
+	 * so administrators can confirm which provider is handling outbound email.
+	 *
+	 * @since 2.5.0
+	 * @return void
+	 */
+	public function register_transactional_email_settings(): void {
+
+		$region = $this->get_ses()->get_region();
+
+		wu_register_settings_field(
+			'emails',
+			'amazon_ses_active_region',
+			[
+				'title' => __('Amazon SES Active Region', 'ultimate-multisite'),
+				'desc'  => sprintf(
+					/* translators: %s is the AWS region identifier, e.g. us-east-1. */
+					__('Outbound email is currently routed through Amazon SES in the <strong>%s</strong> region.', 'ultimate-multisite'),
+					esc_html($region)
+				),
+				'type'  => 'note',
+			]
+		);
 	}
 
 	/**
