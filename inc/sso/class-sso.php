@@ -273,6 +273,22 @@ class SSO {
 
 		add_action('login_head', [$this, 'enqueue_script']);
 
+		/*
+		 * GlotPress uses its own template system with gp_head()/gp_footer()
+		 * instead of wp_head()/wp_footer(). Without this hook the SSO script
+		 * never loads on GlotPress pages, breaking cross-domain login for
+		 * translation sites.
+		 *
+		 * Registration is deferred to plugins_loaded so we can check whether
+		 * GlotPress is actually active before adding the hook.
+		 */
+		add_action('plugins_loaded', function (): void {
+
+			if (defined('GP_VERSION')) {
+				add_action('gp_head', [$this, 'enqueue_script']);
+			}
+		});
+
 		/**
 		 * Allow plugin developers to add additional hooks, if needed.
 		 *
