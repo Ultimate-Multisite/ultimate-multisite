@@ -17,6 +17,7 @@
 
 namespace WP_Ultimo\Integrations\Providers\FrankenPHP;
 
+use Psr\Log\LogLevel;
 use WP_Ultimo\Integrations\Base_Capability_Module;
 use WP_Ultimo\Integrations\Capabilities\Domain_Mapping_Capability;
 
@@ -186,42 +187,121 @@ class FrankenPHP_Domain_Mapping extends Base_Capability_Module implements Domain
      *
      * @param string $domain  The domain name being mapped.
      * @param int    $site_id ID of the site receiving the mapping.
-     * On-demand TLS handles certificate provisioning automatically on first
-     * TLS handshake. The ask endpoint validates the domain. No explicit
-     * provisioning needed — just log for observability.
-     *
      * @return void
      */
     public function on_add_domain(string $domain, int $site_id): void {
 
-        if (function_exists('wu_log_add')) {
-            wu_log_add('integration-frankenphp', "Domain added: {$domain} (cert will be provisioned on first visit via on-demand TLS)");
-        }
+        $this->provision_certificate($domain);
     }
 
     /**
-     * {@inheritdoc}
+     * Called when a mapped domain is removed.
      *
-     * Caddy automatically stops renewing certs for domains that fail the
-     * ask endpoint check, so no explicit cleanup is needed.
+     * Caddy automatically stops serving certs for domains that fail the
+     * "ask" check on renewal, so no explicit cleanup is needed.
+     *
+     * @param string $domain  The domain name being removed.
+     * @param int    $site_id ID of the site.
+     * @return void
      */
     public function on_remove_domain(string $domain, int $site_id): void {
 
+        // Caddy handles cleanup automatically via on-demand TLS renewal checks.
         if (function_exists('wu_log_add')) {
             wu_log_add('integration-frankenphp', "Domain removed: {$domain} (cert will expire naturally)");
         }
     }
 
     /**
-     * {@inheritdoc}
+     * Called when a new subdomain is added.
+     *
+     * Subdomains under the main domain are covered by the wildcard cert
+     * or on-demand TLS, so no action needed.
+     *
+     * @param string $subdomain The subdomain being added.
+     * @param int    $site_id   ID of the site.
+     * @return void
      */
     public function on_add_subdomain(string $subdomain, int $site_id): void {
     }
 
     /**
-     * {@inheritdoc}
+     * Called when a subdomain is removed.
+     *
+     * @param string $subdomain The subdomain being removed.
+     * @param int    $site_id   ID of the site.
+     * @return void
      */
     public function on_remove_subdomain(string $subdomain, int $site_id): void {
+    }
+
+    /**
+     * Add a Let's Encrypt TLS policy for a domain via Caddy's admin API.
+     *
+     * Caddy's Caddyfile adapter merges TLS policies when a catch-all block
+     * uses a static cert, so named blocks don't get their own ACME policy.
+     * This method patches the TLS connection policies at runtime to add
+     * an ACME-backed policy for the domain before the static-cert catch-all.
+     *
+     * @param string $domain The domain to provision.
+     * @return void
+     */
+    private function provision_certificate(string $domain): void {
+
+        /** @var FrankenPHP_Integration */
+        $frankenphp = $this->get_integration();
+
+        // Get current TLS connection policies.
+        $current = $frankenphp->api_call(
+            '/config/apps/http/servers/srv0/tls_connection_policies',
+            [],
+            'GET'
+        );
+
+        if (is_wp_error($current) || ! is_array($current)) {
+            if (function_exists('wu_log_add')) {
+                wu_log_add('integration-frankenphp', "Failed to read TLS policies for {$domain}", LogLevel::ERROR);
+            }
+            return;
+        }
+
+        // Check if this domain already has a policy.
+        foreach ($current as $policy) {
+            $sni = $policy['match']['sni'] ?? [];
+            if (in_array($domain, $sni, true)) {
+                if (function_exists('wu_log_add')) {
+                    wu_log_add('integration-frankenphp', "TLS policy already exists for {$domain}");
+                }
+                return;
+            }
+        }
+
+        // Insert a new ACME policy for this domain before the catch-all.
+        // Policies without certificate_selection use Caddy's default (ACME/Let's Encrypt).
+        $new_policy = ['match' => ['sni' => [$domain]]];
+
+        // Insert before the last entry (the catch-all with no SNI match).
+        array_splice($current, count($current) - 1, 0, [$new_policy]);
+
+        $response = $frankenphp->api_call(
+            '/config/apps/http/servers/srv0/tls_connection_policies',
+            $current,
+            'PATCH'
+        );
+
+        if (is_wp_error($response)) {
+            if (function_exists('wu_log_add')) {
+                wu_log_add(
+                    'integration-frankenphp',
+                    "TLS policy error for {$domain}: " . $response->get_error_message(),
+                    LogLevel::ERROR
+                );
+            }
+        } else {
+            if (function_exists('wu_log_add')) {
+                wu_log_add('integration-frankenphp', "Let's Encrypt TLS policy added for {$domain}");
+            }
+        }
     }
 
     /**
