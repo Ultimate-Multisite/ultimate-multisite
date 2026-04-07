@@ -128,7 +128,8 @@ class Domain extends Base_Model {
 		return [
 			'blog_id'        => 'required|integer',
 			'domain'         => "required|domain|unique:\WP_Ultimo\Models\Domain,domain,{$id}",
-			'stage'          => 'required|in:checking-dns,checking-ssl-cert,done-without-ssl,done,failed,ssl-failed|default:checking-dns',
+			// Has a default — `required` is redundant.
+			'stage'          => 'in:checking-dns,checking-ssl-cert,done-without-ssl,done,failed,ssl-failed|default:checking-dns',
 			'active'         => 'default:1',
 			'secure'         => 'default:0',
 			'primary_domain' => 'default:0',

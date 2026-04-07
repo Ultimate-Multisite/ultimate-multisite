@@ -417,8 +417,11 @@ class Product extends Base_Model implements Limitable {
 
 		return [
 			'featured_image_id'     => 'integer',
-			'currency'              => "required|default:{$currency}",
-			'pricing_type'          => 'required|in:free,paid,contact_us,pay_what_you_want',
+			// Has a default — `required` is redundant.
+			'currency'              => "default:{$currency}",
+			// Defaults to "free" so a caller can create a basic product
+			// without having to choose a pricing model up front.
+			'pricing_type'          => 'in:free,paid,contact_us,pay_what_you_want|default:free',
 			'trial_duration'        => 'integer',
 			'trial_duration_unit'   => 'in:day,week,month,year|default:month',
 			'parent_id'             => 'integer',
@@ -430,7 +433,8 @@ class Product extends Base_Model implements Limitable {
 			'billing_cycles'        => 'integer|default:0',
 			'active'                => 'default:1',
 			'price_variations'      => "price_variations:{$duration},{$duration_unit}",
-			'type'                  => "required|default:plan|in:{$allowed_types}",
+			// Has a default — `required` is redundant.
+			'type'                  => "default:plan|in:{$allowed_types}",
 			'slug'                  => "required|unique:\WP_Ultimo\Models\Product,slug,{$id}|min:2",
 			'taxable'               => 'boolean|default:0',
 			'tax_category'          => 'default:',

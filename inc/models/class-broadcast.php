@@ -129,7 +129,8 @@ class Broadcast extends Post_Base_Model {
 			'name'        => 'default:title',
 			'title'       => 'required|min:2',
 			'content'     => 'required|min:3',
-			'type'        => 'required|in:broadcast_email,broadcast_notice|default:broadcast_notice',
+			// Has a default — `required` is redundant.
+			'type'        => 'in:broadcast_email,broadcast_notice|default:broadcast_notice',
 		];
 	}
 

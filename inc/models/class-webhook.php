@@ -120,7 +120,10 @@ class Webhook extends Base_Model {
 			'event_count'      => 'default:0',
 			'active'           => 'default:1',
 			'hidden'           => 'default:0',
-			'integration'      => 'required|min:2',
+			// Defaults to "manual" so a caller can register a webhook
+			// without specifying which integration owns it. Plugins that
+			// register webhooks set their own integration tag.
+			'integration'      => 'min:2|default:manual',
 			'date_last_failed' => 'default:',
 		];
 	}

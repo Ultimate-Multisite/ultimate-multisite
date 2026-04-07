@@ -176,8 +176,11 @@ class Customer extends Base_Model implements Billable, Notable {
 
 		return [
 			'user_id'            => "required|integer|unique:\WP_Ultimo\Models\Customer,user_id,{$id}",
-			'email_verification' => 'required|in:none,pending,verified',
-			'type'               => 'required|in:customer',
+			// Defaults to "none" so callers don't have to choose a verification
+			// state on creation — they can update it later if needed.
+			'email_verification' => 'in:none,pending,verified|default:none',
+			// Currently the only valid value, so default it.
+			'type'               => 'in:customer|default:customer',
 			'last_login'         => 'default:',
 			'has_trialed'        => 'boolean|default:0',
 			'vip'                => 'boolean|default:0',

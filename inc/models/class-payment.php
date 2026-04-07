@@ -244,7 +244,9 @@ class Payment extends Base_Model implements Notable {
 			'tax_total'                   => 'numeric',
 			'discount_code'               => 'alpha_dash',
 			'total'                       => 'required|numeric',
-			'status'                      => "required|in:{$payment_types}",
+			// Defaults to "pending" so callers can record a payment without
+			// having to choose a status up front; gateways update it later.
+			'status'                      => "in:{$payment_types}|default:pending",
 			'gateway'                     => 'default:',
 			'gateway_payment_id'          => 'default:',
 			'discount_total'              => 'integer',

@@ -331,10 +331,15 @@ class Site extends Base_Model implements Limitable, Notable {
 		return [
 			'categories'        => 'default:',
 			'featured_image_id' => 'integer|default:',
-			'site_id'           => 'required|integer',
+			// site_id is the network id; defaults to 1 (the main network) in
+			// the model, so it's optional for a regular WordPress subsite.
+			'site_id'           => 'integer|default:1',
 			'title'             => 'required',
 			'name'              => 'required',
-			'description'       => 'required|min:2',
+			// description is optional metadata. A regular WordPress subsite
+			// doesn't have one at the network level — it lives in
+			// blogdescription per blog and can be set later.
+			'description'       => 'default:',
 			'domain'            => 'domain',
 			'path'              => 'required|default:',
 			'registered'        => "default:{$date}",
@@ -346,8 +351,12 @@ class Site extends Base_Model implements Limitable, Notable {
 			'deleted'           => 'boolean|default:0',
 			'is_publishing'     => 'boolean|default:0',
 			'land_id'           => 'integer|default:',
-			'customer_id'       => 'required|integer|exists:\WP_Ultimo\Models\Customer,id',
-			'membership_id'     => 'required|integer|exists:\WP_Ultimo\Models\Membership,id',
+			// customer_id and membership_id are WaaS-specific. A vanilla
+			// WordPress subsite (type=default) does not need a paying
+			// customer or a membership. Keep the foreign-key existence
+			// check so customer-owned sites still validate when supplied.
+			'customer_id'       => 'integer|default:|exists:\WP_Ultimo\Models\Customer,id',
+			'membership_id'     => 'integer|default:|exists:\WP_Ultimo\Models\Membership,id',
 			'template_id'       => 'integer|default:',
 			'type'              => "required|in:{$site_types}",
 			'signup_options'    => 'default:',
@@ -631,7 +640,7 @@ class Site extends Base_Model implements Limitable, Notable {
 	 * Set domain name used by this site..
 	 *
 	 * @since 2.0.0
-	 * @param string $domain The site domain. You don't need to put http or https in front of your domain in this field. e.g: example.com.
+	 * @param string $domain Full hostname for the site, no protocol. On a subdomain multisite install supply the full subdomain you want (e.g. "blog.example.com"). On a subdirectory install leave empty to inherit the network root domain. wu_create_site() will auto-derive this from `path` on subdomain installs when you only supply a slug.
 	 * @return void
 	 */
 	public function set_domain($domain): void {
@@ -653,7 +662,7 @@ class Site extends Base_Model implements Limitable, Notable {
 	 * Set path of the site. Used when in sub-directory mode..
 	 *
 	 * @since 2.0.0
-	 * @param string $path Path of the site. Used when in sub-directory mode.
+	 * @param string $path URL path for the site. On a subdirectory multisite install this is the URL prefix (e.g. "/blog/"). On a subdomain install supply just the slug (e.g. "blog") and wu_create_site() will convert it into the full subdomain "blog.<network-domain>" automatically.
 	 * @return void
 	 */
 	public function set_path($path): void {

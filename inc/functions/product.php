@@ -116,25 +116,29 @@ function wu_get_product_by($column, $value) {
  */
 function wu_create_product($product_data) {
 
+	// Note: empty-string sentinels (instead of `false`) for fields that
+	// have model-level `default:` rules. rakit's validator treats `false`
+	// as a non-empty value (`!is_null(false)` is true), so model defaults
+	// would never fire if we used `false` here.
 	$product_data = wp_parse_args(
 		$product_data,
 		[
-			'name'                => false,
-			'description'         => false,
-			'currency'            => false,
-			'pricing_type'        => false,
-			'setup_fee'           => false,
+			'name'                => '',
+			'description'         => '',
+			'currency'            => '',
+			'pricing_type'        => '',
+			'setup_fee'           => '',
 			'parent_id'           => 0,
-			'slug'                => false,
-			'recurring'           => false,
+			'slug'                => '',
+			'recurring'           => '',
 			'trial_duration'      => 0,
 			'trial_duration_unit' => 'day',
 			'duration'            => 1,
 			'duration_unit'       => 'day',
-			'amount'              => false,
-			'billing_cycles'      => false,
-			'active'              => false,
-			'type'                => false,
+			'amount'              => '',
+			'billing_cycles'      => '',
+			'active'              => '',
+			'type'                => '',
 			'featured_image_id'   => 0,
 			'list_order'          => 0,
 			'date_created'        => wu_get_current_time('mysql', true),
