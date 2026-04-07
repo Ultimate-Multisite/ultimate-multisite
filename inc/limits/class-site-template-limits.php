@@ -220,6 +220,11 @@ class Site_Template_Limits {
 			} else {
 				$available_templates = $limits->site_templates->get_available_site_templates();
 
+				// false means no restriction (MODE_DEFAULT) — all templates are available.
+				if ( false === $available_templates ) {
+					return true;
+				}
+
 				return in_array( $template_id, $available_templates, true );
 			}
 		}

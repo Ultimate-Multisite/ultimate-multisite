@@ -205,6 +205,14 @@ class Limit_Site_Templates extends Limit {
 	 */
 	public function get_available_site_templates() {
 
+		/*
+		 * MODE_DEFAULT means "allow all templates" — no restriction.
+		 * Return false so callers that check is_array() treat this as unrestricted.
+		 */
+		if (self::MODE_DEFAULT === $this->mode) {
+			return false;
+		}
+
 		$limits = $this->get_limit();
 
 		if ( ! $limits) {
@@ -219,8 +227,7 @@ class Limit_Site_Templates extends Limit {
 			$site_settings = (object) $site_settings;
 
 			if (self::BEHAVIOR_AVAILABLE === $site_settings->behavior ||
-				self::BEHAVIOR_PRE_SELECTED === $site_settings->behavior ||
-				self::MODE_DEFAULT === $this->mode) {
+				self::BEHAVIOR_PRE_SELECTED === $site_settings->behavior) {
 				// Convert to integer to match type used in validation (absint)
 				$available[] = absint($site_id);
 			}
