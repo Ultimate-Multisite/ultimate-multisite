@@ -42,7 +42,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install PHP dependencies
@@ -89,6 +89,13 @@ jobs:
           mkdir -p build
           mv ultimate-multisite.zip build/ultimate-multisite-${{ env.VERSION }}.zip
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ultimate-multisite-zip
+          path: build/ultimate-multisite-${{ env.VERSION }}.zip
+          retention-days: 7
+
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
@@ -130,30 +137,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2
+      - name: Get the version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
         with:
-          php-version: '7.4'
-          extensions: mbstring, intl, curl
-          tools: composer, wp-cli
+          name: ultimate-multisite-zip
+          path: build/
 
-      - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install PHP dependencies
-        run: composer install --no-dev --optimize-autoloader
-
-      - name: Install Node dependencies
-        run: npm ci
-
-      - name: Build plugin
-        run: npm run build
-        env:
-          MU_CLIENT_ID: ${{ secrets.MU_CLIENT_ID }}
-          MU_CLIENT_SECRET: ${{ secrets.MU_CLIENT_SECRET }}
+      - name: Unzip build artifact into workspace
+        run: |
+          unzip -o build/ultimate-multisite-${{ env.VERSION }}.zip -d .
 
       - name: Deploy to WordPress.org SVN
         uses: 10up/action-wordpress-plugin-deploy@stable
