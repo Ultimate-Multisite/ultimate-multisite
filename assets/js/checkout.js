@@ -585,9 +585,44 @@
 				 */
 				validate_client_side(values) {
 
-					const rules = (typeof wu_checkout !== 'undefined' && wu_checkout.validation_rules) ? wu_checkout.validation_rules : {};
+					const allRules = (typeof wu_checkout !== 'undefined' && wu_checkout.validation_rules) ? wu_checkout.validation_rules : {};
 					const i18n = (typeof wu_checkout !== 'undefined' && wu_checkout.i18n) ? wu_checkout.i18n : {};
 					const errors = [];
+
+					/*
+					 * Restrict validation to the fields on the current step only.
+					 *
+					 * The PHP side exposes wu_checkout.step_fields as a map of
+					 * step_id => [field_ids]. We read the current step from the
+					 * hidden checkout_step input and filter the rules accordingly.
+					 * This prevents required fields on later steps (e.g. email,
+					 * username, password on step 4) from blocking submission of
+					 * earlier steps that do not include those fields.
+					 *
+					 * Falls back to all rules when step_fields is unavailable
+					 * (legacy single-step forms).
+					 */
+					const stepFields = (typeof wu_checkout !== 'undefined' && wu_checkout.step_fields) ? wu_checkout.step_fields : null;
+					const currentStep = jQuery('input[name="checkout_step"]').val();
+					let rules = allRules;
+
+					if (stepFields && currentStep && stepFields[ currentStep ]) {
+
+						const allowedFields = stepFields[ currentStep ];
+
+						rules = {};
+
+						allowedFields.forEach(function(fieldId) {
+
+							if (allRules[ fieldId ]) {
+
+								rules[ fieldId ] = allRules[ fieldId ];
+
+							}
+
+						});
+
+					}
 
 					/**
 					 * Retrieve a display label for a field, falling back to the field ID.
