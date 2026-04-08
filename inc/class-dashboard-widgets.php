@@ -74,6 +74,14 @@ class Dashboard_Widgets implements \WP_Ultimo\Interfaces\Singleton {
 			return;
 		}
 
+		/*
+		 * The activity-stream widget view wraps its output in <div class="wu-styling">,
+		 * which requires framework.css (registered as 'wu-styling'). The network admin
+		 * dashboard is not a wp-ultimo page, so enqueue_default_admin_styles() skips it —
+		 * we must enqueue wu-styling explicitly here.
+		 */
+		wp_enqueue_style('wu-styling');
+
 		wp_enqueue_script('wu-vue');
 
 		wp_enqueue_script('moment');
