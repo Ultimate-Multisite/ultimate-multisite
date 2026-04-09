@@ -491,6 +491,19 @@ class General_Compat {
 		$network_home = get_home_url($network->site_id);
 		$scheme       = wp_parse_url($network_home, PHP_URL_SCHEME);
 
+		/*
+		 * Fallback: if get_home_url() returns http:// during site creation
+		 * (race condition before SSL redirect kicks in), check FORCE_SSL_ADMIN
+		 * or the actual request scheme as a secondary signal.
+		 *
+		 * @since 2.4.1
+		 */
+		if ('https' !== $scheme) {
+			if ( (defined('FORCE_SSL_ADMIN') && FORCE_SSL_ADMIN) || is_ssl() ) {
+				$scheme = 'https';
+			}
+		}
+
 		if ('https' === $scheme) {
 			$url = 'https://' . $site->domain . $site->path;
 

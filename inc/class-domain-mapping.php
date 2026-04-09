@@ -491,6 +491,7 @@ class Domain_Mapping {
 		add_filter('site_url', [$this, 'mangle_url'], -10, 4);
 		add_filter('home_url', [$this, 'mangle_url'], -10, 4);
 		add_filter('option_siteurl', [$this, 'mangle_url'], 20);
+		add_filter('option_home', [$this, 'mangle_url'], 20); // @since 2.4.1 - Fix get_option('home') returning raw subdomain URL
 
 		add_filter('theme_file_uri', [$this, 'mangle_url']);
 		add_filter('stylesheet_directory_uri', [$this, 'mangle_url']);

@@ -32,6 +32,7 @@ class Elementor_Compat {
 	public function init(): void {
 
 		add_action('wu_duplicate_site', [$this, 'regenerate_css']);
+		add_action('wu_duplicate_site', [$this, 'flush_rewrite_rules_for_new_site'], 20); // @since 2.4.1 - Flush stale rewrite rules copied from template site
 
 		add_filter('wu_should_redirect_to_primary_domain', [$this, 'maybe_prevent_redirection']);
 
@@ -62,6 +63,30 @@ class Elementor_Compat {
 		if ( ! empty($file_manager)) {
 			$file_manager->clear_cache();
 		}
+
+		restore_current_blog();
+	}
+
+	/**
+	 * Flushes rewrite rules on the newly duplicated site.
+	 *
+	 * When UM duplicates a template site, the rewrite_rules option is copied
+	 * verbatim. If the template's rules were generated with a different CPT slug,
+	 * all cloned subsites keep stale rules, causing 404s on CPT URLs.
+	 *
+	 * @since 2.4.1
+	 * @param array $site Info about the duplicated site.
+	 * @return void
+	 */
+	public function flush_rewrite_rules_for_new_site($site): void {
+
+		if ( ! isset($site['site_id'])) {
+			return;
+		}
+
+		switch_to_blog((int) $site['site_id']);
+
+		flush_rewrite_rules(true);
 
 		restore_current_blog();
 	}
