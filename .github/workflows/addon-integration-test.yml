@@ -252,16 +252,16 @@ jobs:
         if: always()
         continue-on-error: true
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-         with:
-           name: cypress-screenshots-${{ inputs.addon-slug }}
-           path: |
-             core/tests/e2e/cypress/screenshots
-             addon/tests/e2e/cypress/screenshots
+        with:
+          name: cypress-screenshots-${{ inputs.addon-slug }}
+          path: |
+            core/tests/e2e/cypress/screenshots
+            addon/tests/e2e/cypress/screenshots
 
-       - name: Upload Cypress videos
-         if: always()
-         continue-on-error: true
-         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+      - name: Upload Cypress videos
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: cypress-videos-${{ inputs.addon-slug }}
           path: |
