@@ -78,7 +78,7 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 
 		$this->type      = 'menu';
 		$this->position  = 10_101_010;
-		$this->menu_icon = 'dashicons-wu-wp-ultimo';
+		$this->menu_icon = self::MENU_ICON_SVG;
 
 		parent::__construct();
 

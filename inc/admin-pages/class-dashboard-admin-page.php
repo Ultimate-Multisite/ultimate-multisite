@@ -37,10 +37,13 @@ class Dashboard_Admin_Page extends Base_Admin_Page {
 	/**
 	 * Dashicon to be used on the menu item. This is only used on top-level menus
 	 *
+	 * Set to the SVG data URI constant in init() so the icon renders on all
+	 * admin pages without requiring the full admin.css stylesheet.
+	 *
 	 * @since 1.8.2
 	 * @var string
 	 */
-	protected $menu_icon = 'dashicons-wu-wp-ultimo';
+	protected $menu_icon = '';
 
 	/**
 	 * If this number is greater than 0, a badge with the number will be displayed alongside the menu title
@@ -95,6 +98,8 @@ class Dashboard_Admin_Page extends Base_Admin_Page {
 	 * @return void
 	 */
 	public function init(): void {
+
+		$this->menu_icon = self::MENU_ICON_SVG;
 
 		parent::init();
 

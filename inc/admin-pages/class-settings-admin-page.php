@@ -43,7 +43,7 @@ class Settings_Admin_Page extends Wizard_Admin_Page {
 	 * @since 1.8.2
 	 * @var string
 	 */
-	protected $menu_icon = 'dashicons-wu-wp-ultimo';
+	protected $menu_icon = '';
 
 	/**
 	 * If this number is greater than 0, a badge with the number will be displayed alongside the menu title

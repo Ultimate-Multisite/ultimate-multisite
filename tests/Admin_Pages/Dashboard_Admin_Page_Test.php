@@ -67,7 +67,7 @@ class Dashboard_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test menu_icon is set.
+	 * Test menu_icon is set to the SVG data URI constant.
 	 */
 	public function test_menu_icon(): void {
 
@@ -75,7 +75,7 @@ class Dashboard_Admin_Page_Test extends WP_UnitTestCase {
 		$property   = $reflection->getProperty('menu_icon');
 		$property->setAccessible(true);
 
-		$this->assertEquals('dashicons-wu-wp-ultimo', $property->getValue($this->page));
+		$this->assertEquals(Base_Admin_Page::MENU_ICON_SVG, $property->getValue($this->page));
 	}
 
 	/**

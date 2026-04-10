@@ -121,7 +121,7 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 
 			$this->position = 10_101_010;
 
-			$this->menu_icon = 'dashicons-wu-wp-ultimo';
+			$this->menu_icon = self::MENU_ICON_SVG;
 
 			add_action('admin_enqueue_scripts', [$this, 'register_scripts']);
 		}
