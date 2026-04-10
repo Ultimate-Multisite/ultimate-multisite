@@ -1,6 +1,6 @@
---- a/vendor/mpdf/psr-http-message-shim/src/Request.php
-+++ b/vendor/mpdf/psr-http-message-shim/src/Request.php
-@@ -66,7 +66,7 @@ class Request implements \Psr\Http\Message\RequestInterface
+--- a/src/Request.php	2026-04-10 11:55:33.366565438 -0600
++++ b/src/Request.php	2026-04-10 11:56:52.318823776 -0600
+@@ -66,7 +66,7 @@
  		}
  	}
  
@@ -9,7 +9,7 @@
  	{
  		if ($this->requestTarget !== null) {
  			return $this->requestTarget;
-@@ -83,7 +83,7 @@ class Request implements \Psr\Http\Message\RequestInterface
+@@ -83,7 +83,7 @@
  		return $target;
  	}
  
@@ -18,7 +18,7 @@
  	{
  		if (preg_match('#\s#', $requestTarget)) {
  			throw new \InvalidArgumentException('Invalid request target provided; cannot contain whitespace');
-@@ -95,11 +95,11 @@ class Request implements \Psr\Http\Message\RequestInterface
+@@ -95,12 +95,12 @@
  		return $new;
  	}
  
@@ -33,7 +33,7 @@
  	{
  		$new = clone $this;
  		$new->method = $method;
-@@ -107,11 +107,11 @@ class Request implements \Psr\Http\Message\RequestInterface
+@@ -108,12 +108,12 @@
  		return $new;
  	}
  
@@ -48,7 +48,7 @@
  	{
  		if ($uri === $this->uri) {
  			return $this;
-@@ -152,11 +152,11 @@ class Request implements \Psr\Http\Message\RequestInterface
+@@ -152,12 +152,12 @@
  		$this->headers = [$header => [$host]] + $this->headers;
  	}
  
@@ -63,7 +63,7 @@
  	{
  		if ($this->protocol === $version) {
  			return $this;
-@@ -168,15 +168,15 @@ class Request implements \Psr\Http\Message\RequestInterface
+@@ -169,17 +169,17 @@
  		return $new;
  	}
  
@@ -84,7 +84,7 @@
  	{
  		$header = strtolower($header);
  
-@@ -192,11 +192,11 @@ class Request implements \Psr\Http\Message\RequestInterface
+@@ -192,12 +192,12 @@
  		return $this->headers[$header];
  	}
  
@@ -99,7 +99,7 @@
  	{
  		if (!is_array($value)) {
  			$value = [$value];
-@@ -216,7 +216,7 @@ class Request implements \Psr\Http\Message\RequestInterface
+@@ -216,7 +216,7 @@
  		return $new;
  	}
  
@@ -108,7 +108,7 @@
  	{
  		if (!is_array($value)) {
  			$value = [$value];
-@@ -237,7 +237,7 @@ class Request implements \Psr\Http\Message\RequestInterface
+@@ -237,7 +237,7 @@
  		return $new;
  	}
  
@@ -117,7 +117,7 @@
  	{
  		$normalized = strtolower($header);
  
-@@ -253,7 +253,7 @@ class Request implements \Psr\Http\Message\RequestInterface
+@@ -253,7 +253,7 @@
  		return $new;
  	}
  
@@ -126,7 +126,7 @@
  	{
  		if (!$this->stream) {
  			$this->stream = Stream::create('');
-@@ -263,7 +263,7 @@ class Request implements \Psr\Http\Message\RequestInterface
+@@ -263,7 +263,7 @@
  		return $this->stream;
  	}
  
@@ -134,4 +134,370 @@
 +	public function withBody(\Psr\Http\Message\StreamInterface $body): \Psr\Http\Message\MessageInterface
  	{
  		if ($body === $this->stream) {
+ 			return $this;
+--- a/src/Response.php	2026-04-10 11:55:33.699901131 -0600
++++ b/src/Response.php	2026-04-10 11:56:52.318823776 -0600
+@@ -64,17 +64,17 @@
+ 		$this->protocol = $version;
+ 	}
+ 
+-	public function getStatusCode()
++	public function getStatusCode(): int
+ 	{
+ 		return $this->statusCode;
+ 	}
+ 
+-	public function getReasonPhrase()
++	public function getReasonPhrase(): string
+ 	{
+ 		return $this->reasonPhrase;
+ 	}
+ 
+-	public function withStatus($code, $reasonPhrase = '')
++	public function withStatus(int $code, string $reasonPhrase = ''): \Psr\Http\Message\ResponseInterface
+ 	{
+ 		if (!\is_int($code) && !\is_string($code)) {
+ 			throw new \InvalidArgumentException('Status code has to be an integer');
+@@ -95,12 +95,12 @@
+ 		return $new;
+ 	}
+ 
+-	public function getProtocolVersion()
++	public function getProtocolVersion(): string
+ 	{
+ 		return $this->protocol;
+ 	}
+ 
+-	public function withProtocolVersion($version)
++	public function withProtocolVersion(string $version): \Psr\Http\Message\MessageInterface
+ 	{
+ 		if ($this->protocol === $version) {
+ 			return $this;
+@@ -112,17 +112,17 @@
+ 		return $new;
+ 	}
+ 
+-	public function getHeaders()
++	public function getHeaders(): array
+ 	{
+ 		return $this->headers;
+ 	}
+ 
+-	public function hasHeader($header)
++	public function hasHeader(string $header): bool
+ 	{
+ 		return isset($this->headerNames[strtolower($header)]);
+ 	}
+ 
+-	public function getHeader($header)
++	public function getHeader(string $header): array
+ 	{
+ 		$header = strtolower($header);
+ 
+@@ -135,12 +135,12 @@
+ 		return $this->headers[$header];
+ 	}
+ 
+-	public function getHeaderLine($header)
++	public function getHeaderLine(string $header): string
+ 	{
+ 		return implode(', ', $this->getHeader($header));
+ 	}
+ 
+-	public function withHeader($header, $value)
++	public function withHeader(string $header, $value): \Psr\Http\Message\MessageInterface
+ 	{
+ 		if (!is_array($value)) {
+ 			$value = [$value];
+@@ -159,7 +159,7 @@
+ 		return $new;
+ 	}
+ 
+-	public function withAddedHeader($header, $value)
++	public function withAddedHeader(string $header, $value): \Psr\Http\Message\MessageInterface
+ 	{
+ 		if (!is_array($value)) {
+ 			$value = [$value];
+@@ -180,7 +180,7 @@
+ 		return $new;
+ 	}
+ 
+-	public function withoutHeader($header)
++	public function withoutHeader(string $header): \Psr\Http\Message\MessageInterface
+ 	{
+ 		$normalized = strtolower($header);
+ 
+@@ -196,7 +196,7 @@
+ 		return $new;
+ 	}
+ 
+-	public function getBody()
++	public function getBody(): \Psr\Http\Message\StreamInterface
+ 	{
+ 		if (!$this->stream) {
+ 			$this->stream = Stream::create('');
+@@ -205,7 +205,7 @@
+ 		return $this->stream;
+ 	}
+ 
+-	public function withBody(StreamInterface $body)
++	public function withBody(\Psr\Http\Message\StreamInterface $body): \Psr\Http\Message\MessageInterface
+ 	{
+ 		if ($body === $this->stream) {
+ 			return $this;
+--- a/src/Stream.php	2026-04-10 11:55:34.009903325 -0600
++++ b/src/Stream.php	2026-04-10 11:56:52.318823776 -0600
+@@ -104,7 +104,7 @@
+ 		$this->close();
+ 	}
+ 
+-	public function __toString()
++	public function __toString(): string
+ 	{
+ 		try {
+ 			if ($this->isSeekable()) {
+@@ -117,7 +117,7 @@
+ 		}
+ 	}
+ 
+-	public function close()
++	public function close(): void
+ 	{
+ 		if (isset($this->stream)) {
+ 			if (is_resource($this->stream)) {
+@@ -130,7 +130,7 @@
+ 	public function detach()
+ 	{
+ 		if (!isset($this->stream)) {
+-			return;
++			return null;
+ 		}
+ 
+ 		$result = $this->stream;
+@@ -141,14 +141,14 @@
+ 		return $result;
+ 	}
+ 
+-	public function getSize()
++	public function getSize(): ?int
+ 	{
+ 		if ($this->size !== null) {
+ 			return $this->size;
+ 		}
+ 
+ 		if (!isset($this->stream)) {
+-			return;
++			return null;
+ 		}
+ 
+ 		// Clear the stat cache if the stream has a URI
+@@ -162,9 +162,11 @@
+ 
+ 			return $this->size;
+ 		}
++
++		return null;
+ 	}
+ 
+-	public function tell()
++	public function tell(): int
+ 	{
+ 		$result = ftell($this->stream);
+ 
+@@ -175,17 +177,17 @@
+ 		return $result;
+ 	}
+ 
+-	public function eof()
++	public function eof(): bool
+ 	{
+ 		return !$this->stream || feof($this->stream);
+ 	}
+ 
+-	public function isSeekable()
++	public function isSeekable(): bool
+ 	{
+ 		return $this->seekable;
+ 	}
+ 
+-	public function seek($offset, $whence = SEEK_SET)
++	public function seek(int $offset, int $whence = SEEK_SET): void
+ 	{
+ 		if (!$this->seekable) {
+ 			throw new \RuntimeException('Stream is not seekable');
+@@ -196,17 +198,17 @@
+ 		}
+ 	}
+ 
+-	public function rewind()
++	public function rewind(): void
+ 	{
+ 		$this->seek(0);
+ 	}
+ 
+-	public function isWritable()
++	public function isWritable(): bool
+ 	{
+ 		return $this->writable;
+ 	}
+ 
+-	public function write($string)
++	public function write(string $string): int
+ 	{
+ 		if (!$this->writable) {
+ 			throw new \RuntimeException('Cannot write to a non-writable stream');
+@@ -223,12 +225,12 @@
+ 		return $result;
+ 	}
+ 
+-	public function isReadable()
++	public function isReadable(): bool
+ 	{
+ 		return $this->readable;
+ 	}
+ 
+-	public function read($length)
++	public function read(int $length): string
+ 	{
+ 		if (!$this->readable) {
+ 			throw new \RuntimeException('Cannot read from non-readable stream');
+@@ -237,7 +239,7 @@
+ 		return fread($this->stream, $length);
+ 	}
+ 
+-	public function getContents()
++	public function getContents(): string
+ 	{
+ 		if (!isset($this->stream)) {
+ 			throw new \RuntimeException('Unable to read stream contents');
+@@ -252,7 +254,7 @@
+ 		return $contents;
+ 	}
+ 
+-	public function getMetadata($key = null)
++	public function getMetadata(?string $key = null)
+ 	{
+ 		if (!isset($this->stream)) {
+ 			return $key ? null : [];
+--- a/src/Uri.php	2026-04-10 11:55:34.323238876 -0600
++++ b/src/Uri.php	2026-04-10 11:56:52.318823776 -0600
+@@ -57,17 +57,17 @@
+ 		}
+ 	}
+ 
+-	public function __toString()
++	public function __toString(): string
+ 	{
+ 		return self::createUriString($this->scheme, $this->getAuthority(), $this->path, $this->query, $this->fragment);
+ 	}
+ 
+-	public function getScheme()
++	public function getScheme(): string
+ 	{
+ 		return $this->scheme;
+ 	}
+ 
+-	public function getAuthority()
++	public function getAuthority(): string
+ 	{
+ 		if ('' === $this->host) {
+ 			return '';
+@@ -85,37 +85,37 @@
+ 		return $authority;
+ 	}
+ 
+-	public function getUserInfo()
++	public function getUserInfo(): string
+ 	{
+ 		return $this->userInfo;
+ 	}
+ 
+-	public function getHost()
++	public function getHost(): string
+ 	{
+ 		return $this->host;
+ 	}
+ 
+-	public function getPort()
++	public function getPort(): ?int
+ 	{
+ 		return $this->port;
+ 	}
+ 
+-	public function getPath()
++	public function getPath(): string
+ 	{
+ 		return $this->path;
+ 	}
+ 
+-	public function getQuery()
++	public function getQuery(): string
+ 	{
+ 		return $this->query;
+ 	}
+ 
+-	public function getFragment()
++	public function getFragment(): string
+ 	{
+ 		return $this->fragment;
+ 	}
+ 
+-	public function withScheme($scheme)
++	public function withScheme(string $scheme): \Psr\Http\Message\UriInterface
+ 	{
+ 		if (!\is_string($scheme)) {
+ 			throw new \InvalidArgumentException('Scheme must be a string');
+@@ -132,7 +132,7 @@
+ 		return $new;
+ 	}
+ 
+-	public function withUserInfo($user, $password = null)
++	public function withUserInfo(string $user, ?string $password = null): \Psr\Http\Message\UriInterface
+ 	{
+ 		$info = $user;
+ 		if (null !== $password && '' !== $password) {
+@@ -149,7 +149,7 @@
+ 		return $new;
+ 	}
+ 
+-	public function withHost($host)
++	public function withHost(string $host): \Psr\Http\Message\UriInterface
+ 	{
+ 		if (!\is_string($host)) {
+ 			throw new \InvalidArgumentException('Host must be a string');
+@@ -165,7 +165,7 @@
+ 		return $new;
+ 	}
+ 
+-	public function withPort($port)
++	public function withPort(?int $port): \Psr\Http\Message\UriInterface
+ 	{
+ 		if ($this->port === $port = $this->filterPort($port)) {
+ 			return $this;
+@@ -177,7 +177,7 @@
+ 		return $new;
+ 	}
+ 
+-	public function withPath($path)
++	public function withPath(string $path): \Psr\Http\Message\UriInterface
+ 	{
+ 		if ($this->path === $path = $this->filterPath($path)) {
+ 			return $this;
+@@ -189,7 +189,7 @@
+ 		return $new;
+ 	}
+ 
+-	public function withQuery($query)
++	public function withQuery(string $query): \Psr\Http\Message\UriInterface
+ 	{
+ 		if ($this->query === $query = $this->filterQueryAndFragment($query)) {
+ 			return $this;
+@@ -201,7 +201,7 @@
+ 		return $new;
+ 	}
+ 
+-	public function withFragment($fragment)
++	public function withFragment(string $fragment): \Psr\Http\Message\UriInterface
+ 	{
+ 		if ($this->fragment === $fragment = $this->filterQueryAndFragment($fragment)) {
  			return $this;

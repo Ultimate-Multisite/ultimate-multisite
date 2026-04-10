@@ -100,33 +100,78 @@
 	}
 
 	/**
+	 * Check whether the current order actually requires payment.
+	 *
+	 * When the cart total is zero (free plan, 100 % discount, etc.)
+	 * the checkout hides the payment-method selector and the server
+	 * will route the signup through the free gateway — so the submit
+	 * button should NOT carry PayPal branding.
+	 *
+	 * @return {boolean} True when the order needs payment collection.
+	 */
+	function orderRequiresPayment() {
+		const checkout = window.wu_checkout_form;
+
+		if ( ! checkout || ! checkout.order ) {
+			// Order not loaded yet — assume payment is needed so branding
+			// can be applied once the order confirms it.
+			return true;
+		}
+
+		return !! checkout.order.should_collect_payment;
+	}
+
+	/**
 	 * Re-apply icon after Vue re-renders the button (e.g. spinner swap).
 	 * The CSS survives re-renders; only the icon DOM node needs re-injection.
 	 */
 	( function watchForRerender() {
-		let isPayPalActive = false;
+		let isPayPalSelected = false;
 
 		const observer = new MutationObserver( function () {
-			if ( isPayPalActive ) {
+			if ( isPayPalSelected && orderRequiresPayment() ) {
 				setButtonIcons( true );
 			}
 		} );
+
+		/**
+		 * Recalculate whether branding should be shown.
+		 *
+		 * Branding is active only when PayPal is the selected gateway
+		 * AND the order actually requires payment collection.
+		 */
+		function refreshBranding() {
+			const shouldBrand = isPayPalSelected && orderRequiresPayment();
+			applyBranding( shouldBrand );
+
+			const form = document.getElementById( 'wu_form' );
+			if ( form ) {
+				if ( shouldBrand ) {
+					observer.observe( form, { childList: true, subtree: true } );
+				} else {
+					observer.disconnect();
+				}
+			}
+		}
 
 		wp.hooks.addAction(
 			'wu_on_change_gateway',
 			'wp-ultimo/paypal-rest',
 			function ( newGateway ) {
-				isPayPalActive = ( newGateway === GATEWAY_ID );
-				applyBranding( isPayPalActive );
+				isPayPalSelected = ( newGateway === GATEWAY_ID );
+				refreshBranding();
+			}
+		);
 
-				const form = document.getElementById( 'wu_form' );
-				if ( form ) {
-					if ( isPayPalActive ) {
-						observer.observe( form, { childList: true, subtree: true } );
-					} else {
-						observer.disconnect();
-					}
-				}
+		/*
+		 * When the order updates (product change, coupon applied, etc.)
+		 * the should_collect_payment flag may flip — re-evaluate branding.
+		 */
+		wp.hooks.addAction(
+			'wu_on_form_updated',
+			'wp-ultimo/paypal-rest',
+			function () {
+				refreshBranding();
 			}
 		);
 	}() );
