@@ -245,15 +245,15 @@ jobs:
       - name: Upload Cypress screenshots
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: cypress-screenshots-${{ matrix.php }}-${{ matrix.browser }}
-          path: tests/e2e/cypress/screenshots
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+         with:
+           name: cypress-screenshots-${{ matrix.php }}-${{ matrix.browser }}
+           path: tests/e2e/cypress/screenshots
 
-      - name: Upload Cypress videos
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+       - name: Upload Cypress videos
+         if: always()
+         continue-on-error: true
+         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: cypress-videos-${{ matrix.php }}-${{ matrix.browser }}
           path: tests/e2e/cypress/videos
