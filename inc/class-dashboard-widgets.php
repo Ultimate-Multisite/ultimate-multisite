@@ -75,6 +75,16 @@ class Dashboard_Widgets implements \WP_Ultimo\Interfaces\Singleton {
 		}
 
 		/*
+		 * The activity-stream widget is only registered on the network dashboard
+		 * (wp_network_dashboard_setup). Skip enqueueing its assets on the regular
+		 * per-site dashboard to avoid the Vue "Cannot find element: #activity-stream-content"
+		 * console error.
+		 */
+		if ( ! is_network_admin()) {
+			return;
+		}
+
+		/*
 		 * The activity-stream widget view wraps its output in <div class="wu-styling">,
 		 * which requires framework.css (registered as 'wu-styling'). The network admin
 		 * dashboard is not a wp-ultimo page, so enqueue_default_admin_styles() skips it —
