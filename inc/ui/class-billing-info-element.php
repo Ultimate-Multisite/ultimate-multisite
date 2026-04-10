@@ -82,7 +82,7 @@ class Billing_Info_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function init(): void {
+	public function init() {
 
 		parent::init();
 
@@ -268,7 +268,7 @@ class Billing_Info_Element extends Base_Element {
 	 * @param string|null $content The content inside the shortcode.
 	 * @return string
 	 */
-	public function output($atts, $content = null): void {
+	public function output($atts, $content = null) {
 
 		$this->ensure_setup();
 

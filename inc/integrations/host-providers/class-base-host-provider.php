@@ -78,7 +78,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function init(): void {
+	public function init() {
 
 		if ($this->detect() && ! $this->is_enabled()) {
 			/*
@@ -197,7 +197,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function add_to_integration_list(): void {
+	public function add_to_integration_list() {
 
 		$slug = $this->get_id();
 
@@ -237,7 +237,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function alert_provider_detected(): void {
+	public function alert_provider_detected() {
 
 		if (WP_Ultimo()->is_loaded() === false) {
 			return;
@@ -270,7 +270,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function alert_provider_not_setup(): void {
+	public function alert_provider_not_setup() {
 
 		if (WP_Ultimo()->is_loaded() === false) {
 			return;
@@ -349,7 +349,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function register_hooks(): void {
+	public function register_hooks() {
 		/*
 		 * Hooks the event that is triggered when a new domain is added.
 		 */
@@ -494,7 +494,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 * @param array $constant_values Key => Value of the necessary constants.
 	 * @return void
 	 */
-	public function setup_constants($constant_values): void {
+	public function setup_constants($constant_values) {
 		/*
 		 * Important: This step is crucial, as it makes sure we clean up undesired constants.
 		 * Removing this can allow insertion of arbitrary constants onto the wp-config.pp file
@@ -631,7 +631,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function test_connection(): void {
+	public function test_connection() {
 
 		wp_send_json_success([]);
 	}
@@ -664,7 +664,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 * @since 2.3.0
 	 * @return bool
 	 */
-	public function supports_dns_management(): bool {
+	public function supports_dns_management() {
 
 		return $this->supports('dns-management');
 	}
@@ -752,7 +752,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 *
 	 * @return array Array of supported record types.
 	 */
-	public function get_supported_record_types(): array {
+	public function get_supported_record_types() {
 
 		return ['A', 'AAAA', 'CNAME', 'MX', 'TXT'];
 	}
@@ -768,7 +768,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 * @param string $domain The domain name.
 	 * @return string|null Zone identifier or null if not found.
 	 */
-	public function get_zone_id(string $domain): ?string {
+	public function get_zone_id($domain) {
 
 		return null;
 	}
@@ -782,7 +782,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 *
 	 * @return bool
 	 */
-	public function is_dns_enabled(): bool {
+	public function is_dns_enabled() {
 
 		if (! $this->supports_dns_management()) {
 			return false;
@@ -801,7 +801,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 *
 	 * @return bool
 	 */
-	public function enable_dns(): bool {
+	public function enable_dns() {
 
 		if (! $this->supports_dns_management()) {
 			return false;
@@ -820,7 +820,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 *
 	 * @return bool
 	 */
-	public function disable_dns(): bool {
+	public function disable_dns() {
 
 		$dns_enabled                    = get_network_option(null, 'wu_dns_integrations_enabled', []);
 		$dns_enabled[ $this->get_id() ] = false;

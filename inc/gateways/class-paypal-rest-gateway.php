@@ -2090,7 +2090,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 	 * @inheritdoc
 	 * @since 2.0.0
 	 */
-	public function supports_payment_polling(): bool {
+	public function supports_payment_polling() {
 
 		return true;
 	}
@@ -2107,7 +2107,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 	 * @param int $payment_id The local payment ID to verify.
 	 * @return array{success: bool, message: string, status?: string}
 	 */
-	public function verify_and_complete_payment(int $payment_id): array {
+	public function verify_and_complete_payment($payment_id) {
 
 		$payment = wu_get_payment($payment_id);
 

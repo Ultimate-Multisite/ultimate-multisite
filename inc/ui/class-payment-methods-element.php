@@ -185,7 +185,7 @@ class Payment_Methods_Element extends Base_Element {
 	 * @param string|null $content The content inside the shortcode.
 	 * @return void
 	 */
-	public function output($atts, $content = null): void {
+	public function output($atts, $content = null) {
 
 		$gateway_id      = $this->membership ? $this->membership->get_gateway() : '';
 		$gateway         = $gateway_id ? wu_get_gateway($gateway_id) : null;

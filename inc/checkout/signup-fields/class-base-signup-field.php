@@ -244,7 +244,7 @@ abstract class Base_Signup_Field {
 	 * @param array $attributes Array containing settings for the field.
 	 * @return void
 	 */
-	public function set_attributes($attributes): void {
+	public function set_attributes($attributes) {
 
 		$this->attributes = $attributes;
 	}

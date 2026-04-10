@@ -35,7 +35,7 @@ class Tours {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function init(): void {
+	public function init() {
 
 		add_action('wp_ajax_wu_mark_tour_as_finished', [$this, 'mark_as_finished']);
 

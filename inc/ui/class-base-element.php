@@ -207,7 +207,7 @@ abstract class Base_Element {
 	 * @param string|null $content The content inside the shortcode.
 	 * @return void
 	 */
-	abstract public function output($atts, $content = null): void;
+	abstract public function output($atts, $content = null);
 
 	// Boilerplate -----------------------------------
 
@@ -217,7 +217,7 @@ abstract class Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function init(): void {
+	public function init() {
 
 		add_action('plugins_loaded', [$this, 'register_form']);
 
@@ -258,7 +258,7 @@ abstract class Base_Element {
 	 * @param mixed $element The element instance to be registered.
 	 * @return void
 	 */
-	public static function register_public_element($element): void {
+	public static function register_public_element($element) {
 
 		static::$public_elements[] = $element;
 	}
@@ -387,7 +387,7 @@ abstract class Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup_for_admin(): void {
+	public function setup_for_admin() {
 
 		if (true === $this->loaded) {
 			return;
@@ -409,7 +409,7 @@ abstract class Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function maybe_setup(): void {
+	public function maybe_setup() {
 
 		global $post;
 
@@ -590,7 +590,7 @@ abstract class Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function enqueue_element_scripts(): void {
+	public function enqueue_element_scripts() {
 
 		global $post;
 
@@ -644,7 +644,7 @@ abstract class Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function register_shortcode(): void {
+	public function register_shortcode() {
 
 		if (wu_get_current_site()->get_type() === Site_Type::CUSTOMER_OWNED && is_admin() === false) {
 			return;
@@ -659,7 +659,7 @@ abstract class Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function register_form(): void {
+	public function register_form() {
 		/*
 		 * Add Generator Forms
 		 */
@@ -691,7 +691,7 @@ abstract class Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function render_generator_modal(): void {
+	public function render_generator_modal() {
 
 		$fields = $this->fields();
 
@@ -806,7 +806,7 @@ abstract class Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function render_customize_modal(): void {
+	public function render_customize_modal() {
 
 		$fields = [];
 
@@ -890,7 +890,7 @@ abstract class Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function handle_customize_modal(): void {
+	public function handle_customize_modal() {
 
 		$settings = [];
 
@@ -931,7 +931,7 @@ abstract class Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function register_default_scripts(): void {
+	public function register_default_scripts() {
 
 		wp_enqueue_style('wu-admin');
 	}
@@ -1012,7 +1012,7 @@ abstract class Base_Element {
 	 *
 	 * @return string
 	 */
-	public function get_content($atts): string {
+	public function get_content($atts) {
 		ob_start();
 		$this->display($atts);
 		return ob_get_clean();
@@ -1076,7 +1076,7 @@ abstract class Base_Element {
 	 * @param array  $atts Array containing the shortcode attributes.
 	 * @return void
 	 */
-	public function as_inline_content($screen_id, $hook = 'admin_notices', $atts = []): void {
+	public function as_inline_content($screen_id, $hook = 'admin_notices', $atts = []) {
 
 		if ( ! function_exists('get_current_screen')) {
 			_doing_it_wrong(__METHOD__, esc_html__('An element can not be loaded as inline content unless the get_current_screen() function is already available.', 'ultimate-multisite'), '2.0.0');
@@ -1143,7 +1143,7 @@ abstract class Base_Element {
 	 * @param array $settings The settings to save. Key => value array.
 	 * @return void
 	 */
-	public function save_widget_settings($settings): void {
+	public function save_widget_settings($settings) {
 
 		$key = wu_replace_dashes($this->id);
 
@@ -1173,7 +1173,7 @@ abstract class Base_Element {
 	 * @param array  $atts Array containing the shortcode attributes.
 	 * @return void
 	 */
-	public function as_metabox($screen_id, $position = 'normal', $atts = []): void {
+	public function as_metabox($screen_id, $position = 'normal', $atts = []) {
 
 		$this->setup();
 
@@ -1226,7 +1226,7 @@ abstract class Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function super_admin_notice(): void {
+	public function super_admin_notice() {
 
 		$should_display = $this->should_display_customize_controls();
 
@@ -1286,7 +1286,7 @@ abstract class Base_Element {
 	 * @param boolean $display Controls whether or not the widget and element should display.
 	 * @return void
 	 */
-	public function set_display($display): void {
+	public function set_display($display) {
 
 		$this->display = $display;
 	}

@@ -31,7 +31,7 @@ interface DNS_Provider_Interface {
 	 *
 	 * @return bool True if DNS management is supported.
 	 */
-	public function supports_dns_management(): bool;
+	public function supports_dns_management();
 
 	/**
 	 * Check if DNS management is enabled for this provider.
@@ -40,7 +40,7 @@ interface DNS_Provider_Interface {
 	 *
 	 * @return bool True if DNS management is enabled.
 	 */
-	public function is_dns_enabled(): bool;
+	public function is_dns_enabled();
 
 	/**
 	 * Enable DNS management for this provider.
@@ -49,7 +49,7 @@ interface DNS_Provider_Interface {
 	 *
 	 * @return bool True on success.
 	 */
-	public function enable_dns(): bool;
+	public function enable_dns();
 
 	/**
 	 * Disable DNS management for this provider.
@@ -58,7 +58,7 @@ interface DNS_Provider_Interface {
 	 *
 	 * @return bool True on success.
 	 */
-	public function disable_dns(): bool;
+	public function disable_dns();
 
 	/**
 	 * Get DNS records for a domain.
@@ -111,5 +111,5 @@ interface DNS_Provider_Interface {
 	 *
 	 * @return array Array of supported record types (e.g., ['A', 'AAAA', 'CNAME', 'MX', 'TXT']).
 	 */
-	public function get_supported_record_types(): array;
+	public function get_supported_record_types();
 }

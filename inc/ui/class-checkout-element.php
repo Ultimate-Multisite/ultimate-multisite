@@ -696,7 +696,7 @@ class Checkout_Element extends Base_Element {
 	 * @param string|null $content The content inside the shortcode.
 	 * @return void
 	 */
-	public function output($atts, $content = null): void {
+	public function output($atts, $content = null) {
 
 		if (wu_is_update_page()) {
 			$atts = [

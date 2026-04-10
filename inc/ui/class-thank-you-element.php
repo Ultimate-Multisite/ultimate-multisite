@@ -366,7 +366,7 @@ class Thank_You_Element extends Base_Element {
 	 * @param string|null $content The content inside the shortcode.
 	 * @return void
 	 */
-	public function output($atts, $content = null): void {
+	public function output($atts, $content = null) {
 
 		$atts['payment'] = $this->payment;
 

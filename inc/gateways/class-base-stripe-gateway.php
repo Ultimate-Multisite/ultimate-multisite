@@ -828,7 +828,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 	 * @param \WP_Ultimo\Models\Membership $membership The membership.
 	 * @return array{brand: string, last4: string}|null Payment method info, or null.
 	 */
-	public function get_payment_method_display($membership): ?array {
+	public function get_payment_method_display($membership) {
 
 		try {
 			$sub_id = $membership->get_gateway_subscription_id();
@@ -3832,7 +3832,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 	 * @param string $gateway_payment_id The gateway payment id.
 	 * @return string.
 	 */
-	public function get_payment_url_on_gateway($gateway_payment_id): string {
+	public function get_payment_url_on_gateway($gateway_payment_id) {
 
 		$route = $this->test_mode ? '/test' : '/';
 
@@ -3855,7 +3855,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 	 * @param string $gateway_subscription_id The gateway subscription id.
 	 * @return string.
 	 */
-	public function get_subscription_url_on_gateway($gateway_subscription_id): string {
+	public function get_subscription_url_on_gateway($gateway_subscription_id) {
 
 		$route = $this->test_mode ? '/test' : '/';
 
@@ -3872,7 +3872,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 	 * @param string $gateway_customer_id The gateway customer id.
 	 * @return string.
 	 */
-	public function get_customer_url_on_gateway($gateway_customer_id): string {
+	public function get_customer_url_on_gateway($gateway_customer_id) {
 
 		$route = $this->test_mode ? '/test' : '/';
 
@@ -3883,7 +3883,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 	 * @inheritdoc
 	 * @since 2.0.0
 	 */
-	public function supports_payment_polling(): bool {
+	public function supports_payment_polling() {
 
 		return true;
 	}
@@ -3899,7 +3899,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 	 * @param int $payment_id The local payment ID to verify.
 	 * @return array{success: bool, message: string, status?: string}
 	 */
-	public function verify_and_complete_payment(int $payment_id): array {
+	public function verify_and_complete_payment($payment_id) {
 
 		$payment = wu_get_payment($payment_id);
 

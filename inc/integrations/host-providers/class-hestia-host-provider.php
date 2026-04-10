@@ -141,7 +141,7 @@ class Hestia_Host_Provider extends Base_Host_Provider {
 	 * @param string $domain  Domain name to add.
 	 * @param int    $site_id Site ID.
 	 */
-	public function on_add_domain($domain, $site_id): void {
+	public function on_add_domain($domain, $site_id) {
 
 		$account     = defined('WU_HESTIA_ACCOUNT') ? WU_HESTIA_ACCOUNT : '';
 		$base_domain = defined('WU_HESTIA_WEB_DOMAIN') ? WU_HESTIA_WEB_DOMAIN : '';
@@ -168,7 +168,7 @@ class Hestia_Host_Provider extends Base_Host_Provider {
 	 * @param string $domain  Domain name to remove.
 	 * @param int    $site_id Site ID.
 	 */
-	public function on_remove_domain($domain, $site_id): void {
+	public function on_remove_domain($domain, $site_id) {
 
 		$account     = defined('WU_HESTIA_ACCOUNT') ? WU_HESTIA_ACCOUNT : '';
 		$base_domain = defined('WU_HESTIA_WEB_DOMAIN') ? WU_HESTIA_WEB_DOMAIN : '';
@@ -208,7 +208,7 @@ class Hestia_Host_Provider extends Base_Host_Provider {
 	/**
 	 * Test connection by listing web domains for the configured account.
 	 */
-	public function test_connection(): void {
+	public function test_connection() {
 
 		$account = defined('WU_HESTIA_ACCOUNT') ? WU_HESTIA_ACCOUNT : '';
 
@@ -246,7 +246,7 @@ class Hestia_Host_Provider extends Base_Host_Provider {
 	 * @param string $action_label Log label.
 	 * @return void
 	 */
-	protected function call_and_log($cmd, $args, $action_label): void {
+	protected function call_and_log($cmd, $args, $action_label) {
 
 		$result = $this->send_hestia_request($cmd, $args);
 

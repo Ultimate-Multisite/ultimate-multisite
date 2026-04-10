@@ -180,7 +180,7 @@ class Cloudflare_Host_Provider extends Base_Host_Provider {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function test_connection(): void {
+	public function test_connection() {
 
 		$results = $this->cloudflare_api_call('client/v4/user/tokens/verify');
 
@@ -197,7 +197,7 @@ class Cloudflare_Host_Provider extends Base_Host_Provider {
 	 * @since 2.0.7
 	 * @return void
 	 */
-	public function additional_hooks(): void {
+	public function additional_hooks() {
 
 		add_filter('wu_domain_dns_get_record', [$this, 'add_cloudflare_dns_entries'], 10, 2);
 	}
@@ -232,7 +232,7 @@ class Cloudflare_Host_Provider extends Base_Host_Provider {
 	 * @param int    $site_id ID of the site that is receiving that mapping.
 	 * @return void
 	 */
-	public function on_add_subdomain($subdomain, $site_id): void {
+	public function on_add_subdomain($subdomain, $site_id) {
 
 		global $current_site;
 
@@ -309,7 +309,7 @@ class Cloudflare_Host_Provider extends Base_Host_Provider {
 	 * @param int    $site_id ID of the site that is receiving that mapping.
 	 * @return void
 	 */
-	public function on_remove_subdomain($subdomain, $site_id): void {
+	public function on_remove_subdomain($subdomain, $site_id) {
 
 		global $current_site;
 
@@ -706,7 +706,7 @@ class Cloudflare_Host_Provider extends Base_Host_Provider {
 	 * @param string $domain The domain name.
 	 * @return string|null Zone ID or null if not found.
 	 */
-	public function get_zone_id(string $domain): ?string {
+	public function get_zone_id($domain) {
 
 		// Try configured zone first
 		$default_zone = defined('WU_CLOUDFLARE_ZONE_ID') && WU_CLOUDFLARE_ZONE_ID ? WU_CLOUDFLARE_ZONE_ID : null;
@@ -789,7 +789,7 @@ class Cloudflare_Host_Provider extends Base_Host_Provider {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function get_instructions(): void {
+	public function get_instructions() {
 
 		wu_get_template('wizards/host-integrations/cloudflare-instructions');
 	}

@@ -1715,7 +1715,7 @@ class PayPal_Gateway extends Base_PayPal_Gateway {
 	 * @param string $gateway_payment_id The gateway payment id.
 	 * @return string
 	 */
-	public function get_payment_url_on_gateway($gateway_payment_id): string {
+	public function get_payment_url_on_gateway($gateway_payment_id) {
 
 		return '';
 	}

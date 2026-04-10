@@ -101,7 +101,7 @@ class Template_Switching_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function init(): void {
+	public function init() {
 
 		add_action('wu_ajax_wu_switch_template', [$this, 'switch_template']);
 
@@ -324,7 +324,7 @@ class Template_Switching_Element extends Base_Element {
 	 * @param string|null $content The content inside the shortcode.
 	 * @return void
 	 */
-	public function output($atts, $content = null): void {
+	public function output($atts, $content = null) {
 
 		if ($this->site) {
 			$filter_template_limits = \WP_Ultimo\Limits\Site_Template_Limits::get_instance();

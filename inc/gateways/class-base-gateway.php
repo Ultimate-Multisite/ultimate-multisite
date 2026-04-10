@@ -209,7 +209,7 @@ abstract class Base_Gateway {
 	 * @param \WP_Ultimo\Models\Membership $membership The membership.
 	 * @return array{brand: string, last4: string}|null Payment method info, or null.
 	 */
-	public function get_payment_method_display($membership): ?array {
+	public function get_payment_method_display($membership) {
 		unset($membership);
 		return null;
 	}
@@ -568,7 +568,7 @@ abstract class Base_Gateway {
 	 * @since 2.0.0
 	 * @return bool
 	 */
-	public function supports_payment_polling(): bool {
+	public function supports_payment_polling() {
 
 		return false;
 	}
@@ -589,7 +589,7 @@ abstract class Base_Gateway {
 	 * @param int $payment_id The local payment ID to verify.
 	 * @return array{success: bool, status: string, message: string}
 	 */
-	public function verify_and_complete_payment(int $payment_id): array {
+	public function verify_and_complete_payment($payment_id) {
 
 		return [
 			'success' => false,
@@ -816,7 +816,7 @@ abstract class Base_Gateway {
 	 * @param string $message The error message.
 	 * @return void
 	 */
-	public function redirect_with_error(string $message): void {
+	public function redirect_with_error($message) {
 
 		$url = remove_query_arg(['wu-confirm', 'payment', 'token', 'PayerID', 'ba_token', 'subscription_id', 'status'], $this->return_url ?: wu_get_current_url());
 

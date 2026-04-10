@@ -166,7 +166,7 @@ abstract class Base_Model implements \JsonSerializable {
 	 *
 	 * @param mixed $slug The slug.
 	 */
-	public function set_slug($slug): void {
+	public function set_slug($slug) {
 
 		$this->slug = $slug;
 	}
@@ -952,7 +952,7 @@ abstract class Base_Model implements \JsonSerializable {
 	 * @param string $date_created Model creation date.
 	 * @return void
 	 */
-	public function set_date_created($date_created): void {
+	public function set_date_created($date_created) {
 
 		$this->date_created = $date_created;
 	}
@@ -964,7 +964,7 @@ abstract class Base_Model implements \JsonSerializable {
 	 * @param string $date_modified Model last modification date.
 	 * @return void
 	 */
-	public function set_date_modified($date_modified): void {
+	public function set_date_modified($date_modified) {
 
 		$this->date_modified = $date_modified;
 	}
@@ -987,7 +987,7 @@ abstract class Base_Model implements \JsonSerializable {
 	 * @param int $migrated_from_id The ID of the original 1.X model that was used to generate this item on migration.
 	 * @return void
 	 */
-	public function set_migrated_from_id($migrated_from_id): void {
+	public function set_migrated_from_id($migrated_from_id) {
 
 		$this->migrated_from_id = absint($migrated_from_id);
 	}
@@ -1093,7 +1093,7 @@ abstract class Base_Model implements \JsonSerializable {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function hydrate(): void {
+	public function hydrate() {
 
 		$attributes = get_object_vars($this);
 		$attributes = array_filter($attributes, fn ($value) => null === $value);
@@ -1127,7 +1127,7 @@ abstract class Base_Model implements \JsonSerializable {
 	 * @param boolean $skip_validation Set true to have field information validation bypassed when saving this event.
 	 * @return void
 	 */
-	public function set_skip_validation($skip_validation = false): void {
+	public function set_skip_validation($skip_validation = false) {
 
 		$this->skip_validation = $skip_validation;
 	}

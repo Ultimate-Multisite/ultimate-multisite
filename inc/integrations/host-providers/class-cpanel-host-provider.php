@@ -145,7 +145,7 @@ class CPanel_Host_Provider extends Base_Host_Provider {
 	 * @param int    $site_id ID of the site that is receiving that mapping.
 	 * @return void
 	 */
-	public function on_add_domain($domain, $site_id): void {
+	public function on_add_domain($domain, $site_id) {
 
 		// Root Directory
 		$root_dir = defined('WU_CPANEL_ROOT_DIR') && WU_CPANEL_ROOT_DIR ? WU_CPANEL_ROOT_DIR : '/public_html';
@@ -172,7 +172,7 @@ class CPanel_Host_Provider extends Base_Host_Provider {
 	 * @param int    $site_id ID of the site that is receiving that mapping.
 	 * @return void
 	 */
-	public function on_remove_domain($domain, $site_id): void {
+	public function on_remove_domain($domain, $site_id) {
 
 		// Send Request
 		$results = $this->load_api()->api2(
@@ -197,7 +197,7 @@ class CPanel_Host_Provider extends Base_Host_Provider {
 	 * @param int    $site_id ID of the site that is receiving that mapping.
 	 * @return void
 	 */
-	public function on_add_subdomain($subdomain, $site_id): void {
+	public function on_add_subdomain($subdomain, $site_id) {
 
 		// Root Directory
 		$root_dir = defined('WU_CPANEL_ROOT_DIR') && WU_CPANEL_ROOT_DIR ? WU_CPANEL_ROOT_DIR : '/public_html';
@@ -657,7 +657,7 @@ class CPanel_Host_Provider extends Base_Host_Provider {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function test_connection(): void {
+	public function test_connection() {
 
 		$results = $this->load_api()->api2('Cron', 'fetchcron', []);
 

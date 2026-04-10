@@ -42,7 +42,7 @@ class Template_Previewer {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function init(): void {
+	public function init() {
 
 		add_action('plugins_loaded', [$this, 'hooks']);
 	}

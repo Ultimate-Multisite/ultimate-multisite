@@ -27,7 +27,7 @@ class Toolbox {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function init(): void {
+	public function init() {
 
 		add_action('init', [$this, 'load_toolbox']);
 	}
@@ -85,7 +85,7 @@ class Toolbox {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function output(): void {
+	public function output() {
 
 		$current_site = wu_get_current_site();
 

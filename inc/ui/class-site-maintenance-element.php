@@ -52,7 +52,7 @@ class Site_Maintenance_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function init(): void {
+	public function init() {
 
 		if (wu_get_setting('maintenance_mode')) {
 			parent::init();
@@ -266,7 +266,7 @@ class Site_Maintenance_Element extends Base_Element {
 	 * @param string|null $content The content inside the shortcode.
 	 * @return void
 	 */
-	public function output($atts, $content = null): void {
+	public function output($atts, $content = null) {
 
 		$fields = [
 			'maintenance_mode' => [

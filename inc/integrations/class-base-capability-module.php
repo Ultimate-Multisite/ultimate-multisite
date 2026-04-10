@@ -45,7 +45,7 @@ abstract class Base_Capability_Module implements Capability_Module {
 	 * @param string $feature The feature identifier to check.
 	 * @return bool
 	 */
-	public function supports(string $feature): bool {
+	public function supports($feature) {
 
 		return in_array($feature, $this->supported_features, true);
 	}
@@ -58,7 +58,7 @@ abstract class Base_Capability_Module implements Capability_Module {
 	 * @param Integration $integration The parent integration instance.
 	 * @return void
 	 */
-	public function set_integration(Integration $integration): void {
+	public function set_integration(Integration $integration) {
 
 		$this->integration = $integration;
 	}
@@ -66,7 +66,7 @@ abstract class Base_Capability_Module implements Capability_Module {
 	/**
 	 * {@inheritdoc}
 	 */
-	public function get_integration(): Integration {
+	public function get_integration() {
 
 		return $this->integration;
 	}
@@ -74,7 +74,7 @@ abstract class Base_Capability_Module implements Capability_Module {
 	/**
 	 * {@inheritdoc}
 	 */
-	public function get_supported_features(): array {
+	public function get_supported_features() {
 
 		return $this->supported_features;
 	}
@@ -82,12 +82,12 @@ abstract class Base_Capability_Module implements Capability_Module {
 	/**
 	 * {@inheritdoc}
 	 */
-	public function register_hooks(): void {}
+	public function register_hooks() {}
 
 	/**
 	 * {@inheritdoc}
 	 */
-	public function get_fields(): array {
+	public function get_fields() {
 
 		return [];
 	}
@@ -95,7 +95,7 @@ abstract class Base_Capability_Module implements Capability_Module {
 	/**
 	 * {@inheritdoc}
 	 */
-	public function get_explainer_lines(): array {
+	public function get_explainer_lines() {
 
 		return [
 			'will'     => [],

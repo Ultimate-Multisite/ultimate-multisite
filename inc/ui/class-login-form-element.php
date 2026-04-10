@@ -60,7 +60,7 @@ class Login_Form_Element extends Base_Element {
 	 * @since 2.0.11
 	 * @return void
 	 */
-	public function init(): void {
+	public function init() {
 
 		// Handle login redirection
 		add_filter('login_redirect', [$this, 'handle_redirect'], -1, 3);
@@ -582,7 +582,7 @@ class Login_Form_Element extends Base_Element {
 	 * @param string|null $content The content inside the shortcode.
 	 * @return void
 	 */
-	public function output($atts, $content = null): void {
+	public function output($atts, $content = null) {
 
 		$view = 'dashboard-widgets/login-additional-forms';
 

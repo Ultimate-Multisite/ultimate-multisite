@@ -303,7 +303,7 @@ class Site_Actions_Element extends Base_Element {
 	 * @since 2.0.21
 	 * @return void
 	 */
-	public function init(): void {
+	public function init() {
 
 		parent::init();
 
@@ -1554,7 +1554,7 @@ class Site_Actions_Element extends Base_Element {
 	 * @param string|null $content The content inside the shortcode.
 	 * @return void
 	 */
-	public function output($atts, $content = null): void {
+	public function output($atts, $content = null) {
 
 		$atts['actions'] = $this->get_actions($atts);
 
