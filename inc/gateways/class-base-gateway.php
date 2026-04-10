@@ -165,7 +165,7 @@ abstract class Base_Gateway {
 	 * @param \WP_Ultimo\Checkout\Cart $order The order.
 	 * @return void
 	 */
-	public function set_order($order): void {
+	public function set_order($order) {
 
 		if (null === $order) {
 			return;
@@ -608,7 +608,7 @@ abstract class Base_Gateway {
 	 * @param string $gateway_payment_id The gateway payment id.
 	 * @return string
 	 */
-	public function get_payment_url_on_gateway($gateway_payment_id): string {
+	public function get_payment_url_on_gateway($gateway_payment_id) {
 		unset($gateway_payment_id);
 		return '';
 	}
@@ -623,7 +623,7 @@ abstract class Base_Gateway {
 	 * @param string $gateway_subscription_id The gateway subscription id.
 	 * @return string
 	 */
-	public function get_subscription_url_on_gateway($gateway_subscription_id): string {
+	public function get_subscription_url_on_gateway($gateway_subscription_id) {
 		unset($gateway_subscription_id);
 		return '';
 	}
@@ -638,7 +638,7 @@ abstract class Base_Gateway {
 	 * @param string $gateway_customer_id The gateway customer id.
 	 * @return string
 	 */
-	public function get_customer_url_on_gateway($gateway_customer_id): string {
+	public function get_customer_url_on_gateway($gateway_customer_id) {
 		unset($gateway_customer_id);
 		return '';
 	}
@@ -853,7 +853,7 @@ abstract class Base_Gateway {
 	 * @param \WP_Ultimo\Models\Payment $payment The payment.
 	 * @return void
 	 */
-	public function set_payment($payment): void {
+	public function set_payment($payment) {
 
 		$this->payment = $payment;
 	}
@@ -865,7 +865,7 @@ abstract class Base_Gateway {
 	 * @param \WP_Ultimo\Models\Membership $membership The membership.
 	 * @return void
 	 */
-	public function set_membership($membership): void {
+	public function set_membership($membership) {
 
 		$this->membership = $membership;
 	}
@@ -877,7 +877,7 @@ abstract class Base_Gateway {
 	 * @param \WP_Ultimo\Models\Customer $customer The customer.
 	 * @return void
 	 */
-	public function set_customer($customer): void {
+	public function set_customer($customer) {
 
 		$this->customer = $customer;
 	}
@@ -891,7 +891,7 @@ abstract class Base_Gateway {
 	 * @param \WP_Ultimo\Models\Membership $membership The membership object.
 	 * @return void
 	 */
-	public function trigger_payment_processed($payment, $membership = null): void {
+	public function trigger_payment_processed($payment, $membership = null) {
 
 		if (null === $membership) {
 			$membership = $payment->get_membership();
