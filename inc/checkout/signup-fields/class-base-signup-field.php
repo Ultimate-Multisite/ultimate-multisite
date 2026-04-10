@@ -15,6 +15,11 @@ defined('ABSPATH') || exit;
 /**
  * Creates an cart with the parameters of the purchase being placed.
  *
+ * @extensible External addons extend this class to create custom signup fields.
+ *             Do NOT add PHP return type declarations to public methods — it will
+ *             cause a fatal Compile Error in any addon that overrides the method
+ *             without the matching return type. Use @return PHPDoc tags instead.
+ *
  * @package WP_Ultimo
  * @subpackage Checkout
  * @since 2.0.0

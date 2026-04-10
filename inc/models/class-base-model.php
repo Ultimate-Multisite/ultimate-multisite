@@ -17,10 +17,15 @@ use WP_Ultimo\Helpers\Hash;
 defined('ABSPATH') || exit;
 
 /**
- * Abstract base model for our data types
+ * Abstract base model for our data types.
  *
  * This class is the base class that is extended by all of our data types
  * such as plans, coupons, broadcasts, domains, etc.
+ *
+ * @extensible External addons may extend this class to create custom models.
+ *             Do NOT add PHP return type declarations to public methods — it will
+ *             cause a fatal Compile Error in any addon that overrides the method
+ *             without the matching return type. Use @return PHPDoc tags instead.
  *
  * @since 2.0.0
  */

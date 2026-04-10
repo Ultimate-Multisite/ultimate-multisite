@@ -17,6 +17,11 @@ defined('ABSPATH') || exit;
 /**
  * Base class to UI elements that are rendered on the backend and the frontend.
  *
+ * @extensible External addons extend this class to create custom UI elements.
+ *             Do NOT add PHP return type declarations to public methods — it will
+ *             cause a fatal Compile Error in any addon that overrides the method
+ *             without the matching return type. Use @return PHPDoc tags instead.
+ *
  * @since 2.0.0
  */
 abstract class Base_Element {

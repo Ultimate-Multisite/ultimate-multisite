@@ -86,7 +86,13 @@ assets/                  # JS, CSS, images, fonts
 - **Ternary**: Short ternary `?:` allowed.
 - **Yoda conditions**: Required in production code (`'value' === $var`). Not required in tests.
 - **Strings**: Single quotes preferred. Double quotes only when interpolating.
-- **Type hints**: Use where present in existing code. Return type `void` on init methods.
+- **Type hints**: Use where present in existing code. **NEVER add PHP return type
+  declarations (`: void`, `: string`, `: bool`, etc.) to public methods on base/abstract
+  classes or interfaces** — external addons extend these classes and PHP will fatal if
+  the child class doesn't declare the same return type. Use `@return` PHPDoc tags instead.
+  This applies to all classes in `inc/gateways/`, `inc/ui/class-base-element.php`,
+  `inc/models/class-base-model.php`, `inc/integrations/`, and `inc/checkout/signup-fields/`.
+  Private and final methods may use PHP return types freely.
 - **PHPDoc**: Required on classes and public methods in `inc/`. Not required in `tests/`.
   Every file header: `@package WP_Ultimo`, `@subpackage`, `@since`.
 - **Security guard**: Every PHP file starts with `defined('ABSPATH') || exit;`.

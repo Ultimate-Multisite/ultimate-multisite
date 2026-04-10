@@ -20,6 +20,11 @@ defined('ABSPATH') || exit;
  * For more info on actual implementations,
  * check the Gateway_Manual class and the Gateway_Stripe class.
  *
+ * @extensible External addons (e.g. WooCommerce, custom gateways) extend this class.
+ *             Do NOT add PHP return type declarations to public methods — it will
+ *             cause a fatal Compile Error in any addon that overrides the method
+ *             without the matching return type. Use @return PHPDoc tags instead.
+ *
  * @since 2.0.0
  */
 abstract class Base_Gateway {

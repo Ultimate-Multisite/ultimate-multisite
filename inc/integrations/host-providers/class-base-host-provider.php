@@ -20,6 +20,11 @@ defined('ABSPATH') || exit;
  * Implements DNS_Provider_Interface to provide default DNS management functionality.
  * Providers that support DNS should add 'dns-management' to their $supports array
  * and override the DNS methods.
+ *
+ * @extensible External addons extend this class to add hosting provider integrations.
+ *             Do NOT add PHP return type declarations to public methods — it will
+ *             cause a fatal Compile Error in any addon that overrides the method
+ *             without the matching return type. Use @return PHPDoc tags instead.
  */
 abstract class Base_Host_Provider implements DNS_Provider_Interface {
 

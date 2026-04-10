@@ -17,6 +17,11 @@ defined('ABSPATH') || exit;
 /**
  * Abstract base class for capability modules.
  *
+ * @extensible External addons extend this class to add capability modules.
+ *             Do NOT add PHP return type declarations to public methods — it will
+ *             cause a fatal Compile Error in any addon that overrides the method
+ *             without the matching return type. Use @return PHPDoc tags instead.
+ *
  * @since 2.5.0
  */
 abstract class Base_Capability_Module implements Capability_Module {
