@@ -55,9 +55,12 @@ class Command_Palette_Manager {
 
 		global $wp_version;
 
-		// WordPress 6.4+ has Command Palette support (Gutenberg editor).
+		// WordPress 6.4+ has Command Palette support (Gutenberg editor only).
 		// WordPress 6.9+ has admin-wide command palette.
+		// WordPress 7.0+ adds categories, keywords, and admin bar shortcut.
 		// We check for 6.4+ and let the JavaScript handle feature detection.
+		// WP 7 features (categories, keywords) are progressive enhancements —
+		// older WP silently ignores unknown properties in registerCommand().
 		$is_available = version_compare($wp_version, '6.4', '>=');
 
 		/**
@@ -133,11 +136,17 @@ class Command_Palette_Manager {
 			return;
 		}
 
-		// Enqueue command palette integration.
+		// Core dependencies: wp-commands, wp-data, wp-element, wp-i18n, wp-api-fetch.
+		// Progressive enhancement deps (JS feature-detects these at runtime):
+		//   wp-primitives: SVG/Path for icons (no global wp.icons exists in any WP version).
+		//   wp-compose: useDebounce for search debouncing.
+		// Both are available since WP 6.1 and safe to list — WP resolves them
+		// from its registered scripts. On pages where they aren't loaded, the JS
+		// gracefully degrades (no icons, setTimeout fallback for debounce).
 		wp_enqueue_script(
 			'wu-command-palette',
 			wu_get_asset('command-palette.js', 'js'),
-			['wp-commands', 'wp-data', 'wp-element', 'wp-i18n', 'wp-api-fetch', 'wp-components', 'wp-primitives'],
+			['wp-commands', 'wp-data', 'wp-element', 'wp-i18n', 'wp-api-fetch', 'wp-compose', 'wp-primitives'],
 			wu_get_version(),
 			true
 		);
@@ -152,11 +161,6 @@ class Command_Palette_Manager {
 				'nonce'           => wp_create_nonce('wp_rest'),
 				'networkAdminUrl' => network_admin_url(),
 				'customLinks'     => $this->get_custom_links(),
-				'i18n'            => [
-					'searchPlaceholder' => __('Search anything...', 'ultimate-multisite'),
-					'noResults'         => __('No results found', 'ultimate-multisite'),
-					'minChars'          => __('Type at least 2 characters to search', 'ultimate-multisite'),
-				],
 			]
 		);
 	}
