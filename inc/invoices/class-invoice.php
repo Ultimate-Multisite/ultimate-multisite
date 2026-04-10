@@ -93,6 +93,41 @@ class Invoice {
 	}
 
 	/**
+	 * Returns mPDF fontdata overrides for fonts removed to reduce package size.
+	 *
+	 * The composer post-install script (scripts/remove-mpdf-fonts.php) strips
+	 * several font files from vendor/mpdf/mpdf/ttfonts/ to reduce the plugin's
+	 * distribution size. mPDF's default font configuration still references
+	 * these removed files, so any HTML that triggers a monospace font lookup
+	 * (e.g. <code>, <pre>, or CSS font-family: monospace) throws:
+	 *
+	 *   MpdfException: Cannot find TTF TrueType font file "DejaVuSansMono.ttf"
+	 *
+	 * This method returns fontdata entries that remap the removed DejaVu Mono
+	 * variants to FreeMono, which is retained in the ttfonts directory.
+	 * FreeMono is a metrically compatible monospace font from the GNU FreeFont
+	 * project and is an acceptable substitute for invoice rendering.
+	 *
+	 * Only the Regular and Bold variants are available; Oblique/BoldOblique
+	 * are mapped to their upright counterparts to avoid a second missing-file
+	 * exception.
+	 *
+	 * @since 2.3.2
+	 * @return array
+	 */
+	private function get_missing_fontdata(): array {
+
+		return [
+			'dejavusansmono' => [
+				'R'  => 'FreeMono.ttf',
+				'B'  => 'FreeMonoBold.ttf',
+				'I'  => 'FreeMono.ttf',
+				'BI' => 'FreeMonoBold.ttf',
+			],
+		];
+	}
+
+	/**
 	 * Returns the mPDF fontdata configuration for bundled RTL fonts.
 	 *
 	 * Amiri is an Arabic Naskh-style font with full OpenType Layout (OTL)
@@ -178,6 +213,19 @@ class Invoice {
 			if ( ! empty($font_config['BI'])) {
 				$this->printer->available_unifonts[] = $font_name . 'BI';
 			}
+		}
+
+		/*
+		 * Override fontdata for fonts removed from the ttfonts directory.
+		 *
+		 * DejaVuSansMono and its variants were stripped to reduce package size.
+		 * Remapping them to FreeMono (which is retained) prevents the
+		 * MpdfException thrown when mPDF tries to load the missing files.
+		 * No AddFontDirectory() call is needed — FreeMono lives in the default
+		 * mPDF ttfonts directory that is already on the search path.
+		 */
+		foreach ($this->get_missing_fontdata() as $font_name => $font_config) {
+			$this->printer->fontdata[ $font_name ] = $font_config;
 		}
 
 		$this->printer->curlFollowLocation = true;
