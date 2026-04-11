@@ -94,7 +94,7 @@ class Current_Membership_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function register_scripts(): void {
+	public function register_scripts() {
 
 		add_wubox();
 	}
@@ -259,7 +259,7 @@ class Current_Membership_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup(): void {
+	public function setup() {
 
 		$this->membership = WP_Ultimo()->currents->get_membership();
 
@@ -278,7 +278,7 @@ class Current_Membership_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup_preview(): void {
+	public function setup_preview() {
 
 		$this->membership = wu_mock_membership();
 

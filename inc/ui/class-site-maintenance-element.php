@@ -207,7 +207,7 @@ class Site_Maintenance_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup(): void {
+	public function setup() {
 
 		$site = WP_Ultimo()->currents->get_site();
 
@@ -224,7 +224,7 @@ class Site_Maintenance_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup_preview(): void {
+	public function setup_preview() {
 
 		$this->site = wu_mock_site();
 	}
@@ -235,7 +235,7 @@ class Site_Maintenance_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function register_scripts(): void {
+	public function register_scripts() {
 
 		wp_register_script('wu-site-maintenance', wu_get_asset('site-maintenance.js', 'js'), ['jquery', 'wu-functions'], wu_get_version(), true);
 		wp_register_style('wu-site-maintenance', wu_get_asset('site-maintenance.css', 'css'), [], wu_get_version());

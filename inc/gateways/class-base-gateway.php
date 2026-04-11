@@ -596,6 +596,8 @@ abstract class Base_Gateway {
 	 */
 	public function verify_and_complete_payment($payment_id) {
 
+		unset($payment_id);
+
 		return [
 			'success' => false,
 			'status'  => 'pending',

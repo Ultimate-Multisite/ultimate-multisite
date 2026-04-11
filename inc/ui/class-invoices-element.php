@@ -202,7 +202,7 @@ class Invoices_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function register_scripts(): void {
+	public function register_scripts() {
 
 		wp_enqueue_script('wu-ajax-list-table');
 	}
@@ -235,7 +235,7 @@ class Invoices_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup(): void {
+	public function setup() {
 
 		$this->membership = WP_Ultimo()->currents->get_membership();
 
@@ -252,7 +252,7 @@ class Invoices_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup_preview(): void {
+	public function setup_preview() {
 
 		$this->membership = wu_mock_membership();
 	}

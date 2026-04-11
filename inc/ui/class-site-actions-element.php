@@ -71,7 +71,7 @@ class Site_Actions_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function register_scripts(): void {
+	public function register_scripts() {
 
 		add_wubox();
 	}
@@ -267,7 +267,7 @@ class Site_Actions_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup(): void {
+	public function setup() {
 
 		$this->site = WP_Ultimo()->currents->get_site();
 
@@ -290,7 +290,7 @@ class Site_Actions_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup_preview(): void {
+	public function setup_preview() {
 
 		$this->site = wu_mock_site();
 

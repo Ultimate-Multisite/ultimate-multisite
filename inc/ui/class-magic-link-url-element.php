@@ -196,7 +196,7 @@ class Magic_Link_Url_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function register_scripts(): void {
+	public function register_scripts() {
 
 		wp_enqueue_style('wu-admin');
 	}
@@ -262,7 +262,7 @@ class Magic_Link_Url_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup(): void {
+	public function setup() {
 		// No setup restrictions - we render for both logged-in and anonymous users.
 		// Anonymous users get a regular link without the magic token.
 	}
@@ -273,7 +273,7 @@ class Magic_Link_Url_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup_preview(): void {
+	public function setup_preview() {
 
 		$this->site           = wu_mock_site();
 		$this->magic_link_url = home_url('?wu_magic_token=preview_token_example');

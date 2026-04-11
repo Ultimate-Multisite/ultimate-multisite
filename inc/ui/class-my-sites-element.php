@@ -268,7 +268,7 @@ class My_Sites_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function register_scripts(): void {
+	public function register_scripts() {
 
 		wp_enqueue_style('wu-admin');
 	}
@@ -279,7 +279,7 @@ class My_Sites_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup(): void {
+	public function setup() {
 
 		global $wpdb;
 
@@ -298,7 +298,7 @@ class My_Sites_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup_preview(): void {
+	public function setup_preview() {
 
 		$this->customer = wu_mock_customer();
 

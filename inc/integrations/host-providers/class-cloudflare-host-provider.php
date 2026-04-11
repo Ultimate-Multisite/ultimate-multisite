@@ -350,8 +350,22 @@ class Cloudflare_Host_Provider extends Base_Host_Provider {
 				]
 			);
 
-			if ( ! $dns_entries->result) {
+			if (is_wp_error($dns_entries)) {
+				wu_log_add(
+					'integration-cloudflare',
+					sprintf(
+						'Failed to look up subdomain "%s" in Cloudflare. Reason: %s',
+						$original_subdomain,
+						$dns_entries->get_error_message()
+					),
+					LogLevel::ERROR
+				);
+
 				return;
+			}
+
+			if (empty($dns_entries->result)) {
+				continue;
 			}
 
 			$dns_entry_to_remove = $dns_entries->result[0];
@@ -359,12 +373,12 @@ class Cloudflare_Host_Provider extends Base_Host_Provider {
 			$results = $this->cloudflare_api_call("client/v4/zones/$zone_id/dns_records/$dns_entry_to_remove->id", 'DELETE');
 
 			if (is_wp_error($results)) {
-				wu_log_add('integration-cloudflare', sprintf('Failed to remove subdomain "%s" to Cloudflare. Reason: %s', $subdomain, $results->get_error_message()), LogLevel::ERROR);
+				wu_log_add('integration-cloudflare', sprintf('Failed to remove subdomain "%s" from Cloudflare. Reason: %s', $original_subdomain, $results->get_error_message()), LogLevel::ERROR);
 
-				return;
+				continue;
 			}
 
-			wu_log_add('integration-cloudflare', sprintf('Removed sub-domain "%s" to Cloudflare.', $subdomain));
+			wu_log_add('integration-cloudflare', sprintf('Removed sub-domain "%s" from Cloudflare.', $original_subdomain));
 		}
 	}
 

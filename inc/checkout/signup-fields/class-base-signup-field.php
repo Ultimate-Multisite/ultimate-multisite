@@ -244,6 +244,9 @@ abstract class Base_Signup_Field {
 	/**
 	 * Sets the config values for the current field.
 	 *
+	 * Note: Return type intentionally omitted to preserve compatibility with
+	 * third-party subclasses that may not declare `: void`.
+	 *
 	 * @since 2.0.0
 	 *
 	 * @param array $attributes Array containing settings for the field.

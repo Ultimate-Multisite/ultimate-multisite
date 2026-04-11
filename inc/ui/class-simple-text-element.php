@@ -147,7 +147,7 @@ class Simple_Text_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function register_scripts(): void {
+	public function register_scripts() {
 
 		wp_enqueue_style('wu-admin');
 	}

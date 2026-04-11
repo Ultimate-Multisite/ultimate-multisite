@@ -115,7 +115,7 @@ class Template_Switching_Element extends Base_Element {
 	 *
 	 * @return void
 	 */
-	public function register_scripts(): void {
+	public function register_scripts() {
 
 		wp_register_script('wu-template-switching', wu_get_asset('template-switching.js', 'js'), ['jquery', 'wu-vue-apps', 'wu-selectizer', 'wp-hooks', 'wu-cookie-helpers'], \WP_Ultimo::VERSION, true);
 
@@ -220,7 +220,7 @@ class Template_Switching_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup(): void {
+	public function setup() {
 
 		$this->site = wu_get_current_site();
 
@@ -254,7 +254,7 @@ class Template_Switching_Element extends Base_Element {
 	 *
 	 * @return void
 	 */
-	public function setup_preview(): void {
+	public function setup_preview() {
 
 		$this->site = wu_mock_site();
 	}

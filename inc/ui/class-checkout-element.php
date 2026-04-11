@@ -233,7 +233,7 @@ class Checkout_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup(): void {
+	public function setup() {
 
 		if ($this->is_thank_you_page()) {
 			\WP_Ultimo\UI\Thank_You_Element::get_instance()->setup();

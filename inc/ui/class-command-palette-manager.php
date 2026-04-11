@@ -37,7 +37,7 @@ class Command_Palette_Manager {
 	 * @since 2.1.0
 	 * @return void
 	 */
-	public function init() {
+	public function init(): void {
 
 		add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts'], 100);
 

@@ -42,7 +42,7 @@ class Template_Previewer {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function init() {
+	public function init(): void {
 
 		add_action('plugins_loaded', [$this, 'hooks']);
 	}
@@ -159,7 +159,7 @@ class Template_Previewer {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function register_scripts(): void {
+	public function register_scripts() {
 
 		global $current_site;
 

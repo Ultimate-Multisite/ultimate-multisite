@@ -298,7 +298,7 @@ class Login_Form_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function register_scripts(): void {
+	public function register_scripts() {
 
 		wp_enqueue_style('wu-admin');
 
@@ -413,7 +413,7 @@ class Login_Form_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup(): void {
+	public function setup() {
 
 		$this->logged = is_user_logged_in();
 
@@ -551,7 +551,7 @@ class Login_Form_Element extends Base_Element {
 	 * @since 2.0.0
 	 * @return void
 	 */
-	public function setup_preview(): void {
+	public function setup_preview() {
 
 		$this->logged = false;
 	}

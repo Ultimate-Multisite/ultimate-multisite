@@ -154,7 +154,7 @@ class Payment_Methods_Element extends Base_Element {
 	 * @since 2.5.0
 	 * @return void
 	 */
-	public function setup(): void {
+	public function setup() {
 
 		$this->membership = WP_Ultimo()->currents->get_membership();
 		$this->customer   = WP_Ultimo()->currents->get_customer();
@@ -170,7 +170,7 @@ class Payment_Methods_Element extends Base_Element {
 	 * @since 2.5.0
 	 * @return void
 	 */
-	public function setup_preview(): void {
+	public function setup_preview() {
 
 		$this->membership = wu_mock_membership();
 		$this->customer   = wu_mock_customer();
