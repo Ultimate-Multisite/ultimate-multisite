@@ -219,11 +219,13 @@ class Membership_Manager extends Base_Manager {
 			);
 
 			/*
-			 * Re-enqueue the async action so Action Scheduler retries
-			 * the site creation without waiting for the next cron tick.
+			 * Return 'stopped' so the frontend polling loop retries.
+			 * Do NOT also enqueue wu_async_publish_pending_site here —
+			 * that would create two competing retry sources (Action
+			 * Scheduler + frontend) and risk double site creation.
+			 * The existing AS scheduled action will pick up the reset
+			 * flag on its next run.
 			 */
-			wu_enqueue_async_action('wu_async_publish_pending_site', ['membership_id' => $membership->get_id()], 'membership');
-
 			wp_send_json(['publish_status' => 'stopped']);
 
 			exit;
