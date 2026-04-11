@@ -892,6 +892,89 @@ class Site_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test set_publishing(true) records publishing_started_at timestamp.
+	 */
+	public function test_set_publishing_records_timestamp(): void {
+		$before = time();
+		$this->site->set_publishing(true);
+		$after = time();
+
+		$started = $this->site->get_publishing_started_at();
+		$this->assertGreaterThanOrEqual($before, $started);
+		$this->assertLessThanOrEqual($after, $started);
+	}
+
+	/**
+	 * Test set_publishing(false) clears publishing_started_at.
+	 */
+	public function test_set_publishing_false_clears_timestamp(): void {
+		$this->site->set_publishing(true);
+		$this->assertGreaterThan(0, $this->site->get_publishing_started_at());
+
+		$this->site->set_publishing(false);
+		$this->assertEquals(0, $this->site->get_publishing_started_at());
+	}
+
+	/**
+	 * Test is_publishing_stale returns false when not publishing.
+	 */
+	public function test_is_publishing_stale_when_not_publishing(): void {
+		$this->site->set_publishing(false);
+		$this->assertFalse($this->site->is_publishing_stale());
+	}
+
+	/**
+	 * Test is_publishing_stale returns false when recently started.
+	 */
+	public function test_is_publishing_stale_when_recent(): void {
+		$this->site->set_publishing(true);
+		$this->assertFalse($this->site->is_publishing_stale(), 'Should not be stale immediately after starting.');
+	}
+
+	/**
+	 * Test is_publishing_stale returns true after timeout expires.
+	 */
+	public function test_is_publishing_stale_after_timeout(): void {
+		$this->site->set_publishing(true);
+
+		// Simulate time passing by setting publishing_started_at to 10 minutes ago.
+		$reflection = new \ReflectionProperty(Site::class, 'publishing_started_at');
+		$reflection->setAccessible(true);
+		$reflection->setValue($this->site, time() - 600);
+
+		$this->assertTrue($this->site->is_publishing_stale(), 'Should be stale after 10 minutes (default timeout 300s).');
+	}
+
+	/**
+	 * Test is_publishing_stale with custom timeout.
+	 */
+	public function test_is_publishing_stale_custom_timeout(): void {
+		$this->site->set_publishing(true);
+
+		$reflection = new \ReflectionProperty(Site::class, 'publishing_started_at');
+		$reflection->setAccessible(true);
+		$reflection->setValue($this->site, time() - 60);
+
+		$this->assertFalse($this->site->is_publishing_stale(120), 'Should not be stale with 120s timeout after 60s.');
+		$this->assertTrue($this->site->is_publishing_stale(30), 'Should be stale with 30s timeout after 60s.');
+	}
+
+	/**
+	 * Test is_publishing_stale returns true for pre-2.5.3 objects without timestamp.
+	 */
+	public function test_is_publishing_stale_legacy_object_without_timestamp(): void {
+		$this->site->set_publishing(true);
+
+		// Simulate a pre-2.5.3 serialized object that has is_publishing=true
+		// but no publishing_started_at value.
+		$reflection = new \ReflectionProperty(Site::class, 'publishing_started_at');
+		$reflection->setAccessible(true);
+		$reflection->setValue($this->site, 0);
+
+		$this->assertTrue($this->site->is_publishing_stale(), 'Pre-2.5.3 objects without timestamp should be treated as stale.');
+	}
+
+	/**
 	 * Test get_template returns false when template_id does not match a site.
 	 */
 	public function test_get_template_nonexistent(): void {

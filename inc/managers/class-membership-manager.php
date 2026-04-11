@@ -167,6 +167,11 @@ class Membership_Manager extends Base_Manager {
 	/**
 	 * Processes a delayed site publish action.
 	 *
+	 * Checks whether the pending site has been created. If is_publishing
+	 * has been true for longer than 5 minutes, we assume the creation
+	 * process was killed (PHP timeout, OOM, server restart) and reset
+	 * the flag so the Action Scheduler retry can pick it up.
+	 *
 	 * @since 2.0.11
 	 */
 	public function check_pending_site_created() {
@@ -186,6 +191,40 @@ class Membership_Manager extends Base_Manager {
 			 * We do not have a pending site, so we can assume the site was created.
 			 */
 			wp_send_json(['publish_status' => 'completed']);
+
+			exit;
+		}
+
+		/*
+		 * Detect stale publishing state. When the PHP process that was
+		 * creating the site gets killed mid-execution, is_publishing
+		 * stays true forever — the AS retry sees the flag and bails
+		 * out, creating an infinite loop. Reset the flag after 5 min
+		 * so the next AS run or cron kick can retry site creation.
+		 *
+		 * @since 2.5.3
+		 */
+		if ($pending_site->is_publishing_stale()) {
+			$pending_site->set_publishing(false);
+
+			$membership->update_pending_site($pending_site);
+
+			wu_log_add(
+				self::LOG_FILE_NAME,
+				sprintf(
+					// translators: %d: membership ID.
+					__('Reset stale is_publishing flag for membership %d. The site creation process appears to have been killed before completing.', 'ultimate-multisite'),
+					$membership->get_id()
+				)
+			);
+
+			/*
+			 * Re-enqueue the async action so Action Scheduler retries
+			 * the site creation without waiting for the next cron tick.
+			 */
+			wu_enqueue_async_action('wu_async_publish_pending_site', ['membership_id' => $membership->get_id()], 'membership');
+
+			wp_send_json(['publish_status' => 'stopped']);
 
 			exit;
 		}

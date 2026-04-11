@@ -159,6 +159,18 @@ class Site extends Base_Model implements Limitable, Notable {
 	protected $is_publishing;
 
 	/**
+	 * Unix timestamp when is_publishing was set to true.
+	 *
+	 * Used to detect stale publishing state (e.g. process killed mid-creation).
+	 * Not persisted to the sites DB table — only lives in the serialized
+	 * pending_site metadata on memberships.
+	 *
+	 * @since 2.5.3
+	 * @var int
+	 */
+	protected $publishing_started_at = 0;
+
+	/**
 	 * Is this a active site?
 	 *
 	 * @since 2.0.0
@@ -753,13 +765,65 @@ class Site extends Base_Model implements Limitable, Notable {
 	/**
 	 * Set if the site is being published.
 	 *
+	 * When set to true, also records the current timestamp so that
+	 * stale publishing states can be detected and reset.
+	 *
 	 * @since 2.0.11
-	 * @param int $publishing Holds the ID of the customer that owns this site.
+	 * @param bool $publishing Whether the site is currently being published.
 	 * @return void
 	 */
 	public function set_publishing($publishing): void {
 
 		$this->is_publishing = $publishing;
+
+		if ($publishing) {
+			$this->publishing_started_at = time();
+		} else {
+			$this->publishing_started_at = 0;
+		}
+	}
+
+	/**
+	 * Get the Unix timestamp when publishing started.
+	 *
+	 * @since 2.5.3
+	 * @return int Unix timestamp, or 0 if not publishing.
+	 */
+	public function get_publishing_started_at() {
+
+		return (int) $this->publishing_started_at;
+	}
+
+	/**
+	 * Check if the publishing state is stale (stuck).
+	 *
+	 * A publishing state is considered stale if is_publishing has been
+	 * true for longer than the given timeout. This happens when the PHP
+	 * process is killed mid-creation (OOM, timeout, server restart)
+	 * after the flag is set but before the error handlers can reset it.
+	 *
+	 * @since 2.5.3
+	 * @param int $timeout_seconds Maximum allowed publishing duration in seconds. Default 300 (5 minutes).
+	 * @return bool True if publishing started more than $timeout_seconds ago.
+	 */
+	public function is_publishing_stale($timeout_seconds = 300) {
+
+		if ( ! $this->is_publishing()) {
+			return false;
+		}
+
+		$started = $this->get_publishing_started_at();
+
+		/*
+		 * If publishing_started_at is 0 or missing (pre-2.5.3 serialized
+		 * objects), treat the state as stale — there's no way to know
+		 * when it started, and the process that set it is clearly gone.
+		 */
+		if (empty($started)) {
+			return true;
+		}
+
+		return (time() - $started) > $timeout_seconds;
 	}
 
 	/**
