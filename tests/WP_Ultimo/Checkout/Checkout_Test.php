@@ -4561,6 +4561,198 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	// -------------------------------------------------------------------------
+	// template_id validation — field_to_rule_key mapping (PR #800 fix)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Test get_validation_rules maps template_selection required to template_id rule.
+	 *
+	 * The template_selection signup field has force_attributes() { required: true },
+	 * but its POST key is template_id (not template_selection). Before PR #800
+	 * the required rule was applied to the wrong key.
+	 */
+	public function test_get_validation_rules_maps_template_selection_required_to_template_id(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->step      = [
+			'fields' => [
+				['id' => 'template_selection', 'required' => true],
+			],
+		];
+		$checkout->steps     = [];
+		$checkout->step_name = null;
+
+		unset($_REQUEST['pre-flight'], $_REQUEST['checkout_form']);
+
+		$rules = $checkout->get_validation_rules();
+
+		// template_id rule must include 'required' (mapped from template_selection)
+		$this->assertArrayHasKey('template_id', $rules);
+		$this->assertStringContainsString('required', $rules['template_id']);
+
+		// template_selection should NOT have its own rule entry
+		$this->assertArrayNotHasKey('template_selection', $rules);
+	}
+
+	/**
+	 * Test get_validation_rules adds min:1 to template_id when required.
+	 *
+	 * Rakit's required rule accepts integer 0 as "present", so min:1 is
+	 * needed to reject template_id=0 during checkout.
+	 */
+	public function test_get_validation_rules_adds_min_1_to_template_id(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->step      = [
+			'fields' => [
+				['id' => 'template_selection', 'required' => true],
+			],
+		];
+		$checkout->steps     = [];
+		$checkout->step_name = null;
+
+		unset($_REQUEST['pre-flight'], $_REQUEST['checkout_form']);
+
+		$rules = $checkout->get_validation_rules();
+
+		$this->assertStringContainsString('min:1', $rules['template_id']);
+	}
+
+	/**
+	 * Test validate rejects template_id=0 when template_selection is required.
+	 *
+	 * This is the core regression test: a checkout with a required template
+	 * selection field must not allow template_id=0 through validation.
+	 */
+	public function test_validate_rejects_template_id_zero_when_required(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->step      = [
+			'fields' => [
+				['id' => 'template_selection', 'required' => true],
+			],
+		];
+		$checkout->steps     = [];
+		$checkout->step_name = null;
+
+		$this->ensure_session($checkout);
+
+		$_REQUEST['template_id'] = 0;
+
+		unset($_REQUEST['pre-flight'], $_REQUEST['checkout_form']);
+
+		$rules  = $checkout->get_validation_rules();
+		$result = $checkout->validate($rules);
+
+		$this->assertInstanceOf(\WP_Error::class, $result, 'template_id=0 should fail validation when template_selection is required');
+
+		unset($_REQUEST['template_id']);
+	}
+
+	/**
+	 * Test validate accepts a valid non-zero template_id when required.
+	 *
+	 * Uses min:1 rule directly to verify a positive integer passes.
+	 */
+	public function test_validate_accepts_positive_template_id(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->step      = ['fields' => []];
+		$checkout->steps     = [];
+		$checkout->step_name = null;
+
+		$this->ensure_session($checkout);
+
+		$_REQUEST['template_id'] = 5;
+
+		// min:1 should pass for value 5
+		$result = $checkout->validate(['template_id' => 'integer|min:1']);
+
+		$this->assertTrue($result);
+
+		unset($_REQUEST['template_id']);
+	}
+
+	/**
+	 * Test get_validation_rules does NOT add min:1 to template_id when
+	 * template_selection is absent (no template step on the form).
+	 *
+	 * This ensures admin/API paths that don't include a template_selection
+	 * field are not affected by the checkout-specific guard.
+	 */
+	public function test_get_validation_rules_no_min_1_without_template_selection_field(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->step      = [
+			'fields' => [
+				['id' => 'email_address', 'required' => true],
+			],
+		];
+		$checkout->steps     = [];
+		$checkout->step_name = null;
+
+		unset($_REQUEST['pre-flight'], $_REQUEST['checkout_form']);
+
+		$rules = $checkout->get_validation_rules();
+
+		// template_id should still have its base rule but NOT min:1
+		$this->assertArrayHasKey('template_id', $rules);
+		$this->assertStringNotContainsString('min:1', $rules['template_id']);
+	}
+
+	/**
+	 * Test base template_id rule (integer|site_template) allows 0
+	 * when no template_selection field is present.
+	 *
+	 * This confirms admin/network site creation can still use template_id=0.
+	 */
+	public function test_validate_allows_template_id_zero_without_template_selection_field(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->step      = ['fields' => []];
+		$checkout->steps     = [];
+		$checkout->step_name = null;
+
+		$this->ensure_session($checkout);
+
+		$_REQUEST['template_id'] = 0;
+
+		// Base rule without required or min:1
+		$result = $checkout->validate(['template_id' => 'integer|site_template']);
+
+		$this->assertTrue($result, 'template_id=0 should pass with base rule (admin/network context)');
+
+		unset($_REQUEST['template_id']);
+	}
+
+	/**
+	 * Test that a non-template required field still maps to itself.
+	 *
+	 * Ensures the field_to_rule_key mapping only affects template_selection
+	 * and does not break other required fields.
+	 */
+	public function test_get_validation_rules_non_template_required_field_maps_to_itself(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->step      = [
+			'fields' => [
+				['id' => 'site_title', 'required' => true],
+			],
+		];
+		$checkout->steps     = [];
+		$checkout->step_name = null;
+
+		unset($_REQUEST['pre-flight'], $_REQUEST['checkout_form']);
+
+		$rules = $checkout->get_validation_rules();
+
+		$this->assertArrayHasKey('site_title', $rules);
+		$this->assertStringContainsString('required', $rules['site_title']);
+		// min:1 should NOT be added to non-template fields
+		$this->assertStringNotContainsString('min:1', $rules['site_title']);
+	}
+
+	// -------------------------------------------------------------------------
 	// Teardown
 	// -------------------------------------------------------------------------
 

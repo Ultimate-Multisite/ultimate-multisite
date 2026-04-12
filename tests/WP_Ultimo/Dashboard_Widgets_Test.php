@@ -114,7 +114,11 @@ class Dashboard_Widgets_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test enqueue_scripts enqueues activity-stream with correct deps on index.php.
+	 * Test enqueue_scripts enqueues activity-stream on the network admin index.php.
+	 *
+	 * Since PR #785, enqueue_scripts() guards with is_network_admin() so the
+	 * activity-stream assets are only loaded on the network dashboard — not
+	 * the per-site dashboard. The test must simulate the network admin context.
 	 */
 	public function test_enqueue_scripts_enqueues_activity_stream_on_index(): void {
 
@@ -129,6 +133,9 @@ class Dashboard_Widgets_Test extends \WP_UnitTestCase {
 			$wp_scripts->done  = [];
 		}
 
+		// Simulate the network admin so is_network_admin() returns true.
+		set_current_screen('dashboard-network');
+
 		// Ensure wu-functions is registered so the dependency chain resolves.
 		\WP_Ultimo\Scripts::get_instance()->register_default_scripts();
 
@@ -137,7 +144,7 @@ class Dashboard_Widgets_Test extends \WP_UnitTestCase {
 
 		$this->assertTrue(
 			wp_script_is('wu-activity-stream', 'enqueued'),
-			'wu-activity-stream should be enqueued on index.php'
+			'wu-activity-stream should be enqueued on the network admin index.php'
 		);
 
 		// Verify wu-functions and moment are declared dependencies.
@@ -145,6 +152,43 @@ class Dashboard_Widgets_Test extends \WP_UnitTestCase {
 		$this->assertNotNull($script, 'wu-activity-stream should be registered');
 		$this->assertContains('wu-functions', $script->deps);
 		$this->assertContains('moment', $script->deps);
+
+		if (isset($wp_scripts)) {
+			$wp_scripts->queue = $original_queue;
+		}
+		$pagenow = $original;
+	}
+
+	/**
+	 * Test enqueue_scripts does NOT enqueue activity-stream on per-site dashboard.
+	 *
+	 * PR #785 added an is_network_admin() guard to prevent the Vue
+	 * "Cannot find element: #activity-stream-content" console error
+	 * on the per-site /wp-admin/index.php.
+	 */
+	public function test_enqueue_scripts_skips_activity_stream_on_per_site_dashboard(): void {
+
+		global $pagenow, $wp_scripts;
+
+		$original       = $pagenow;
+		$original_queue = isset($wp_scripts) ? $wp_scripts->queue : [];
+		$pagenow        = 'index.php';
+
+		if (isset($wp_scripts)) {
+			$wp_scripts->queue = [];
+			$wp_scripts->done  = [];
+		}
+
+		// Simulate the per-site dashboard (not network admin).
+		set_current_screen('dashboard');
+
+		$instance = $this->get_instance();
+		$instance->enqueue_scripts();
+
+		$this->assertFalse(
+			wp_script_is('wu-activity-stream', 'enqueued'),
+			'wu-activity-stream should NOT be enqueued on the per-site dashboard'
+		);
 
 		if (isset($wp_scripts)) {
 			$wp_scripts->queue = $original_queue;
