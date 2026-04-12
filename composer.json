@@ -30,7 +30,7 @@
     ],
     "type": "wordpress-plugin",
     "require": {
-        "php": ">=7.4.1",
+        "php": ">=8.1.0",
         "automattic/jetpack-autoloader": "^3.0 || ^4.0 || ^5.0",
         "wp-ultimo/autoloader-plugin": "dev-main",
         "wordpress/abilities-api": "^0.4.0",
@@ -42,7 +42,7 @@
         "amphp/http-client": "^4.6.3",
         "amphp/http": "^1.7.1",
         "amphp/sync": "^1.4.2",
-        "psr/log": "^1.1.4",
+        "psr/log": "^3.0",
         "delight-im/cookie": "^3.4.0",
         "berlindb/core": "^2.0.1",
         "mexitek/phpcolors": "^1.0.4",
@@ -50,6 +50,7 @@
         "stripe/stripe-php": "^17.4.0",
         "rakit/validation": "dev-master#ff003a35cdf5030a5f2482299f4c93f344a35b29",
         "ifsnop/mysqldump-php": "^2.12",
+        "mpdf/psr-log-aware-trait": "^3.0",
         "mpdf/mpdf": "^8.2.0",
         "remotelyliving/php-dns": "^4.3.0",
         "jasny/sso": "^0.4.2",
@@ -82,7 +83,7 @@
     },
     "config": {
         "platform": {
-            "php": "7.4.1"
+            "php": "8.1.0"
         },
         "allow-plugins": {
             "composer/installers": true,

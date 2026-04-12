@@ -214,11 +214,11 @@ abstract class Base_PayPal_Gateway extends Base_Gateway {
 	 *
 	 * @since 2.0.0
 	 *
-	 * @param string $message The message to log.
-	 * @param string $level   Log level (default: 'info').
+	 * @param string|\Stringable $message The message to log.
+	 * @param string            $level   Log level (default: 'info').
 	 * @return void
 	 */
-	protected function log(string $message, string $level = 'info'): void {
+	protected function log(string|\Stringable $message, string $level = 'info'): void {
 
 		wu_log_add('paypal', $message, $level);
 	}

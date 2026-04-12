@@ -617,11 +617,11 @@ class PayPal_Webhook_Handler {
 	 *
 	 * @since 2.0.0
 	 *
-	 * @param string $message The message to log.
-	 * @param string $level   Log level.
+	 * @param string|\Stringable $message The message to log.
+	 * @param string            $level   Log level.
 	 * @return void
 	 */
-	protected function log(string $message, string $level = 'info'): void {
+	protected function log(string|\Stringable $message, string $level = 'info'): void {
 
 		wu_log_add('paypal', '[Webhook] ' . $message, $level);
 	}

@@ -47,9 +47,9 @@ class Logger extends AbstractLogger {
 	/**
 	 * Add a log entry to chosen file.
 	 *
-	 * @param string           $handle Name of the log file to write to.
-	 * @param string|\WP_Error $message Log message to write.
-	 * @param string           $log_level Log level to write.
+	 * @param string                       $handle Name of the log file to write to.
+	 * @param string|\WP_Error|\Stringable $message Log message to write.
+	 * @param string                       $log_level Log level to write.
 	 */
 	public static function add($handle, $message, $log_level = LogLevel::INFO): void {
 
@@ -204,13 +204,13 @@ class Logger extends AbstractLogger {
 	 *
 	 * @since 2.1
 	 *
-	 * @param mixed   $level   The log level.
-	 * @param string  $message The message to log.
-	 * @param mixed[] $context The context.
+	 * @param mixed              $level   The log level.
+	 * @param string|\Stringable $message The message to log.
+	 * @param mixed[]            $context The context.
 	 *
 	 * @return void
 	 */
-	public function log($level, $message, array $context = []): void {
+	public function log($level, string|\Stringable $message, array $context = []): void {
 
 		if ( ! $this->is_valid_log_level($level) ) {
 			return;
@@ -249,9 +249,9 @@ class Logger extends AbstractLogger {
 	 *
 	 * @since 2.1
 	 *
-	 * @param string $level The log level.
-	 * @param string $message The message to log.
-	 * @param array  $context The context of the message.
+	 * @param string             $level   The log level.
+	 * @param string|\Stringable $message The message to log.
+	 * @param array              $context The context of the message.
 	 * @return string
 	 */
 	protected function format_message($level, $message, $context = []) {

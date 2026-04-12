@@ -203,9 +203,9 @@ function wu_path_join(...$parts): string {
 /**
  * Add a log entry to chosen file.
  *
- * @param string           $handle Name of the log file to write to.
- * @param string|\WP_Error $message Log message to write.
- * @param string           $log_level Log level to write.
+ * @param string                       $handle Name of the log file to write to.
+ * @param string|\WP_Error|\Stringable $message Log message to write.
+ * @param string                       $log_level Log level to write.
  *
  * @return void
  * @since 2.0.0
