@@ -287,7 +287,40 @@ if ( ! class_exists('MUCD_Data') ) {
 		}
 
 		/**
+		 * Get the primary key column name for a table.
+		 *
+		 * Uses a static cache to avoid repeated SHOW KEYS queries for the
+		 * same table across multiple replacement passes.
+		 *
+		 * @since 2.3.1
+		 * @param  string $table Full table name.
+		 * @return string|null   Primary key column name, or null if not found.
+		 */
+		public static function get_primary_key($table) {
+			static $cache = [];
+
+			if (array_key_exists($table, $cache)) {
+				return $cache[ $table ];
+			}
+
+			global $wpdb;
+
+			$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				"SHOW KEYS FROM `{$table}` WHERE Key_name = 'PRIMARY'" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			);
+
+			$cache[ $table ] = $row ? $row->Column_name : null;
+
+			return $cache[ $table ];
+		}
+
+		/**
 		 * Updates a table
+		 *
+		 * Identifies rows by primary key when available so that large
+		 * serialized values (like Elementor Kit settings) are not used
+		 * in the WHERE clause—preventing mismatches and accidental
+		 * multi-row updates.
 		 *
 		 * @since 0.2.0
 		 * @param  string $table       Table to update.
@@ -299,29 +332,55 @@ if ( ! class_exists('MUCD_Data') ) {
 			if (is_array($fields) || ! empty($fields)) {
 				global $wpdb;
 
+				$pk_column = self::get_primary_key($table);
+
 				foreach ($fields as $field) {
 
 					// Bugfix : escape '_' , '%' and '/' character for mysql 'like' queries
 					$from_string_like = $wpdb->esc_like($from_string);
 
-					$results = $wpdb->query("SET SQL_MODE='ALLOW_INVALID_DATES';"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+					$wpdb->query("SET SQL_MODE='ALLOW_INVALID_DATES';"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
-					$sql_query = $wpdb->prepare(
-						'
-                        SELECT `' . $field . '` FROM `' . $table . '` WHERE `' . $field . '` LIKE %s ', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.QuotedSimplePlaceholder
-						'%' . $from_string_like . '%'
-					);
+					// Include primary key in SELECT when available for reliable row identification.
+					if ($pk_column) {
+						$sql_query = $wpdb->prepare(
+							'SELECT `' . $pk_column . '`, `' . $field . '` FROM `' . $table . '` WHERE `' . $field . '` LIKE %s', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.QuotedSimplePlaceholder
+							'%' . $from_string_like . '%'
+						);
+					} else {
+						$sql_query = $wpdb->prepare(
+							'SELECT `' . $field . '` FROM `' . $table . '` WHERE `' . $field . '` LIKE %s', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.QuotedSimplePlaceholder
+							'%' . $from_string_like . '%'
+						);
+					}
 
 					$results = self::do_sql_query($sql_query, 'results', false);
 
 					if ($results) {
-						$update = 'UPDATE `' . $table . '` SET `' . $field . '` = %s WHERE `' . $field . '` = %s'; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-
-						foreach ($results as $result => $row) {
+						foreach ($results as $row) {
 							$old_value = $row[ $field ];
 							$new_value = self::try_replace($row, $field, $from_string, $to_string);
-							$sql_query = $wpdb->prepare($update, $new_value, $old_value); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-							$results   = self::do_sql_query($sql_query);
+
+							// Skip UPDATE when the replacement produced no change.
+							if ($new_value === $old_value) {
+								continue;
+							}
+
+							if ($pk_column && isset($row[ $pk_column ])) {
+								$update_sql = $wpdb->prepare(
+									'UPDATE `' . $table . '` SET `' . $field . '` = %s WHERE `' . $pk_column . '` = %s', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+									$new_value,
+									$row[ $pk_column ]
+								);
+							} else {
+								$update_sql = $wpdb->prepare(
+									'UPDATE `' . $table . '` SET `' . $field . '` = %s WHERE `' . $field . '` = %s', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+									$new_value,
+									$old_value
+								);
+							}
+
+							self::do_sql_query($update_sql);
 						}
 					}
 				}
@@ -389,13 +448,27 @@ if ( ! class_exists('MUCD_Data') ) {
 		 */
 		public static function try_replace($row, $field, $from_string, $to_string) {
 			if (is_serialized($row[ $field ])) {
-				$double_serialize = false;
-				$row[ $field ]    = @unserialize($row[ $field ]);
+				$double_serialize  = false;
+				$original_value    = $row[ $field ];
+				$row[ $field ]     = @unserialize($row[ $field ]);
+
+				// Safety: if unserialize failed, return the original value
+				// instead of re-serializing false — which would destroy the data.
+				if (false === $row[ $field ] && 'b:0;' !== $original_value) {
+					return $original_value;
+				}
 
 				// FOR SERIALISED OPTIONS, like in wp_carousel plugin
 				if (is_serialized($row[ $field ])) {
-					$row[ $field ]    = @unserialize($row[ $field ]);
-					$double_serialize = true;
+					$inner_unserialized = @unserialize($row[ $field ]);
+
+					if (false === $inner_unserialized && 'b:0;' !== $row[ $field ]) {
+						// Inner unserialize failed — fall back to single-serialized handling.
+						$double_serialize = false;
+					} else {
+						$row[ $field ]    = $inner_unserialized;
+						$double_serialize = true;
+					}
 				}
 
 				if (is_array($row[ $field ])) {

@@ -39,7 +39,12 @@ class Elementor_Compat {
 	}
 
 	/**
-	 * Makes sure we force elementor to regenerate the styles when necessary.
+	 * Makes sure we force Elementor to regenerate styles after site duplication.
+	 *
+	 * Uses the Elementor API when available, otherwise clears the CSS cache
+	 * via direct database operations. This fallback is important because
+	 * Elementor classes are typically not loaded in the network admin
+	 * context where site duplication runs.
 	 *
 	 * @since 1.10.10
 	 * @param array $site Info about the duplicated site.
@@ -47,21 +52,38 @@ class Elementor_Compat {
 	 */
 	public function regenerate_css($site): void {
 
-		if ( ! class_exists('\Elementor\Plugin')) {
-			return;
-		}
-
 		if ( ! isset($site['site_id'])) {
 			return;
 		}
 
 		switch_to_blog($site['site_id']);
 
-		$file_manager = \Elementor\Plugin::$instance->files_manager; // phpcs:ignore
+		// Try the Elementor API if available.
+		if (class_exists('\Elementor\Plugin') && ! empty(\Elementor\Plugin::$instance->files_manager)) {
+			\Elementor\Plugin::$instance->files_manager->clear_cache(); // phpcs:ignore
+			restore_current_blog();
 
-		if ( ! empty($file_manager)) {
-			$file_manager->clear_cache();
+			return;
 		}
+
+		// Fallback: clear Elementor CSS cache via direct DB operations.
+		// Duplication typically runs in the network admin context where
+		// Elementor classes are not loaded — this ensures the compiled
+		// CSS is regenerated on the first visit to the cloned site.
+		global $wpdb;
+
+		// Delete compiled CSS metadata — Elementor will regenerate on next load.
+		$wpdb->delete( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->postmeta,
+			['meta_key' => '_elementor_css'], // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			['%s']
+		);
+
+		// Clear the global CSS option so Elementor rebuilds it.
+		delete_option('_elementor_global_css');
+
+		// Reset the CSS print timestamp to force full regeneration.
+		delete_option('elementor_css_print_method');
 
 		restore_current_blog();
 	}
