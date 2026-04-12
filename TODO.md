@@ -6,6 +6,7 @@
 - [x] t450 Positioning and growth plan to attract more customers ref:GH#450 ~8h pr:#452 completed:2026-03-25
 - [x] t451 Fix WP Performance Metrics CI ECONNREFUSED failure (WordPress server not starting on port 9400) ref:GH#475 ~2h #bug #auto-dispatch pr:#476 completed:2026-03-25
 - [x] t452 feat(tax): implement universal tax fallback as "Apply to all countries" dropdown option on Tax Rates page ref:GH#505 ~3h #enhancement #auto-dispatch pr:#506 completed:2026-03-26
+- [ ] t509 fix: template_selection validation never fires — field ID maps to wrong rule key ref:GH#799 ~1h #bug #auto-dispatch
 
 ## Unit Test Coverage Tasks
 
