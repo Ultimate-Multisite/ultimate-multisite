@@ -2421,6 +2421,17 @@ class Checkout {
 			'products',
 		];
 
+		/*
+		 * Maps checkout field IDs to their corresponding validation-rule
+		 * keys when the two differ. For example the "template_selection"
+		 * signup field submits its value as "template_id" in the POST data,
+		 * so a `required` attribute on that field must target the
+		 * "template_id" rule — not "template_selection".
+		 */
+		$field_to_rule_key = [
+			'template_selection' => 'template_id',
+		];
+
 		/**
 		 * Add the additional required fields.
 		 */
@@ -2429,10 +2440,26 @@ class Checkout {
 			 * General required fields
 			 */
 			if (wu_get_isset($field, 'required') && wu_get_isset($field, 'id')) {
-				if (isset($validation_rules[ $field['id'] ])) {
-					$validation_rules[ $field['id'] ] .= '|required';
+				$rule_key = $field_to_rule_key[ $field['id'] ] ?? $field['id'];
+
+				if (isset($validation_rules[ $rule_key ])) {
+					$validation_rules[ $rule_key ] .= '|required';
 				} else {
-					$validation_rules[ $field['id'] ] = 'required';
+					$validation_rules[ $rule_key ] = 'required';
+				}
+
+				/*
+				 * For template_id the `required` rule alone is not enough
+				 * because Rakit considers integer 0 as "present". Add min:1
+				 * so the checkout rejects template_id=0 when the form
+				 * includes a required template selection field.
+				 *
+				 * Admin/network site creation does not go through checkout
+				 * validation, so blank (no-template) sites can still be
+				 * created from the network admin.
+				 */
+				if ('template_id' === $rule_key) {
+					$validation_rules[ $rule_key ] .= '|min:1';
 				}
 			}
 
@@ -2508,7 +2535,7 @@ class Checkout {
 			[
 				'password_conf'              => __('Password confirmation', 'ultimate-multisite'),
 				'email_address_confirmation' => __('Email confirmation', 'ultimate-multisite'),
-				'template_id'                => __('Template ID', 'ultimate-multisite'),
+				'template_id'                => __('Template Selection', 'ultimate-multisite'),
 				'valid_password'             => __('Valid password', 'ultimate-multisite'),
 				'products'                   => __('Products', 'ultimate-multisite'),
 				'gateway'                    => __('Payment Gateway', 'ultimate-multisite'),
