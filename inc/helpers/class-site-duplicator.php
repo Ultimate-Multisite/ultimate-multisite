@@ -253,6 +253,20 @@ class Site_Duplicator {
 
 		\MUCD_Data::copy_data($args->from_site_id, $args->to_site_id);
 
+		/*
+		 * Backfill postmeta that MUCD_Data::copy_data() misses.
+		 *
+		 * MUCD copies table data with INSERT ... SELECT (full-table copy), but
+		 * certain post types end up with missing postmeta rows — particularly
+		 * nav_menu_item, attachment, and elementor_library posts. The Elementor
+		 * Kit post (usually ID 3) also gets stub postmeta that must be
+		 * overwritten with the real template values.
+		 *
+		 * @since 2.3.1
+		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
+		 */
+		self::backfill_postmeta($args->from_site_id, $args->to_site_id);
+
 		if ($args->keep_users) {
 			\MUCD_Duplicate::copy_users($args->from_site_id, $args->to_site_id);
 		}
@@ -274,7 +288,8 @@ class Site_Duplicator {
 		do_action(
 			'wu_duplicate_site',
 			[
-				'site_id' => $args->to_site_id,
+				'from_site_id' => $args->from_site_id,
+				'site_id'      => $args->to_site_id,
 			]
 		);
 
@@ -310,5 +325,236 @@ class Site_Duplicator {
 		}
 
 		return $user_id;
+	}
+
+	/**
+	 * Backfill postmeta rows that MUCD_Data::copy_data() misses.
+	 *
+	 * MUCD copies table data with INSERT ... SELECT, but certain post types
+	 * end up with missing or stub postmeta rows. This method fills the gaps
+	 * for nav_menu_item, attachment, and Elementor post types, and force-
+	 * overwrites the Elementor Kit settings which MUCD inserts as stubs.
+	 *
+	 * @since 2.3.1
+	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
+	 *
+	 * @param int $from_site_id Source (template) blog ID.
+	 * @param int $to_site_id   Target (cloned) blog ID.
+	 */
+	protected static function backfill_postmeta($from_site_id, $to_site_id) {
+
+		$from_site_id = (int) $from_site_id;
+		$to_site_id   = (int) $to_site_id;
+
+		if ( ! $from_site_id || ! $to_site_id || $from_site_id === $to_site_id) {
+			return;
+		}
+
+		self::backfill_nav_menu_postmeta($from_site_id, $to_site_id);
+		self::backfill_attachment_postmeta($from_site_id, $to_site_id);
+		self::backfill_elementor_postmeta($from_site_id, $to_site_id);
+		self::backfill_kit_settings($from_site_id, $to_site_id);
+	}
+
+	/**
+	 * Backfill nav_menu_item postmeta from template to cloned site.
+	 *
+	 * MUCD copies nav_menu_item posts (preserving IDs) but not their postmeta
+	 * rows. Without these rows, menus render as empty list items with no
+	 * titles, URLs, or parent relationships.
+	 *
+	 * @since 2.3.1
+	 *
+	 * @param int $from_site_id Source blog ID.
+	 * @param int $to_site_id   Target blog ID.
+	 */
+	protected static function backfill_nav_menu_postmeta($from_site_id, $to_site_id) {
+
+		global $wpdb;
+
+		$from_prefix = $wpdb->get_blog_prefix($from_site_id);
+		$to_prefix   = $wpdb->get_blog_prefix($to_site_id);
+
+		if ($from_prefix === $to_prefix) {
+			return;
+		}
+
+		$meta_keys = [
+			'_menu_item_type',
+			'_menu_item_menu_item_parent',
+			'_menu_item_object_id',
+			'_menu_item_object',
+			'_menu_item_target',
+			'_menu_item_classes',
+			'_menu_item_xfn',
+			'_menu_item_url',
+		];
+
+		$placeholders = implode(',', array_fill(0, count($meta_keys), '%s'));
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query(
+			$wpdb->prepare(
+				"INSERT INTO {$to_prefix}postmeta (post_id, meta_key, meta_value)
+				SELECT src.post_id, src.meta_key, src.meta_value
+				FROM {$from_prefix}postmeta src
+				INNER JOIN {$to_prefix}posts tgt
+						ON tgt.ID = src.post_id
+						AND tgt.post_type = 'nav_menu_item'
+				WHERE src.meta_key IN ({$placeholders})
+				  AND NOT EXISTS (
+					  SELECT 1 FROM {$to_prefix}postmeta tpm
+					  WHERE tpm.post_id = src.post_id
+						AND tpm.meta_key = src.meta_key
+				  )",
+				...$meta_keys
+			)
+		);
+		// phpcs:enable
+	}
+
+	/**
+	 * Backfill attachment postmeta from template to cloned site.
+	 *
+	 * MUCD copies attachment posts but not their postmeta. Without
+	 * _wp_attached_file, wp_get_attachment_image_url() returns false and
+	 * images disappear even though the physical files exist on disk.
+	 *
+	 * @since 2.3.1
+	 *
+	 * @param int $from_site_id Source blog ID.
+	 * @param int $to_site_id   Target blog ID.
+	 */
+	protected static function backfill_attachment_postmeta($from_site_id, $to_site_id) {
+
+		global $wpdb;
+
+		$from_prefix = $wpdb->get_blog_prefix($from_site_id);
+		$to_prefix   = $wpdb->get_blog_prefix($to_site_id);
+
+		if ($from_prefix === $to_prefix) {
+			return;
+		}
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query(
+			"INSERT INTO {$to_prefix}postmeta (post_id, meta_key, meta_value)
+			SELECT src.post_id, src.meta_key, src.meta_value
+			FROM {$from_prefix}postmeta src
+			INNER JOIN {$to_prefix}posts tgt
+					ON tgt.ID = src.post_id
+					AND tgt.post_type = 'attachment'
+			WHERE NOT EXISTS (
+				SELECT 1 FROM {$to_prefix}postmeta tpm
+				WHERE tpm.post_id = src.post_id
+				  AND tpm.meta_key = src.meta_key
+			)"
+		);
+		// phpcs:enable
+	}
+
+	/**
+	 * Backfill Elementor postmeta for all post types.
+	 *
+	 * Catch-all for any _elementor_* meta that MUCD missed. Covers
+	 * elementor_library (headers, footers, popups), e-landing-page,
+	 * elementor_snippet, and any custom post type with Elementor data.
+	 *
+	 * @since 2.3.1
+	 *
+	 * @param int $from_site_id Source blog ID.
+	 * @param int $to_site_id   Target blog ID.
+	 */
+	protected static function backfill_elementor_postmeta($from_site_id, $to_site_id) {
+
+		global $wpdb;
+
+		$from_prefix = $wpdb->get_blog_prefix($from_site_id);
+		$to_prefix   = $wpdb->get_blog_prefix($to_site_id);
+
+		if ($from_prefix === $to_prefix) {
+			return;
+		}
+
+		$like_pattern = $wpdb->esc_like('_elementor') . '%';
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query(
+			$wpdb->prepare(
+				"INSERT INTO {$to_prefix}postmeta (post_id, meta_key, meta_value)
+				SELECT src.post_id, src.meta_key, src.meta_value
+				FROM {$from_prefix}postmeta src
+				INNER JOIN {$to_prefix}posts tgt
+						ON tgt.ID = src.post_id
+				WHERE src.meta_key LIKE %s
+				  AND NOT EXISTS (
+					  SELECT 1 FROM {$to_prefix}postmeta tpm
+					  WHERE tpm.post_id = src.post_id
+						AND tpm.meta_key = src.meta_key
+				  )",
+				$like_pattern
+			)
+		);
+		// phpcs:enable
+	}
+
+	/**
+	 * Force-overwrite the Elementor Kit settings on the cloned site.
+	 *
+	 * The Kit post (holding colors, typography, logo) gets created with stub
+	 * Elementor defaults BEFORE MUCD runs its INSERT ... SELECT. Because MUCD
+	 * uses INSERT NOT EXISTS, the stub row is never overwritten, leaving the
+	 * clone with default Elementor colors instead of the template palette.
+	 *
+	 * This method reads the real settings from the template and uses
+	 * update_post_meta() to guarantee the overwrite.
+	 *
+	 * @since 2.3.1
+	 *
+	 * @param int $from_site_id Source blog ID.
+	 * @param int $to_site_id   Target blog ID.
+	 */
+	protected static function backfill_kit_settings($from_site_id, $to_site_id) {
+
+		// Read kit settings from the template site.
+		switch_to_blog($from_site_id);
+
+		$kit_id_from  = (int) get_option('elementor_active_kit', 0);
+		$kit_settings = $kit_id_from ? get_post_meta($kit_id_from, '_elementor_page_settings', true) : '';
+		$kit_data     = $kit_id_from ? get_post_meta($kit_id_from, '_elementor_data', true) : '';
+
+		restore_current_blog();
+
+		if (empty($kit_settings)) {
+			return;
+		}
+
+		// Force-overwrite kit settings on the target site.
+		// Uses update_post_meta() instead of INSERT NOT EXISTS because
+		// the target kit may already have stub metadata from Elementor's
+		// activation routine. INSERT NOT EXISTS would silently skip the
+		// row, leaving the clone with default Elementor colors.
+		switch_to_blog($to_site_id);
+
+		$kit_id_to = (int) get_option('elementor_active_kit', 0);
+
+		if ( ! $kit_id_to && $kit_id_from) {
+			$kit_id_to = $kit_id_from;
+			update_option('elementor_active_kit', $kit_id_to);
+		}
+
+		if ($kit_id_to) {
+			update_post_meta($kit_id_to, '_elementor_page_settings', $kit_settings);
+
+			if ( ! empty($kit_data) && '[]' !== $kit_data) {
+				update_post_meta($kit_id_to, '_elementor_data', $kit_data);
+			}
+
+			// Clear compiled CSS so Elementor_Compat::regenerate_css() will
+			// rebuild with the correct Kit settings on wu_duplicate_site.
+			delete_post_meta($kit_id_to, '_elementor_css');
+		}
+
+		restore_current_blog();
 	}
 }
