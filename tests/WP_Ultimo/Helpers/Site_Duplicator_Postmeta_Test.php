@@ -314,7 +314,7 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		$this->assertEquals('[{"elType":"section"}]', get_post_meta($page_id, '_elementor_data', true));
 		$this->assertEquals('builder', get_post_meta($page_id, '_elementor_edit_mode', true));
 		$settings = get_post_meta($page_id, '_elementor_page_settings', true);
-		$this->assertIsArray(unserialize($settings));
+		$this->assertIsArray($settings);
 		restore_current_blog();
 	}
 
