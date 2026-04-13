@@ -254,6 +254,22 @@ class Site_Duplicator {
 		\MUCD_Data::copy_data($args->from_site_id, $args->to_site_id);
 
 		/*
+		 * Resolve the real template source from wu_template_id site meta.
+		 *
+		 * MUCD's hooks pass a from_site_id that may differ from the template
+		 * the customer actually selected at checkout. WP Ultimo stores the
+		 * customer's real choice in the wu_template_id site meta key.
+		 * Prefer that over the explicit param when available.
+		 *
+		 * @since 2.3.1
+		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
+		 */
+		$meta_template = (int) get_site_meta($args->to_site_id, 'wu_template_id', true);
+		if ($meta_template > 0 && $meta_template !== (int) $args->from_site_id) {
+			$args->from_site_id = $meta_template;
+		}
+
+		/*
 		 * Backfill postmeta that MUCD_Data::copy_data() misses.
 		 *
 		 * MUCD copies table data with INSERT ... SELECT (full-table copy), but
@@ -266,6 +282,18 @@ class Site_Duplicator {
 		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
 		 */
 		self::backfill_postmeta($args->from_site_id, $args->to_site_id);
+
+		/*
+		 * Verify Kit integrity after backfill.
+		 *
+		 * Compares the byte length of _elementor_page_settings between the
+		 * template and the clone. If the clone has less than 80% of the
+		 * template's byte count, the Kit fix is re-applied as a safety net.
+		 *
+		 * @since 2.3.1
+		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
+		 */
+		self::verify_kit_integrity($args->from_site_id, $args->to_site_id);
 
 		if ($args->keep_users) {
 			\MUCD_Duplicate::copy_users($args->from_site_id, $args->to_site_id);
@@ -556,5 +584,52 @@ class Site_Duplicator {
 		}
 
 		restore_current_blog();
+	}
+
+	/**
+	 * Verify Kit integrity after clone and re-apply if mismatched.
+	 *
+	 * Compares the byte length of _elementor_page_settings between the
+	 * template and the clone. If the clone has less than 80% of the
+	 * template's byte count, the Kit fix is re-applied as a safety net.
+	 *
+	 * This catches edge cases where update_post_meta() succeeded but the
+	 * stored value was truncated by a concurrent write, or where Elementor's
+	 * activation routine overwrote the Kit settings after backfill.
+	 *
+	 * @since 2.3.1
+	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
+	 *
+	 * @param int $from_site_id Source blog ID.
+	 * @param int $to_site_id   Target blog ID.
+	 */
+	protected static function verify_kit_integrity($from_site_id, $to_site_id) {
+
+		$from_site_id = (int) $from_site_id;
+		$to_site_id   = (int) $to_site_id;
+
+		if ( ! $from_site_id || ! $to_site_id || $from_site_id === $to_site_id) {
+			return;
+		}
+
+		switch_to_blog($from_site_id);
+		$kit_id_from = (int) get_option('elementor_active_kit', 0);
+		$from_size   = $kit_id_from ? strlen(maybe_serialize(get_post_meta($kit_id_from, '_elementor_page_settings', true))) : 0;
+		restore_current_blog();
+
+		switch_to_blog($to_site_id);
+		$kit_id_to = (int) get_option('elementor_active_kit', 0);
+		$to_size   = $kit_id_to ? strlen(maybe_serialize(get_post_meta($kit_id_to, '_elementor_page_settings', true))) : 0;
+		restore_current_blog();
+
+		if ( ! $from_size || ! $to_size) {
+			return;
+		}
+
+		// If the clone has less than 80% of the template's byte count,
+		// the Kit settings are likely incomplete — re-apply the fix.
+		if ($to_size < ($from_size * 0.8)) {
+			self::backfill_kit_settings($from_site_id, $to_site_id);
+		}
 	}
 }
