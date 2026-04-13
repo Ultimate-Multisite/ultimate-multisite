@@ -249,7 +249,7 @@ function wu_create_site($site_data) {
 		: '';
 	$domain_supplied           = '' !== $normalized_input_domain && $normalized_input_domain !== $normalized_network_domain;
 
-	if (is_multisite() && is_subdomain_install() && $path_supplied && ! $domain_supplied) {
+	if (is_multisite() && apply_filters('wu_is_subdomain_install', is_subdomain_install()) && $path_supplied && ! $domain_supplied) {
 		$raw_slug             = trim((string) $site_data['path'], '/');
 		$slug                 = sanitize_title_with_dashes(wu_clean($raw_slug));
 

@@ -259,4 +259,64 @@ class Site_Functions_Extended_Test extends WP_UnitTestCase {
 			'Slug should only contain valid hostname characters.'
 		);
 	}
+
+	/**
+	 * Test wu_create_site sanitizes subdomain slug from path on subdomain installs.
+	 *
+	 * When a path is provided on a subdomain install without an explicit domain,
+	 * the slug derived from the path should be sanitized before building the
+	 * subdomain hostname.
+	 */
+	public function test_create_site_sanitizes_subdomain_slug(): void {
+
+		// Force subdomain install mode via the wu_is_subdomain_install filter.
+		add_filter('wu_is_subdomain_install', '__return_true');
+
+		$site = wu_create_site(
+			[
+				'title' => 'Sanitized Slug Test',
+				'path'  => '/My Cool Site!/',
+			]
+		);
+
+		remove_all_filters('wu_is_subdomain_install');
+
+		// The slug should be sanitized (lowercase, dashes, no special chars).
+		// It may succeed as a site or fail for other reasons, but should NOT
+		// fail with 'invalid_site_path'.
+		if (is_wp_error($site)) {
+			$this->assertNotEquals(
+				'invalid_site_path',
+				$site->get_error_code(),
+				'A valid-ish path should not produce invalid_site_path after sanitization.'
+			);
+		} else {
+			// If it succeeded, verify the domain contains the sanitized slug.
+			$this->assertStringContainsString('my-cool-site', $site->get_domain());
+		}
+	}
+
+	/**
+	 * Test wu_create_site returns WP_Error for empty slug on subdomain installs.
+	 *
+	 * When the path contains only invalid characters that sanitize to an empty
+	 * string, wu_create_site should return a WP_Error with 'invalid_site_path'.
+	 */
+	public function test_create_site_returns_error_for_empty_subdomain_slug(): void {
+
+		// Force subdomain install mode via the wu_is_subdomain_install filter.
+		add_filter('wu_is_subdomain_install', '__return_true');
+
+		$result = wu_create_site(
+			[
+				'title' => 'Empty Slug Test',
+				'path'  => '/!!!/',
+			]
+		);
+
+		remove_all_filters('wu_is_subdomain_install');
+
+		$this->assertWPError($result);
+		$this->assertEquals('invalid_site_path', $result->get_error_code());
+	}
 }
