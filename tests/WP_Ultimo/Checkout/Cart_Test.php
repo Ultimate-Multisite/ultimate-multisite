@@ -2638,6 +2638,227 @@ class Cart_Test extends WP_UnitTestCase {
 		$this->assertEquals(40.00, $cart->get_total());
 	}
 
+	// =========================================================================
+	// REACTIVATION CART TESTS (PR #751 / issue #814)
+	// =========================================================================
+
+	/**
+	 * Helper: create a cancelled membership owned by self::$customer.
+	 *
+	 * @param array $overrides Optional attribute overrides.
+	 * @return \WP_Ultimo\Models\Membership
+	 */
+	private function create_cancelled_membership($overrides = []) {
+		$plan = $this->create_plan(
+			[
+				'amount'    => 50.00,
+				'setup_fee' => 0,
+			]
+		);
+
+		$defaults = [
+			'customer_id'        => self::$customer->get_id(),
+			'plan_id'            => $plan->get_id(),
+			'status'             => 'cancelled',
+			'amount'             => 50.00,
+			'recurring'          => true,
+			'duration'           => 1,
+			'duration_unit'      => 'month',
+			'date_cancellation'  => wu_get_current_time('mysql'),
+		];
+
+		return wu_create_membership(array_merge($defaults, $overrides));
+	}
+
+	/**
+	 * Test that a cart with a cancelled membership gets cart_type = 'reactivation'.
+	 *
+	 * When build_from_membership() detects a cancelled/expired membership, it must
+	 * override the default 'upgrade' cart_type to 'reactivation'.
+	 */
+	public function test_reactivation_cart_type_set_for_cancelled_membership() {
+		$customer    = self::$customer;
+		$membership  = $this->create_cancelled_membership();
+
+		wp_set_current_user($customer->get_user_id(), $customer->get_username());
+
+		$cart = new Cart([
+			'membership_id' => $membership->get_id(),
+		]);
+
+		$this->assertSame('reactivation', $cart->get_cart_type());
+
+		$membership->delete();
+	}
+
+	/**
+	 * Test that reactivation carts do not include a signup fee line item.
+	 *
+	 * The signup fee should only apply to new subscriptions. Charging it again on
+	 * reactivation would double-charge customers who previously paid it.
+	 */
+	public function test_reactivation_cart_no_signup_fee() {
+		$customer = self::$customer;
+
+		$plan = $this->create_plan(
+			[
+				'amount'    => 50.00,
+				'setup_fee' => 25.00,
+			]
+		);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id'   => $customer->get_id(),
+				'plan_id'       => $plan->get_id(),
+				'status'        => 'cancelled',
+				'amount'        => 50.00,
+				'recurring'     => true,
+				'duration'      => 1,
+				'duration_unit' => 'month',
+			]
+		);
+
+		wp_set_current_user($customer->get_user_id(), $customer->get_username());
+
+		$cart = new Cart([
+			'membership_id' => $membership->get_id(),
+		]);
+
+		$this->assertSame('reactivation', $cart->get_cart_type());
+
+		$fee_items = $cart->get_line_items_by_type('fee');
+		$this->assertEmpty($fee_items, 'Reactivation carts must not include a signup fee line item');
+
+		$membership->delete();
+	}
+
+	/**
+	 * Test that has_trial() returns false for reactivation carts.
+	 *
+	 * A returning customer is not eligible for a trial on reactivation. Allowing
+	 * a trial would let customers game the system by repeatedly cancelling and
+	 * reactivating to receive free trial periods.
+	 */
+	public function test_reactivation_cart_has_trial_returns_false() {
+		$customer = self::$customer;
+
+		$plan = $this->create_plan(
+			[
+				'amount'              => 50.00,
+				'trial_duration'      => 14,
+				'trial_duration_unit' => 'day',
+			]
+		);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id'   => $customer->get_id(),
+				'plan_id'       => $plan->get_id(),
+				'status'        => 'cancelled',
+				'amount'        => 50.00,
+				'recurring'     => true,
+				'duration'      => 1,
+				'duration_unit' => 'month',
+			]
+		);
+
+		wp_set_current_user($customer->get_user_id(), $customer->get_username());
+
+		$cart = new Cart([
+			'membership_id' => $membership->get_id(),
+		]);
+
+		$this->assertSame('reactivation', $cart->get_cart_type());
+		$this->assertFalse($cart->has_trial(), 'has_trial() must return false for reactivation carts');
+
+		$membership->delete();
+	}
+
+	/**
+	 * Test that get_billing_start_date() returns null for reactivation carts.
+	 *
+	 * Billing starts immediately on reactivation. A non-null billing start date
+	 * would cause Stripe/PayPal to treat the subscription as starting with a
+	 * trial period, which is incorrect for reactivations.
+	 */
+	public function test_reactivation_cart_billing_start_date_is_null() {
+		$customer = self::$customer;
+
+		$plan = $this->create_plan(
+			[
+				'amount'              => 50.00,
+				'trial_duration'      => 14,
+				'trial_duration_unit' => 'day',
+			]
+		);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id'   => $customer->get_id(),
+				'plan_id'       => $plan->get_id(),
+				'status'        => 'cancelled',
+				'amount'        => 50.00,
+				'recurring'     => true,
+				'duration'      => 1,
+				'duration_unit' => 'month',
+			]
+		);
+
+		wp_set_current_user($customer->get_user_id(), $customer->get_username());
+
+		$cart = new Cart([
+			'membership_id' => $membership->get_id(),
+		]);
+
+		$this->assertSame('reactivation', $cart->get_cart_type());
+		$this->assertNull($cart->get_billing_start_date(), 'get_billing_start_date() must return null for reactivation carts so no trial period is applied');
+
+		$membership->delete();
+	}
+
+	/**
+	 * Test that reactivation carts rebuild products from the original membership.
+	 *
+	 * The reactivation path must always use the plan from the cancelled membership,
+	 * ignoring any products supplied in the request. This prevents product injection.
+	 */
+	public function test_reactivation_cart_rebuilds_products_from_membership() {
+		$customer = self::$customer;
+
+		$original_plan = $this->create_plan(['amount' => 50.00]);
+		$injected_plan = $this->create_plan(['amount' => 1.00]);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id'   => $customer->get_id(),
+				'plan_id'       => $original_plan->get_id(),
+				'status'        => 'cancelled',
+				'amount'        => 50.00,
+				'recurring'     => true,
+				'duration'      => 1,
+				'duration_unit' => 'month',
+			]
+		);
+
+		wp_set_current_user($customer->get_user_id(), $customer->get_username());
+
+		// Attempt to inject a different (cheaper) product via the request.
+		$cart = new Cart([
+			'membership_id' => $membership->get_id(),
+			'products'      => [$injected_plan->get_id()],
+		]);
+
+		$this->assertSame('reactivation', $cart->get_cart_type());
+
+		$plan = $cart->get_plan();
+		$this->assertNotNull($plan, 'Reactivation cart must have a plan');
+		$this->assertSame($original_plan->get_id(), $plan->get_id(), 'Reactivation cart must use the original membership plan, not a user-supplied product');
+
+		$membership->delete();
+		$injected_plan->delete();
+	}
+
 	public static function tear_down_after_class() {
 		global $wpdb;
 		self::$customer->delete();

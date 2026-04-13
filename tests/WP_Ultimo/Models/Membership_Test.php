@@ -1350,6 +1350,154 @@ class Membership_Test extends \WP_UnitTestCase {
 	}
 
 	// ---------------------------------------------------------------
+	// Reactivation Tests (PR #751 / issue #814)
+	// ---------------------------------------------------------------
+
+	/**
+	 * Test renew() does NOT clear date_cancellation on a regular active-to-active renewal.
+	 *
+	 * Guards against the regression where renew() unconditionally cleared date_cancellation
+	 * on any renewal that resulted in active status, destroying historical cancellation records.
+	 */
+	public function test_renew_preserves_cancellation_date_on_active_renewal(): void {
+		$now = wu_get_current_time('mysql');
+
+		$this->membership->set_status(Membership_Status::ACTIVE);
+		$this->membership->set_date_cancellation($now);
+		$this->membership->set_recurring(true);
+		$this->membership->set_amount(29.99);
+		$this->membership->set_skip_validation(true);
+
+		$result = $this->membership->renew(true, 'active');
+
+		$this->assertTrue($result);
+		$this->assertSame($now, $this->membership->get_date_cancellation(), 'date_cancellation must not be cleared when renewing an already-active membership');
+	}
+
+	/**
+	 * Test renew() DOES clear date_cancellation when reactivating a cancelled membership.
+	 *
+	 * renew() is called by reactivate(), and also directly by gateways via IPN/webhook.
+	 * It must clear the cancellation timestamp when the previous status was CANCELLED
+	 * so that cancelled membership records are cleaned up in a single save.
+	 */
+	public function test_renew_clears_cancellation_date_for_cancelled_membership(): void {
+		$now = wu_get_current_time('mysql');
+
+		$this->membership->set_status(Membership_Status::CANCELLED);
+		$this->membership->set_date_cancellation($now);
+		$this->membership->set_recurring(true);
+		$this->membership->set_amount(29.99);
+		$this->membership->set_skip_validation(true);
+
+		$result = $this->membership->renew(true, 'active');
+
+		$this->assertTrue($result);
+		$this->assertNull($this->membership->get_date_cancellation(), 'date_cancellation must be cleared when renewing a cancelled membership to active');
+	}
+
+	/**
+	 * Test reactivate() clears date_cancellation and sets membership to active.
+	 */
+	public function test_reactivate_clears_cancellation_date(): void {
+		$now = wu_get_current_time('mysql');
+
+		$this->membership->set_status(Membership_Status::CANCELLED);
+		$this->membership->set_date_cancellation($now);
+		$this->membership->set_recurring(true);
+		$this->membership->set_amount(29.99);
+		$this->membership->set_skip_validation(true);
+
+		$result = $this->membership->reactivate(true);
+
+		$this->assertTrue($result);
+		$this->assertSame('active', $this->membership->get_status());
+		$this->assertNull($this->membership->get_date_cancellation(), 'reactivate() must clear date_cancellation');
+	}
+
+	/**
+	 * Test reactivate() fires wu_membership_pre_reactivate action.
+	 */
+	public function test_reactivate_fires_pre_reactivate_hook(): void {
+		$this->membership->set_status(Membership_Status::CANCELLED);
+		$this->membership->set_recurring(true);
+		$this->membership->set_amount(29.99);
+		$this->membership->set_skip_validation(true);
+
+		$pre_fired   = false;
+		$captured_id = 0;
+
+		add_action(
+			'wu_membership_pre_reactivate',
+			function($id) use (&$pre_fired, &$captured_id) {
+				$pre_fired   = true;
+				$captured_id = $id;
+			}
+		);
+
+		$this->membership->reactivate(true);
+
+		$this->assertTrue($pre_fired, 'wu_membership_pre_reactivate must fire before reactivation');
+		$this->assertSame($this->membership->get_id(), $captured_id);
+	}
+
+	/**
+	 * Test reactivate() fires wu_membership_post_reactivate action on success.
+	 */
+	public function test_reactivate_fires_post_reactivate_hook_on_success(): void {
+		$this->membership->set_status(Membership_Status::CANCELLED);
+		$this->membership->set_recurring(true);
+		$this->membership->set_amount(29.99);
+		$this->membership->set_skip_validation(true);
+
+		$post_fired  = false;
+		$captured_id = 0;
+
+		add_action(
+			'wu_membership_post_reactivate',
+			function($id) use (&$post_fired, &$captured_id) {
+				$post_fired  = true;
+				$captured_id = $id;
+			}
+		);
+
+		$result = $this->membership->reactivate(true);
+
+		$this->assertTrue($result);
+		$this->assertTrue($post_fired, 'wu_membership_post_reactivate must fire after successful reactivation');
+		$this->assertSame($this->membership->get_id(), $captured_id);
+	}
+
+	/**
+	 * Test reactivate() does not fire wu_membership_post_reactivate when renew() fails.
+	 *
+	 * Simulates a renew() failure by clearing plan_id (renew() returns false immediately
+	 * when plan_id is empty). Verifies wu_membership_post_reactivate is NOT fired.
+	 */
+	public function test_reactivate_does_not_fire_post_hook_on_failure(): void {
+		// Deliberately remove the plan_id so renew() returns false.
+		$this->membership->set_plan_id(0);
+		$this->membership->set_status(Membership_Status::CANCELLED);
+		$this->membership->set_recurring(true);
+		$this->membership->set_amount(29.99);
+		$this->membership->set_skip_validation(true);
+
+		$post_fired = false;
+
+		add_action(
+			'wu_membership_post_reactivate',
+			function() use (&$post_fired) {
+				$post_fired = true;
+			}
+		);
+
+		$result = $this->membership->reactivate(true);
+
+		$this->assertFalse($result, 'reactivate() must return false when renew() fails due to missing plan');
+		$this->assertFalse($post_fired, 'wu_membership_post_reactivate must NOT fire when reactivation fails');
+	}
+
+	// ---------------------------------------------------------------
 	// Meta Constants Tests
 	// ---------------------------------------------------------------
 
