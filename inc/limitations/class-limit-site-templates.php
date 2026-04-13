@@ -201,7 +201,7 @@ class Limit_Site_Templates extends Limit {
 	 * Get available themes.
 	 *
 	 * @since 2.0.0
-	 * @return array
+	 * @return array|false Array of available template IDs, or false when MODE_DEFAULT (unrestricted).
 	 */
 	public function get_available_site_templates() {
 

@@ -274,9 +274,10 @@ class Template_Switching_Element extends Base_Element {
 
 		$template_id = (int) wu_request('template_id', '');
 
-		$available_templates = array_map('intval', $this->site->get_limitations()->site_templates->get_available_site_templates());
+		// false means MODE_DEFAULT (no restriction) — all templates are allowed.
+		$available_templates = $this->site->get_limitations()->site_templates->get_available_site_templates();
 
-		if (! in_array($template_id, $available_templates, true)) {
+		if (false !== $available_templates && ! in_array($template_id, array_map('intval', $available_templates), true)) {
 			wp_send_json_error(new \WP_Error('not_authorized', __('You are not allowed to use this template.', 'ultimate-multisite')));
 		}
 
