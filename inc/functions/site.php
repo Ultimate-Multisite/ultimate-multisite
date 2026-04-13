@@ -250,7 +250,16 @@ function wu_create_site($site_data) {
 	$domain_supplied           = '' !== $normalized_input_domain && $normalized_input_domain !== $normalized_network_domain;
 
 	if (is_multisite() && is_subdomain_install() && $path_supplied && ! $domain_supplied) {
-		$slug                 = trim((string) $site_data['path'], '/');
+		$raw_slug             = trim((string) $site_data['path'], '/');
+		$slug                 = sanitize_title_with_dashes(wu_clean($raw_slug));
+
+		if ('' === $slug) {
+			return new \WP_Error(
+				'invalid_site_path',
+				__('Invalid site path for subdomain creation.', 'ultimate-multisite')
+			);
+		}
+
 		$bare_network_domain  = preg_replace('/^www\./i', '', (string) $network_domain);
 		$site_data['domain']  = "{$slug}.{$bare_network_domain}";
 		$site_data['path']    = '/';

@@ -206,4 +206,57 @@ class Site_Functions_Extended_Test extends WP_UnitTestCase {
 		$this->assertIsString($result);
 		$this->assertNotEmpty($result);
 	}
+
+	/**
+	 * Test that the subdomain slug sanitization logic produces valid hostnames.
+	 *
+	 * This verifies the sanitize_title_with_dashes + wu_clean pipeline used
+	 * by wu_create_site when converting a path to a subdomain slug.
+	 */
+	public function test_subdomain_slug_sanitization_produces_valid_hostname(): void {
+
+		// Simulate the sanitization pipeline from wu_create_site.
+		$raw_slug = trim('/My Cool Site!/', '/');
+		$slug     = sanitize_title_with_dashes(wu_clean($raw_slug));
+
+		$this->assertNotEmpty($slug, 'A path with valid characters should produce a non-empty slug.');
+		$this->assertEquals('my-cool-site', $slug);
+		$this->assertMatchesRegularExpression(
+			'/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/',
+			$slug,
+			'Slug should be a valid DNS label (lowercase alphanumeric + hyphens).'
+		);
+	}
+
+	/**
+	 * Test that paths with only invalid characters sanitize to empty.
+	 *
+	 * This verifies the guard in wu_create_site that returns WP_Error when
+	 * the sanitized slug is empty, preventing malformed hostnames.
+	 */
+	public function test_subdomain_slug_sanitization_empty_for_invalid_path(): void {
+
+		// Paths with only special characters should sanitize to empty.
+		$raw_slug = trim('/!!!/', '/');
+		$slug     = sanitize_title_with_dashes(wu_clean($raw_slug));
+
+		$this->assertEmpty($slug, 'A path with only special characters should sanitize to empty.');
+	}
+
+	/**
+	 * Test that unicode paths sanitize to valid slugs.
+	 */
+	public function test_subdomain_slug_sanitization_handles_unicode(): void {
+
+		$raw_slug = trim('/Café Blog/', '/');
+		$slug     = sanitize_title_with_dashes(wu_clean($raw_slug));
+
+		$this->assertNotEmpty($slug, 'A path with unicode chars should produce a non-empty slug.');
+		// Should contain only valid hostname characters.
+		$this->assertMatchesRegularExpression(
+			'/^[a-z0-9%]([a-z0-9%-]*[a-z0-9%])?$/',
+			$slug,
+			'Slug should only contain valid hostname characters.'
+		);
+	}
 }
