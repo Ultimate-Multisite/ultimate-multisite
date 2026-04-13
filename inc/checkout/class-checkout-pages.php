@@ -404,6 +404,15 @@ class Checkout_Pages {
 			return;
 		}
 
+		/*
+		 * When reauth=1 is present the user was sent here by auth_redirect()
+		 * because the auth cookie check failed.  Honour the re-authentication
+		 * request instead of bouncing back, which would cause a redirect loop.
+		 */
+		if (isset($_GET['reauth'])) { // phpcs:ignore WordPress.Security.NonceVerification
+			return;
+		}
+
 		$custom_login_page = $this->get_signup_page('login');
 
 		if (empty($custom_login_page) || empty($post)) {

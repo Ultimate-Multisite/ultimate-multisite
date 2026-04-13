@@ -161,6 +161,29 @@ if ( ! function_exists('wp_set_auth_cookie') ) :
 
 endif;
 
+/*
+ * On subdirectory multisite the auth/secure_auth cookies are path-scoped to the
+ * main site's /wp-admin, so they aren't sent when accessing /subsite/wp-admin/.
+ * WordPress core's wp_validate_logged_in_cookie() intentionally skips the
+ * logged_in cookie fallback when is_blog_admin() is true, leaving the current
+ * user as 0 and triggering a 403.
+ *
+ * This late-priority filter falls back to the logged_in cookie (path /) so that
+ * the user is correctly identified on any subsite's wp-admin.
+ */
+add_filter('determine_current_user', function ($user_id) {
+
+	if ($user_id || ! is_multisite()) {
+		return $user_id;
+	}
+
+	if ( ! defined('LOGGED_IN_COOKIE') || empty($_COOKIE[LOGGED_IN_COOKIE])) {
+		return $user_id;
+	}
+
+	return wp_validate_auth_cookie($_COOKIE[LOGGED_IN_COOKIE], 'logged_in');
+}, 30);
+
 if ( ! function_exists('auth_redirect') ) :
 	/**
 	 * Checks if a user is logged in, if not it redirects them to the login page.
@@ -212,6 +235,17 @@ if ( ! function_exists('auth_redirect') ) :
 		$scheme = apply_filters('auth_redirect_scheme', ''); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 
 		$user_id = wp_validate_auth_cookie('', $scheme);
+
+		/*
+		 * Fallback: on subdirectory multisite the auth/secure_auth cookies are
+		 * scoped to the main site's /wp-admin path and won't be sent when
+		 * accessing a subsite's /subsite/wp-admin/.  The logged_in cookie
+		 * (path /) IS present, so try that before forcing a login redirect.
+		 */
+		if ( ! $user_id && is_multisite()) {
+			$user_id = wp_validate_auth_cookie('', 'logged_in');
+		}
+
 		if ( $user_id ) {
 			/**
 			 * Fires before the authentication redirect.
