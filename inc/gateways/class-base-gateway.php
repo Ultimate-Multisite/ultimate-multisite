@@ -594,7 +594,7 @@ abstract class Base_Gateway {
 	 * @param int $payment_id The local payment ID to verify.
 	 * @return array{success: bool, status: string, message: string}
 	 */
-	public function verify_and_complete_payment($payment_id) {
+	public function verify_and_complete_payment(int $payment_id) {
 
 		unset($payment_id);
 
@@ -823,7 +823,7 @@ abstract class Base_Gateway {
 	 * @param string $message The error message.
 	 * @return void
 	 */
-	public function redirect_with_error($message) {
+	public function redirect_with_error(string $message) {
 
 		$url = remove_query_arg(['wu-confirm', 'payment', 'token', 'PayerID', 'ba_token', 'subscription_id', 'status'], $this->return_url ?: wu_get_current_url());
 

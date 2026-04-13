@@ -56,7 +56,7 @@ interface Capability_Module {
 	 * @param string $feature Feature identifier to check.
 	 * @return bool
 	 */
-	public function supports($feature);
+	public function supports(string $feature);
 
 	/**
 	 * Registers WordPress hooks for this capability.

@@ -144,7 +144,7 @@ class Cloudflare_Host_Provider extends Base_Host_Provider {
 	 *
 	 * @since 2.0.0
 	 */
-	public function detect(): bool {
+	public function detect() {
 		/**
 		 * As Cloudflare recently enabled wildcards for all customers, this integration is no longer required.
 		 * https://blog.cloudflare.com/wildcard-proxy-for-everyone/

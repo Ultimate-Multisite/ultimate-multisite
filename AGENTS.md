@@ -91,7 +91,7 @@ assets/                  # JS, CSS, images, fonts
   classes or interfaces** — external addons extend these classes and PHP will fatal if
   the child class doesn't declare the same return type. Use `@return` PHPDoc tags instead.
   This applies to all classes in `inc/gateways/`, `inc/ui/class-base-element.php`,
-  `inc/models/class-base-model.php`, `inc/integrations/`, and `inc/checkout/signup-fields/`.
+  `inc/models/class-base-model.php`, `inc/integrations/`, and `inc/checkout/`.
   Private and final methods may use PHP return types freely.
 - **PHPDoc**: Required on classes and public methods in `inc/`. Not required in `tests/`.
   Every file header: `@package WP_Ultimo`, `@subpackage`, `@since`.

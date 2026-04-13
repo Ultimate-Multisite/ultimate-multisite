@@ -97,7 +97,7 @@ class CPanel_Host_Provider extends Base_Host_Provider {
 	 *
 	 * @since 2.0.0
 	 */
-	public function detect(): bool {
+	public function detect() {
 
 		return false;
 	}
@@ -262,7 +262,7 @@ class CPanel_Host_Provider extends Base_Host_Provider {
 	 * @since  1.6.2
 	 * @param null|int $site_id The site id.
 	 */
-	public function get_site_url($site_id = null): string {
+	public function get_site_url($site_id = null) {
 
 		return trim(preg_replace('#^https?://#', '', get_site_url($site_id)), '/');
 	}
