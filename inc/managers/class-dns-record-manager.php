@@ -634,11 +634,11 @@ class DNS_Record_Manager extends Base_Manager {
 				'desc'    => __('Select which DNS record types customers can manage.', 'ultimate-multisite'),
 				'type'    => 'multiselect',
 				'options' => [
-					'A'     => __('A (IPv4 Address)', 'ultimate-multisite'),
-					'AAAA'  => __('AAAA (IPv6 Address)', 'ultimate-multisite'),
-					'CNAME' => __('CNAME (Alias)', 'ultimate-multisite'),
-					'MX'    => __('MX (Mail Exchange)', 'ultimate-multisite'),
-					'TXT'   => __('TXT (Text Record)', 'ultimate-multisite'),
+					'A'     => ['title' => __('A (IPv4 Address)', 'ultimate-multisite')],
+					'AAAA'  => ['title' => __('AAAA (IPv6 Address)', 'ultimate-multisite')],
+					'CNAME' => ['title' => __('CNAME (Alias)', 'ultimate-multisite')],
+					'MX'    => ['title' => __('MX (Mail Exchange)', 'ultimate-multisite')],
+					'TXT'   => ['title' => __('TXT (Text Record)', 'ultimate-multisite')],
 				],
 				'default' => ['A', 'CNAME', 'TXT'],
 				'require' => [
