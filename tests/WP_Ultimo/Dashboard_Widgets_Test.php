@@ -124,39 +124,49 @@ class Dashboard_Widgets_Test extends \WP_UnitTestCase {
 
 		global $pagenow, $wp_scripts;
 
-		$original       = $pagenow;
-		$original_queue = isset($wp_scripts) ? $wp_scripts->queue : [];
-		$pagenow        = 'index.php';
+		$original           = $pagenow;
+		$original_queue     = isset($wp_scripts) ? $wp_scripts->queue : [];
+		$original_done      = isset($wp_scripts) ? $wp_scripts->done : [];
+		$original_screen    = function_exists('get_current_screen') ? get_current_screen() : null;
+		$original_screen_id = $original_screen ? $original_screen->id : null;
+		$pagenow            = 'index.php';
 
-		if (isset($wp_scripts)) {
-			$wp_scripts->queue = [];
-			$wp_scripts->done  = [];
+		try {
+			if (isset($wp_scripts)) {
+				$wp_scripts->queue = [];
+				$wp_scripts->done  = [];
+			}
+
+			// Simulate the network admin so is_network_admin() returns true.
+			set_current_screen('dashboard-network');
+
+			// Ensure wu-functions is registered so the dependency chain resolves.
+			\WP_Ultimo\Scripts::get_instance()->register_default_scripts();
+
+			$instance = $this->get_instance();
+			$instance->enqueue_scripts();
+
+			$this->assertTrue(
+				wp_script_is('wu-activity-stream', 'enqueued'),
+				'wu-activity-stream should be enqueued on the network admin index.php'
+			);
+
+			// Verify wu-functions and moment are declared dependencies.
+			$script = $wp_scripts->registered['wu-activity-stream'] ?? null;
+			$this->assertNotNull($script, 'wu-activity-stream should be registered');
+			$this->assertContains('wu-functions', $script->deps);
+			$this->assertContains('moment', $script->deps);
+
+		} finally {
+			if (isset($wp_scripts)) {
+				$wp_scripts->queue = $original_queue;
+				$wp_scripts->done  = $original_done;
+			}
+			if ($original_screen_id) {
+				set_current_screen($original_screen_id);
+			}
+			$pagenow = $original;
 		}
-
-		// Simulate the network admin so is_network_admin() returns true.
-		set_current_screen('dashboard-network');
-
-		// Ensure wu-functions is registered so the dependency chain resolves.
-		\WP_Ultimo\Scripts::get_instance()->register_default_scripts();
-
-		$instance = $this->get_instance();
-		$instance->enqueue_scripts();
-
-		$this->assertTrue(
-			wp_script_is('wu-activity-stream', 'enqueued'),
-			'wu-activity-stream should be enqueued on the network admin index.php'
-		);
-
-		// Verify wu-functions and moment are declared dependencies.
-		$script = $wp_scripts->registered['wu-activity-stream'] ?? null;
-		$this->assertNotNull($script, 'wu-activity-stream should be registered');
-		$this->assertContains('wu-functions', $script->deps);
-		$this->assertContains('moment', $script->deps);
-
-		if (isset($wp_scripts)) {
-			$wp_scripts->queue = $original_queue;
-		}
-		$pagenow = $original;
 	}
 
 	/**
@@ -170,30 +180,40 @@ class Dashboard_Widgets_Test extends \WP_UnitTestCase {
 
 		global $pagenow, $wp_scripts;
 
-		$original       = $pagenow;
-		$original_queue = isset($wp_scripts) ? $wp_scripts->queue : [];
-		$pagenow        = 'index.php';
+		$original           = $pagenow;
+		$original_queue     = isset($wp_scripts) ? $wp_scripts->queue : [];
+		$original_done      = isset($wp_scripts) ? $wp_scripts->done : [];
+		$original_screen    = function_exists('get_current_screen') ? get_current_screen() : null;
+		$original_screen_id = $original_screen ? $original_screen->id : null;
+		$pagenow            = 'index.php';
 
-		if (isset($wp_scripts)) {
-			$wp_scripts->queue = [];
-			$wp_scripts->done  = [];
+		try {
+			if (isset($wp_scripts)) {
+				$wp_scripts->queue = [];
+				$wp_scripts->done  = [];
+			}
+
+			// Simulate the per-site dashboard (not network admin).
+			set_current_screen('dashboard');
+
+			$instance = $this->get_instance();
+			$instance->enqueue_scripts();
+
+			$this->assertFalse(
+				wp_script_is('wu-activity-stream', 'enqueued'),
+				'wu-activity-stream should NOT be enqueued on the per-site dashboard'
+			);
+
+		} finally {
+			if (isset($wp_scripts)) {
+				$wp_scripts->queue = $original_queue;
+				$wp_scripts->done  = $original_done;
+			}
+			if ($original_screen_id) {
+				set_current_screen($original_screen_id);
+			}
+			$pagenow = $original;
 		}
-
-		// Simulate the per-site dashboard (not network admin).
-		set_current_screen('dashboard');
-
-		$instance = $this->get_instance();
-		$instance->enqueue_scripts();
-
-		$this->assertFalse(
-			wp_script_is('wu-activity-stream', 'enqueued'),
-			'wu-activity-stream should NOT be enqueued on the per-site dashboard'
-		);
-
-		if (isset($wp_scripts)) {
-			$wp_scripts->queue = $original_queue;
-		}
-		$pagenow = $original;
 	}
 
 	/**
