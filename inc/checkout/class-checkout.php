@@ -2016,7 +2016,7 @@ class Checkout {
 			'site_url'           => $this->request_or_session('site_url') === 'autogenerate' ? '' : $this->request_or_session('site_url'),
 			'site_domain'        => $this->request_or_session('site_domain', preg_replace('#^https?://#', '', $site_domain)),
 			'is_subdomain'       => is_subdomain_install(),
-			'gateway'            => wu_request('gateway', $default_gateway),
+			'gateway'            => $this->request_or_session('gateway', $default_gateway),
 			'needs_billing_info' => true,
 			'auto_renew'         => true,
 			'products'           => array_unique($products),
