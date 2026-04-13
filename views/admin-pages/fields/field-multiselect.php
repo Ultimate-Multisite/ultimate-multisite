@@ -46,6 +46,12 @@ defined('ABSPATH') || exit;
 
 		<?php foreach ($field->options as $value => $option) : ?>
 
+		<?php
+		// Support both string options ('key' => 'Label') and array options ('key' => ['title' => 'Label', 'desc' => '...'])
+		$option_title = is_array($option) ? ($option['title'] ?? '') : (string) $option;
+		$option_desc  = is_array($option) ? ($option['desc'] ?? '') : '';
+		?>
+
 		<li class="item wu-box-border wu-m-0 wu-my-2">
 
 			<div class="wu-bg-gray-100 wu-p-3 wu-m-0 wu-border-gray-300 wu-border-solid wu-border wu-rounded wu-items-center wu-flex wu-justify-between">
@@ -54,15 +60,15 @@ defined('ABSPATH') || exit;
 
 				<span class="wu-my-1 wu-text-xs wu-font-bold wu-block">
 
-				<?php echo esc_html($option['title']); ?>
+				<?php echo esc_html($option_title); ?>
 
 				</span>
 
-				<?php if (isset($option['desc']) && ! empty($option['desc'])) : ?>
+				<?php if ( ! empty($option_desc)) : ?>
 
 				<span class="wu-my-1 wu-inline-block wu-text-xs">
 
-					<?php echo esc_html($option['desc']); ?>
+					<?php echo esc_html($option_desc); ?>
 
 				</span>
 
