@@ -872,7 +872,6 @@
 						products: this.products,
 						membership_id: this.membership_id,
 						payment_id: this.payment_id,
-						valid_password: this.valid_password ? '1' : '',
 						user_id: form_data_obj.user_id || '',
 					});
 
@@ -899,7 +898,6 @@
 						payment_id: this.payment_id,
 						auto_renew: this.auto_renew,
 						cart_type: this.type,
-						valid_password: this.valid_password,
 						duration: this.duration,
 						duration_unit: this.duration_unit,
 					});
