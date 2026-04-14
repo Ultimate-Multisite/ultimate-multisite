@@ -66,9 +66,9 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 		$explainer_lines['will_not']['send_domain'] = __('Add domain mappings as new CloudFlare zones', 'ultimate-multisite');
 
 		if ($this->get_cloudflare()->get_credential('WU_CLOUDFLARE_SAAS_ZONE_ID')) {
-			$explainer_lines['will']['custom_hostnames'] = __('Register custom domains as Custom Hostnames in your Cloudflare for SaaS zone, enabling automatic SSL provisioning for mapped domains', 'ultimate-multisite');
+			$explainer_lines['will']['custom_hostnames'] = __('Register custom domains as Cloudflare Custom Hostnames, enabling automatic SSL provisioning for mapped domains', 'ultimate-multisite');
 		} else {
-			$explainer_lines['will_not']['custom_hostnames'] = __('Register custom domains as Cloudflare Custom Hostnames (requires SaaS Zone ID to be configured)', 'ultimate-multisite');
+			$explainer_lines['will_not']['custom_hostnames'] = __('Register custom domains as Cloudflare Custom Hostnames (requires Custom Hostnames Zone ID to be configured)', 'ultimate-multisite');
 		}
 
 		return $explainer_lines;

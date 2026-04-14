@@ -292,7 +292,7 @@ Version [2.5.0] - Released on 2026-04-06
 - New: Resubscription flow for cancelled memberships.
 - New: Reactivation flow for cancelled memberships.
 - New: Client-side JavaScript validation on checkout forms.
-- New: Cloudflare for SaaS Custom Hostnames API integration.
+- New: Cloudflare Custom Hostnames integration for automatic SSL on mapped domains.
 - New: DNS record management for mapped domains.
 - New: Template Library behind WU_TEMPLATE_LIBRARY_ENABLED feature flag.
 - New: External Cron Service behind WU_EXTERNAL_CRON_ENABLED feature flag.

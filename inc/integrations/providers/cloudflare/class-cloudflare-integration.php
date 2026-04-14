@@ -100,9 +100,9 @@ class Cloudflare_Integration extends Integration {
 				],
 			],
 			'WU_CLOUDFLARE_SAAS_ZONE_ID' => [
-				'title'       => __('SaaS Zone ID (Custom Hostnames)', 'ultimate-multisite'),
+				'title'       => __('Custom Hostnames Zone ID', 'ultimate-multisite'),
 				'placeholder' => __('e.g. 644c7705723d62e31f700bb798219c75', 'ultimate-multisite'),
-				'desc'        => __('Optional. The Zone ID of your Cloudflare for SaaS zone. When set, custom domains added to subsites will be registered as Custom Hostnames in that zone, enabling automatic SSL via Cloudflare SaaS.', 'ultimate-multisite'),
+				'desc'        => __('Optional. The Zone ID of the Cloudflare zone with Custom Hostnames enabled. When set, custom domains added to subsites will be registered as Custom Hostnames in that zone, enabling automatic SSL provisioning for mapped domains.', 'ultimate-multisite'),
 			],
 		];
 	}
