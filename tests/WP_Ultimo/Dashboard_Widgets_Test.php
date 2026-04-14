@@ -162,8 +162,10 @@ class Dashboard_Widgets_Test extends \WP_UnitTestCase {
 				$wp_scripts->queue = $original_queue;
 				$wp_scripts->done  = $original_done;
 			}
-			if ($original_screen_id) {
+			if (null !== $original_screen_id) {
 				set_current_screen($original_screen_id);
+			} else {
+				unset($GLOBALS['current_screen']);
 			}
 			$pagenow = $original;
 		}
@@ -209,8 +211,10 @@ class Dashboard_Widgets_Test extends \WP_UnitTestCase {
 				$wp_scripts->queue = $original_queue;
 				$wp_scripts->done  = $original_done;
 			}
-			if ($original_screen_id) {
+			if (null !== $original_screen_id) {
 				set_current_screen($original_screen_id);
+			} else {
+				unset($GLOBALS['current_screen']);
 			}
 			$pagenow = $original;
 		}
