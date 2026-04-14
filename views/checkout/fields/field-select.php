@@ -42,7 +42,7 @@ defined('ABSPATH') || exit;
 
 	<?php if ($field->placeholder) : ?>
 
-	<option <?php selected(! $field->value); ?> class="wu-opacity-75"><?php echo esc_html($field->placeholder); ?></option>
+	<option value="" <?php selected('', (string) $field->value); ?> class="wu-opacity-75"><?php echo esc_html($field->placeholder); ?></option>
 
 	<?php endif; ?>
 

@@ -92,6 +92,24 @@ jobs:
           echo "Final check:"
           curl -s http://localhost:8889 || echo "WordPress not responding"
 
+      - name: Network-activate plugin in tests environment
+        run: |
+          echo "=== Network-activating Ultimate Multisite plugin ==="
+          PLUGIN_SLUG=$(basename "$PWD")
+          echo "Plugin slug: $PLUGIN_SLUG"
+
+          # Network-activate so wu_save_setting() and other functions
+          # are fully bootstrapped for all wp eval / eval-file calls.
+          npx wp-env run tests-cli wp plugin activate "$PLUGIN_SLUG" --network || \
+            npx wp-env run tests-cli wp plugin activate ultimate-multisite --network || \
+            echo "⚠️  Could not network-activate by directory name, listing plugins..."
+
+          echo "Plugin list after activation attempt:"
+          npx wp-env run tests-cli wp plugin list --status=active --format=table
+
+          echo "Verifying wu_save_setting() is available:"
+          npx wp-env run tests-cli wp eval "var_dump(function_exists('wu_save_setting'));" || true
+
       - name: Comprehensive WordPress Debug
         run: |
           echo "=== WordPress Environment Debug ==="
@@ -144,6 +162,14 @@ jobs:
             --config-file cypress.config.test.js \
             --spec "tests/e2e/cypress/integration/000-setup.spec.js" \
             --browser ${{ matrix.browser }}
+
+      - name: Dump container logs on setup failure
+        if: failure() && steps.setup-test.outcome == 'failure'
+        run: |
+          echo "=== Container logs (last 100 lines) ==="
+          docker logs $(docker ps -q --filter "name=tests-wordpress") 2>&1 | tail -100 || echo "Could not get container logs"
+          echo "=== PHP error log ==="
+          npx wp-env run tests-cli cat /var/www/html/wp-content/debug.log 2>&1 | tail -100 || echo "No debug.log found"
 
       - name: Run Checkout Tests (After Setup)
         id: checkout-tests

@@ -2,8 +2,10 @@ describe("Ultimate Multisite Setup", () => {
 	before(() => {
 		// Disable custom login page if a previous wizard run enabled it,
 		// otherwise /wp-login.php redirects to /login/ and loginByForm breaks.
-		cy.wpCli(
-			'eval "if (function_exists(\'wu_save_setting\')) { wu_save_setting(\'enable_custom_login_page\', 0); }"',
+		// Uses failOnNonZeroExit: false because the plugin may not yet be
+		// network-activated at this point.
+		cy.wpCliFile(
+			"tests/e2e/cypress/fixtures/setup-disable-custom-login.php",
 			{ failOnNonZeroExit: false }
 		);
 
@@ -40,34 +42,32 @@ describe("Ultimate Multisite Setup", () => {
 	});
 
 	it("Should enable the manual gateway in Ultimate Multisite", () => {
-		cy.wpCli(
-			"eval \"wu_save_setting('active_gateways', ['manual']);\""
-		);
-
-		cy.wpCli(
-			"eval \"echo json_encode(wu_get_setting('active_gateways', []));\""
+		// Uses a fixture file to avoid shell-quoting issues through the
+		// npx -> wp-env -> docker exec -> wp eval chain.
+		cy.wpCliFile(
+			"tests/e2e/cypress/fixtures/setup-gateway.php"
 		).then((result) => {
-			expect(result.stdout).to.contain("manual");
+			expect(result.stdout).to.contain("gateway:manual");
 		});
 	});
 
 	it("Should disable email verification and enable sync site publish", () => {
-		cy.wpCli(
-			"eval \"wu_save_setting('enable_email_verification', 'never'); wu_save_setting('force_publish_sites_sync', true);\""
-		);
-
-		cy.wpCli(
-			"eval \"echo wu_get_setting('enable_email_verification', 'always');\""
+		// Uses a fixture file to avoid shell-quoting issues through the
+		// npx -> wp-env -> docker exec -> wp eval chain.
+		cy.wpCliFile(
+			"tests/e2e/cypress/fixtures/setup-email-settings.php"
 		).then((result) => {
-			expect(result.stdout).to.contain("never");
+			expect(result.stdout).to.contain("email_verification:never");
 		});
 	});
 
 	it("Should reset password strength to default", () => {
-		cy.wpCli(
-			"eval \"wu_save_setting('password_strength', 'strong'); echo wu_get_setting('password_strength', 'none');\""
+		// Uses a fixture file to avoid shell-quoting issues through the
+		// npx -> wp-env -> docker exec -> wp eval chain.
+		cy.wpCliFile(
+			"tests/e2e/cypress/fixtures/setup-password-strength.php"
 		).then((result) => {
-			expect(result.stdout).to.contain("strong");
+			expect(result.stdout).to.contain("password_strength:strong");
 		});
 	});
 });
