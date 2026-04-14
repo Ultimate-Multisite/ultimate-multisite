@@ -414,4 +414,87 @@ class Settings_Test extends WP_UnitTestCase {
 		$section = $this->settings->get_section('login-and-registration');
 		$this->assertArrayHasKey('minimum_password_strength', $section['fields']);
 	}
+
+	// ------------------------------------------------------------------
+	// default_role options — GH#865
+	// ------------------------------------------------------------------
+
+	/**
+	 * The default_role select must not include "Use Ultimate Multisite default"
+	 * (key 'default'). That option appears only when wu_get_roles_as_options()
+	 * is called with $add_default_option = true — which happened because the
+	 * string 'wu_get_roles_as_options' was passed as the options callback and
+	 * Field::__get() forwarded $this (truthy) as the first argument.
+	 */
+	public function test_default_role_options_do_not_include_wu_default_option() {
+		$section = $this->settings->get_section('login-and-registration');
+		$this->assertArrayHasKey('default_role', $section['fields']);
+
+		$options_callback = $section['fields']['default_role']['options'];
+		$this->assertIsCallable($options_callback);
+
+		$options = $options_callback();
+		$this->assertArrayNotHasKey('default', $options);
+	}
+
+	public function test_main_site_default_role_options_do_not_include_wu_default_option() {
+		$section = $this->settings->get_section('login-and-registration');
+		$this->assertArrayHasKey('main_site_default_role', $section['fields']);
+
+		$options_callback = $section['fields']['main_site_default_role']['options'];
+		$this->assertIsCallable($options_callback);
+
+		$options = $options_callback();
+		$this->assertArrayNotHasKey('default', $options);
+	}
+
+	public function test_default_role_options_include_administrator() {
+		$section          = $this->settings->get_section('login-and-registration');
+		$options_callback = $section['fields']['default_role']['options'];
+
+		$options = $options_callback();
+		$this->assertArrayHasKey('administrator', $options);
+	}
+
+	// ------------------------------------------------------------------
+	// get_all_with_defaults includes settings not yet saved to DB — GH#865
+	// ------------------------------------------------------------------
+
+	/**
+	 * When the DB has no saved settings (fresh install), get_all_with_defaults()
+	 * must still include registered fields with their computed defaults so the
+	 * Vue data-state on the settings page initialises correctly.
+	 */
+	public function test_get_all_with_defaults_includes_default_role_when_db_is_empty() {
+		// Simulate a fresh install with no saved settings.
+		wu_save_option(Settings::KEY, []);
+
+		$ref = new \ReflectionProperty(Settings::class, 'settings');
+		if (PHP_VERSION_ID < 80100) {
+			$ref->setAccessible(true);
+		}
+		$ref->setValue($this->settings, null);
+
+		$all = $this->settings->get_all_with_defaults();
+
+		$this->assertArrayHasKey('default_role', $all);
+		$this->assertEquals('administrator', $all['default_role']);
+	}
+
+	public function test_get_all_with_defaults_preserves_saved_values() {
+		// When a value IS saved in the DB it must be preserved.
+		$this->settings->save_setting('default_role', 'editor');
+
+		// Reset internal cache so get_all re-reads from option.
+		$ref = new \ReflectionProperty(Settings::class, 'settings');
+		if (PHP_VERSION_ID < 80100) {
+			$ref->setAccessible(true);
+		}
+		$ref->setValue($this->settings, null);
+
+		$all = $this->settings->get_all_with_defaults();
+
+		$this->assertArrayHasKey('default_role', $all);
+		$this->assertEquals('editor', $all['default_role']);
+	}
 }

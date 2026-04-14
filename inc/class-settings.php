@@ -176,7 +176,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			foreach ($section['fields'] ?? [] as $field_slug => $field_atts) {
 				if (is_callable($field_atts['value'])) {
 					$value = $field_atts['value']();
-					if (isset($all_settings[ $field_slug ]) && $value !== $all_settings[ $field_slug ]) {
+					if ( ! isset($all_settings[ $field_slug ]) || $value !== $all_settings[ $field_slug ]) {
 						$all_settings[ $field_slug ] = $value;
 					}
 				}
@@ -934,7 +934,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 				'desc'    => __('Set the role to be applied to the user during the signup process.', 'ultimate-multisite'),
 				'type'    => 'select',
 				'default' => 'administrator',
-				'options' => 'wu_get_roles_as_options',
+				'options' => fn() => wu_get_roles_as_options(),
 			]
 		);
 
@@ -957,7 +957,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 				'desc'    => __('Select the role Ultimate Multisite should use when adding the user to the main site of your network. Be careful.', 'ultimate-multisite'),
 				'type'    => 'select',
 				'default' => 'subscriber',
-				'options' => 'wu_get_roles_as_options',
+				'options' => fn() => wu_get_roles_as_options(),
 				'require' => [
 					'add_users_to_main_site' => 1,
 				],
