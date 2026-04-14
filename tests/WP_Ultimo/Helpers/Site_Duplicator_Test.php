@@ -603,15 +603,17 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 
 		$result = Site_Duplicator::duplicate_site($this->template_site_id, 'Action Test Site', $args);
 
-		if ( ! is_wp_error($result)) {
-			$this->assertIsArray($captured);
-			$this->assertArrayHasKey('from_site_id', $captured);
-			$this->assertArrayHasKey('site_id', $captured);
-			$this->assertEquals($this->template_site_id, $captured['from_site_id']);
-			$this->assertEquals($result, $captured['site_id']);
-
-			wpmu_delete_blog($result, true);
+		if (is_wp_error($result)) {
+			$this->fail('Site duplication failed: ' . $result->get_error_message());
 		}
+
+		$this->assertIsArray($captured);
+		$this->assertArrayHasKey('from_site_id', $captured);
+		$this->assertArrayHasKey('site_id', $captured);
+		$this->assertEquals($this->template_site_id, $captured['from_site_id']);
+		$this->assertEquals($result, $captured['site_id']);
+
+		wpmu_delete_blog($result, true);
 	}
 
 	/**
