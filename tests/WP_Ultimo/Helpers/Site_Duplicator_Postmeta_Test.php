@@ -955,7 +955,7 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 	private function verify_attachment_backfill() {
 		switch_to_blog($this->to_blog_id);
 		$this->assertEquals('2024/01/logo.png', get_post_meta($this->to_attachment_id, '_wp_attached_file', true));
-		$meta = unserialize(get_post_meta($this->to_attachment_id, '_wp_attachment_metadata', true));
+		$meta = get_post_meta($this->to_attachment_id, '_wp_attachment_metadata', true);
 		$this->assertIsArray($meta);
 		$this->assertEquals(200, $meta['width']);
 		$this->assertEquals('Site Logo', get_post_meta($this->to_attachment_id, '_wp_attachment_image_alt', true));
@@ -979,9 +979,7 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 			'header',
 			get_post_meta($this->from_elementor_post_id, '_elementor_template_type', true)
 		);
-		$settings = unserialize(
-			get_post_meta($this->from_elementor_post_id, '_elementor_page_settings', true)
-		);
+		$settings = get_post_meta($this->from_elementor_post_id, '_elementor_page_settings', true);
 		$this->assertIsArray($settings);
 		$this->assertEquals('header', $settings['template']);
 		restore_current_blog();
