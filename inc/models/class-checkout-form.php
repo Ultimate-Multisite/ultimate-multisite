@@ -609,6 +609,14 @@ class Checkout_Form extends Base_Model {
 						'display_url_preview' => true,
 					],
 					[
+						'step'                        => 'checkout',
+						'name'                        => __('Template Selection', 'ultimate-multisite'),
+						'type'                        => 'template_selection',
+						'id'                          => 'template_selection',
+						'template_selection_type'     => 'all',
+						'template_selection_template' => 'clean',
+					],
+					[
 						'step'                   => 'checkout',
 						'name'                   => __('Your Order', 'ultimate-multisite'),
 						'type'                   => 'order_summary',
@@ -820,6 +828,14 @@ class Checkout_Form extends Base_Model {
 						'tooltip'             => '',
 						'auto_generate'       => false,
 						'display_url_preview' => true,
+					],
+					[
+						'step'                        => 'checkout',
+						'name'                        => __('Template Selection', 'ultimate-multisite'),
+						'type'                        => 'template_selection',
+						'id'                          => 'template_selection',
+						'template_selection_type'     => 'all',
+						'template_selection_template' => 'clean',
 					],
 					[
 						'step' => 'site',
