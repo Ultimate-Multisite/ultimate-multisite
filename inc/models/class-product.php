@@ -1097,10 +1097,17 @@ class Product extends Base_Model implements Limitable {
 	/**
 	 * Checks if this plan is free or not.
 	 *
+	 * Pay What You Want products are never considered free, even when the
+	 * suggested and minimum amounts are zero — the customer decides the price.
+	 *
 	 * @since 2.0.0
 	 * @return boolean
 	 */
 	public function is_free() {
+
+		if ($this->is_pay_what_you_want()) {
+			return false;
+		}
 
 		return empty($this->get_amount()) && empty($this->get_initial_amount());
 	}
@@ -1634,7 +1641,7 @@ class Product extends Base_Model implements Limitable {
 			$this->set_slug(sanitize_title($this->name));
 		}
 
-		if ($this->is_free() && $this->get_pricing_type() !== 'contact_us') {
+		if ($this->is_free() && 'paid' === $this->get_pricing_type()) {
 			$this->set_pricing_type('free');
 		}
 
