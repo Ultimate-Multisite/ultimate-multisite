@@ -650,6 +650,7 @@ class Settings_Admin_Page extends Wizard_Admin_Page {
 		$this->handle_export();
 		$this->handle_import_redirect();
 		$this->handle_orphaned_delete_redirect();
+		$this->handle_integration_setup_redirect();
 		$this->register_forms();
 
 		parent::page_loaded();
@@ -941,6 +942,34 @@ class Settings_Admin_Page extends Wizard_Admin_Page {
 					esc_attr($notice_class),
 					esc_html($message)
 				);
+			}
+		);
+	}
+
+	/**
+	 * Display a success notice after completing the hosting integration wizard.
+	 *
+	 * Triggered when redirected back to the integrations settings tab
+	 * with ?integration-setup=1 in the URL.
+	 *
+	 * @since 2.0.0
+	 * @return void
+	 */
+	protected function handle_integration_setup_redirect() {
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! isset($_GET['integration-setup']) || 'integrations' !== wu_request('tab')) {
+			return;
+		}
+
+		add_action(
+			'wu_page_wizard_after_title',
+			function () {
+				?>
+			<div id="message" class="updated notice wu-admin-notice notice-success is-dismissible">
+				<p><?php esc_html_e('Integration successfully set up!', 'ultimate-multisite'); ?></p>
+			</div>
+				<?php
 			}
 		);
 	}

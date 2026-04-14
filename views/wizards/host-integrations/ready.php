@@ -26,7 +26,7 @@ defined('ABSPATH') || exit;
 
 	<span class="wu-float-right">
 
-	<a href="<?php echo esc_url(wu_network_admin_url('ultimate-multisite')); ?>" class="button button-primary button-large" data-testid="button-primary">
+	<a href="<?php echo esc_url(wu_network_admin_url('wp-ultimo-settings', ['tab' => 'integrations', 'integration-setup' => '1'])); ?>" class="button button-primary button-large" data-testid="button-primary">
 	<?php esc_html_e('Finish!', 'ultimate-multisite'); ?>
 	</a>
 
