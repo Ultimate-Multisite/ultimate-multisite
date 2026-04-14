@@ -216,13 +216,13 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 			],
 			'subdomain_recommendation' => [
 				'type' => 'note',
-				'desc' => '<div class="wu-bg-blue-50 wu-border wu-border-blue-200 wu-rounded-lg wu-p-4">
+				'desc' => '<div class="wu-bg-blue-100 wu-border wu-border-blue-500 wu-rounded-lg wu-p-4">
 					<div class="wu-flex">
 						<div class="wu-flex-shrink-0">
 							<span class="dashicons dashicons-info wu-text-blue-500"></span>
 						</div>
 						<div class="wu-ml-3">
-							<h4 class="wu-text-sm wu-font-medium wu-text-blue-800">' . esc_html__('Sub-domains are recommended for most businesses', 'multisite-ultimate') . '</h4>
+							<h4 class="wu-text-sm wu-font-medium wu-text-blue-700">' . esc_html__('Sub-domains are recommended for most businesses', 'multisite-ultimate') . '</h4>
 							<p class="wu-text-sm wu-text-blue-700 wu-mt-1">' . esc_html__('Sub-domains (e.g. site1.yourdomain.com) allow custom domain mapping and look more professional. Sub-directories (e.g. yourdomain.com/site1) are simpler to set up but cannot be changed later without rebuilding your network.', 'multisite-ultimate') . '</p>
 						</div>
 					</div>
@@ -319,28 +319,27 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 
 		if ('success' === $result || is_multisite()) :
 			?>
-			<div class="wu-bg-green-50 wu-border wu-border-green-200 wu-rounded-lg wu-p-4 wu-mb-6">
-				<div class="wu-flex">
-					<div class="wu-flex-shrink-0">
-						<span class="dashicons dashicons-yes-alt wu-text-green-500"></span>
-					</div>
-					<div class="wu-ml-3">
-						<h4 class="wu-text-sm wu-font-medium wu-text-green-800">
-							<?php esc_html_e('Success!', 'multisite-ultimate'); ?>
-						</h4>
-						<p class="wu-text-sm wu-text-green-700 wu-mt-1">
-							<?php esc_html_e('WordPress Multisite has been successfully enabled. You can now continue with the Multisite Ultimate setup.', 'multisite-ultimate'); ?>
-						</p>
-					</div>
+		<div class="wu-bg-green-100 wu-border wu-border-green-300 wu-rounded-lg wu-p-4 wu-mb-6">
+			<div class="wu-flex">
+				<div class="wu-flex-shrink-0">
+					<span class="dashicons dashicons-yes-alt wu-text-green-500"></span>
+				</div>
+				<div class="wu-ml-3">
+					<h4 class="wu-text-sm wu-font-medium wu-text-green-800">
+						<?php esc_html_e('Success!', 'multisite-ultimate'); ?>
+					</h4>
+					<p class="wu-text-sm wu-text-green-700 wu-mt-1">
+						<?php esc_html_e('WordPress Multisite has been successfully enabled. You can now continue with the Multisite Ultimate setup.', 'multisite-ultimate'); ?>
+					</p>
 				</div>
 			</div>
+		</div>
 
-			<div class="wu-flex wu-justify-center">
-				<a href="<?php echo esc_url(wu_network_admin_url('wp-ultimo-setup')); ?>" class="wu-inline-flex wu-items-center wu-px-6 wu-py-3 wu-border wu-border-transparent wu-text-base wu-font-medium wu-rounded-md wu-text-white wu-bg-blue-600 hover:wu-bg-blue-700 wu-transition-colors">
-					<?php esc_html_e('Continue to Multisite Ultimate Setup', 'multisite-ultimate'); ?>
-					<span class="dashicons dashicons-arrow-right-alt wu-ml-2"></span>
-				</a>
-			</div>
+		<div class="wu-flex wu-justify-center">
+			<a href="<?php echo esc_url(wu_network_admin_url('wp-ultimo-setup')); ?>" class="button button-primary button-large">
+				<?php esc_html_e('Continue to Multisite Ultimate Setup', 'multisite-ultimate'); ?>
+			</a>
+		</div>
 			<?php
 		else :
 			$this->display_manual_instructions();
@@ -425,9 +424,9 @@ RewriteRule . index.php [L]';
 				);
 				?>
 			</p>
-			<div class="wu-bg-gray-50 wu-border wu-border-gray-200 wu-rounded-lg wu-p-4 wu-mb-4">
-				<pre class="wu-text-sm wu-overflow-x-auto"><code class="wu-p-0"><?php echo esc_html($wp_config_constants); ?></code></pre>
-			</div>
+		<div class="wu-bg-gray-100 wu-border wu-border-gray-200 wu-rounded-lg wu-p-4 wu-mb-4">
+			<pre class="wu-text-sm wu-overflow-x-auto"><code class="wu-p-0"><?php echo esc_html($wp_config_constants); ?></code></pre>
+		</div>
 		</div>
 
 		<?php if (got_url_rewrite()) : ?>
@@ -438,19 +437,19 @@ RewriteRule . index.php [L]';
 			<p class="wu-text-gray-600 wu-mb-4">
 				<?php esc_html_e('Replace the existing WordPress rules in your .htaccess file with:', 'multisite-ultimate'); ?>
 			</p>
-			<div class="wu-bg-gray-50 wu-border wu-border-gray-200 wu-rounded-lg wu-p-4 wu-mb-4">
-				<pre class="wu-text-sm wu-overflow-x-auto"><code><?php echo esc_html($htaccess_rules); ?></code></pre>
-			</div>
+		<div class="wu-bg-gray-100 wu-border wu-border-gray-200 wu-rounded-lg wu-p-4 wu-mb-4">
+			<pre class="wu-text-sm wu-overflow-x-auto"><code><?php echo esc_html($htaccess_rules); ?></code></pre>
+		</div>
 		</div>
 		<?php endif; ?>
 
-		<div class="wu-bg-blue-50 wu-border wu-border-blue-200 wu-rounded-lg wu-p-4 wu-mb-6">
+		<div class="wu-bg-blue-100 wu-border wu-border-blue-500 wu-rounded-lg wu-p-4 wu-mb-6">
 			<div class="wu-flex">
 				<div class="wu-flex-shrink-0">
 					<span class="dashicons dashicons-info wu-text-blue-500"></span>
 				</div>
 				<div class="wu-ml-3">
-					<h4 class="wu-text-sm wu-font-medium wu-text-blue-800">
+					<h4 class="wu-text-sm wu-font-medium wu-text-blue-700">
 						<?php esc_html_e('Next Steps', 'multisite-ultimate'); ?>
 					</h4>
 					<p class="wu-text-sm wu-text-blue-700 wu-mt-1">
@@ -461,9 +460,8 @@ RewriteRule . index.php [L]';
 		</div>
 
 		<div class="wu-flex wu-justify-center">
-			<a href="<?php echo esc_url(admin_url('admin.php?page=wp-ultimo-multisite-setup&step=complete')); ?>" class="wu-inline-flex wu-items-center wu-px-4 wu-py-2 wu-border wu-border-transparent wu-text-sm wu-font-medium wu-rounded-md wu-text-white wu-bg-green-600 hover:wu-bg-green-700 wu-transition-colors">
+			<a href="<?php echo esc_url(admin_url('admin.php?page=wp-ultimo-multisite-setup&step=complete')); ?>" class="button button-primary button-large">
 				<?php esc_html_e('Refresh and Check Again', 'multisite-ultimate'); ?>
-				<span class="dashicons dashicons-update wu-ml-1"></span>
 			</a>
 		</div>
 		<?php

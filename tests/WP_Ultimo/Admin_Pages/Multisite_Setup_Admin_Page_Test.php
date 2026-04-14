@@ -659,6 +659,25 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 		$this->assertIsString($output);
 	}
 
+	/**
+	 * section_complete() button uses visible WP button classes, not missing Tailwind ones.
+	 *
+	 * wu-bg-blue-600 is not compiled into framework.css and caused the button to be
+	 * rendered with white text on a transparent/white background (invisible). The fix
+	 * replaces it with standard WP 'button-primary' classes which are always styled.
+	 */
+	public function test_section_complete_button_uses_wp_button_classes_not_missing_tailwind(): void {
+
+		// In test env is_multisite() is true, so the success branch renders.
+		ob_start();
+		$this->page->section_complete();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString('button-primary', $output, 'Continue button must use WP button-primary class');
+		$this->assertStringNotContainsString('wu-bg-blue-600', $output, 'wu-bg-blue-600 is not in framework.css and must not be used');
+		$this->assertStringNotContainsString('wu-bg-blue-700', $output, 'wu-bg-blue-700 is not in framework.css and must not be used');
+	}
+
 	// -------------------------------------------------------------------------
 	// display_manual_instructions() — via reflection
 	// -------------------------------------------------------------------------
@@ -711,6 +730,28 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString('wp-config.php', $output);
+	}
+
+	/**
+	 * display_manual_instructions() refresh button uses WP button classes, not missing Tailwind ones.
+	 *
+	 * wu-bg-green-600 is not compiled into framework.css, causing the "Refresh and
+	 * Check Again" button to be invisible (white text on transparent background).
+	 * The fix replaces it with standard WP 'button-primary' classes.
+	 */
+	public function test_display_manual_instructions_button_uses_wp_button_classes(): void {
+
+		$reflection = new \ReflectionClass($this->page);
+		$method     = $reflection->getMethod('display_manual_instructions');
+		$method->setAccessible(true);
+
+		ob_start();
+		$method->invoke($this->page);
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString('button-primary', $output, 'Refresh button must use WP button-primary class');
+		$this->assertStringNotContainsString('wu-bg-green-600', $output, 'wu-bg-green-600 is not in framework.css and must not be used');
+		$this->assertStringNotContainsString('wu-bg-green-700', $output, 'wu-bg-green-700 is not in framework.css and must not be used');
 	}
 
 	// -------------------------------------------------------------------------
