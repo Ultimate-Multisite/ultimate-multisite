@@ -261,12 +261,20 @@ class Site_Duplicator {
 		 * customer's real choice in the wu_template_id site meta key.
 		 * Prefer that over the explicit param when available.
 		 *
+		 * Intentionally kept in a separate variable: copy_data() and
+		 * copy_files() have already run with $args->from_site_id. Mutating
+		 * that property would cause copy_users() and downstream callers to
+		 * reference a different source than the one whose data was copied,
+		 * creating an inconsistent clone. Use $template_site_id only for the
+		 * post-copy backfill, integrity check, and action payload.
+		 *
 		 * @since 2.3.1
 		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
 		 */
-		$meta_template = (int) get_site_meta($args->to_site_id, 'wu_template_id', true);
-		if ($meta_template > 0 && $meta_template !== (int) $args->from_site_id) {
-			$args->from_site_id = $meta_template;
+		$template_site_id = (int) $args->from_site_id;
+		$meta_template    = (int) get_site_meta($args->to_site_id, 'wu_template_id', true);
+		if (0 < $meta_template && $meta_template !== (int) $args->from_site_id) {
+			$template_site_id = $meta_template;
 		}
 
 		/*
@@ -281,7 +289,19 @@ class Site_Duplicator {
 		 * @since 2.3.1
 		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
 		 */
-		self::backfill_postmeta($args->from_site_id, $args->to_site_id);
+		self::backfill_postmeta($template_site_id, $args->to_site_id);
+
+		/*
+		 * Rewrite source URLs to target URLs in backfilled postmeta rows.
+		 *
+		 * backfill_postmeta() inserts rows after MUCD_Data::copy_data() has
+		 * already run its source→target URL replacement pass, so those rows
+		 * contain raw template URLs. Apply the same replacement here.
+		 *
+		 * @since 2.3.2
+		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/834
+		 */
+		self::rewrite_backfilled_postmeta_urls($template_site_id, $args->to_site_id);
 
 		/*
 		 * Verify Kit integrity after backfill.
@@ -293,7 +313,7 @@ class Site_Duplicator {
 		 * @since 2.3.1
 		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
 		 */
-		self::verify_kit_integrity($args->from_site_id, $args->to_site_id);
+		self::verify_kit_integrity($template_site_id, $args->to_site_id);
 
 		if ($args->keep_users) {
 			\MUCD_Duplicate::copy_users($args->from_site_id, $args->to_site_id);
@@ -316,7 +336,7 @@ class Site_Duplicator {
 		do_action(
 			'wu_duplicate_site',
 			[
-				'from_site_id' => $args->from_site_id,
+				'from_site_id' => $template_site_id,
 				'site_id'      => $args->to_site_id,
 			]
 		);
@@ -382,6 +402,76 @@ class Site_Duplicator {
 		self::backfill_attachment_postmeta($from_site_id, $to_site_id);
 		self::backfill_elementor_postmeta($from_site_id, $to_site_id);
 		self::backfill_kit_settings($from_site_id, $to_site_id);
+	}
+
+	/**
+	 * Rewrite source-site URLs to target-site URLs in backfilled postmeta rows.
+	 *
+	 * backfill_postmeta() inserts rows after MUCD_Data::copy_data() has already
+	 * run its source→target URL replacement pass (db_update_data()), so those
+	 * rows contain raw template-site URLs. This method applies the same URL
+	 * substitution to the target's postmeta table, correcting any template
+	 * references left by the backfill (e.g. _menu_item_url custom links,
+	 * _elementor_* JSON containing the template domain).
+	 *
+	 * Safe to run after MUCD has already rewritten the copied rows: those rows
+	 * no longer contain the source URL, so REPLACE() is a no-op for them.
+	 *
+	 * @since 2.3.2
+	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/834
+	 *
+	 * @param int $from_site_id Source (template) blog ID.
+	 * @param int $to_site_id   Target (cloned) blog ID.
+	 */
+	protected static function rewrite_backfilled_postmeta_urls($from_site_id, $to_site_id) {
+
+		global $wpdb;
+
+		$from_site_id = (int) $from_site_id;
+		$to_site_id   = (int) $to_site_id;
+
+		if ( ! $from_site_id || ! $to_site_id || $from_site_id === $to_site_id) {
+			return;
+		}
+
+		$from_blog_url = get_blog_option($from_site_id, 'siteurl');
+		$to_blog_url   = get_blog_option($to_site_id, 'siteurl');
+
+		$from_clean = wu_replace_scheme((string) $from_blog_url);
+		$to_clean   = wu_replace_scheme((string) $to_blog_url);
+
+		if ($from_clean === $to_clean) {
+			return;
+		}
+
+		$to_prefix = $wpdb->get_blog_prefix($to_site_id);
+
+		/*
+		 * Mirror MUCD's two-pass approach: plain URL replacement and a
+		 * JSON-escaped variant (forward slashes encoded as \/).
+		 */
+		$replacements = [
+			$from_clean                          => $to_clean,
+			str_replace('/', '\\/', $from_clean) => str_replace('/', '\\/', $to_clean),
+		];
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ($replacements as $from => $to) {
+
+			if ($from === $to) {
+				continue;
+			}
+
+			$wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$to_prefix}postmeta SET meta_value = REPLACE(meta_value, %s, %s) WHERE meta_value LIKE %s",
+					$from,
+					$to,
+					'%' . $wpdb->esc_like($from) . '%'
+				)
+			);
+		}
+		// phpcs:enable
 	}
 
 	/**

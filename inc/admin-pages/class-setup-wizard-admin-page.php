@@ -143,6 +143,45 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 		add_filter('wu_handle_ajax_installers', [Migrator::get_instance(), 'handle'], 10, 3);
 
 		add_action('admin_init', [$this, 'alert_incomplete_installation']);
+
+		/*
+		 * Handle network activation of Ultimate Multisite via AJAX.
+		 */
+		add_action('wp_ajax_wu_setup_network_activate', [$this, 'ajax_network_activate']);
+	}
+
+	/**
+	 * Handles the AJAX request to network-activate Ultimate Multisite.
+	 *
+	 * Attempts to network-activate the plugin, returning a JSON response.
+	 * On success the caller should reload the page so the checks refresh.
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	public function ajax_network_activate(): void {
+
+		check_ajax_referer('wu_setup_network_activate', 'nonce');
+
+		if ( ! current_user_can('manage_network')) {
+			wp_send_json_error(new \WP_Error('not-allowed', __('Permission denied.', 'ultimate-multisite')));
+
+			exit;
+		}
+
+		if ( ! function_exists('activate_plugin')) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		$result = activate_plugin(WP_ULTIMO_PLUGIN_BASENAME, '', true);
+
+		if (is_wp_error($result)) {
+			wp_send_json_error($result);
+
+			exit;
+		}
+
+		wp_send_json_success();
 	}
 
 	/**
@@ -628,6 +667,10 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 			],
 		];
 
+		$is_network_active = Requirements::is_network_active();
+
+		$can_network_activate = ! $is_network_active && current_user_can('manage_network');
+
 		$plugin_requirements = [
 			'multisite' => [
 				'name'              => __('WordPress Multisite', 'ultimate-multisite'),
@@ -636,10 +679,12 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 				'pass_requirements' => is_multisite(),
 			],
 			'wp-ultimo' => [
-				'name'              => __('Ultimate Multisite', 'ultimate-multisite'),
-				'help'              => wu_get_documentation_url('wp-ultimo-requirements'),
-				'condition'         => apply_filters('wp_ultimo_skip_network_active_check', false) ? __('Bypassed via filter', 'ultimate-multisite') : __('Network Activated', 'ultimate-multisite'),
-				'pass_requirements' => Requirements::is_network_active(),
+				'name'                   => __('Ultimate Multisite', 'ultimate-multisite'),
+				'help'                   => wu_get_documentation_url('wp-ultimo-requirements'),
+				'condition'              => apply_filters('wp_ultimo_skip_network_active_check', false) ? __('Bypassed via filter', 'ultimate-multisite') : __('Network Activated', 'ultimate-multisite'),
+				'pass_requirements'      => $is_network_active,
+				'can_activate'           => $can_network_activate,
+				'network_activate_nonce' => $can_network_activate ? wp_create_nonce('wu_setup_network_activate') : '',
 			],
 			'wp-cron'   => [
 				'name'              => __('WordPress Cron', 'ultimate-multisite'),
@@ -654,6 +699,7 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 			[
 				'requirements'        => $requirements,
 				'plugin_requirements' => $plugin_requirements,
+				'has_activate_button' => $can_network_activate,
 			]
 		);
 	}

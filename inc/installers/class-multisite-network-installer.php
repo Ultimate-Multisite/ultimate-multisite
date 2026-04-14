@@ -256,27 +256,73 @@ class Multisite_Network_Installer extends Base_Installer {
 	}
 
 	/**
-	 * Step 5: Network-activate Ultimate Multisite.
+	 * Step 4: Network-activate Ultimate Multisite.
 	 *
-	 * Writes directly to the sitemeta table because multisite
-	 * is not yet active in the current PHP process.
+	 * Writes directly to the sitemeta table because the MULTISITE constant
+	 * was written to wp-config.php only in the previous step
+	 * (_install_update_wp_config) and may not yet be reflected in the current
+	 * PHP process when OPcache or another bytecode cache is active. Using
+	 * activate_plugin() would silently fall back to single-site activation
+	 * when is_multisite() returns false. Bypassing it and writing directly to
+	 * sitemeta guarantees network-wide activation regardless of whether
+	 * multisite constants are loaded in this process.
 	 *
 	 * @since 2.0.0
-	 * @throws \Exception When the activation fails.
+	 * @throws \Exception When the sitemeta write fails.
 	 * @return void
 	 */
 	public function _install_network_activate(): void { // phpcs:ignore PSR2.Methods.MethodDeclaration.Underscore
-		// If already active, succeed early.
-		if (is_plugin_active(WP_ULTIMO_PLUGIN_FILE)) {
+
+		global $wpdb;
+
+		$sitemeta_table = $wpdb->base_prefix . 'sitemeta';
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$existing = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT meta_id, meta_value FROM {$sitemeta_table} WHERE meta_key = %s AND site_id = %d",
+				'active_sitewide_plugins',
+				1
+			)
+		);
+		// phpcs:enable
+
+		$active_plugins = ($existing && $existing->meta_value) ? maybe_unserialize($existing->meta_value) : [];
+
+		if ( ! is_array($active_plugins)) {
+			$active_plugins = [];
+		}
+
+		// Already network-activated — nothing to do.
+		if (isset($active_plugins[ WP_ULTIMO_PLUGIN_BASENAME ])) {
 			return;
 		}
 
-		// Activate the plugin.
-		$result = activate_plugin(WP_ULTIMO_PLUGIN_FILE, '', true);
+		$active_plugins[ WP_ULTIMO_PLUGIN_BASENAME ] = time();
 
-		if (is_wp_error($result)) {
-			// translators: %s full error message.
-			throw new \Exception(sprintf(esc_html__('Failed to network-activate Ultimate Multisite: %s', 'ultimate-multisite'), esc_html($result->get_error_message())));
+		$serialized = serialize($active_plugins);
+
+		if ($existing) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+			$result = $wpdb->update(
+				$sitemeta_table,
+				['meta_value' => $serialized], // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+				['meta_id' => $existing->meta_id]
+			);
+		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+			$result = $wpdb->insert(
+				$sitemeta_table,
+				[
+					'site_id'    => 1,
+					'meta_key'   => 'active_sitewide_plugins', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+					'meta_value' => $serialized, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+				]
+			);
+		}
+
+		if (false === $result) {
+			throw new \Exception(esc_html__('Failed to network-activate Ultimate Multisite: could not write to the sitemeta table.', 'ultimate-multisite'));
 		}
 	}
 }
