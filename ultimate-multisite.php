@@ -108,6 +108,13 @@ try {
 
 require_once __DIR__ . '/vendor/woocommerce/action-scheduler/action-scheduler.php';
 
+// Ensure the Hooks class is always available, even when the Jetpack autoloader is
+// skipped because sunrise.php pre-loaded BerlinDB dependencies via require_once.
+// The class_exists check with autoload=false guards against double-loading.
+if ( ! class_exists( 'WP_Ultimo\\Hooks', false ) ) {
+	require_once __DIR__ . '/inc/class-hooks.php';
+}
+
 /**
  * Setup activation/deactivation hooks
  */
