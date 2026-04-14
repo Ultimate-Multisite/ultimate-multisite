@@ -470,7 +470,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 								'type'            => 'number',
 								'value'           => $this->get_object()->get_duration(),
 								'placeholder'     => '',
-								'wrapper_classes' => 'wu-mx-2 wu-w-1/3',
+								'wrapper_classes' => 'wu-ml-2 wu-w-1/3',
 								'min'             => 0,
 								'html_attr'       => [
 									'v-model' => 'duration',
@@ -861,7 +861,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 							'type'            => 'select',
 							'title'           => __('Period', 'ultimate-multisite'),
 							'placeholder'     => '',
-							'wrapper_classes' => 'wu-w-1/3 wu-mx-2',
+							'wrapper_classes' => 'wu-w-1/3 wu-ml-2',
 							'html_attr'       => [
 								'v-model'     => 'price_variation.duration_unit',
 								'v-bind:name' => '"price_variations[" + index + "][duration_unit]"',

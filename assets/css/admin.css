@@ -1955,6 +1955,20 @@ body.wu-page-wp-ultimo-settings .selectize-control.single .selectize-input::afte
   max-height: calc(100vh - 480px);
 }
 
+/*
+ * Number inputs with browser-native spinner arrows (up/down buttons) should
+ * not carry the extra right padding that WP admin (forms.css) applies to all
+ * text-type inputs (padding: 0 12px). The spinner occupies the right edge of
+ * the element, and the extra 12px of right padding makes it visually crowd or
+ * obscure adjacent fields in flex-group layouts (e.g. duration + duration_unit
+ * on the product edit page). Removing right padding lets the spinner sit flush
+ * at the right border without stealing horizontal space from neighbouring
+ * elements. (GH#829)
+ */
+.wu-styling input[type="number"] {
+  padding-right: 0;
+}
+
 .flatpickr-calendar {
   background: transparent;
   opacity: 0;
