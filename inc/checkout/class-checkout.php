@@ -1963,12 +1963,23 @@ class Checkout {
 		/*
 		 * Get the default gateway.
 		 *
-		 * Only pre-select when there is exactly one active gateway so
-		 * the user is not surprised by branded buttons (e.g. PayPal)
-		 * before they have made a choice.
+		 * Preserve any previously saved gateway from the signup session
+		 * so multi-step redirects don't lose the user's earlier choice.
+		 * When no saved gateway is present, only pre-select when there is
+		 * exactly one active gateway AND the cart requires payment — paid
+		 * gateways must never be seeded for free checkouts.
 		 */
 		$active_gateways = array_keys(wu_get_active_gateway_as_options());
-		$default_gateway = count($active_gateways) === 1 ? current($active_gateways) : '';
+		$saved_gateway   = $this->request_or_session('gateway', '');
+		$default_gateway = '';
+
+		if ($this->should_collect_payment()) {
+			if ($saved_gateway && in_array($saved_gateway, $active_gateways, true)) {
+				$default_gateway = $saved_gateway;
+			} elseif (1 === count($active_gateways)) {
+				$default_gateway = current($active_gateways);
+			}
+		}
 
 		$d = wu_get_site_domain_and_path('replace');
 
