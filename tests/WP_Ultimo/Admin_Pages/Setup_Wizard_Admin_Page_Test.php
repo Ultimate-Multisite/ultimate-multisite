@@ -41,6 +41,7 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 			$_REQUEST['installer'],
 			$_REQUEST['dry-run'],
 			$_REQUEST['step'],
+			$_REQUEST['nonce'],
 			$_GET['action'],
 			$_GET['nonce'],
 			$_GET['_wpnonce']
@@ -443,4 +444,24 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 			has_action('admin_init', [$this->page, 'alert_incomplete_installation'])
 		);
 	}
+
+	public function test_constructor_registers_network_activate_ajax_action(): void {
+		$this->assertGreaterThan(
+			0,
+			has_action('wp_ajax_wu_setup_network_activate', [$this->page, 'ajax_network_activate'])
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// ajax_network_activate() — permission guard
+	// -------------------------------------------------------------------------
+
+	public function test_ajax_network_activate_sends_json_error_without_permission(): void {
+		// Provide a valid nonce so the nonce check passes, isolating the permission check.
+		$_REQUEST['nonce'] = wp_create_nonce('wu_setup_network_activate');
+		wp_set_current_user(0);
+		$this->expectException(\WPAjaxDieStopException::class);
+		$this->page->ajax_network_activate();
+	}
+
 }
