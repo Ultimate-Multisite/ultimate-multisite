@@ -974,6 +974,16 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 
 		wp_enqueue_script('wu-setup-wizard-extra', wu_get_asset('setup-wizard-extra.js', 'js'), ['jquery', 'wu-fields', 'wu-functions', 'wubox'], wu_get_version(), true);
 
+		wp_enqueue_script('wu-network-activate', wu_get_asset('network-activate.js', 'js'), ['jquery'], wu_get_version(), true);
+
+		wp_localize_script(
+			'wu-network-activate',
+			'wu_network_activate',
+			[
+				'error_message' => __('Activation failed. Please activate the plugin manually.', 'ultimate-multisite'),
+			]
+		);
+
 		wp_enqueue_media();
 
 		wp_register_script('wu-setup-wizard', wu_get_asset('setup-wizard.js', 'js'), ['jquery'], wu_get_version(), true);
