@@ -99,7 +99,14 @@ class Base_Installer {
 			return new \WP_Error($installer, $e->getMessage());
 		}
 
-		$wpdb->query('COMMIT'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$committed = $wpdb->query('COMMIT'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		if (false === $committed) {
+			$error_msg = $wpdb->last_error ?: __('Transaction commit failed.', 'ultimate-multisite');
+			wu_log_add(\WP_Ultimo::LOG_HANDLE, "Installer '{$installer}' commit failed: {$error_msg}", LogLevel::ERROR);
+
+			return new \WP_Error($installer, $error_msg);
+		}
 
 		return $status;
 	}

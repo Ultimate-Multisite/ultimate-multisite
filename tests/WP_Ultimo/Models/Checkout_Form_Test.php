@@ -3034,4 +3034,65 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 		$this->assertContains('email', $field_types);
 		$this->assertContains('password', $field_types);
 	}
+
+	/**
+	 * Test single-step template includes a template_selection field showing all templates.
+	 */
+	public function test_single_step_template_contains_template_selection_field(): void {
+		$checkout_form = new Checkout_Form();
+
+		$checkout_form->use_template('single-step');
+		$settings = $checkout_form->get_settings();
+
+		$field_types = array_column($settings[0]['fields'], 'type');
+		$this->assertContains('template_selection', $field_types, 'Single-step template must include a template_selection field');
+
+		// Locate the field and verify it is configured to show all templates.
+		$template_field = null;
+		foreach ($settings[0]['fields'] as $field) {
+			if ('template_selection' === $field['type']) {
+				$template_field = $field;
+				break;
+			}
+		}
+
+		$this->assertNotNull($template_field, 'template_selection field must be present');
+		$this->assertEquals('all', $template_field['template_selection_type'], 'template_selection_type must be "all"');
+	}
+
+	/**
+	 * Test multi-step template includes a template_selection field in the site step showing all templates.
+	 */
+	public function test_multi_step_template_site_step_contains_template_selection_field(): void {
+		$checkout_form = new Checkout_Form();
+
+		$checkout_form->use_template('multi-step');
+		$settings = $checkout_form->get_settings();
+
+		// Find the 'site' step.
+		$site_step = null;
+		foreach ($settings as $step) {
+			if ('site' === $step['id']) {
+				$site_step = $step;
+				break;
+			}
+		}
+
+		$this->assertNotNull($site_step, 'Multi-step template must have a "site" step');
+
+		$field_types = array_column($site_step['fields'], 'type');
+		$this->assertContains('template_selection', $field_types, 'Multi-step "site" step must include a template_selection field');
+
+		// Locate the field and verify it is configured to show all templates.
+		$template_field = null;
+		foreach ($site_step['fields'] as $field) {
+			if ('template_selection' === $field['type']) {
+				$template_field = $field;
+				break;
+			}
+		}
+
+		$this->assertNotNull($template_field, 'template_selection field must be present in the site step');
+		$this->assertEquals('all', $template_field['template_selection_type'], 'template_selection_type must be "all"');
+	}
 }
