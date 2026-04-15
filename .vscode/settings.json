@@ -1,4 +1,8 @@
 {
+  "intelephense.environment.includePaths": [
+    "../wordpress"
+  ],
+  "intelephense.environment.phpVersion": "7.4",
   "intelephense.stubs": [
     "apache",
     "bcmath",
@@ -56,15 +60,11 @@
     "superglobals",
     "tidy",
     "tokenizer",
-    "wordpress",
     "xml",
     "xmlreader",
     "xmlwriter",
     "xsl",
     "zip",
     "zlib"
-  ],
-  "intelephense.environment.includePaths": [
-    "vendor/php-stubs/wordpress-stubs"
   ]
 }
