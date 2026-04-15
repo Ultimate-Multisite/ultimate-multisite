@@ -47,6 +47,8 @@ This plugin was formerly known as WP Ultimo and is now community maintained.
 
 ## 🔧 Installation
 
+> **Important:** Do not use GitHub's green **"Code → Download ZIP"** button on this page. That archive is the raw source code and is missing the compiled dependencies — installing it will produce errors such as `Failed opening required .../vendor/autoload_packages.php`. Always download from the [**Releases page**](https://github.com/Multisite-Ultimate/ultimate-multisite/releases) instead.
+
 There are two recommended ways to install Ultimate Multisite:
 
 ### Method 1: Using the pre-packaged release (Recommended)

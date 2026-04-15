@@ -89,7 +89,7 @@ try {
 	if ( defined('WP_DEBUG') && WP_DEBUG ) {
 		// This message is not translated as at this point it's too early to load translations.
 		error_log(  // phpcs:ignore
-			esc_html('Your installation of Ultimate Multisite is incomplete. If you installed Ultimate Multisite from GitHub, please refer to this document to set up your development environment: https://github.com/superdav42/wp-multisite-waas?tab=readme-ov-file#method-2-using-git-and-composer-for-developers')
+			esc_html('Your installation of Ultimate Multisite is incomplete. You may have downloaded the source code ZIP from GitHub instead of the pre-packaged release. Please download the latest release from https://github.com/Ultimate-Multisite/ultimate-multisite/releases or run composer install in the plugin directory.')
 		);
 	}
 	add_action(
@@ -98,11 +98,16 @@ try {
 			?>
 			<div class="notice notice-error">
 				<p>
+					<strong><?php esc_html_e( 'Ultimate Multisite: Incomplete installation detected.', 'ultimate-multisite' ); ?></strong>
+				</p>
+				<p>
 					<?php
 					printf(
-					/* translators: 1: is a link to a support document. 2: closing link */
-						esc_html__('Your installation of Ultimate Multisite is incomplete. If you installed from GitHub, %1$splease refer to this document%2$s to set up your development environment or download a pre-packaged ZIP release.', 'ultimate-multisite'),
-						'<a href="' . esc_url('https://github.com/superdav42/wp-multisite-waas?tab=readme-ov-file#method-2-using-git-and-composer-for-developers') . '" target="_blank" rel="noopener noreferrer">',
+						/* translators: 1: opening anchor tag linking to the Releases page. 2: closing anchor tag. 3: opening anchor tag linking to developer setup docs. 4: closing anchor tag. */
+						esc_html__( 'The required vendor files are missing. This usually means the source code ZIP was downloaded from GitHub instead of the pre-packaged release. %1$sDownload the latest release ZIP%2$s and upload it via Plugins > Add New > Upload Plugin. If you are a developer, %3$sset up the development environment%4$s by running composer install.', 'ultimate-multisite' ),
+						'<a href="' . esc_url( 'https://github.com/Ultimate-Multisite/ultimate-multisite/releases' ) . '" target="_blank" rel="noopener noreferrer">',
+						'</a>',
+						'<a href="' . esc_url( 'https://github.com/Ultimate-Multisite/ultimate-multisite?tab=readme-ov-file#method-2-using-git-and-composer-for-developers' ) . '" target="_blank" rel="noopener noreferrer">',
 						'</a>'
 					);
 					?>
