@@ -484,6 +484,17 @@ RewriteRule . index.php [L]';
 		$installer                   = wu_request('installer', '');
 		$multisite_network_installer = Multisite_Network_Installer::get_instance();
 		$steps                       = $multisite_network_installer->get_steps();
+
+		/*
+		 * Only handle installers that belong to the multisite network installer.
+		 * Unknown step names fall through to the next wp_ajax handler (priority 10)
+		 * which handles Core_Installer, Default_Content_Installer, etc.
+		 *
+		 * IMPORTANT: this must use `return` (not exit) so the Setup_Wizard_Admin_Page
+		 * handler can process its own steps. But we must NOT let a known multisite
+		 * step silently pass through — if handle() returns a non-WP_Error the step
+		 * genuinely succeeded; only unknown steps should fall through.
+		 */
 		if ( ! isset($steps[ $installer ])) {
 			return;
 		}
@@ -492,6 +503,8 @@ RewriteRule . index.php [L]';
 
 		if (is_wp_error($status)) {
 			wp_send_json_error($status);
+
+			exit;
 		}
 
 		wp_send_json_success();

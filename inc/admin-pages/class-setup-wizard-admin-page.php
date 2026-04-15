@@ -153,8 +153,11 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 	/**
 	 * Handles the AJAX request to network-activate Ultimate Multisite.
 	 *
-	 * Attempts to network-activate the plugin, returning a JSON response.
-	 * On success the caller should reload the page so the checks refresh.
+	 * Writes directly to the sitemeta table instead of using activate_plugin()
+	 * because is_multisite() may return false when OPcache serves a stale
+	 * wp-config.php. activate_plugin() silently falls back to single-site
+	 * activation in that case. The direct sitemeta write guarantees reliable
+	 * network activation regardless of bytecode caching state.
 	 *
 	 * @since 2.3.0
 	 * @return void
@@ -169,14 +172,10 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 			exit;
 		}
 
-		if ( ! function_exists('activate_plugin')) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		}
-
-		$result = activate_plugin(WP_ULTIMO_PLUGIN_BASENAME, '', true);
-
-		if (is_wp_error($result)) {
-			wp_send_json_error($result);
+		try {
+			Multisite_Network_Installer::get_instance()->_install_network_activate();
+		} catch (\Throwable $e) {
+			wp_send_json_error(new \WP_Error('activation-failed', $e->getMessage()));
 
 			exit;
 		}
