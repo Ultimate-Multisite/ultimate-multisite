@@ -47,9 +47,22 @@ This plugin was formerly known as WP Ultimo and is now community maintained.
 
 ## 🔧 Installation
 
-There are two recommended ways to install Ultimate Multisite:
+> **Important:** Do not use GitHub's green **"Code → Download ZIP"** button on this page. That archive is the raw source code and is missing the compiled dependencies — installing it will produce errors such as `Failed opening required .../vendor/autoload_packages.php`. Always download from the [**Releases page**](https://github.com/Multisite-Ultimate/ultimate-multisite/releases) instead.
 
-### Method 1: Using the pre-packaged release (Recommended)
+There are three ways to install Ultimate Multisite:
+
+### Method 1: From the WordPress Plugin Directory (Recommended)
+
+1. Log in to your WordPress Network Admin dashboard
+2. Navigate to **Plugins > Add New**
+3. Search for **"Ultimate Multisite"**
+4. Click **"Install Now"** on the Ultimate Multisite plugin
+5. Network Activate the plugin through the 'Plugins' menu
+6. Follow the step-by-step Wizard to set the plugin up
+
+You can also browse the plugin listing at [wordpress.org/plugins/ultimate-multisite](https://wordpress.org/plugins/ultimate-multisite/).
+
+### Method 2: Using the pre-packaged release from GitHub
 
 1. Download the latest release ZIP from the [Releases page](https://github.com/Multisite-Ultimate/ultimate-multisite/releases)
 2. Log in to your WordPress Network Admin dashboard
@@ -58,7 +71,7 @@ There are two recommended ways to install Ultimate Multisite:
 5. Network Activate the plugin through the 'Plugins' menu in WordPress
 6. Follow the step-by-step Wizard to set the plugin up
 
-### Method 2: Using Git and Composer (For developers)
+### Method 3: Using Git and Composer (For developers)
 
 This method requires command-line access to your server and familiarity with Git and Composer.
 
