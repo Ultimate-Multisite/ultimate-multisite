@@ -453,12 +453,12 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	// -------------------------------------------------------------------------
-	// ajax_network_activate() — permission guard
+	// ajax_network_activate() — permission guard (checked before nonce)
 	// -------------------------------------------------------------------------
 
 	public function test_ajax_network_activate_sends_json_error_without_permission(): void {
-		// Provide a valid nonce so the nonce check passes, isolating the permission check.
-		$_REQUEST['nonce'] = wp_create_nonce('wu_setup_network_activate');
+		// Capability check fires before nonce check, so no nonce needed to
+		// isolate this path — an unauthenticated user is rejected immediately.
 		wp_set_current_user(0);
 		$this->expectException(\WPAjaxDieStopException::class);
 		$this->page->ajax_network_activate();

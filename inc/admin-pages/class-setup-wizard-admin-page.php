@@ -161,10 +161,14 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 	 */
 	public function ajax_network_activate(): void {
 
-		check_ajax_referer('wu_setup_network_activate', 'nonce');
-
 		if ( ! current_user_can('manage_network')) {
 			wp_send_json_error(new \WP_Error('not-allowed', __('Permission denied.', 'ultimate-multisite')));
+
+			exit;
+		}
+
+		if ( ! check_ajax_referer('wu_setup_network_activate', false, false)) {
+			wp_send_json_error(new \WP_Error('bad-nonce', __('Security check failed. Please reload the page and try again.', 'ultimate-multisite')));
 
 			exit;
 		}
@@ -973,6 +977,16 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 		}
 
 		wp_enqueue_script('wu-setup-wizard-extra', wu_get_asset('setup-wizard-extra.js', 'js'), ['jquery', 'wu-fields', 'wu-functions', 'wubox'], wu_get_version(), true);
+
+		wp_enqueue_script('wu-network-activate', wu_get_asset('network-activate.js', 'js'), ['jquery'], wu_get_version(), true);
+
+		wp_localize_script(
+			'wu-network-activate',
+			'wu_network_activate',
+			[
+				'error_message' => __('Activation failed. Please activate the plugin manually.', 'ultimate-multisite'),
+			]
+		);
 
 		wp_enqueue_media();
 
