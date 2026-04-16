@@ -147,6 +147,7 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 				'description'  => __('Setting up your WordPress Multisite network...', 'multisite-ultimate'),
 				'next_label'   => Core_Installer::get_instance()->all_done() ? __('Begin Ultimate Multisite Setup &rarr;', 'ultimate-multisite') : __('Install', 'ultimate-multisite'),
 				'disable_next' => true,
+				'handler'      => [$this, 'handle_install_complete'],
 				'back'         => false,
 				'fields'       => [
 					'terms' => [
@@ -304,6 +305,27 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 		);
 
 		wp_safe_redirect($this->get_next_section_link());
+		exit;
+	}
+
+	/**
+	 * Handles the install step form submission.
+	 *
+	 * The JS auto-submits the form after all AJAX installation steps succeed.
+	 * This handler redirects to the complete step with result=success so
+	 * that section_complete() can show the success banner immediately,
+	 * even when is_multisite() returns false because OPcache is serving
+	 * a stale wp-config.php that doesn't yet have the MULTISITE constant.
+	 *
+	 * @since 2.6.1
+	 * @return void
+	 */
+	public function handle_install_complete(): void {
+
+		$next_url = add_query_arg('result', 'success', $this->get_next_section_link());
+
+		wp_safe_redirect($next_url);
+
 		exit;
 	}
 
