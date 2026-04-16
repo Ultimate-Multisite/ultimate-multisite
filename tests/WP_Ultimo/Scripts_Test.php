@@ -250,8 +250,8 @@ class Scripts_Test extends WP_UnitTestCase {
 
 		$this->assertNotFalse(has_action('init', [$this->scripts, 'register_default_scripts']));
 		$this->assertNotFalse(has_action('init', [$this->scripts, 'register_default_styles']));
-		$this->assertNotFalse(has_action('admin_init', [$this->scripts, 'enqueue_default_admin_styles']));
-		$this->assertNotFalse(has_action('admin_init', [$this->scripts, 'enqueue_default_admin_scripts']));
+		$this->assertNotFalse(has_action('admin_enqueue_scripts', [$this->scripts, 'enqueue_default_admin_styles']));
+		$this->assertNotFalse(has_action('admin_enqueue_scripts', [$this->scripts, 'enqueue_default_admin_scripts']));
 		$this->assertNotFalse(has_filter('admin_body_class', [$this->scripts, 'add_body_class_container_boxed']));
 	}
 
