@@ -491,9 +491,11 @@ function wu_kses_allowed_html(): array {
 		'value'    => true,
 	];
 	$allowed_html['button']   = [
-		'disabled' => true,
-		'name'     => true,
-		'value'    => true,
+		'type'            => true,
+		'disabled'        => true,
+		'name'            => true,
+		'value'           => true,
+		'data-ajax-nonce' => true,
 	];
 	$allowed_html['dynamic']  = [
 		':template' => true,
