@@ -45,8 +45,12 @@ jQuery(function($) {
 
 				var errorMsg = wu_network_activate.error_message;
 
-				if (response.data && response.data.message) {
-					errorMsg = response.data.message;
+				if (response.data) {
+					if (Array.isArray(response.data) && response.data.length > 0 && response.data[ 0 ] && response.data[ 0 ].message) {
+						errorMsg = response.data[ 0 ].message;
+					} else if (response.data.message) {
+						errorMsg = response.data.message;
+					}
 				}
 
 				$message.text(errorMsg);
