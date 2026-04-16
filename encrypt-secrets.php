@@ -23,12 +23,18 @@ function encryptValue($plaintext, $key) {
 
 $target_file = 'inc/stuff.php';
 
-if (!file_exists($target_file) || filemtime($filename) > filemtime($target_file)) {
-	file_put_contents($target_file, "<?php\nreturn ".var_export([
-		encryptValue($client_id, $key),
-		encryptValue($client_secret, $key),
-	], true).';');
-	echo "Updated $target_file\n";
-} else {
-	echo "$target_file is up to date\n";
-}
+// Always regenerate the ciphertext when credentials are supplied.
+//
+// The AES key is derived from the sha256 of inc/class-addon-repository.php
+// (see Addon_Repository::decrypt_value). Any change to that file — including
+// a whitespace/coding-standards fix — changes the key and makes previously
+// committed ciphertext undecryptable. An mtime-based "up to date" shortcut
+// was used here previously, but in CI (actions/checkout normalises mtimes)
+// it always reported "up to date" and shipped stale ciphertext, producing
+// `{"error":"invalid_client","error_description":"No client id supplied"}`
+// on every customer's OAuth flow. Regenerate unconditionally.
+file_put_contents($target_file, "<?php\nreturn ".var_export([
+	encryptValue($client_id, $key),
+	encryptValue($client_secret, $key),
+], true).';');
+echo "Updated $target_file\n";
