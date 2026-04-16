@@ -3,7 +3,7 @@
 ## Overview
 Enhance is a modern control panel that provides powerful hosting automation and management capabilities. This integration enables automatic domain syncing and SSL certificate management between Ultimate Multisite and Enhance Control Panel.
 
-**Related Discussion:** See [GitHub Discussion #265](https://github.com/Multisite-Ultimate/ultimate-multisite/discussions/265) for community tips and additional information.
+**Related Discussion:** See [GitHub Discussion #265](https://github.com/Ultimate-Multisite/ultimate-multisite/discussions/265) for community tips and additional information.
 
 ## Features
 - Automatic domain syncing when domains are mapped in Ultimate Multisite
@@ -109,7 +109,7 @@ You can choose to:
 
 ## Additional WordPress Configuration
 
-Based on community feedback ([Discussion #265](https://github.com/Multisite-Ultimate/ultimate-multisite/discussions/265)), you may need to configure these additional settings:
+Based on community feedback ([Discussion #265](https://github.com/Ultimate-Multisite/ultimate-multisite/discussions/265)), you may need to configure these additional settings:
 
 ### .htaccess Configuration
 
@@ -309,7 +309,7 @@ Complete API documentation: [https://apidocs.enhance.com](https://apidocs.enhanc
 - **Enhance Official Documentation:** [https://enhance.com/docs](https://enhance.com/docs)
 - **Enhance API Documentation:** [https://apidocs.enhance.com](https://apidocs.enhance.com)
 - **Enhance Community Forum:** [https://community.enhance.com](https://community.enhance.com)
-- **GitHub Discussion:** [Issue #265 - Enhance Integration Tips](https://github.com/Multisite-Ultimate/ultimate-multisite/discussions/265)
+- **GitHub Discussion:** [Issue #265 - Enhance Integration Tips](https://github.com/Ultimate-Multisite/ultimate-multisite/discussions/265)
 - **Ultimate Multisite Domain Mapping Guide:** See wiki page "How to Configure Domain Mapping v2"
 
 ## Support
@@ -317,7 +317,7 @@ Complete API documentation: [https://apidocs.enhance.com](https://apidocs.enhanc
 If you encounter issues:
 1. Check the Troubleshooting section above
 2. Review the Ultimate Multisite logs
-3. Consult the [GitHub Discussions](https://github.com/Multisite-Ultimate/ultimate-multisite/discussions)
+3. Consult the [GitHub Discussions](https://github.com/Ultimate-Multisite/ultimate-multisite/discussions)
 4. Contact Enhance support for panel-specific issues
 5. Create a new discussion with detailed error logs for community assistance
 

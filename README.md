@@ -1,7 +1,7 @@
 # Ultimate Multisite
 
 <p align="center">
-  <img src="https://github.com/Multisite-Ultimate/ultimate-multisite/blob/main/assets/img/logo.png" alt="Ultimate Multisite Logo" width="300">
+  <img src="https://github.com/Ultimate-Multisite/ultimate-multisite/blob/main/assets/img/logo.png" alt="Ultimate Multisite Logo" width="300">
 </p>
 
 <p align="center">
@@ -13,13 +13,13 @@
   <a href="https://wordpress.org/"><img src="https://img.shields.io/badge/WordPress-6.8%20Tested-green.svg" alt="WordPress: 6.8 Tested"></a>
   <a href="https://php.net/"><img src="https://img.shields.io/badge/PHP-7.4.0%2B-purple.svg" alt="PHP: 7.4.0+"></a>
   <a href="https://php.net/"><img src="https://img.shields.io/badge/Up%20To%20PHP-8.4.6-purple.svg" alt="Up To PHP: 8.4.6"></a>
-  <a href="https://github.com/Multisite-Ultimate/ultimate-multisite/releases"><img src="https://img.shields.io/github/v/release/Multisite-Ultimate/ultimate-multisite" alt="Latest Release"></a>
+  <a href="https://github.com/Ultimate-Multisite/ultimate-multisite/releases"><img src="https://img.shields.io/github/v/release/Ultimate-Multisite/ultimate-multisite" alt="Latest Release"></a>
 </p>
 <p align="center">
-  <a href="https://github.com/Multisite-Ultimate/ultimate-multisite/actions/workflows/tests.yml"><img src="https://github.com/Multisite-Ultimate/ultimate-multisite/actions/workflows/tests.yml/badge.svg" alt="Unit & Integration Tests"></a>
-  <a href="https://github.com/Multisite-Ultimate/ultimate-multisite/actions/workflows/e2e.yml"><img src="https://github.com/Multisite-Ultimate/ultimate-multisite/actions/workflows/e2e.yml/badge.svg" alt="E2E Tests"></a>
-  <a href="https://codecov.io/gh/Multisite-Ultimate/ultimate-multisite"><img src="https://codecov.io/gh/Multisite-Ultimate/ultimate-multisite/branch/main/graph/badge.svg" alt="Code Coverage"></a>
-  <a href="https://github.com/Multisite-Ultimate/ultimate-multisite/actions/workflows/code-quality.yml"><img src="https://github.com/Multisite-Ultimate/ultimate-multisite/actions/workflows/code-quality.yml/badge.svg" alt="Code Quality"></a>
+  <a href="https://github.com/Ultimate-Multisite/ultimate-multisite/actions/workflows/tests.yml"><img src="https://github.com/Ultimate-Multisite/ultimate-multisite/actions/workflows/tests.yml/badge.svg" alt="Unit & Integration Tests"></a>
+  <a href="https://github.com/Ultimate-Multisite/ultimate-multisite/actions/workflows/e2e.yml"><img src="https://github.com/Ultimate-Multisite/ultimate-multisite/actions/workflows/e2e.yml/badge.svg" alt="E2E Tests"></a>
+  <a href="https://codecov.io/gh/Ultimate-Multisite/ultimate-multisite"><img src="https://codecov.io/gh/Ultimate-Multisite/ultimate-multisite/branch/main/graph/badge.svg" alt="Code Coverage"></a>
+  <a href="https://github.com/Ultimate-Multisite/ultimate-multisite/actions/workflows/code-quality.yml"><img src="https://github.com/Ultimate-Multisite/ultimate-multisite/actions/workflows/code-quality.yml/badge.svg" alt="Code Quality"></a>
 </p>
 
 ## 🌟 Overview
@@ -47,7 +47,7 @@ This plugin was formerly known as WP Ultimo and is now community maintained.
 
 ## 🔧 Installation
 
-> **Important:** Do not use GitHub's green **"Code → Download ZIP"** button on this page. That archive is the raw source code and is missing the compiled dependencies — installing it will produce errors such as `Failed opening required .../vendor/autoload_packages.php`. Always download from the [**Releases page**](https://github.com/Multisite-Ultimate/ultimate-multisite/releases) instead.
+> **Important:** Do not use GitHub's green **"Code → Download ZIP"** button on this page. That archive is the raw source code and is missing the compiled dependencies — installing it will produce errors such as `Failed opening required .../vendor/autoload_packages.php`. Always download from the [**Releases page**](https://github.com/Ultimate-Multisite/ultimate-multisite/releases) instead.
 
 There are three ways to install Ultimate Multisite:
 
@@ -64,7 +64,7 @@ You can also browse the plugin listing at [wordpress.org/plugins/ultimate-multis
 
 ### Method 2: Using the pre-packaged release from GitHub
 
-1. Download the latest release ZIP from the [Releases page](https://github.com/Multisite-Ultimate/ultimate-multisite/releases)
+1. Download the latest release ZIP from the [Releases page](https://github.com/Ultimate-Multisite/ultimate-multisite/releases)
 2. Log in to your WordPress Network Admin dashboard
 3. Navigate to Plugins > Add New > Upload Plugin
 4. Choose the downloaded ZIP file and click "Install Now"
@@ -79,7 +79,7 @@ This method requires command-line access to your server and familiarity with Git
 
    ```bash
    cd wp-content/plugins/
-   git clone https://github.com/Multisite-Ultimate/ultimate-multisite.git
+   git clone https://github.com/Ultimate-Multisite/ultimate-multisite.git
    cd ultimate-multisite
    ```
 
@@ -101,7 +101,7 @@ This method requires command-line access to your server and familiarity with Git
   <li>You've downloaded the repository directly from GitHub without using a release package</li>
   <li>The composer dependencies haven't been installed</li>
 </ul>
-<p><strong>Solution:</strong> Use the pre-packaged release from the <a href="https://github.com/Multisite-Ultimate/ultimate-multisite/releases">Releases page</a> or run <code>composer install</code> in the plugin directory.</p>
+<p><strong>Solution:</strong> Use the pre-packaged release from the <a href="https://github.com/Ultimate-Multisite/ultimate-multisite/releases">Releases page</a> or run <code>composer install</code> in the plugin directory.</p>
 </details>
 
 <details>
@@ -113,7 +113,7 @@ This method requires command-line access to your server and familiarity with Git
 <details>
 <summary><strong>"Class 'WP_Ultimo\Database\Sites\Site_Query' not found"</strong></summary>
 <p>This error can occur if the plugin's autoloader isn't properly loading all the necessary classes.</p>
-<p><strong>Solution:</strong> Use the pre-packaged release from the <a href="https://github.com/Multisite-Ultimate/ultimate-multisite/releases">Releases page</a> which includes all required files.</p>
+<p><strong>Solution:</strong> Use the pre-packaged release from the <a href="https://github.com/Ultimate-Multisite/ultimate-multisite/releases">Releases page</a> which includes all required files.</p>
 </details>
 
 <details>
@@ -152,7 +152,7 @@ We welcome contributions to Ultimate Multisite! Here's how you can contribute ef
 
 1. **Quick Setup:**
    ```bash
-   git clone https://github.com/Multisite-Ultimate/ultimate-multisite.git
+   git clone https://github.com/Ultimate-Multisite/ultimate-multisite.git
    cd wp-multisite-waas
    npm run dev:setup  # Installs dependencies and sets up Git hooks
    ```
@@ -232,7 +232,7 @@ See [readme](tests/e2e/README.md) for e2e testing.
 
 ## 🆘 Support
 
-For support, please open an issue on the [GitHub repository](https://github.com/Multisite-Ultimate/ultimate-multisite/issues).
+For support, please open an issue on the [GitHub repository](https://github.com/Ultimate-Multisite/ultimate-multisite/issues).
 
 ## ⚠️ Upgrade Notice
 
@@ -435,13 +435,13 @@ Ultimate Multisite is an open-source project with contributions from:
 
 - [aanduque](https://github.com/aanduque)
 - [superdav42](https://github.com/superdav42)
-- [And the community](https://github.com/Multisite-Ultimate/ultimate-multisite/graphs/contributors)
+- [And the community](https://github.com/Ultimate-Multisite/ultimate-multisite/graphs/contributors)
 
 ## 📄 License
 
 Ultimate Multisite is licensed under the GPL v2 or later.
 
-Copyright © 2024 [Ultimate Multisite Contributors](https://github.com/Multisite-Ultimate/ultimate-multisite/graphs/contributors)
+Copyright © 2024 [Ultimate Multisite Contributors](https://github.com/Ultimate-Multisite/ultimate-multisite/graphs/contributors)
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2, as

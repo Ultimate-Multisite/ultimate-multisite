@@ -1328,8 +1328,8 @@ final class WP_Ultimo {
 		}
 
 		$url = $include_prerelease
-			? 'https://api.github.com/repos/Multisite-Ultimate/ultimate-multisite/releases?per_page=5'
-			: 'https://api.github.com/repos/Multisite-Ultimate/ultimate-multisite/releases/latest';
+			? 'https://api.github.com/repos/Ultimate-Multisite/ultimate-multisite/releases?per_page=5'
+			: 'https://api.github.com/repos/Ultimate-Multisite/ultimate-multisite/releases/latest';
 
 		$response = wp_remote_get(
 			$url,
