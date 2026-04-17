@@ -323,9 +323,14 @@ class Site_Duplicator {
 
 		// Ensure the requested title is applied after duplication, since the
 		// table copy may overwrite the blogname option set during site creation.
-		if (! empty($args->title)) {
-			update_blog_option($args->to_site_id, 'blogname', $args->title);
-		}
+		// When no title was provided (e.g. WooCommerce checkout flow), fall back
+		// to the subdomain portion of the site's domain so the duplicated site
+		// doesn't keep the template's blogname.
+		$new_title = ! empty($args->title)
+			? $args->title
+			: ucfirst(preg_replace('/\..*$/', '', $args->domain));
+
+		update_blog_option($args->to_site_id, 'blogname', $new_title);
 
 		/**
 		 * Allow developers to hook after a site duplication happens.

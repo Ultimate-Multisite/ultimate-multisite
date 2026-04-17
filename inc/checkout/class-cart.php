@@ -2706,7 +2706,7 @@ class Cart implements \JsonSerializable {
 		if ($this->get_cart_type() === 'downgrade') {
 			$membership = $this->membership;
 
-			if ($membership && ($membership->is_active() || $membership->get_status() === Membership_Status::TRIALING)) {
+			if ($membership->is_active() || $membership->get_status() === Membership_Status::TRIALING) {
 				return strtotime($membership->get_date_expiration());
 			}
 		}

@@ -153,4 +153,86 @@ class Danger_Functions_Test extends WP_UnitTestCase {
 
 		$this->assertContains('custom_table', $captured_except);
 	}
+
+	/**
+	 * Test Sites_Table defensively blocks uninstall (DROP TABLE wp_blogs).
+	 *
+	 * wp_blogs is a WordPress core table. Even if a code path bypasses
+	 * wu_drop_tables()'s $except guard, the table class itself must refuse.
+	 */
+	public function test_sites_table_uninstall_is_noop(): void {
+
+		$table = \WP_Ultimo\Loaders\Table_Loader::get_instance()->site_table;
+
+		// Table must exist before and after calling uninstall.
+		$this->assertTrue($table->exists(), 'wp_blogs should exist before uninstall');
+
+		$table->uninstall();
+
+		$this->assertTrue($table->exists(), 'wp_blogs must still exist after uninstall — core table protection failed');
+	}
+
+	/**
+	 * Test Sites_Table defensively blocks drop().
+	 */
+	public function test_sites_table_drop_returns_false(): void {
+
+		$table = \WP_Ultimo\Loaders\Table_Loader::get_instance()->site_table;
+
+		$result = $table->drop();
+
+		$this->assertFalse($result, 'Sites_Table::drop() must return false');
+		$this->assertTrue($table->exists(), 'wp_blogs must still exist after drop()');
+	}
+
+	/**
+	 * Test Sites_Table defensively blocks truncate().
+	 */
+	public function test_sites_table_truncate_returns_false(): void {
+
+		$table = \WP_Ultimo\Loaders\Table_Loader::get_instance()->site_table;
+
+		$result = $table->truncate();
+
+		$this->assertFalse($result, 'Sites_Table::truncate() must return false');
+	}
+
+	/**
+	 * Test Sites_Table defensively blocks delete_all().
+	 */
+	public function test_sites_table_delete_all_returns_false(): void {
+
+		$table = \WP_Ultimo\Loaders\Table_Loader::get_instance()->site_table;
+
+		$result = $table->delete_all();
+
+		$this->assertFalse($result, 'Sites_Table::delete_all() must return false');
+	}
+
+	/**
+	 * Test Sites_Meta_Table defensively blocks uninstall (DROP TABLE wp_blogmeta).
+	 */
+	public function test_sites_meta_table_uninstall_is_noop(): void {
+
+		$table = \WP_Ultimo\Loaders\Table_Loader::get_instance()->sitemeta_table;
+
+		$this->assertTrue($table->exists(), 'wp_blogmeta should exist before uninstall');
+
+		$table->uninstall();
+
+		$this->assertTrue($table->exists(), 'wp_blogmeta must still exist after uninstall — core table protection failed');
+	}
+
+	/**
+	 * Test Sites_Meta_Table defensively blocks drop().
+	 */
+	public function test_sites_meta_table_drop_returns_false(): void {
+
+		$table = \WP_Ultimo\Loaders\Table_Loader::get_instance()->sitemeta_table;
+
+		$result = $table->drop();
+
+		$this->assertFalse($result, 'Sites_Meta_Table::drop() must return false');
+		$this->assertTrue($table->exists(), 'wp_blogmeta must still exist after drop()');
+	}
 }
