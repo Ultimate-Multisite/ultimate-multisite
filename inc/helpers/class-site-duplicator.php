@@ -328,7 +328,7 @@ class Site_Duplicator {
 		// doesn't keep the template's blogname.
 		$new_title = ! empty($args->title)
 			? $args->title
-			: preg_replace('/\..*$/', '', $args->domain);
+			: ucfirst(preg_replace('/\..*$/', '', $args->domain));
 
 		update_blog_option($args->to_site_id, 'blogname', $new_title);
 
