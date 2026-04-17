@@ -3034,11 +3034,11 @@ class Cart_Test extends WP_UnitTestCase {
 	 * null and cart_type happens to be 'downgrade' (defensive null guard).
 	 */
 	public function test_get_billing_next_charge_date_null_membership_guard() {
-		// Build a cart with cart_type=downgrade but no membership_id.
-		// The cart will default to type 'new' internally (no membership), but
-		// we can force the scenario by temporarily mocking; instead just verify
-		// that the guard at get_billing_next_charge_date does not throw on a
-		// null membership (regression test for the explicit null check added).
+		// Build a cart with no membership_id, then force cart_type to 'downgrade'
+		// via Reflection so the null-membership guard in get_billing_next_charge_date()
+		// is actually exercised. Before the guard was added this would fatal with
+		// "Call to member function is_active() on null" when cart_type was 'downgrade'
+		// and $this->membership was null.
 		$plan = $this->create_plan(['amount' => 30.00]);
 
 		$cart = new Cart([
@@ -3047,9 +3047,12 @@ class Cart_Test extends WP_UnitTestCase {
 			'duration_unit' => 'month',
 		]);
 
-		// Call get_billing_next_charge_date() on a cart that has no membership.
-		// Before the fix this would fatal with "Call to member function is_active() on null"
-		// if cart_type was forced to 'downgrade'. With the null guard it must not throw.
+		// Force the cart into the downgrade branch while membership stays null.
+		$ref = new \ReflectionProperty(Cart::class, 'cart_type');
+		$ref->setAccessible(true);
+		$ref->setValue($cart, 'downgrade');
+
+		// Must return an int without throwing despite membership being null.
 		$this->assertIsInt($cart->get_billing_next_charge_date());
 
 		$plan->delete();

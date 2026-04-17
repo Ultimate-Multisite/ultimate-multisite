@@ -1319,6 +1319,14 @@ class Cart implements \JsonSerializable {
 		$old_price_per_day = $days_in_old_cycle > 0 ? $membership->get_amount() / $days_in_old_cycle : $membership->get_amount();
 		$new_price_per_day = $days_in_new_cycle > 0 ? $this->get_recurring_total() / $days_in_new_cycle : $this->get_recurring_total();
 
+		/*
+		 * Preserve the true per-day rates before search_for_same_period_plans()
+		 * may normalise them. The shorter-period override must compare the raw
+		 * membership vs. cart rates, not the normalised plan-variation rates.
+		 */
+		$orig_old_price_per_day = $old_price_per_day;
+		$orig_new_price_per_day = $new_price_per_day;
+
 		$is_same_product = $membership->get_plan_id() === $this->plan_id;
 
 		/**
@@ -1357,11 +1365,14 @@ class Cart implements \JsonSerializable {
 		 * fits this profile is treated as a scheduled downgrade regardless of
 		 * whether the nominal per-period amounts suggest an "upgrade".
 		 *
+		 * We use the original rates ($orig_*) captured before search_for_same_period_plans()
+		 * may have normalised them, so we compare the actual membership vs. cart rates.
+		 *
 		 * @since 2.6.2
 		 */
 		$is_period_switch_to_shorter = ! $membership->is_free()
 			&& $days_in_old_cycle > $days_in_new_cycle
-			&& $old_price_per_day < $new_price_per_day;
+			&& $orig_old_price_per_day < $orig_new_price_per_day;
 
 		/*
 		 * If is the same product and the customer will start to pay less,
