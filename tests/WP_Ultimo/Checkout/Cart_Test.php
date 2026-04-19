@@ -2859,6 +2859,71 @@ class Cart_Test extends WP_UnitTestCase {
 		$injected_plan->delete();
 	}
 
+	/**
+	 * Test that get_billing_start_date() returns null when cart_type is 'downgrade'
+	 * but $this->membership is null (out-of-tree cart_type override without build_from_membership()).
+	 *
+	 * Simulates the scenario where a subclass or addon sets cart_type to 'downgrade'
+	 * via a hook/override without having called build_from_membership(), leaving
+	 * $this->membership as null.
+	 *
+	 * @covers \WP_Ultimo\Checkout\Cart::get_billing_start_date
+	 */
+	public function test_billing_start_date_null_guard_on_downgrade_without_membership() {
+		$plan = $this->create_plan([
+			'amount'        => 50.00,
+			'duration'      => 1,
+			'duration_unit' => 'month',
+		]);
+
+		// Anonymous subclass overrides build_cart() to force cart_type='downgrade'
+		// without setting $this->membership, reproducing the out-of-tree NPE scenario.
+		$cart = new class(['products' => [$plan->get_id()]]) extends Cart {
+			protected function build_cart() {
+				$this->cart_type = 'downgrade';
+				// $this->membership intentionally left null to trigger the guard.
+			}
+		};
+
+		// membership is null because build_from_membership() was never called.
+		$this->assertNull($cart->get_billing_start_date(), 'get_billing_start_date() must not NPE when cart_type is downgrade but membership is null');
+	}
+
+	/**
+	 * Test that get_billing_next_charge_date() returns a valid integer when cart_type is
+	 * 'downgrade' but $this->membership is null (out-of-tree cart_type override without
+	 * build_from_membership()).
+	 *
+	 * Simulates the scenario where a subclass or addon sets cart_type to 'downgrade'
+	 * via a hook/override without having called build_from_membership(), leaving
+	 * $this->membership as null.
+	 *
+	 * @covers \WP_Ultimo\Checkout\Cart::get_billing_next_charge_date
+	 */
+	public function test_billing_next_charge_date_null_guard_on_downgrade_without_membership() {
+		$plan = $this->create_plan([
+			'amount'        => 50.00,
+			'duration'      => 1,
+			'duration_unit' => 'month',
+		]);
+
+		// Anonymous subclass overrides build_cart() to force cart_type='downgrade'
+		// without setting $this->membership, reproducing the out-of-tree NPE scenario.
+		$cart = new class(['products' => [$plan->get_id()]]) extends Cart {
+			protected function build_cart() {
+				$this->cart_type = 'downgrade';
+				// $this->membership intentionally left null to trigger the guard.
+			}
+		};
+
+		// membership is null; the guard should fall through and return $smallest_next_charge
+		// (a large future timestamp indicating "next charge not yet determined").
+		$result = $cart->get_billing_next_charge_date();
+
+		$this->assertIsInt($result, 'get_billing_next_charge_date() must return an int when cart_type is downgrade but membership is null');
+		$this->assertGreaterThan(time(), $result, 'get_billing_next_charge_date() must return a future timestamp when membership is null');
+	}
+
 	public static function tear_down_after_class() {
 		global $wpdb;
 		self::$customer->delete();
