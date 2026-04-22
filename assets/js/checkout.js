@@ -1182,7 +1182,7 @@
 					});
 
 				},
-				handle_inline_login(event) {
+				async handle_inline_login(event) {
 
 					// Prevent any default behavior or form submission
 					if (event) {
@@ -1209,6 +1209,29 @@
 					const username_or_email = field_type === 'email'
 						? this.email_address || ''
 						: this.username || '';
+
+					/**
+					 * Filter collecting async pre-submission work for the inline login.
+					 *
+					 * Addons can push promises into the array; the login request waits
+					 * for all of them to resolve before being sent. Useful when an
+					 * addon needs to perform asynchronous work (e.g. solving an
+					 * invisible captcha) before the payload is built.
+					 *
+					 * @param {Promise[]} promises   The array of pending promises.
+					 * @param {string}    field_type The field type ('email' or 'username').
+					 */
+					try {
+
+						await Promise.all(hooks.applyFilters('wu_before_inline_login_submitted', [], field_type));
+
+					} catch (err) {
+
+						this.logging_in = false;
+						this.login_error = (err && err.message) ? err.message : (wu_checkout.i18n.login_failed || 'Login failed. Please try again.');
+						return false;
+
+					}
 
 					/**
 					 * Filter the inline login request data.
@@ -1370,7 +1393,7 @@
 
 						}
 
-						function handleLogin(e) {
+						async function handleLogin(e) {
 
 							e.preventDefault();
 							e.stopPropagation();
@@ -1389,6 +1412,30 @@
 							submitButton.disabled = true;
 							submitButton.innerHTML = '<span class="spinner is-active wu-inline-block" style="float: none; width: 16px; height: 16px; margin: 0 4px 0 0;"></span>' + (wu_checkout.i18n.logging_in || 'Logging in...');
 							hideError();
+
+							/**
+							 * Filter collecting async pre-submission work for the
+							 * inline login.
+							 *
+							 * Addons can push promises into the array; the login
+							 * request waits for all of them to resolve before being
+							 * sent. Useful when an addon needs to perform async work
+							 * (e.g. solving an invisible captcha) before the payload
+							 * is built.
+							 *
+							 * @param {Promise[]} promises  The array of pending promises.
+							 * @param {string}    fieldType The field type ('email' or 'username').
+							 */
+							try {
+
+								await Promise.all(hooks.applyFilters('wu_before_inline_login_submitted', [], fieldType));
+
+							} catch (err) {
+
+								handleError({ data: { message: (err && err.message) ? err.message : (wu_checkout.i18n.login_failed || 'Login failed. Please try again.') } });
+								return false;
+
+							}
 
 							const username_or_email = fieldType === 'email' ? that.email_address : that.username;
 
