@@ -1361,10 +1361,14 @@ class Product extends Base_Model implements Limitable {
 	 *
 	 * @since 2.5.0
 	 *
-	 * @param string $behavior Either 'delete_after_time' or 'keep_until_live'.
+	 * @param string|null $behavior Either 'delete_after_time' or 'keep_until_live'. Null is ignored (default applied at read time).
 	 * @return void
 	 */
-	public function set_demo_behavior(string $behavior): void {
+	public function set_demo_behavior($behavior) {
+
+		if (null === $behavior) {
+			return;
+		}
 
 		$this->meta[ self::META_DEMO_BEHAVIOR ] = $behavior;
 
