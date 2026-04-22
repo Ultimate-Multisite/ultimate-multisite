@@ -81,6 +81,8 @@ class Membership_Manager extends Base_Manager {
 
 		add_action('wu_transition_membership_status', [$this, 'transition_membership_status'], 10, 3);
 
+		add_action('wu_transition_membership_status', [$this, 'handle_pending_site_on_cancellation'], 10, 3);
+
 		/*
 		 * Deal with delayed/schedule swaps
 		 */
@@ -350,6 +352,56 @@ class Membership_Manager extends Base_Manager {
 
 			$membership->save();
 		}
+	}
+
+	/**
+	 * Preserve pending_site data in a transient when a membership is cancelled.
+	 *
+	 * When a membership transitions to `cancelled`, any orphaned pending_site
+	 * stored in membership meta is moved to a 24-hour transient keyed by the
+	 * customer's email hash. This allows a retry checkout flow to reclaim the
+	 * pending site rather than losing it permanently.
+	 *
+	 * Transient key format: `wu_transferable_pending_` . md5( $email )
+	 *
+	 * @since 2.3.2
+	 *
+	 * @param string $old_status    The previous membership status.
+	 * @param string $new_status    The new membership status.
+	 * @param int    $membership_id The ID of the membership.
+	 * @return void
+	 */
+	public function handle_pending_site_on_cancellation($old_status, $new_status, $membership_id): void {
+
+		if ('cancelled' !== $new_status) {
+			return;
+		}
+
+		$membership = wu_get_membership($membership_id);
+
+		if ( ! $membership) {
+			return;
+		}
+
+		$pending_site = $membership->get_pending_site();
+
+		if ( ! $pending_site) {
+			return;
+		}
+
+		$customer = $membership->get_customer();
+
+		if ( ! $customer) {
+			$membership->delete_pending_site();
+			return;
+		}
+
+		$email         = $customer->get_email_address();
+		$transient_key = 'wu_transferable_pending_' . md5($email);
+
+		set_transient($transient_key, $pending_site, DAY_IN_SECONDS);
+
+		$membership->delete_pending_site();
 	}
 
 	/**

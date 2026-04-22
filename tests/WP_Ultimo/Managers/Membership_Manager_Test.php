@@ -681,4 +681,132 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 
 		$this->assertEquals('memberships', Membership_Manager::LOG_FILE_NAME);
 	}
+
+	// ========================================================================
+	// handle_pending_site_on_cancellation()
+	// ========================================================================
+
+	/**
+	 * Test init registers the handle_pending_site_on_cancellation hook.
+	 */
+	public function test_init_registers_handle_pending_site_on_cancellation_hook(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertIsInt(
+			has_action('wu_transition_membership_status', [$manager, 'handle_pending_site_on_cancellation'])
+		);
+	}
+
+	/**
+	 * Test pending_site is deleted from membership meta on cancellation.
+	 */
+	public function test_handle_pending_site_on_cancellation_cleans_up_pending_site(): void {
+
+		$membership = $this->create_membership(['status' => Membership_Status::ACTIVE]);
+		$manager    = $this->get_manager_instance();
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Test Pending Site',
+				'path'  => '/testpending/',
+			]
+		);
+
+		$this->assertNotFalse($membership->get_pending_site(), 'pending_site should exist before cancellation');
+
+		$manager->handle_pending_site_on_cancellation(
+			Membership_Status::ACTIVE,
+			Membership_Status::CANCELLED,
+			$membership->get_id()
+		);
+
+		$refreshed = wu_get_membership($membership->get_id());
+
+		$this->assertFalse($refreshed->get_pending_site(), 'pending_site should be removed after cancellation');
+	}
+
+	/**
+	 * Test transient is set with the correct key and 24-hour TTL on cancellation.
+	 */
+	public function test_handle_pending_site_on_cancellation_sets_transient_with_correct_key(): void {
+
+		$membership = $this->create_membership(['status' => Membership_Status::ACTIVE]);
+		$manager    = $this->get_manager_instance();
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Transient Test Site',
+				'path'  => '/transientpending/',
+			]
+		);
+
+		$email         = $this->customer->get_email_address();
+		$transient_key = 'wu_transferable_pending_' . md5($email);
+
+		// Ensure transient does not exist before the call.
+		delete_transient($transient_key);
+		$this->assertFalse(get_transient($transient_key), 'transient should not exist before cancellation');
+
+		$manager->handle_pending_site_on_cancellation(
+			Membership_Status::ACTIVE,
+			Membership_Status::CANCELLED,
+			$membership->get_id()
+		);
+
+		$stored = get_transient($transient_key);
+
+		$this->assertNotFalse($stored, 'transient should be set after cancellation');
+	}
+
+	/**
+	 * Test no transient is set and no error occurs when there is no pending_site.
+	 */
+	public function test_handle_pending_site_on_cancellation_skips_when_no_pending_site(): void {
+
+		$membership = $this->create_membership(['status' => Membership_Status::ACTIVE]);
+		$manager    = $this->get_manager_instance();
+
+		// Confirm no pending site exists.
+		$this->assertFalse($membership->get_pending_site());
+
+		$email         = $this->customer->get_email_address();
+		$transient_key = 'wu_transferable_pending_' . md5($email);
+		delete_transient($transient_key);
+
+		$manager->handle_pending_site_on_cancellation(
+			Membership_Status::ACTIVE,
+			Membership_Status::CANCELLED,
+			$membership->get_id()
+		);
+
+		$this->assertFalse(get_transient($transient_key), 'transient should NOT be set when there is no pending_site');
+	}
+
+	/**
+	 * Test non-cancellation transitions do not affect pending_site.
+	 */
+	public function test_handle_pending_site_on_cancellation_ignores_non_cancelled_status(): void {
+
+		$membership = $this->create_membership(['status' => Membership_Status::ACTIVE]);
+		$manager    = $this->get_manager_instance();
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Should Stay',
+				'path'  => '/shouldstay/',
+			]
+		);
+
+		// Trigger with a non-cancelled new status.
+		$manager->handle_pending_site_on_cancellation(
+			Membership_Status::ACTIVE,
+			Membership_Status::ON_HOLD,
+			$membership->get_id()
+		);
+
+		$refreshed = wu_get_membership($membership->get_id());
+
+		$this->assertNotFalse($refreshed->get_pending_site(), 'pending_site should remain intact for non-cancelled transitions');
+	}
 }
