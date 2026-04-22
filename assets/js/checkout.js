@@ -1205,44 +1205,39 @@
 					this.login_error = '';
 
 					const that = this;
-					const username_or_email = this.login_prompt_field === 'email'
+					const field_type = this.login_prompt_field;
+					const username_or_email = field_type === 'email'
 						? this.email_address || ''
 						: this.username || '';
 
-					// Include captcha tokens if present on the page.
-					const login_data = {
+					/**
+					 * Filter the inline login request data.
+					 *
+					 * Addons can hook into this filter to append extra fields to the
+					 * inline login request (for example, captcha tokens).
+					 *
+					 * @param {Object} data       The data object to be sent.
+					 * @param {string} field_type The field type ('email' or 'username').
+					 */
+					const login_data = hooks.applyFilters('wu_inline_login_data', {
 						username_or_email,
 						password: this.inline_login_password,
 						_wpnonce: jQuery('[name="_wpnonce"]').val()
-					};
-
-					const recaptcha_token = jQuery('input[name="g-recaptcha-response"]').filter(function() {
-						return this.value;
-					}).first().val();
-					const hcaptcha_token = jQuery('input[name="h-captcha-response"]').filter(function() {
-						return this.value;
-					}).first().val();
-					const cap_token = jQuery('input[name="cap-token"]').filter(function() {
-						return this.value;
-					}).first().val();
-
-					if (recaptcha_token) {
-						login_data[ 'g-recaptcha-response' ] = recaptcha_token;
-					}
-
-					if (hcaptcha_token) {
-						login_data[ 'h-captcha-response' ] = hcaptcha_token;
-					}
-
-					if (cap_token) {
-						login_data[ 'cap-token' ] = cap_token;
-					}
+					}, field_type);
 
 					this.request('wu_inline_login', login_data, function(results) {
 
 						that.logging_in = false;
 
 						if (results.success) {
+
+							/**
+							 * Fires when an inline login attempt succeeds.
+							 *
+							 * @param {Object} results    The AJAX success response.
+							 * @param {string} field_type The field type ('email' or 'username').
+							 */
+							hooks.doAction('wu_inline_login_success', results, field_type);
 
 							// Login successful - reload page to show logged-in state
 							window.location.reload();
@@ -1262,6 +1257,17 @@
 							that.login_error = wu_checkout.i18n.login_failed || 'Login failed. Please try again.';
 
 						}
+
+						/**
+						 * Fires when an inline login attempt fails.
+						 *
+						 * Addons can hook into this action to react to failed logins
+						 * (for example, resetting a captcha widget).
+						 *
+						 * @param {Object} error      The AJAX error response.
+						 * @param {string} field_type The field type ('email' or 'username').
+						 */
+						hooks.doAction('wu_inline_login_error', error, field_type);
 
 					});
 
@@ -1351,6 +1357,17 @@
 
 							}
 
+							/**
+							 * Fires when an inline login attempt fails.
+							 *
+							 * Addons can hook into this action to react to failed logins
+							 * (for example, resetting a captcha widget).
+							 *
+							 * @param {Object} error     The AJAX error response or jqXHR.
+							 * @param {string} fieldType The field type ('email' or 'username').
+							 */
+							hooks.doAction('wu_inline_login_error', error, fieldType);
+
 						}
 
 						function handleLogin(e) {
@@ -1375,34 +1392,20 @@
 
 							const username_or_email = fieldType === 'email' ? that.email_address : that.username;
 
-							// Include captcha tokens if present on the page.
-							const inline_login_data = {
+							/**
+							 * Filter the inline login request data.
+							 *
+							 * Addons can hook into this filter to append extra fields
+							 * to the inline login request (for example, captcha tokens).
+							 *
+							 * @param {Object} data      The data object to be sent.
+							 * @param {string} fieldType The field type ('email' or 'username').
+							 */
+							const inline_login_data = hooks.applyFilters('wu_inline_login_data', {
 								username_or_email,
 								password,
 								_wpnonce: jQuery('[name="_wpnonce"]').val()
-							};
-
-							const recaptcha_val = jQuery('input[name="g-recaptcha-response"]').filter(function() {
-								return this.value;
-							}).first().val();
-							const hcaptcha_val = jQuery('input[name="h-captcha-response"]').filter(function() {
-								return this.value;
-							}).first().val();
-							const cap_val = jQuery('input[name="cap-token"]').filter(function() {
-								return this.value;
-							}).first().val();
-
-							if (recaptcha_val) {
-								inline_login_data[ 'g-recaptcha-response' ] = recaptcha_val;
-							}
-
-							if (hcaptcha_val) {
-								inline_login_data[ 'h-captcha-response' ] = hcaptcha_val;
-							}
-
-							if (cap_val) {
-								inline_login_data[ 'cap-token' ] = cap_val;
-							}
+							}, fieldType);
 
 							jQuery.ajax({
 								method: 'POST',
@@ -1411,6 +1414,14 @@
 								success(results) {
 
 									if (results.success) {
+
+										/**
+										 * Fires when an inline login attempt succeeds.
+										 *
+										 * @param {Object} results   The AJAX success response.
+										 * @param {string} fieldType The field type.
+										 */
+										hooks.doAction('wu_inline_login_success', results, fieldType);
 
 										window.location.reload();
 
@@ -1456,6 +1467,19 @@
 							}
 
 						});
+
+						/**
+						 * Fires once the inline login prompt is attached and ready.
+						 *
+						 * Addons can hook into this action to initialize their own
+						 * widgets inside the prompt (for example, rendering a captcha
+						 * widget whose markup was injected via the
+						 * `wu_inline_login_prompt_before_submit` server-side action).
+						 *
+						 * @param {string}      fieldType            The field type ('email' or 'username').
+						 * @param {HTMLElement} loginPromptContainer The prompt container element.
+						 */
+						hooks.doAction('wu_inline_login_prompt_ready', fieldType, loginPromptContainer);
 
 					});
 
