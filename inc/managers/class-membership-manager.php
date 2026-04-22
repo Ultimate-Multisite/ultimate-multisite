@@ -96,6 +96,11 @@ class Membership_Manager extends Base_Manager {
 		add_action('wp_ajax_wu_check_pending_site_created', [$this, 'check_pending_site_created']);
 
 		add_action('wu_async_publish_pending_site', [$this, 'async_publish_pending_site'], 10);
+
+		/*
+		 * Reclaim orphaned pending_site when a WooCommerce order completes.
+		 */
+		add_action('woocommerce_order_status_completed', [$this, 'reclaim_pending_site_on_wc_order_completion']);
 	}
 
 	/**
@@ -402,6 +407,92 @@ class Membership_Manager extends Base_Manager {
 		set_transient($transient_key, $pending_site, DAY_IN_SECONDS);
 
 		$membership->delete_pending_site();
+	}
+
+	/**
+	 * Reclaim an orphaned pending_site when a WooCommerce order completes.
+	 *
+	 * When a membership is cancelled, `handle_pending_site_on_cancellation`
+	 * stores the pending_site in a 24-hour transient keyed by the customer's
+	 * billing email hash. If the customer then completes a new WooCommerce
+	 * order, this method reclaims the pending_site, reactivates their
+	 * cancelled membership, triggers async site provisioning, and links the
+	 * WC order to the membership via `_wu_membership_id` post meta.
+	 *
+	 * Transient key format: `wu_transferable_pending_` . md5( $email )
+	 *
+	 * @since 2.3.2
+	 *
+	 * @param int $order_id The WooCommerce order ID.
+	 * @return void
+	 */
+	public function reclaim_pending_site_on_wc_order_completion($order_id): void {
+
+		if ( ! function_exists('wc_get_order')) {
+			return;
+		}
+
+		$order = wc_get_order($order_id);
+
+		if ( ! $order) {
+			return;
+		}
+
+		$billing_email = $order->get_billing_email();
+
+		if ( ! $billing_email) {
+			return;
+		}
+
+		$transient_key = 'wu_transferable_pending_' . md5($billing_email);
+		$pending_site  = get_transient($transient_key);
+
+		if ( ! $pending_site) {
+			return;
+		}
+
+		$wp_user = get_user_by('email', $billing_email);
+
+		if ( ! $wp_user) {
+			return;
+		}
+
+		$customer = wu_get_customer_by_user_id($wp_user->ID);
+
+		if ( ! $customer) {
+			return;
+		}
+
+		$memberships = wu_get_memberships(
+			[
+				'customer_id' => $customer->get_id(),
+				'status'      => Membership_Status::CANCELLED,
+				'number'      => 1,
+				'orderby'     => 'date_created',
+				'order'       => 'DESC',
+			]
+		);
+
+		if (empty($memberships)) {
+			return;
+		}
+
+		$membership = $memberships[0];
+
+		$result = $membership->reactivate();
+
+		if (is_wp_error($result)) {
+			wu_log_add(self::LOG_FILE_NAME, $result->get_error_message(), LogLevel::ERROR);
+			return;
+		}
+
+		$membership->update_pending_site($pending_site);
+
+		update_post_meta(absint($order_id), '_wu_membership_id', $membership->get_id());
+
+		delete_transient($transient_key);
+
+		$membership->publish_pending_site_async();
 	}
 
 	/**

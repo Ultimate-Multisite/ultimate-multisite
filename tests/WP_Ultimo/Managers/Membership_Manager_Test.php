@@ -95,6 +95,9 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 			$this->product->delete();
 		}
 
+		// Clean up the WC order stub global between tests.
+		unset($GLOBALS['_wu_test_wc_order_email']);
+
 		parent::tearDown();
 	}
 
@@ -808,5 +811,130 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$refreshed = wu_get_membership($membership->get_id());
 
 		$this->assertNotFalse($refreshed->get_pending_site(), 'pending_site should remain intact for non-cancelled transitions');
+	}
+
+	// ========================================================================
+	// reclaim_pending_site_on_wc_order_completion()
+	// ========================================================================
+
+	/**
+	 * Test init registers the woocommerce_order_status_completed hook.
+	 */
+	public function test_init_registers_wc_order_completion_hook(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertIsInt(
+			has_action('woocommerce_order_status_completed', [$manager, 'reclaim_pending_site_on_wc_order_completion'])
+		);
+	}
+
+	/**
+	 * Test that the method bails gracefully when wc_get_order() returns false
+	 * (i.e. the order does not exist).
+	 *
+	 * The global _wu_test_wc_order_email is intentionally NOT set so the stub
+	 * returns false, simulating a missing order.
+	 */
+	public function test_reclaim_bails_when_order_not_found(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// _wu_test_wc_order_email is NOT set, so the stub returns false.
+		unset($GLOBALS['_wu_test_wc_order_email']);
+
+		$membership = $this->create_membership(['status' => Membership_Status::CANCELLED]);
+
+		$manager->reclaim_pending_site_on_wc_order_completion(999);
+
+		// Membership should remain unchanged.
+		$refreshed = wu_get_membership($membership->get_id());
+
+		$this->assertSame(
+			Membership_Status::CANCELLED,
+			$refreshed->get_status(),
+			'Membership should remain cancelled when order is not found.'
+		);
+	}
+
+	/**
+	 * Test the full reclaim flow: cancelled membership with transient is
+	 * reactivated, pending_site attached, transient deleted, and publish triggered.
+	 */
+	public function test_reclaim_pending_site_reactivates_membership_and_clears_transient(): void {
+
+		$manager = $this->get_manager_instance();
+
+		// Create a cancelled membership for our test customer.
+		$membership = $this->create_membership(['status' => Membership_Status::CANCELLED]);
+
+		// Create and store a pending_site in the transient, mirroring the cancellation flow.
+		$membership->create_pending_site(
+			[
+				'title' => 'Reclaim Test Site',
+				'path'  => '/reclaimtest/',
+			]
+		);
+
+		$email         = $this->customer->get_email_address();
+		$transient_key = 'wu_transferable_pending_' . md5($email);
+		$pending_site  = $membership->get_pending_site();
+
+		set_transient($transient_key, $pending_site, DAY_IN_SECONDS);
+
+		// Remove pending_site from membership to simulate post-cancellation state.
+		$membership->delete_pending_site();
+
+		$this->assertFalse($membership->get_pending_site(), 'pending_site should be absent before reclaim');
+		$this->assertNotFalse(get_transient($transient_key), 'transient should exist before reclaim');
+
+		// Fake WC order ID — wc_get_order stub is expected to return an object with this email.
+		$fake_order_id              = 42;
+		$GLOBALS['_wu_test_wc_order_email'] = $email;
+
+		$manager->reclaim_pending_site_on_wc_order_completion($fake_order_id);
+
+		// Transient must be deleted after successful reclaim.
+		$this->assertFalse(get_transient($transient_key), 'transient should be deleted after reclaim');
+
+		// Membership must be reactivated.
+		$refreshed = wu_get_membership($membership->get_id());
+
+		$this->assertSame(
+			Membership_Status::ACTIVE,
+			$refreshed->get_status(),
+			'membership status should be active after reclaim'
+		);
+
+		// pending_site should now be attached to the membership.
+		$this->assertNotFalse($refreshed->get_pending_site(), 'pending_site should be re-attached to the membership');
+	}
+
+	/**
+	 * Test that reclaim does nothing when no transient exists for the billing email.
+	 */
+	public function test_reclaim_skips_when_no_transient(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$membership = $this->create_membership(['status' => Membership_Status::CANCELLED]);
+
+		$email                              = $this->customer->get_email_address();
+		$transient_key                      = 'wu_transferable_pending_' . md5($email);
+		$GLOBALS['_wu_test_wc_order_email'] = $email;
+
+		// Ensure no transient is set.
+		delete_transient($transient_key);
+
+		$manager->reclaim_pending_site_on_wc_order_completion(42);
+
+		// Membership must stay cancelled — nothing was reclaimed.
+		$refreshed = wu_get_membership($membership->get_id());
+
+		$this->assertSame(
+			Membership_Status::CANCELLED,
+			$refreshed->get_status(),
+			'membership should remain cancelled when no transient exists'
+		);
 	}
 }
