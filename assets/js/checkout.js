@@ -1209,61 +1209,68 @@
 						? this.email_address || ''
 						: this.username || '';
 
-					// Include captcha tokens if present on the page.
-					const login_data = {
-						username_or_email,
-						password: this.inline_login_password,
-						_wpnonce: jQuery('[name="_wpnonce"]').val()
-					};
+	// Include captcha tokens scoped to the inline login prompt container.
+	// Using scoped selectors avoids picking up the checkout form's captcha token.
+	const promptContainer = jQuery('#wu-inline-login-prompt-' + this.login_prompt_field);
+	const login_data = {
+		username_or_email,
+		password: this.inline_login_password,
+		_wpnonce: jQuery('[name="_wpnonce"]').val()
+	};
 
-					const recaptcha_token = jQuery('input[name="g-recaptcha-response"]').filter(function() {
-						return this.value;
-					}).first().val();
-					const hcaptcha_token = jQuery('input[name="h-captcha-response"]').filter(function() {
-						return this.value;
-					}).first().val();
-					const cap_token = jQuery('input[name="cap-token"]').filter(function() {
-						return this.value;
-					}).first().val();
+	const recaptcha_token = promptContainer.find('input[name="g-recaptcha-response"]').filter(function() {
+		return this.value;
+	}).first().val();
+	const hcaptcha_token = promptContainer.find('input[name="h-captcha-response"]').filter(function() {
+		return this.value;
+	}).first().val();
+	const cap_token = promptContainer.find('input[name="cap-token"]').filter(function() {
+		return this.value;
+	}).first().val();
 
-					if (recaptcha_token) {
-						login_data[ 'g-recaptcha-response' ] = recaptcha_token;
-					}
+	if (recaptcha_token) {
+		login_data[ 'g-recaptcha-response' ] = recaptcha_token;
+	}
 
-					if (hcaptcha_token) {
-						login_data[ 'h-captcha-response' ] = hcaptcha_token;
-					}
+	if (hcaptcha_token) {
+		login_data[ 'h-captcha-response' ] = hcaptcha_token;
+	}
 
-					if (cap_token) {
-						login_data[ 'cap-token' ] = cap_token;
-					}
+	if (cap_token) {
+		login_data[ 'cap-token' ] = cap_token;
+	}
 
-					this.request('wu_inline_login', login_data, function(results) {
+	this.request('wu_inline_login', login_data, function(results) {
 
-						that.logging_in = false;
+		that.logging_in = false;
 
-						if (results.success) {
+		if (results.success) {
 
-							// Login successful - reload page to show logged-in state
-							window.location.reload();
+			// Login successful - reload page to show logged-in state
+			window.location.reload();
 
-						}
+		}
 
-					}, function(error) {
+	}, function(error) {
 
-						that.logging_in = false;
+		that.logging_in = false;
 
-						if (error.responseJSON && error.responseJSON.data && error.responseJSON.data.message) {
+		if (error.responseJSON && error.responseJSON.data && error.responseJSON.data.message) {
 
-							that.login_error = error.responseJSON.data.message;
+			that.login_error = error.responseJSON.data.message;
 
-						} else {
+		} else {
 
-							that.login_error = wu_checkout.i18n.login_failed || 'Login failed. Please try again.';
+			that.login_error = wu_checkout.i18n.login_failed || 'Login failed. Please try again.';
 
-						}
+		}
 
-					});
+		// Reset inline login captcha widgets so the user can re-verify.
+		if (typeof window.wuCaptchaResetInlineLogin === 'function') {
+			window.wuCaptchaResetInlineLogin();
+		}
+
+	});
 
 					return false;
 
@@ -1336,22 +1343,27 @@
 
 						}
 
-						function handleError(error) {
+	function handleError(error) {
 
-							submitButton.disabled = false;
-							submitButton.textContent = wu_checkout.i18n.sign_in || 'Sign in';
+		submitButton.disabled = false;
+		submitButton.textContent = wu_checkout.i18n.sign_in || 'Sign in';
 
-							if (error.data && error.data.message) {
+		if (error.data && error.data.message) {
 
-								showError(error.data.message);
+			showError(error.data.message);
 
-							} else {
+		} else {
 
-								showError(wu_checkout.i18n.login_failed || 'Login failed. Please try again.');
+			showError(wu_checkout.i18n.login_failed || 'Login failed. Please try again.');
 
-							}
+		}
 
-						}
+		// Reset inline login captcha widgets so the user can re-verify.
+		if (typeof window.wuCaptchaResetInlineLogin === 'function') {
+			window.wuCaptchaResetInlineLogin();
+		}
+
+	}
 
 						function handleLogin(e) {
 
@@ -1375,52 +1387,61 @@
 
 							const username_or_email = fieldType === 'email' ? that.email_address : that.username;
 
-							// Include captcha tokens if present on the page.
-							const inline_login_data = {
-								username_or_email,
-								password,
-								_wpnonce: jQuery('[name="_wpnonce"]').val()
-							};
+	// Include captcha tokens scoped to the inline login prompt container.
+	// Using scoped selectors avoids picking up the checkout form's captcha token.
+	const promptContainer = jQuery('#wu-inline-login-prompt-' + fieldType);
+	const inline_login_data = {
+		username_or_email,
+		password,
+		_wpnonce: jQuery('[name="_wpnonce"]').val()
+	};
 
-							const recaptcha_val = jQuery('input[name="g-recaptcha-response"]').filter(function() {
-								return this.value;
-							}).first().val();
-							const hcaptcha_val = jQuery('input[name="h-captcha-response"]').filter(function() {
-								return this.value;
-							}).first().val();
-							const cap_val = jQuery('input[name="cap-token"]').filter(function() {
-								return this.value;
-							}).first().val();
+	const recaptcha_val = promptContainer.find('input[name="g-recaptcha-response"]').filter(function() {
+		return this.value;
+	}).first().val();
+	const hcaptcha_val = promptContainer.find('input[name="h-captcha-response"]').filter(function() {
+		return this.value;
+	}).first().val();
+	const cap_val = promptContainer.find('input[name="cap-token"]').filter(function() {
+		return this.value;
+	}).first().val();
 
-							if (recaptcha_val) {
-								inline_login_data[ 'g-recaptcha-response' ] = recaptcha_val;
-							}
+	if (recaptcha_val) {
+		inline_login_data[ 'g-recaptcha-response' ] = recaptcha_val;
+	}
 
-							if (hcaptcha_val) {
-								inline_login_data[ 'h-captcha-response' ] = hcaptcha_val;
-							}
+	if (hcaptcha_val) {
+		inline_login_data[ 'h-captcha-response' ] = hcaptcha_val;
+	}
 
-							if (cap_val) {
-								inline_login_data[ 'cap-token' ] = cap_val;
-							}
+	if (cap_val) {
+		inline_login_data[ 'cap-token' ] = cap_val;
+	}
 
-							jQuery.ajax({
-								method: 'POST',
-								url: wu_checkout.late_ajaxurl + '&action=wu_inline_login',
-								data: inline_login_data,
-								success(results) {
+	jQuery.ajax({
+		method: 'POST',
+		url: wu_checkout.late_ajaxurl + '&action=wu_inline_login',
+		data: inline_login_data,
+		success(results) {
 
-									if (results.success) {
+			if (results.success) {
 
-										window.location.reload();
+				window.location.reload();
 
-									} else {
-										handleError(results);
-									}
+			} else {
+				handleError(results);
+			}
 
-								},
-								error: handleError
-							});
+		},
+		error(xhr) {
+			handleError(xhr.responseJSON || {});
+
+			// Reset inline login captcha widgets so the user can re-verify.
+			if (typeof window.wuCaptchaResetInlineLogin === 'function') {
+				window.wuCaptchaResetInlineLogin();
+			}
+		}
+	});
 
 							return false;
 
