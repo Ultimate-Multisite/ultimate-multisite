@@ -120,3 +120,11 @@ Overall coverage: **35%** (20,720 / 59,212 statements). 90 files at 0% coverage.
 - [x] GH#808 test: add autoload-order regression tests for mpdf PSR HTTP message shim ref:GH#808 pr:#818 completed:2026-04-13
 - [x] GH#813 fix: guard false return from get_available_site_templates() in switch_template() — TypeError on PHP 8.0+ ref:GH#813 pr:#819 completed:2026-04-13
 - [x] GH#814 test(reactivation): add unit tests verifying all PR #751 review findings were addressed ref:GH#814 pr:#817 completed:2026-04-13
+
+## Production Bugs (2026-04-22)
+
+- [ ] t529 fix(membership): orphan pending_site after membership cancellation — watchdog cancels membership but pending_site meta stays, customer retries checkout and gets no site #bug #auto-dispatch ~4h ref:GH#902
+- [ ] t528 fix(checkout): duplicate WP users created on checkout retry — wp_insert_user called without get_user_by email check #bug #auto-dispatch ~2h ref:GH#903
+- [ ] t530 fix(checkout): reclaim orphan pending_site on WC order completion — no code picks up transferable pending_site when payment succeeds #bug #auto-dispatch ~4h ref:GH#904
+- [ ] t526 fix(i18n): JS checkout validator missing i18n strings — field_required etc. hardcoded English in checkout.min.js #bug #auto-dispatch ~2h ref:GH#905
+- [ ] t527 fix(ux): default minimum_password_strength too strict — super_strong rejects reasonable passwords, default to strong #enhancement #auto-dispatch ~1h ref:GH#906
