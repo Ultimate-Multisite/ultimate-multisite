@@ -1096,8 +1096,23 @@ class Checkout {
 					'email'              => wp_get_current_user()->user_email,
 					'email_verification' => 'verified',
 				];
-			} elseif (isset($customer_data['email']) && get_user_by('email', $customer_data['email'])) {
-				return new \WP_Error('email_exists', __('The email address you entered is already in use.', 'ultimate-multisite'));
+			} elseif (isset($customer_data['email']) && ($existing_wp_user = get_user_by('email', $customer_data['email']))) {
+				/*
+				 * A WP user already exists with this email.
+				 *
+				 * Only block checkout when a customer record also exists for
+				 * that user — the email is genuinely in use. If no customer
+				 * exists yet, the previous checkout attempt created the WP
+				 * user but failed before saving the customer (partial /
+				 * orphaned state). Allow the retry to proceed by passing the
+				 * existing user's ID to wu_create_customer(), which will skip
+				 * WP user creation and link the new customer to it instead.
+				 */
+				if (wu_get_customer_by_user_id($existing_wp_user->ID)) {
+					return new \WP_Error('email_exists', __('The email address you entered is already in use.', 'ultimate-multisite'));
+				}
+
+				$customer_data['user_id'] = $existing_wp_user->ID;
 			}
 
 			/*

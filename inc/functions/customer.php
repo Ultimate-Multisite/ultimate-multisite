@@ -142,6 +142,17 @@ function wu_create_customer($customer_data) {
 		]
 	);
 
+	/*
+	 * Sanitize the email early so the duplicate check and the
+	 * subsequent wpmu_create_user() / register_new_user() call both
+	 * operate on the same normalized value. Without this, subtle
+	 * format differences (e.g. trailing whitespace) can cause
+	 * get_user_by() to miss an existing user and create a duplicate.
+	 */
+	if ($customer_data['email']) {
+		$customer_data['email'] = sanitize_email($customer_data['email']);
+	}
+
 	$user = get_user_by('email', $customer_data['email']);
 
 	if ( ! $user) {
