@@ -212,14 +212,26 @@ The `docs/` directory exists but is not described in the Project Structure secti
 
 ### No External URL Fetching
 
-Do **not** use webfetch for WordPress documentation, PHP manual pages, Stripe/PayPal API docs, or any developer documentation URLs — these requests consistently fail.
+Do **not** use webfetch for WordPress documentation, PHP manual pages, Stripe/PayPal API docs,
+BerlinDB documentation, npm package docs, or any other developer documentation URLs — these
+requests consistently fail.
 
-Use the codebase itself instead:
+Do **not** use webfetch for GitHub URLs (issues, PRs, raw content, commits). Use the `gh` CLI
+instead:
+
+```bash
+gh issue view 123 --repo Ultimate-Multisite/ultimate-multisite
+gh pr view 456 --repo Ultimate-Multisite/ultimate-multisite
+gh api repos/Ultimate-Multisite/ultimate-multisite/contents/path/to/file
+```
+
+Use the codebase itself for API/hook research:
 
 - WordPress functions and hooks → `rg 'function_name'` across `inc/`
 - Existing gateway patterns → read `inc/gateways/` directly
 - REST API shape → read `inc/apis/` trait files
 - Hook reference → `rg 'do_action\|apply_filters'` across `inc/`
+- BerlinDB schema → read `inc/database/` directly
 
 ### Read Before Edit (Mandatory)
 
@@ -238,3 +250,13 @@ ls ../wordpress/wp-config.php 2>/dev/null || echo "WordPress dev env not found �
 ```bash
 ls vendor/autoload.php 2>/dev/null || composer install
 ```
+
+`npm run lint:js`, `npm run lint:css`, and `npm run check` require `npm install`. Check before running JS/CSS lint or the combined quality check:
+
+```bash
+ls node_modules/.bin/eslint 2>/dev/null || npm install
+```
+
+Coverage reports (`--coverage-*` flags) require the xdebug PHP extension (`php -d zend_extension=xdebug`). If xdebug is not installed, omit the coverage flags — tests still run without them.
+
+For file discovery, use `git ls-files '<pattern>'` rather than `find` or glob patterns — only tracked files exist reliably, and gitignored paths (vendor, node_modules, *.xml without .dist) will cause `No such file` errors if accessed directly.
