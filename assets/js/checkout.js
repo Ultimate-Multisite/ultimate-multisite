@@ -1229,6 +1229,25 @@
 
 						this.logging_in = false;
 						this.login_error = (err && err.message) ? err.message : (wu_checkout.i18n.login_failed || 'Login failed. Please try again.');
+
+						/**
+						 * Fires when an inline login attempt fails due to a rejected
+						 * wu_before_inline_login_submitted promise.
+						 *
+						 * Mirrors the failure hook emitted by the AJAX error path so that
+						 * addons (e.g. captcha widgets) can reset themselves regardless of
+						 * which failure path was taken.
+						 *
+						 * @param {Object} error      Object containing the error message and originalError.
+						 * @param {string} field_type The field type ('email' or 'username').
+						 */
+						hooks.doAction('wu_inline_login_error', {
+							data: {
+								message: this.login_error,
+							},
+							originalError: err,
+						}, field_type);
+
 						return false;
 
 					}
