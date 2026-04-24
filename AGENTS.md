@@ -181,3 +181,60 @@ wp plugin activate $(basename $PWD)   # activate this plugin
 wp plugin deactivate $(basename $PWD) # deactivate
 wp db reset --yes && cd ../wordpress && ./reset.sh  # full DB + WordPress reset (requires reset.sh in ../wordpress)
 ```
+
+## Agent Guidance
+
+Recurring error patterns observed in this codebase. Review before starting any session.
+
+### File Discovery — `.dist` Config Convention
+
+Config files are committed as `.dist` versions; un-suffixed copies are gitignored and may not exist locally:
+
+| Tracked (exists) | Local override (gitignored, may be absent) |
+|---|---|
+| `.phpcs.xml.dist` | `.phpcs.xml` |
+| `phpunit.xml.dist` | `phpunit.xml` |
+| `phpstan.neon.dist` | `phpstan.neon` |
+
+Always verify a file is tracked before reading it:
+
+```bash
+git ls-files 'phpunit.xml*'   # shows phpunit.xml.dist, not phpunit.xml
+```
+
+The `vendor/` and `node_modules/` directories are gitignored. If they are absent, run:
+
+```bash
+composer install && npm install
+```
+
+The `docs/` directory exists but is not described in the Project Structure section above — it contains developer documentation markdown files. The `todo/` directory contains task briefs.
+
+### No External URL Fetching
+
+Do **not** use webfetch for WordPress documentation, PHP manual pages, Stripe/PayPal API docs, or any developer documentation URLs — these requests consistently fail.
+
+Use the codebase itself instead:
+
+- WordPress functions and hooks → `rg 'function_name'` across `inc/`
+- Existing gateway patterns → read `inc/gateways/` directly
+- REST API shape → read `inc/apis/` trait files
+- Hook reference → `rg 'do_action\|apply_filters'` across `inc/`
+
+### Read Before Edit (Mandatory)
+
+The Edit tool **requires** a prior Read call on the same file in the current session. If you attempt to edit without reading first, the tool will fail. Always read the complete target file before editing — even for small changes.
+
+### WP-CLI and Bash Prerequisites
+
+`wp` commands require the dev WordPress install at `../wordpress`. Check it exists before running:
+
+```bash
+ls ../wordpress/wp-config.php 2>/dev/null || echo "WordPress dev env not found — run ./reset.sh in ../wordpress first"
+```
+
+`vendor/bin/phpunit`, `vendor/bin/phpcs`, and `vendor/bin/phpstan` require `composer install`. Check before running test or lint commands:
+
+```bash
+ls vendor/autoload.php 2>/dev/null || composer install
+```
