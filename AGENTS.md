@@ -308,3 +308,40 @@ If `php` is not available, omit the `php -d ...` prefix and call `vendor/bin/php
 **Syntax error in one-liner** — when constructing a PHP or bash one-liner, test with `bash -n`
 (syntax check) or `php -l` before running. A typo in a bash heredoc or PHP string will cause
 `bash:other`.
+
+**WordPress test suite not installed** — `vendor/bin/phpunit` requires a WordPress test
+environment. Without it, it fails with database connection errors or missing `bootstrap.php`
+messages. Install it once with:
+
+```bash
+bash bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host]
+# Example: bash bin/install-wp-tests.sh wordpress_test root root localhost
+```
+
+The test environment is installed to `/tmp/wordpress-tests-lib` and `/tmp/wordpress` by default.
+Check it exists before running the test suite:
+
+```bash
+ls /tmp/wordpress-tests-lib/includes/bootstrap.php 2>/dev/null || echo "WP test suite not installed — run bin/install-wp-tests.sh first"
+```
+
+**`npm run build` is a release command, not a dev command** — the `build` script runs
+minification, pot-file generation, and an encryption step (`encrypt-secrets.php`). Running it
+outside a release context will fail or produce unexpected output. For routine development
+quality checks, use:
+
+```bash
+npm run check    # lint (phpcs + eslint + stylelint) + phpstan + phpunit
+npm run lint     # lint only
+npm run stan     # phpstan only
+npm test         # phpunit only (equivalent to vendor/bin/phpunit)
+```
+
+**PHP functions unavailable in one-liners** — WordPress functions (`add_filter`, `apply_filters`,
+`get_option`, etc.) are not available in bare `php -r` one-liners. They require WordPress to be
+bootstrapped. Use WP-CLI for WordPress-context commands instead:
+
+```bash
+wp eval 'echo get_option("blogname");'   # correct — WP context available
+php -r 'echo get_option("blogname");'    # wrong — fatal: Call to undefined function
+```
