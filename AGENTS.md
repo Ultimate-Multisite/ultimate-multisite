@@ -210,7 +210,29 @@ composer install && npm install
 
 The `docs/` directory exists but is not described in the Project Structure section above — it contains developer documentation markdown files. The `todo/` directory contains task briefs.
 
+The following paths are commonly attempted but **do not exist** in this repo — attempting to
+read them will produce `read:file_not_found`:
+
+| Path attempted | Reality |
+|---|---|
+| `wp-config.php` | Lives at `../wordpress/wp-config.php` (outside this repo) |
+| `wp-load.php`, `wp-settings.php` | WordPress core lives in `../wordpress/` |
+| `wp-admin/**`, `wp-includes/**` | WordPress core — not in this repo |
+| `CHANGELOG.md` | Does not exist; see git log for change history |
+| `.phpcs.xml` | Gitignored override; use `.phpcs.xml.dist` |
+| `phpunit.xml` | Gitignored override; use `phpunit.xml.dist` |
+| `phpstan.neon` | Gitignored override; use `phpstan.neon.dist` |
+| `vendor/**` | Gitignored; run `composer install` first |
+| `node_modules/**` | Gitignored; run `npm install` first |
+
+Always verify a file is tracked before reading it with `git ls-files '<path>'`. An empty result means the file does not exist in the repo.
+
 ### No External URL Fetching
+
+**NEVER construct or guess a URL for webfetch.** Only fetch URLs explicitly present in user
+messages or tool output. Constructed URLs (e.g. building a GitHub raw URL from a file path,
+guessing a docs URL from a package name) account for the majority of `webfetch:other` failures
+in this codebase.
 
 Do **not** use webfetch for WordPress documentation, PHP manual pages, Stripe/PayPal API docs,
 BerlinDB documentation, npm package docs, or any other developer documentation URLs — these
@@ -235,7 +257,9 @@ Use the codebase itself for API/hook research:
 
 ### Read Before Edit (Mandatory)
 
-The Edit tool **requires** a prior Read call on the same file in the current session. If you attempt to edit without reading first, the tool will fail. Always read the complete target file before editing — even for small changes.
+The Edit tool **requires** a prior Read call on the same file in the **current conversation session**. A prior read from a previous conversation does not count — if the session restarts or the context is cleared, re-read every file before editing it. If you attempt to edit without reading first, the tool will fail. Always read the complete target file before editing — even for small changes.
+
+When working on multiple files in the same session: read each file immediately before editing it, not at the start of the session. Reading file A, then file B, then editing file A will fail if A's content changed between your read and your edit.
 
 ### WP-CLI and Bash Prerequisites
 
@@ -260,3 +284,27 @@ ls node_modules/.bin/eslint 2>/dev/null || npm install
 Coverage reports (`--coverage-*` flags) require the xdebug PHP extension (`php -d zend_extension=xdebug`). If xdebug is not installed, omit the coverage flags — tests still run without them.
 
 For file discovery, use `git ls-files '<pattern>'` rather than `find` or glob patterns — only tracked files exist reliably, and gitignored paths (vendor, node_modules, *.xml without .dist) will cause `No such file` errors if accessed directly.
+
+### Common bash:other Failures
+
+Most `bash:other` errors in this codebase fall into one of these categories:
+
+**Tool not installed** — run the prerequisite checks above before any lint, test, or analysis command.
+
+**`wp` command not found or fails** — `wp` requires WP-CLI in PATH and the dev WordPress install
+at `../wordpress`. If `../wordpress/wp-config.php` is absent, all WP-CLI commands fail. Check:
+
+```bash
+command -v wp || echo "wp-cli not in PATH"
+ls ../wordpress/wp-config.php 2>/dev/null || echo "WordPress dev env missing"
+```
+
+**Wrong working directory** — all build/lint/test commands must be run from the repo root
+(`ultimate-multisite/`). Commands like `vendor/bin/phpunit` resolve paths relative to CWD.
+
+**PHP binary not found** — commands like `php -d zend_extension=xdebug` require PHP in PATH.
+If `php` is not available, omit the `php -d ...` prefix and call `vendor/bin/phpunit` directly.
+
+**Syntax error in one-liner** — when constructing a PHP or bash one-liner, test with `bash -n`
+(syntax check) or `php -l` before running. A typo in a bash heredoc or PHP string will cause
+`bash:other`.
