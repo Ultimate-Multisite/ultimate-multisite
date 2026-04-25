@@ -430,9 +430,11 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 	 */
 	public function get_sending_statistics(string $domain, string $period = '24h'): array {
 
-		// SES v2 does not expose per-domain stats directly via a simple endpoint.
-		// This returns account-level sending statistics as a proxy.
-		$result = $this->get_ses()->ses_api_call('account/sending-statistics');
+		// SES v2 exposes account-level quota via GET /v2/email/account.
+		// The SendQuota object returns the total sent in the last 24 hours.
+		// Per-domain or per-period bounce/complaint breakdown requires
+		// BatchGetMetricData; this returns the available quota-level summary.
+		$result = $this->get_ses()->ses_api_call('account');
 
 		if (is_wp_error($result)) {
 			return [
@@ -441,23 +443,15 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 			];
 		}
 
-		$stats = $result['SendingStatistics'] ?? [];
+		$quota = $result['SendQuota'] ?? [];
 
-		$totals = [
-			'sent'       => 0,
-			'delivered'  => 0,
+		return [
+			'success'    => true,
+			'sent'       => (int) ($quota['SentLast24Hours'] ?? 0),
+			'delivered'  => (int) ($quota['SentLast24Hours'] ?? 0),
 			'bounced'    => 0,
 			'complaints' => 0,
 		];
-
-		foreach ($stats as $stat) {
-			$totals['sent']       += (int) ($stat['DeliveryAttempts'] ?? 0);
-			$totals['bounced']    += (int) ($stat['Bounces'] ?? 0);
-			$totals['complaints'] += (int) ($stat['Complaints'] ?? 0);
-			$totals['delivered']  += (int) ($stat['DeliveryAttempts'] ?? 0) - (int) ($stat['Bounces'] ?? 0);
-		}
-
-		return array_merge(['success' => true], $totals);
 	}
 
 	/**
