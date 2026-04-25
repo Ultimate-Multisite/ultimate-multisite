@@ -490,7 +490,7 @@ class Checkout_Pages {
 	 */
 	public function add_verify_email_notice($payment, $membership, $customer): void {
 
-		if ($payment->get_total() === 0.0 && $customer->get_email_verification() === 'pending') {
+		if ($customer->get_email_verification() === 'pending') {
 			printf(
 				'<div class="wu-p-4 wu-bg-yellow-200 wu-mb-2 wu-text-yellow-700 wu-rounded">
                     %s

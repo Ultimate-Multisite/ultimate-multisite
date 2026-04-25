@@ -335,6 +335,18 @@ class Membership_Manager extends Base_Manager {
 		 */
 		$membership = wu_get_membership($membership_id);
 
+		/*
+		 * If the customer has not yet verified their email, hold off on
+		 * publishing the pending site. The site will be published later
+		 * when the customer completes email verification (handled in
+		 * Customer_Manager::handle_email_verification()).
+		 */
+		$customer = $membership->get_customer();
+
+		if ($customer && $customer->get_email_verification() === 'pending') {
+			return;
+		}
+
 		$membership->publish_pending_site_async();
 	}
 

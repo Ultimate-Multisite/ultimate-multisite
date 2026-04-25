@@ -686,6 +686,106 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	// ========================================================================
+	// email verification gate — GH#935
+	// ========================================================================
+
+	/**
+	 * When enable_email_verification=always and the customer has not yet verified
+	 * their email, transitioning from pending → active must NOT publish the pending
+	 * site. The site is held until the customer completes email verification.
+	 */
+	public function test_transition_status_skips_publish_when_customer_email_pending(): void {
+
+		// Make publishing synchronous so we can detect it via a hook.
+		wu_save_setting('force_publish_sites_sync', true);
+
+		// Create a customer whose email is still pending verification.
+		$this->customer->set_email_verification('pending');
+		$this->customer->save();
+
+		$membership = $this->create_membership(['status' => Membership_Status::PENDING]);
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Email Pending Site',
+				'path'  => '/emailpending/',
+			]
+		);
+
+		// Track whether wu_before_pending_site_published fires.
+		$published = false;
+		add_action(
+			'wu_before_pending_site_published',
+			function () use (&$published) {
+				$published = true;
+			}
+		);
+
+		$manager = $this->get_manager_instance();
+
+		$manager->transition_membership_status(
+			Membership_Status::PENDING,
+			Membership_Status::ACTIVE,
+			$membership->get_id()
+		);
+
+		$this->assertFalse(
+			$published,
+			'Site must not be published while customer email is pending verification (GH#935).'
+		);
+
+		// Restore setting.
+		wu_save_setting('force_publish_sites_sync', false);
+	}
+
+	/**
+	 * When the customer has already verified their email (email_verification=none),
+	 * transitioning from pending → active must publish the pending site normally.
+	 */
+	public function test_transition_status_publishes_when_customer_email_not_pending(): void {
+
+		// Make publishing synchronous so we can detect it via a hook.
+		wu_save_setting('force_publish_sites_sync', true);
+
+		// Customer email is verified (default: none).
+		$this->customer->set_email_verification('none');
+		$this->customer->save();
+
+		$membership = $this->create_membership(['status' => Membership_Status::PENDING]);
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Email Verified Site',
+				'path'  => '/emailverified/',
+			]
+		);
+
+		$published = false;
+		add_action(
+			'wu_before_pending_site_published',
+			function () use (&$published) {
+				$published = true;
+			}
+		);
+
+		$manager = $this->get_manager_instance();
+
+		$manager->transition_membership_status(
+			Membership_Status::PENDING,
+			Membership_Status::ACTIVE,
+			$membership->get_id()
+		);
+
+		$this->assertTrue(
+			$published,
+			'Site must be published when customer email is not pending verification.'
+		);
+
+		// Restore setting.
+		wu_save_setting('force_publish_sites_sync', false);
+	}
+
+	// ========================================================================
 	// handle_pending_site_on_cancellation()
 	// ========================================================================
 
