@@ -288,7 +288,7 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 		}
 
 		$result = $this->get_ses()->ses_api_call(
-			'email-identities/' . rawurlencode($domain),
+			'identities/' . rawurlencode($domain),
 			'DELETE'
 		);
 
@@ -311,7 +311,7 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 	public function verify_domain(string $domain): array {
 
 		$result = $this->get_ses()->ses_api_call(
-			'email-identities',
+			'identities',
 			'POST',
 			[
 				'EmailIdentity' => $domain,
@@ -342,7 +342,7 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 	public function get_domain_verification_status(string $domain): array {
 
 		$result = $this->get_ses()->ses_api_call(
-			'email-identities/' . rawurlencode($domain)
+			'identities/' . rawurlencode($domain)
 		);
 
 		if (is_wp_error($result)) {
@@ -369,7 +369,7 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 	public function get_domain_dns_records(string $domain): array {
 
 		$result = $this->get_ses()->ses_api_call(
-			'email-identities/' . rawurlencode($domain)
+			'identities/' . rawurlencode($domain)
 		);
 
 		if (is_wp_error($result)) {

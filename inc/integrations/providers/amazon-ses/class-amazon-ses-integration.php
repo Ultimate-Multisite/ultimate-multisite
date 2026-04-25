@@ -28,10 +28,12 @@ class Amazon_SES_Integration extends Integration {
 	/**
 	 * Amazon SES API endpoint base URL.
 	 *
+	 * Includes the /v2/email/ prefix required by all SES v2 resource paths.
+	 *
 	 * @since 2.5.0
 	 * @var string
 	 */
-	private const API_BASE = 'https://email.%s.amazonaws.com/v2/';
+	private const API_BASE = 'https://email.%s.amazonaws.com/v2/email/';
 
 	/**
 	 * Constructor.
@@ -103,7 +105,7 @@ class Amazon_SES_Integration extends Integration {
 	 *
 	 * @since 2.5.0
 	 *
-	 * @param string $endpoint Relative endpoint path (e.g. 'email-identities').
+	 * @param string $endpoint Relative endpoint path (e.g. 'identities', 'outbound-emails', 'account').
 	 * @param string $method   HTTP method. Defaults to GET.
 	 * @param array  $data     Request body data (will be JSON-encoded for non-GET requests).
 	 * @return array|\WP_Error Decoded response array or WP_Error on failure.

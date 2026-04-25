@@ -55,6 +55,7 @@ class Amazon_SES_Integration_Test extends WP_UnitTestCase {
 
 		$this->assertStringContainsString('us-east-1', $api_base);
 		$this->assertStringContainsString('amazonaws.com', $api_base);
+		$this->assertStringContainsString('/v2/email/', $api_base);
 	}
 
 	public function test_get_api_base_uses_configured_region(): void {
