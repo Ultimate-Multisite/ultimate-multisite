@@ -224,6 +224,11 @@ read them will produce `read:file_not_found`:
 | `phpstan.neon` | Gitignored override; use `phpstan.neon.dist` |
 | `vendor/**` | Gitignored; run `composer install` first |
 | `node_modules/**` | Gitignored; run `npm install` first |
+| `includes/` | Does not exist; this repo uses `inc/` (not `includes/`) |
+| `src/` | Does not exist; PHP classes live in `inc/` |
+| `lib/` | Does not exist; use `inc/` for PHP code, `assets/` for frontend |
+| `languages/` | Does not exist; i18n files are in `lang/` |
+| `.env`, `.env.example` | Does not exist; no local env config stored in this repo |
 
 Always verify a file is tracked before reading it with `git ls-files '<path>'`. An empty result means the file does not exist in the repo.
 
@@ -251,6 +256,8 @@ Use the codebase itself for API/hook research:
 
 - WordPress functions and hooks → `rg 'function_name'` across `inc/`
 - Existing gateway patterns → read `inc/gateways/` directly
+- Stripe integration details → read `inc/gateways/class-base-stripe-gateway.php`
+- PayPal integration details → read `inc/gateways/class-base-paypal-gateway.php`
 - REST API shape → read `inc/apis/` trait files
 - Hook reference → `rg 'do_action\|apply_filters'` across `inc/`
 - BerlinDB schema → read `inc/database/` directly
@@ -258,6 +265,14 @@ Use the codebase itself for API/hook research:
 ### Read Before Edit (Mandatory)
 
 The Edit tool **requires** a prior Read call on the same file in the **current conversation session**. A prior read from a previous conversation does not count — if the session restarts or the context is cleared, re-read every file before editing it. If you attempt to edit without reading first, the tool will fail. Always read the complete target file before editing — even for small changes.
+
+**Required per-file workflow — follow this every time:**
+
+1. Call `Read` on the target file.
+2. Immediately call `Edit` on that same file.
+3. If you need to edit another file, call `Read` on that next file first.
+
+Do **not** read all files at session start and edit them later. The pattern `Read(A) → Read(B) → Edit(A)` is correct only if A's content has not changed; in practice, read immediately before each edit to stay safe.
 
 When working on multiple files in the same session: read each file immediately before editing it, not at the start of the session. Reading file A, then file B, then editing file A will fail if A's content changed between your read and your edit.
 
@@ -344,4 +359,13 @@ bootstrapped. Use WP-CLI for WordPress-context commands instead:
 ```bash
 wp eval 'echo get_option("blogname");'   # correct — WP context available
 php -r 'echo get_option("blogname");'    # wrong — fatal: Call to undefined function
+```
+
+**Do not pass `--standard=` to PHPCS** — the coding standard is already declared in
+`.phpcs.xml.dist` (and `.phpcs.xml` if present). Passing `--standard=WordPress` manually
+overrides the project config and ignores custom rules. Run PHPCS without a `--standard=` flag:
+
+```bash
+vendor/bin/phpcs inc/path/to/file.php   # correct — uses .phpcs.xml.dist
+vendor/bin/phpcs --standard=WordPress inc/path/to/file.php   # wrong — bypasses project config
 ```
