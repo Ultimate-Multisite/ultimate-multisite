@@ -7,6 +7,10 @@
 
 set -euo pipefail
 
+# Always run from the repo root regardless of where the script was invoked.
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd -- "${SCRIPT_DIR}/.."
+
 any_fail=0
 
 ok() { echo "[OK]  $1"; }
