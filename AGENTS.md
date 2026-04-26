@@ -199,7 +199,9 @@ Recurring error patterns observed in this codebase. Review before starting any s
    same conversation turn on that exact file. `Read(A) → Edit(A)` is correct. `Read(A) →
    Read(B) → Edit(A)` fails if A's content changed, and will always fail on session restart.
    Never read multiple files upfront and edit them later.
-4. **Check tool prerequisites** — before any lint, test, or analysis command, confirm:
+4. **Check tool prerequisites** — run `bash bin/check-env.sh` for a single pass that checks
+   all prerequisites (vendor, node_modules, wp-cli, WordPress dev env, WP test suite) and
+   prints exactly what's missing with fix instructions. Or check individually:
    - `ls vendor/autoload.php 2>/dev/null || echo "run: composer install"`
    - `ls node_modules/.bin/eslint 2>/dev/null || echo "run: npm install"`
    - `ls /tmp/wordpress-tests-lib/includes/bootstrap.php 2>/dev/null || echo "run: bin/install-wp-tests.sh"`
