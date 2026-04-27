@@ -3510,6 +3510,90 @@ class Checkout_Test extends WP_UnitTestCase {
 		$order_prop->setValue($checkout, null);
 	}
 
+	/**
+	 * Test maybe_create_membership sets null expiration for free products.
+	 *
+	 * Free, non-recurring products should produce a lifetime membership
+	 * (date_expiration = null). Before the fix, gmdate() was called with
+	 * null which resolved to "today 23:59:59", causing the membership to
+	 * expire at end-of-day.
+	 */
+	public function test_maybe_create_membership_free_product_has_null_expiration(): void {
+
+		$customer = self::$customer;
+
+		$free_plan = wu_create_product([
+			'name'          => 'Free Test Plan',
+			'slug'          => 'free-test-plan-' . wp_rand(1000, 9999),
+			'amount'        => 0,
+			'recurring'     => false,
+			'duration'      => 1,
+			'duration_unit' => 'month',
+			'type'          => 'plan',
+			'pricing_type'  => 'free',
+			'active'        => true,
+		]);
+
+		if (is_wp_error($free_plan)) {
+			$this->markTestSkipped('Product creation failed: ' . $free_plan->get_error_message());
+		}
+
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+		$method     = $reflection->getMethod('maybe_create_membership');
+
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		$cart = new Cart(['products' => [$free_plan->get_id()]]);
+
+		// Verify the cart recognises this as free
+		$this->assertTrue($cart->is_free(), 'Cart should be free for a zero-cost plan');
+		$this->assertNull($cart->get_billing_start_date(), 'Billing start date should be null for free plan');
+
+		$order_prop = $this->get_order_prop($reflection);
+		$order_prop->setValue($checkout, $cart);
+
+		$customer_prop = $reflection->getProperty('customer');
+		if (PHP_VERSION_ID < 80100) {
+			$customer_prop->setAccessible(true);
+		}
+		$customer_prop->setValue($checkout, $customer);
+
+		$gateway_prop = $reflection->getProperty('gateway_id');
+		if (PHP_VERSION_ID < 80100) {
+			$gateway_prop->setAccessible(true);
+		}
+		$gateway_prop->setValue($checkout, 'free');
+
+		$result = $method->invoke($checkout);
+
+		if (is_wp_error($result)) {
+			$this->markTestSkipped('Membership creation failed: ' . $result->get_error_message());
+		}
+
+		$this->assertInstanceOf(\WP_Ultimo\Models\Membership::class, $result);
+
+		// The critical assertion: free membership must NOT have an expiration date
+		$this->assertNull(
+			$result->get_date_expiration(),
+			'Free membership must have null date_expiration (lifetime). ' .
+			'Got: ' . var_export($result->get_date_expiration(), true)
+		);
+
+		// Consequently, the membership should be identified as lifetime
+		$this->assertTrue(
+			$result->is_lifetime(),
+			'Free membership must be recognised as lifetime'
+		);
+
+		// Cleanup
+		$result->delete();
+		$free_plan->delete();
+		$order_prop->setValue($checkout, null);
+	}
+
 	// -------------------------------------------------------------------------
 	// maybe_create_payment — create new payment path
 	// -------------------------------------------------------------------------

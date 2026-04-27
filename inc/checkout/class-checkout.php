@@ -1312,8 +1312,18 @@ class Checkout {
 
 		/*
 		 * Important dates.
+		 *
+		 * For free, non-recurring products the billing start date is null,
+		 * meaning there is no next charge — the membership should be
+		 * treated as lifetime. Passing null into gmdate() silently uses
+		 * the current timestamp, which sets the expiration to *today*
+		 * and causes the membership to expire within hours/days.
 		 */
-		$membership_data['date_expiration'] = gmdate('Y-m-d 23:59:59', $this->order->get_billing_start_date());
+		$billing_start_date = $this->order->get_billing_start_date();
+
+		$membership_data['date_expiration'] = $billing_start_date
+			? gmdate('Y-m-d 23:59:59', $billing_start_date)
+			: null;
 
 		$membership = wu_create_membership($membership_data);
 
