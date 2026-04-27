@@ -679,12 +679,14 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 				'name'              => __('WordPress Multisite', 'ultimate-multisite'),
 				'help'              => wu_get_documentation_url('wp-ultimo-requirements'),
 				'condition'         => __('Installed & Activated', 'ultimate-multisite'),
+				'fail_condition'    => __('NOT Installed & Activated', 'ultimate-multisite'),
 				'pass_requirements' => is_multisite(),
 			],
 			'wp-ultimo' => [
 				'name'                   => __('Ultimate Multisite', 'ultimate-multisite'),
 				'help'                   => wu_get_documentation_url('wp-ultimo-requirements'),
 				'condition'              => apply_filters('wp_ultimo_skip_network_active_check', false) ? __('Bypassed via filter', 'ultimate-multisite') : __('Network Activated', 'ultimate-multisite'),
+				'fail_condition'         => __('NOT Network Activated', 'ultimate-multisite'),
 				'pass_requirements'      => $is_network_active,
 				'can_activate'           => $can_network_activate,
 				'network_activate_nonce' => $can_network_activate ? wp_create_nonce('wu_setup_network_activate') : '',
@@ -693,6 +695,7 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 				'name'              => __('WordPress Cron', 'ultimate-multisite'),
 				'help'              => wu_get_documentation_url('wp-ultimo-requirements'),
 				'condition'         => __('Activated', 'ultimate-multisite'),
+				'fail_condition'    => __('NOT Activated', 'ultimate-multisite'),
 				'pass_requirements' => Requirements::check_wp_cron(),
 			],
 		];

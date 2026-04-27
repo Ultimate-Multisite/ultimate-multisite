@@ -66,7 +66,7 @@ defined('ABSPATH') || exit;
 		<tr class="">
 			<td><?php echo esc_html($req['name']); ?></td>
 			<td class="<?php echo $req['pass_requirements'] ? 'wu-text-green-600' : 'wu-text-red-600'; ?>">
-				<?php echo esc_html($req['condition']); ?>
+				<?php echo $req['pass_requirements'] ? esc_html($req['condition']) : esc_html($req['fail_condition'] ?? $req['condition']); ?>
 			<?php echo $req['pass_requirements'] ? '<span class="dashicons-wu-check"></span>' : '<span class="dashicons-wu-cross wu-align-middle"></span>'; ?>
 
 			<?php if ( ! $req['pass_requirements']) : ?>
