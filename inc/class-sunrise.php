@@ -64,6 +64,24 @@ class Sunrise {
 		self::load_domain_mapping();
 
 		/**
+		 * Load addon sunrise files.
+		 *
+		 * Some addons need to run code at sunrise time — before
+		 * ms-settings.php resolves the network and blog. Instead of
+		 * requiring each addon to modify the root sunrise.php (which
+		 * Ultimate Multisite may overwrite on update), addons can ship
+		 * a `sunrise.php` in their plugin root directory. This loader
+		 * scans for and includes them after domain mapping has run.
+		 *
+		 * Addons are loaded in alphabetical order. Each addon's
+		 * sunrise.php has access to $current_site, $current_blog,
+		 * $wpdb, and all Ultimate Multisite sunrise functions.
+		 *
+		 * @since 2.3.0
+		 */
+		self::load_addon_sunrise_files();
+
+		/**
 		 * Enqueue the main hooks that deal with Sunrise
 		 * loading and maintenance.
 		 */
@@ -183,6 +201,48 @@ class Sunrise {
 			\WP_Ultimo\Domain_Mapping\Primary_Domain::get_instance();
 
 			\WP_Ultimo\Domain_Mapping::get_instance();
+		}
+	}
+
+	/**
+	 * Scan for and load addon sunrise files.
+	 *
+	 * Ultimate Multisite addons can ship a sunrise.php in their plugin
+	 * root directory. This method scans the plugins directory for
+	 * matching addon sunrise files and includes them in alphabetical
+	 * order. Pattern: plugins/ultimate-multisite-{name}/sunrise.php
+	 *
+	 * This runs AFTER domain mapping has loaded but BEFORE ms_loaded,
+	 * which means addon sunrise files can:
+	 *   - Override $current_site and $current_blog
+	 *   - Access $wpdb (already configured by db-config.php)
+	 *   - Define constants (BLOG_ID_CURRENT_SITE, etc.)
+	 *   - Read Database_Router state (for multi-tenancy routing)
+	 *
+	 * Addon sunrise files are NOT loaded when Ultimate Multisite itself
+	 * is not installed (the main sunrise.php handles that warning).
+	 *
+	 * @since 2.3.0
+	 * @return void
+	 */
+	protected static function load_addon_sunrise_files(): void {
+
+		$plugins_dir = defined( 'WP_PLUGIN_DIR' )
+			? WP_PLUGIN_DIR
+			: WP_CONTENT_DIR . '/plugins';
+
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		$candidates = @glob( $plugins_dir . '/ultimate-multisite-*/sunrise.php' );
+
+		if ( empty( $candidates ) || ! is_array( $candidates ) ) {
+			return;
+		}
+
+		sort( $candidates ); // Alphabetical order for determinism.
+
+		foreach ( $candidates as $addon_sunrise ) {
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.include_include
+			include_once $addon_sunrise;
 		}
 	}
 
