@@ -51,6 +51,16 @@ class Customer extends Base_Model implements Billable, Notable {
 	const META_VERIFICATION_KEY = 'wu_verification_key';
 
 	/**
+	 * Meta key for the blog ID where the customer checked out.
+	 *
+	 * Used to build verification URLs on the same domain the
+	 * customer originally used, so their auth cookie is valid.
+	 *
+	 * @since 2.5.0
+	 */
+	const META_CHECKOUT_BLOG_ID = 'wu_checkout_blog_id';
+
+	/**
 	 * User ID of the associated user.
 	 *
 	 * @since 2.0.0
@@ -882,6 +892,12 @@ class Customer extends Base_Model implements Billable, Notable {
 	/**
 	 * Returns the link of the email verification endpoint.
 	 *
+	 * When the customer checked out on a domain other than the main site
+	 * (e.g. a checkout form hosted on a mapped domain), the verification
+	 * URL must point back to that same domain so the auth cookie set
+	 * during checkout is valid. Falls back to the main site when no
+	 * checkout blog ID is stored.
+	 *
 	 * @since 2.0.0
 	 * @return string|bool
 	 */
@@ -889,8 +905,21 @@ class Customer extends Base_Model implements Billable, Notable {
 
 		$key = $this->get_verification_key();
 
+		$blog_id = $this->get_checkout_blog_id() ?: wu_get_main_site_id();
+
+		/**
+		 * Filters the base URL used for the email verification link.
+		 *
+		 * @since 2.5.0
+		 *
+		 * @param string   $base_url The base URL (home URL of the checkout site).
+		 * @param Customer $customer The customer object.
+		 * @param int      $blog_id  The blog ID used to build the URL.
+		 */
+		$base_url = apply_filters('wu_customer_verification_base_url', get_home_url($blog_id), $this, $blog_id);
+
 		if ( ! $key) {
-			return get_site_url(wu_get_main_site_id());
+			return $base_url;
 		}
 
 		return add_query_arg(
@@ -898,8 +927,32 @@ class Customer extends Base_Model implements Billable, Notable {
 				'email-verification-key' => $key,
 				'customer'               => $this->get_hash(),
 			],
-			get_site_url(wu_get_main_site_id())
+			$base_url
 		);
+	}
+
+	/**
+	 * Get the blog ID of the site where the customer checked out.
+	 *
+	 * @since 2.5.0
+	 * @return int The blog ID, or 0 if not set.
+	 */
+	public function get_checkout_blog_id() {
+
+		return absint($this->get_meta(self::META_CHECKOUT_BLOG_ID, 0));
+	}
+
+	/**
+	 * Set the blog ID of the site where the customer checked out.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param int $blog_id The blog ID.
+	 * @return bool
+	 */
+	public function set_checkout_blog_id($blog_id) {
+
+		return $this->update_meta(self::META_CHECKOUT_BLOG_ID, absint($blog_id));
 	}
 
 	/**
