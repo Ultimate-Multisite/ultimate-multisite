@@ -4753,6 +4753,247 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	// -------------------------------------------------------------------------
+	// login_customer_after_checkout
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Helper: get the login_customer_after_checkout method via reflection.
+	 */
+	private function get_login_method(\ReflectionClass $reflection): \ReflectionMethod {
+		$method = $reflection->getMethod('login_customer_after_checkout');
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+		return $method;
+	}
+
+	/**
+	 * Helper: inject a customer object into the checkout singleton.
+	 */
+	private function inject_customer(Checkout $checkout, \ReflectionClass $reflection, $customer): void {
+		$prop = $reflection->getProperty('customer');
+		if (PHP_VERSION_ID < 80100) {
+			$prop->setAccessible(true);
+		}
+		$prop->setValue($checkout, $customer);
+	}
+
+	/**
+	 * Test login_customer_after_checkout is a no-op when already logged in.
+	 *
+	 * If the user is already authenticated, wp_login should never fire.
+	 */
+	public function test_login_customer_after_checkout_noop_when_logged_in(): void {
+
+		$user_id = self::factory()->user->create(['role' => 'subscriber']);
+		wp_set_current_user($user_id);
+
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+		$method     = $this->get_login_method($reflection);
+
+		$login_fired = false;
+		add_action('wp_login', function() use (&$login_fired) {
+			$login_fired = true;
+		});
+
+		$method->invoke($checkout);
+
+		remove_all_actions('wp_login');
+
+		$this->assertFalse($login_fired, 'wp_login must not fire when user is already logged in');
+
+		wp_set_current_user(0);
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		wp_delete_user($user_id);
+	}
+
+	/**
+	 * Test login_customer_after_checkout fires wp_login via auth cookie
+	 * when no password is available (simple-preset / auto_generate_password).
+	 *
+	 * This is the bug scenario: email-only checkout form → no password in
+	 * session or request → wp_signon() would silently fail → user ends up
+	 * logged out on the finish-checkout page.
+	 */
+	public function test_login_customer_after_checkout_no_password_fires_wp_login(): void {
+
+		$unique    = uniqid('nopw_', true);
+		$user_id   = self::factory()->user->create([
+			'user_login' => $unique,
+			'user_pass'  => wp_generate_password(),
+			'user_email' => $unique . '@example.com',
+		]);
+
+		wp_set_current_user(0);
+		wp_clear_auth_cookie();
+
+		$customer = wu_create_customer([
+			'user_id'  => $user_id,
+			'username' => $unique,
+			'email'    => $unique . '@example.com',
+		]);
+
+		if (is_wp_error($customer)) {
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+			wp_delete_user($user_id);
+			$this->markTestSkipped('Customer creation failed: ' . $customer->get_error_message());
+		}
+
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+
+		$this->inject_customer($checkout, $reflection, $customer);
+		$this->ensure_session($checkout);
+
+		// No password in request or session.
+		unset($_REQUEST['password']);
+
+		$login_fired    = false;
+		$login_user_arg = null;
+		add_action('wp_login', function($user_login, $user) use (&$login_fired, &$login_user_arg) {
+			$login_fired    = true;
+			$login_user_arg = $user;
+		}, 10, 2);
+
+		$method = $this->get_login_method($reflection);
+		$method->invoke($checkout);
+
+		remove_all_actions('wp_login');
+
+		$this->assertTrue($login_fired, 'wp_login must fire when auto-logging in via auth cookie (no password path)');
+		$this->assertInstanceOf(\WP_User::class, $login_user_arg);
+		$this->assertEquals($user_id, $login_user_arg->ID);
+
+		// Cleanup.
+		wp_set_current_user(0);
+		$customer->delete();
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		wp_delete_user($user_id);
+	}
+
+	/**
+	 * Test login_customer_after_checkout uses wp_signon when a password is provided.
+	 *
+	 * wp_signon() internally fires wp_login on success.
+	 */
+	public function test_login_customer_after_checkout_with_password_fires_wp_login(): void {
+
+		$unique   = uniqid('withpw_', true);
+		$password = 'TestP@ssw0rd!';
+		$user_id  = self::factory()->user->create([
+			'user_login' => $unique,
+			'user_pass'  => $password,
+			'user_email' => $unique . '@example.com',
+		]);
+
+		wp_set_current_user(0);
+		wp_clear_auth_cookie();
+
+		$customer = wu_create_customer([
+			'user_id'  => $user_id,
+			'username' => $unique,
+			'email'    => $unique . '@example.com',
+		]);
+
+		if (is_wp_error($customer)) {
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+			wp_delete_user($user_id);
+			$this->markTestSkipped('Customer creation failed: ' . $customer->get_error_message());
+		}
+
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+
+		$this->inject_customer($checkout, $reflection, $customer);
+		$this->ensure_session($checkout);
+
+		$_REQUEST['password'] = $password;
+
+		$login_fired = false;
+		add_action('wp_login', function() use (&$login_fired) {
+			$login_fired = true;
+		});
+
+		$method = $this->get_login_method($reflection);
+		$method->invoke($checkout);
+
+		remove_all_actions('wp_login');
+		unset($_REQUEST['password']);
+
+		$this->assertTrue($login_fired, 'wp_login must fire when logging in via wp_signon (password path)');
+
+		// Cleanup.
+		wp_set_current_user(0);
+		$customer->delete();
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		wp_delete_user($user_id);
+	}
+
+	/**
+	 * Test login_customer_after_checkout handles a customer with user_id = 0 gracefully.
+	 *
+	 * If get_user_id() returns 0 (no linked WP user), the method must not
+	 * throw and must not fire wp_login.  We simulate this by setting the
+	 * customer's user_id to 0 via its public setter rather than deleting a
+	 * real user (WP caches users in-process making deletion unreliable in
+	 * a unit-test context).
+	 */
+	public function test_login_customer_after_checkout_missing_wp_user_is_safe(): void {
+
+		wp_set_current_user(0);
+		wp_clear_auth_cookie();
+
+		// Build a real customer so inject_customer has a valid object to work
+		// with, then point its user_id at 0 so get_user_by('ID', 0) returns false.
+		$unique   = uniqid('orphan_', true);
+		$user_id  = self::factory()->user->create([
+			'user_login' => $unique,
+			'user_pass'  => wp_generate_password(),
+			'user_email' => $unique . '@example.com',
+		]);
+		$customer = wu_create_customer([
+			'user_id'  => $user_id,
+			'username' => $unique,
+			'email'    => $unique . '@example.com',
+		]);
+
+		if (is_wp_error($customer)) {
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+			wp_delete_user($user_id);
+			$this->markTestSkipped('Customer creation failed: ' . $customer->get_error_message());
+		}
+
+		// Point the customer at user 0 (guaranteed to not exist).
+		$customer->set_user_id(0);
+
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+
+		$this->inject_customer($checkout, $reflection, $customer);
+		$this->ensure_session($checkout);
+		unset($_REQUEST['password']);
+
+		$login_fired = false;
+		add_action('wp_login', function() use (&$login_fired) {
+			$login_fired = true;
+		});
+
+		// Must not throw.
+		$method = $this->get_login_method($reflection);
+		$method->invoke($checkout);
+
+		remove_all_actions('wp_login');
+
+		$this->assertFalse($login_fired, 'wp_login must not fire when the customer has no linked WP user');
+
+		// Cleanup.
+		$customer->delete();
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		wp_delete_user($user_id);
+	}
+
+	// -------------------------------------------------------------------------
 	// Teardown
 	// -------------------------------------------------------------------------
 

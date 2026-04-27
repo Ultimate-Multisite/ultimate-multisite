@@ -899,20 +899,7 @@ class Checkout {
 		 * let's check if the user is logged in,
 		 * and if not, let's do that.
 		 */
-		if ( ! is_user_logged_in()) {
-			wp_clear_auth_cookie();
-
-			$user_credentials = array(
-				'user_login'    => $this->customer->get_username(),
-				'user_password' => $this->request_or_session('password'),
-			);
-
-			// Remove the pending payment check action so the customer is not prompted to pay for the payment when they are already on the checkout page.
-			remove_action('wp_login', array(Payment_Manager::get_instance(), 'check_pending_payments'), 10);
-
-			// Sign in the user as if they used the login form.
-			wp_signon($user_credentials, is_ssl());
-		}
+		$this->login_customer_after_checkout();
 
 		/*
 		 * Action time.
@@ -2218,6 +2205,72 @@ class Checkout {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Logs the customer in immediately after a successful checkout submission.
+	 *
+	 * When a password was collected by the form (standard flow) we call
+	 * wp_signon() so WordPress performs its normal credential round-trip.
+	 * When no password was collected — e.g. the form uses
+	 * auto_generate_password or has no password field at all (the simple
+	 * preset with email-only) — wp_signon() would receive an empty credential
+	 * and silently fail, leaving the user logged-out and triggering the
+	 * "You need to be logged in" error on the finish-checkout page. In that
+	 * case we set the auth cookie directly, since the customer record was
+	 * just created in this very request and the credential is not available.
+	 *
+	 * @since 2.6.0
+	 * @return void
+	 */
+	protected function login_customer_after_checkout() {
+
+		if (is_user_logged_in()) {
+			return;
+		}
+
+		wp_clear_auth_cookie();
+
+		// Remove the pending payment check action so the customer is not
+		// prompted to pay for the payment when they are already on the
+		// checkout page.
+		remove_action('wp_login', array(Payment_Manager::get_instance(), 'check_pending_payments'), 10);
+
+		$password = $this->request_or_session('password');
+
+		if ($password) {
+			$user_credentials = array(
+				'user_login'    => $this->customer->get_username(),
+				'user_password' => $password,
+			);
+
+			// Sign in the user as if they used the login form.
+			wp_signon($user_credentials, is_ssl());
+
+			return;
+		}
+
+		/*
+		 * No password was collected (e.g. the form uses auto_generate_password
+		 * or has no password field at all — the simple preset). We just
+		 * created this user, so log them in directly via the auth cookie
+		 * rather than a credential round-trip that would fail with an empty
+		 * password and silently leave the user logged out.
+		 */
+		$user_id = $this->customer->get_user_id();
+
+		if ( ! $user_id) {
+			return;
+		}
+
+		$user = get_user_by('ID', $user_id);
+
+		if ( ! $user) {
+			return;
+		}
+
+		wp_set_auth_cookie($user_id, false, is_ssl());
+		do_action('wp_login', $user->user_login, $user);
 	}
 
 	/**
