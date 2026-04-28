@@ -277,13 +277,26 @@ class Limitations implements \JsonSerializable {
 			$array2['enabled'] = true;
 		}
 
-		if ( ! wu_get_isset($array1, 'enabled', true)) {
+		/*
+		 * Only collapse a module to {enabled:false} when the enabled flag is
+		 * explicitly set to a boolean false — not when it is absent or an
+		 * empty string. An empty string arrives from external flows (e.g. the
+		 * WooCommerce addon) where capability flags were never written; it
+		 * means "not configured" and must NOT suppress inherited values.
+		 *
+		 * @since 2.7.1
+		 */
+		$a1_enabled = wu_get_isset($array1, 'enabled', 'not-set');
+
+		if (false === $a1_enabled) {
 			$array1 = [
 				'enabled' => false,
 			];
 		}
 
-		if ( ! wu_get_isset($array2, 'enabled', true) && $should_sum) {
+		$a2_enabled = wu_get_isset($array2, 'enabled', 'not-set');
+
+		if (false === $a2_enabled && $should_sum) {
 			return;
 		}
 

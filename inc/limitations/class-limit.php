@@ -140,9 +140,21 @@ abstract class Limit implements \JsonSerializable {
 
 		/*
 		 * Sets the own enabled flag, if necessary.
+		 *
+		 * Treat empty string the same as "not set" — when limitations are
+		 * serialized through the WooCommerce addon or other external flows,
+		 * the enabled flag can arrive as '' instead of being absent entirely.
+		 * Casting '' to bool yields false, which incorrectly disables the
+		 * capability instead of inheriting from the parent (plan/membership).
+		 *
+		 * @since 2.7.1
 		 */
-		if (wu_get_isset($data, 'enabled', 'not-set') === 'not-set') {
+		$current_enabled = wu_get_isset($data, 'enabled', 'not-set');
+
+		if ('not-set' === $current_enabled || '' === $current_enabled) {
 			$this->has_own_enabled = false;
+
+			unset($data['enabled']);
 		}
 
 		$data = wp_parse_args(
