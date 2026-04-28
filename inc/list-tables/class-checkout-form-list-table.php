@@ -100,6 +100,27 @@ class Checkout_Form_List_Table extends Base_List_Table {
 	}
 
 	/**
+	 * Displays the active status of the form.
+	 *
+	 * @since 2.0.21
+	 *
+	 * @param \WP_Ultimo\Models\Checkout_Form $item Checkout Form object.
+	 * @return string
+	 */
+	public function column_active($item) {
+
+		if ($item->is_active()) {
+			$label = __('Active', 'ultimate-multisite');
+			$class = 'wu-bg-green-200 wu-text-green-700';
+		} else {
+			$label = __('Inactive', 'ultimate-multisite');
+			$class = 'wu-bg-red-200 wu-text-red-700';
+		}
+
+		return "<span class='wu-py-1 wu-px-2 wu-rounded-sm wu-text-xs wu-font-mono {$class}'>{$label}</span>";
+	}
+
+	/**
 	 * Displays the number pof steps and fields.
 	 *
 	 * @since 2.0.0
@@ -194,11 +215,12 @@ class Checkout_Form_List_Table extends Base_List_Table {
 	public function get_columns() {
 
 		$columns = [
-			'cb'    => '<input type="checkbox" />',
-			'name'  => __('Form Name', 'ultimate-multisite'),
-			'slug'  => __('Form Slug', 'ultimate-multisite'),
-			'steps' => __('Steps', 'ultimate-multisite'),
-			'id'    => __('ID', 'ultimate-multisite'),
+			'cb'     => '<input type="checkbox" />',
+			'name'   => __('Form Name', 'ultimate-multisite'),
+			'active' => __('Status', 'ultimate-multisite'),
+			'slug'   => __('Form Slug', 'ultimate-multisite'),
+			'steps'  => __('Steps', 'ultimate-multisite'),
+			'id'     => __('ID', 'ultimate-multisite'),
 		];
 
 		return $columns;
