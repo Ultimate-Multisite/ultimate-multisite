@@ -1116,6 +1116,17 @@ class Checkout {
 		}
 
 		/*
+		 * Store the current blog ID so the verification email
+		 * links back to the same domain the customer used to
+		 * check out. Without this, the verification URL would
+		 * always point to the main site, where the customer's
+		 * auth cookie may not be valid.
+		 *
+		 * @since 2.5.0
+		 */
+		$customer->set_checkout_blog_id(get_current_blog_id());
+
+		/*
 		 * Updates IP, and country
 		 */
 		$customer->update_last_login(true, true);
