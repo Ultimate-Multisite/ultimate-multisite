@@ -730,6 +730,78 @@ class Checkout {
 		$this->type = $cart->get_cart_type();
 
 		/*
+		 * Block duplicate signup for logged-in users with active memberships.
+		 *
+		 * When a customer with an active subscription goes through the
+		 * registration form again as a "new" checkout (rather than
+		 * upgrade/downgrade), the new subscription replaces the old one
+		 * and any applied coupons or custom pricing are lost.
+		 *
+		 * This guard fires early — before any customer, membership, or
+		 * payment records are created — so there are no orphaned records
+		 * to clean up when the checkout is blocked.
+		 *
+		 * Filterable via `wu_allow_duplicate_signup` for sites that
+		 * intentionally permit re-registration (e.g. multi-membership).
+		 *
+		 * @since 2.5.1
+		 */
+		if ('new' === $this->type && is_user_logged_in()) {
+			$existing_customer = wu_get_current_customer();
+
+			if ($existing_customer) {
+				$active_memberships = wu_get_memberships([
+					'customer_id' => $existing_customer->get_id(),
+					'status__in'  => [
+						Membership_Status::ACTIVE,
+						Membership_Status::TRIALING,
+						Membership_Status::ON_HOLD,
+					],
+					'number'      => 1,
+				]);
+
+				if ( ! empty($active_memberships)) {
+					$existing_membership = reset($active_memberships);
+
+					/**
+					 * Filters whether to allow a duplicate signup when the
+					 * customer already has an active membership.
+					 *
+					 * Return `true` to allow the checkout to proceed. The
+					 * default is `false` (block the signup).
+					 *
+					 * @since 2.5.1
+					 *
+					 * @param bool                          $allow     Whether to allow the duplicate signup.
+					 * @param \WP_Ultimo\Models\Membership  $membership The existing active membership.
+					 * @param \WP_Ultimo\Models\Customer    $customer   The current customer.
+					 * @param \WP_Ultimo\Checkout\Cart      $cart       The cart being processed.
+					 */
+					$allow = apply_filters(
+						'wu_allow_duplicate_signup',
+						false,
+						$existing_membership,
+						$existing_customer,
+						$cart
+					);
+
+					if ( ! $allow) {
+						$account_url = get_admin_url(wu_get_main_site_id(), 'admin.php?page=account');
+
+						return new \WP_Error(
+							'duplicate_signup',
+							sprintf(
+								/* translators: %s is a link to the account page. */
+								__('You already have an active subscription. To manage your existing subscription, <a href="%s">visit your account page</a>. If you need help, please contact support.', 'ultimate-multisite'),
+								esc_url($account_url)
+							)
+						);
+					}
+				}
+			}
+		}
+
+		/*
 		 * Gets the gateway object we want to use.
 		 *
 		 * This will have been set on a previous step (session)
