@@ -1977,9 +1977,35 @@ class Site extends Base_Model implements Limitable, Notable {
 		}
 
 		/**
-		 * Handles membership
+		 * Handles membership.
+		 *
+		 * When the site is created through external gateways (e.g. the
+		 * WooCommerce addon), the membership_id may not have been set on
+		 * the site object before save(). If get_membership() returns false
+		 * but we have a customer_id, attempt to infer the membership from
+		 * the customer's active memberships as a defensive fallback.
+		 *
+		 * @since 2.7.1
 		 */
 		$membership = $this->get_membership();
+
+		if ( ! $membership && $this->get_customer_id() && function_exists('wu_get_memberships')) {
+			$memberships = wu_get_memberships(
+				[
+					'customer_id' => $this->get_customer_id(),
+					'status__in'  => ['active', 'trialing'],
+					'number'      => 2,
+				]
+			);
+
+			if (1 === count($memberships)) {
+				$membership = $memberships[0];
+
+				$this->set_membership_id($membership->get_id());
+
+				update_site_meta($this->get_id(), self::META_MEMBERSHIP_ID, $membership->get_id());
+			}
+		}
 
 		if ($membership) {
 			$customer_id = $membership->get_customer_id();
