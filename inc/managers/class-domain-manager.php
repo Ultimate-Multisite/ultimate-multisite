@@ -156,6 +156,8 @@ class Domain_Manager extends Base_Manager {
 
 		add_action('wu_transition_domain_domain', [$this, 'send_domain_to_host'], 10, 3);
 
+		add_action('wu_domain_post_save', [$this, 'maybe_auto_promote_primary_domain'], 10, 3);
+
 		add_action('wu_settings_domain_mapping', [$this, 'add_domain_mapping_settings']);
 
 		add_action('wu_settings_sso', [$this, 'add_sso_settings']);
@@ -1083,6 +1085,96 @@ class Domain_Manager extends Base_Manager {
 				$domain->save();
 			}
 		}
+	}
+
+	/**
+	 * Auto-promote a custom domain to primary when it reaches done/done-without-ssl stage.
+	 *
+	 * When a non-subdomain mapping becomes active (stage = done or done-without-ssl)
+	 * for a blog that has no other primary domain (or only has the default subdomain
+	 * as primary), auto-promote the custom domain. This is the behavior customers
+	 * expect: "I added my domain, verified DNS/SSL, my custom domain is now the
+	 * primary one and the subdomain redirects to it."
+	 *
+	 * Hooked into wu_domain_post_save so it works regardless of whether the stage
+	 * was set by core's async_process_domain_stage or by an external plugin.
+	 *
+	 * @since 2.7.1
+	 *
+	 * @param array                        $data   The saved data.
+	 * @param \WP_Ultimo\Models\Domain     $domain The domain instance.
+	 * @param bool                         $new    Whether this is a new domain.
+	 * @return void
+	 */
+	public function maybe_auto_promote_primary_domain($data, $domain, $new): void {
+
+		$done_stages = [
+			Domain_Stage::DONE,
+			Domain_Stage::DONE_WITHOUT_SSL,
+		];
+
+		if ( ! in_array($domain->get_stage(), $done_stages, true)) {
+			return;
+		}
+
+		/*
+		 * Already primary — nothing to do.
+		 */
+		if ($domain->is_primary_domain()) {
+			return;
+		}
+
+		$domain_url = $domain->get_domain();
+
+		/*
+		 * Only auto-promote custom (non-subdomain) domains.
+		 * Subdomains like foo.kursopro.com should not auto-promote.
+		 */
+		if ( ! self::is_main_domain($domain_url)) {
+			return;
+		}
+
+		$blog_id = $domain->get_blog_id();
+
+		/*
+		 * Check if the blog already has a primary custom domain.
+		 * If so, don't override — let the admin manage it manually.
+		 */
+		$existing_domains = wu_get_domains(
+			[
+				'blog_id'        => $blog_id,
+				'primary_domain' => true,
+				'id__not_in'     => [$domain->get_id()],
+			]
+		);
+
+		foreach ($existing_domains as $existing) {
+			if (self::is_main_domain($existing->get_domain())) {
+				/*
+				 * Another custom domain is already primary for this blog.
+				 * Do not auto-promote to avoid overriding explicit choice.
+				 */
+				return;
+			}
+		}
+
+		/*
+		 * Promote this domain to primary. The Domain::save() method
+		 * already handles demoting old primaries via wu_async_remove_old_primary_domains.
+		 */
+		$domain->set_primary_domain(true);
+
+		$domain->save();
+
+		wu_log_add(
+			"domain-{$domain_url}",
+			sprintf(
+				// translators: %s is the domain name, %d is the blog ID.
+				__('Auto-promoted %1$s as primary domain for site %2$d.', 'ultimate-multisite'),
+				$domain_url,
+				$blog_id
+			)
+		);
 	}
 
 	/**
