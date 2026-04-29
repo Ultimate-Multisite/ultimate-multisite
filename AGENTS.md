@@ -57,7 +57,8 @@ inc/
   database/              # BerlinDB tables, schemas, queries, enums
   gateways/              # Payment gateways (Stripe, PayPal, Manual, Free)
   checkout/              # Cart, Checkout, Line_Item, signup fields
-  admin-pages/           # WP admin page controllers
+  admin-pages/           # WP admin page controllers (full admin pages)
+  admin/                 # WP admin utilities (config checker, network columns)
   list-tables/           # WP_List_Table subclasses
   integrations/          # Host provider integrations (cPanel, Cloudflare, etc.)
   functions/             # Procedural helper functions (wu_get_*, wu_create_*)
@@ -67,6 +68,23 @@ inc/
   ui/                    # Frontend elements and shortcodes
   traits/                # Shared traits (Singleton, deprecated compat)
   exception/             # Runtime_Exception
+  builders/              # Block editor / Gutenberg field builders
+  compat/                # Third-party plugin compatibility (Elementor, WooCommerce, etc.)
+  deprecated/            # Deprecated functions and classes (backward compat)
+  domain-mapping/        # Domain mapping helpers (class-helper.php, class-primary-domain.php)
+  duplication/           # Site duplication utilities
+  external-cron/         # External cron job scheduling and management
+  installers/            # Plugin installation, migration, and setup utilities
+  invoices/              # Invoice generation (class-invoice.php)
+  limitations/           # Per-feature plan limit classes (class-limit-*.php)
+  limits/                # Plugin/site-level limits enforcement
+  loaders/               # Table and asset loaders
+  mercator/              # Mercator subdomain mapping plugin integration
+  objects/               # Value objects (billing address, note, visits)
+  site-exporter/         # Site export tools
+  site-templates/        # Site template management (class-template-placeholders.php)
+  tax/                   # Tax calculation and dashboard management
+  template-library/      # Template library (API client, installer, repository)
 tests/
   WP_Ultimo/             # Unit tests mirroring inc/ structure (main test suite)
   Admin_Pages/           # Admin page tests
@@ -282,6 +300,11 @@ read them will produce `read:file_not_found`:
 | `tests/unit/*.php` | The `tests/unit/` directory exists but contains limited files — verify with `git ls-files 'tests/unit/'` before reading |
 | `inc/checkout/class-signup.php` | Does not exist; signup flow uses `inc/checkout/class-checkout.php` |
 | `assets/js/*.js` (unminified) | Verify with `git ls-files 'assets/js/'`; some files have both `.js` and `.min.js`, others only `.min.js` |
+| `inc/class-invoice.php` | Does not exist at root of `inc/`; invoice class is at `inc/invoices/class-invoice.php` |
+| `inc/class-tax.php` | Does not exist at root of `inc/`; tax class is at `inc/tax/class-tax.php` |
+| `inc/class-site-template.php` | Does not exist at root of `inc/`; site template logic is at `inc/site-templates/class-template-placeholders.php` |
+| `inc/class-duplication.php` | Does not exist at root of `inc/`; duplication utilities are in `inc/duplication/` |
+| `inc/class-compat.php` | Does not exist; compatibility classes are per-plugin in `inc/compat/` (e.g. `class-elementor-compat.php`) |
 
 Always verify a file is tracked before reading it with `git ls-files '<path>'`. An empty result means the file does not exist in the repo.
 
