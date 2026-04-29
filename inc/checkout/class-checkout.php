@@ -1319,8 +1319,8 @@ class Checkout {
 		 */
 		$billing_start_date = $this->order->get_billing_start_date();
 
-		$membership_data['date_expiration'] = $billing_start_date
-			? gmdate('Y-m-d 23:59:59', $billing_start_date)
+		$membership_data['date_expiration'] = null !== $billing_start_date
+			? gmdate('Y-m-d 23:59:59', (int) $billing_start_date)
 			: null;
 
 		$membership = wu_create_membership($membership_data);
