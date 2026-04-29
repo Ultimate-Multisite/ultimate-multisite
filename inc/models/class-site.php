@@ -1972,7 +1972,27 @@ class Site extends Base_Model implements Limitable, Notable {
 			update_site_meta($saved, $key, $value);
 		}
 
+		/*
+		 * Guard: never overwrite existing wu_membership_id or wu_customer_id
+		 * with empty values during an update. External code (e.g. the WooCommerce
+		 * addon's sync_subscription_status) can construct a Site object from
+		 * partial data where these properties default to empty — the Base_Model
+		 * constructor calls set_membership_id('') / set_customer_id('') which
+		 * populates $this->meta with empty values. Writing those empties to
+		 * blogmeta wipes the correct values that were stored at signup.
+		 *
+		 * @since 2.7.1
+		 */
+		$protected_meta_keys = [
+			self::META_MEMBERSHIP_ID,
+			self::META_CUSTOMER_ID,
+		];
+
 		foreach ($this->meta as $key => $value) {
+			if ( ! $new && in_array($key, $protected_meta_keys, true) && empty($value)) {
+				continue;
+			}
+
 			update_site_meta($saved, $key, $value);
 		}
 
