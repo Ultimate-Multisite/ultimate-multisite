@@ -273,6 +273,9 @@ read them will produce `read:file_not_found`:
 | `inc/bootstrap.php` | Does not exist; plugin bootstraps from `ultimate-multisite.php` at repo root |
 | `tests/WP_Ultimo/bootstrap.php` | Does not exist; test bootstrap is at `tests/bootstrap.php` |
 | `inc/class-plugin.php`, `inc/class-main.php` | Do not exist; the main plugin class is `inc/class-wp-ultimo.php` |
+| `inc/class-membership-manager.php`, `inc/class-customer-manager.php` (etc.) | Do not exist at root of `inc/`; manager classes are in `inc/managers/` (e.g. `inc/managers/class-membership-manager.php`) |
+| `inc/class-gateway.php`, `inc/class-payment-gateway.php` | Do not exist; gateway classes are in `inc/gateways/` |
+| `inc/functions/class-*.php` | Functions in `inc/functions/` are plain procedural PHP (not OOP class files); they are named `inc/functions/customer.php`, `inc/functions/checkout.php`, etc. |
 
 Always verify a file is tracked before reading it with `git ls-files '<path>'`. An empty result means the file does not exist in the repo.
 
@@ -493,3 +496,10 @@ vendor/bin/phpunit --filter 'WP_Ultimo\\Checkout\\Cart_Test'        # fully-qual
 ```
 
 Only run the full suite (`vendor/bin/phpunit`) for final verification, not during iterative development.
+
+**`npm run env:*` and `npm run cy:*` require Docker and `@wordpress/env`** — the `env:start`,
+`env:stop`, and Cypress E2E scripts (`cy:open:*`, `cy:run:*`) use the `@wordpress/env`
+Docker-based environment. These are **not** part of the standard development workflow for unit
+tests. For local development and unit tests, use the shared WordPress install at `../wordpress`
+and run `vendor/bin/phpunit` directly. Use the `env:*` and `cy:*` scripts only when running
+Cypress E2E tests and Docker is available.
