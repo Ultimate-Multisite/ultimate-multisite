@@ -99,7 +99,13 @@ document.addEventListener("DOMContentLoaded", () => {
         progress_in_seconds: 0,
         stopped_count: 0,
         running_count: 0,
-        site_ready: false
+        site_ready: false,
+        // True when the URL already carries a _t= cache-bust param added by a
+        // prior completion redirect.  Used to prevent any second full-page
+        // navigation and break the infinite-reload loop that occurred when the
+        // "stopped" branch fired window.location.reload() on every page load
+        // after site creation had already finished.
+        is_post_redirect: new URLSearchParams(window.location.search).has("_t")
       };
     },
     computed: {
@@ -138,11 +144,15 @@ document.addEventListener("DOMContentLoaded", () => {
         if (response.publish_status === "completed") {
           this.creating = false;
           this.site_ready = true;
-          // Only reload to bust cache if we actually watched the site transition
-          // through "running" during this page load. Without this guard, PayPal
-          // (and any other gateway that completes before the thank-you page loads)
-          // would trigger a reload on every poll, causing an infinite refresh loop.
-          if (this.running_count > 0) {
+          // Cache-bust redirect only when we actually watched the site transition
+          // through "running" during THIS page load, AND we have not already done
+          // a redirect (is_post_redirect).  Both guards are required:
+          //  • running_count === 0 → gateway completed before page loaded; the PHP
+          //    template already has the correct state, no reload needed.
+          //  • is_post_redirect === true → we already navigated once; a second
+          //    redirect would start an infinite loop (completed page → redirect →
+          //    completed again → redirect …).
+          if (this.running_count > 0 && !this.is_post_redirect) {
             setTimeout(() => {
               var sep = window.location.href.indexOf("?") > -1 ? "&" : "?";
               window.location.href = window.location.href.split("#")[0] + sep + "_t=" + Date.now();
@@ -158,21 +168,53 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           if (this.running_count > 60) {
             fetch("/wp-cron.php?doing_wp_cron");
-            setTimeout(() => {
-              window.location.reload();
-            }, 3e3);
+            if (!this.is_post_redirect) {
+              // Use the _t cache-bust redirect (not location.reload) so the next
+              // page load sets is_post_redirect = true, preventing a second redirect
+              // if creation is still running on that page.
+              setTimeout(() => {
+                var sep = window.location.href.indexOf("?") > -1 ? "&" : "?";
+                window.location.href = window.location.href.split("#")[0] + sep + "_t=" + Date.now();
+              }, 3e3);
+            } else {
+              // Already did one redirect this cycle; slow-poll instead of looping.
+              setTimeout(this.check_site_created, 5000);
+            }
           } else {
             // Adaptive polling: 1.5s for first 30s, then 3s
             var wait = this.running_count < 20 ? 1500 : 3000;
             setTimeout(this.check_site_created, wait);
           }
         } else {
-          // status === "stopped": async job not started yet or site already created.
-          // Reload after 3 consecutive stopped responses (9 seconds total).
+          // status === "stopped": async job not started yet OR site already created.
+          //
+          // NEVER call window.location.reload() unconditionally here — doing so
+          // causes an infinite refresh loop: a finished site always returns "stopped"
+          // (the job is no longer running), so every page load would cycle through
+          // 3 stopped polls → reload → 3 stopped polls → reload endlessly.
+          //
+          // Intent-aware strategy:
+          //  1. running_count > 0  → we watched creation run this session but it
+          //     stopped unexpectedly; do one location.reload() for fresh server state.
+          //     The reloaded page will have running_count = 0, so this branch can
+          //     only fire once before falling through to case 2 or 3.
+          //  2. wu_thank_you.creating === false (PHP already reports site done) →
+          //     mark ready and stop polling; no navigation needed.
+          //  3. wu_thank_you.creating === true but never saw "running" (webhook
+          //     delay, job not started yet) → keep slow-polling; do NOT reload.
           this.creating = false;
           this.stopped_count++;
           if (this.stopped_count >= 3) {
-            window.location.reload();
+            if (this.running_count > 0) {
+              // Case 1: was running this session, now stopped — one-time reload.
+              window.location.reload();
+            } else if (!wu_thank_you.creating) {
+              // Case 2: PHP already reported creation complete — mark ready.
+              this.site_ready = true;
+            } else {
+              // Case 3: still waiting for job to start — keep slow-polling.
+              setTimeout(this.check_site_created, 3e3);
+            }
           } else {
             setTimeout(this.check_site_created, 3e3);
           }
