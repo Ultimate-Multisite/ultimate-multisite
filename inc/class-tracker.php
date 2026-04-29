@@ -18,6 +18,11 @@ defined('ABSPATH') || exit;
 /**
  * Tracker class for anonymous usage data collection.
  *
+ * Background telemetry (opt-in toggle) was removed in 2.5.1 — consent is now
+ * obtained per-feedback-send rather than as a global setting. The crash support
+ * link feature (build_support_url / customize_fatal_error_message) remains and
+ * requires no opt-in since the admin must click the link to send data.
+ *
  * @since 2.5.0
  */
 class Tracker implements \WP_Ultimo\Interfaces\Singleton {
@@ -66,20 +71,9 @@ class Tracker implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function init(): void {
 
-		// Create the weekly schedule
-		add_action('init', [$this, 'create_weekly_schedule']);
-
-		// Hook into weekly cron for usage data
-		add_action('wu_weekly', [$this, 'maybe_send_tracking_data']);
-
-		// Hook into Logger for error reporting (now receives log level as 3rd param)
-		add_action('wu_log_add', [$this, 'maybe_send_error'], 10, 3);
-
-		// Customize fatal error message for network sites
+		// Customize fatal error message for network sites (no opt-in required —
+		// the admin must click the support link to send any data).
 		add_filter('wp_php_error_message', [$this, 'customize_fatal_error_message'], 10, 2);
-
-		// Send initial data when tracking is first enabled
-		add_action('wu_settings_update', [$this, 'maybe_send_initial_data'], 10, 2);
 	}
 
 	/**
@@ -98,18 +92,26 @@ class Tracker implements \WP_Ultimo\Interfaces\Singleton {
 	}
 
 	/**
-	 * Check if tracking is enabled.
+	 * Check if background telemetry is enabled.
+	 *
+	 * Background telemetry (the opt-in toggle) was removed in 2.5.1.
+	 * Consent is now obtained per-feedback-send rather than as a global
+	 * setting, so this method always returns false. It is kept for
+	 * backwards-compatibility with add-ons that may call it directly.
 	 *
 	 * @since 2.5.0
 	 * @return bool
 	 */
 	public function is_tracking_enabled(): bool {
 
-		return (bool) wu_get_setting('enable_error_reporting', false);
+		return false;
 	}
 
 	/**
 	 * Send tracking data if enabled and due.
+	 *
+	 * Background telemetry was removed in 2.5.1 (opt-in toggle replaced by
+	 * per-send consent). This method is a no-op and will always return early.
 	 *
 	 * @since 2.5.0
 	 * @return void
@@ -130,7 +132,10 @@ class Tracker implements \WP_Ultimo\Interfaces\Singleton {
 	}
 
 	/**
-	 * Send initial data when tracking is first enabled.
+	 * No-op: sending initial data on settings-toggle was removed in 2.5.1.
+	 *
+	 * The wu_settings_update hook for this method was also removed in init().
+	 * The method signature is preserved so callers are not fatally broken.
 	 *
 	 * @since 2.5.0
 	 * @param string $setting_id The setting being updated.
@@ -139,20 +144,7 @@ class Tracker implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function maybe_send_initial_data(string $setting_id, $value): void {
 
-		if ('enable_error_reporting' !== $setting_id) {
-			return;
-		}
-
-		if ( ! $value) {
-			return;
-		}
-
-		// Check if we've never sent data before
-		$last_send = get_site_option(self::LAST_SEND_OPTION, 0);
-
-		if (0 === $last_send) {
-			$this->send_tracking_data();
-		}
+		// No-op: background telemetry opt-in was removed in 2.5.1.
 	}
 
 	/**

@@ -54,13 +54,13 @@ class Tracker_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test is_tracking_enabled returns bool.
+	 * Test is_tracking_enabled always returns false (background telemetry removed in 2.5.1).
 	 */
 	public function test_is_tracking_enabled(): void {
 
 		$result = $this->get_tracker()->is_tracking_enabled();
 
-		$this->assertIsBool($result);
+		$this->assertFalse($result);
 	}
 
 	/**
@@ -587,21 +587,13 @@ class Tracker_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test maybe_send_initial_data does nothing for wrong setting.
+	 * Test maybe_send_initial_data is a no-op (background telemetry removed in 2.5.1).
 	 */
-	public function test_maybe_send_initial_data_wrong_setting(): void {
+	public function test_maybe_send_initial_data_is_noop(): void {
 
-		$this->get_tracker()->maybe_send_initial_data('other_setting', true);
-
-		$this->assertTrue(true);
-	}
-
-	/**
-	 * Test maybe_send_initial_data does nothing when value is false.
-	 */
-	public function test_maybe_send_initial_data_false_value(): void {
-
-		$this->get_tracker()->maybe_send_initial_data('enable_error_reporting', false);
+		// Both calls must complete without errors — the method is now a no-op.
+		$this->get_tracker()->maybe_send_initial_data('any_setting', true);
+		$this->get_tracker()->maybe_send_initial_data('any_setting', false);
 
 		$this->assertTrue(true);
 	}

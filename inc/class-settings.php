@@ -736,22 +736,6 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 		$this->add_field(
 			'general',
-			'enable_error_reporting',
-			[
-				'title'   => __('Help Improve Ultimate Multisite', 'ultimate-multisite'),
-				'desc'    => sprintf(
-				/* translators: %s is a link to the privacy policy */
-					__('Allow Ultimate Multisite to collect anonymous usage data and error reports to help us improve the plugin. We collect: PHP version, WordPress version, plugin version, network type (subdomain/subdirectory), aggregate counts (sites, memberships), active gateways, and error logs. We never collect personal data, customer information, or domain names. <a href="%s" target="_blank" rel="noopener noreferrer">Learn more</a>.', 'ultimate-multisite'),
-					esc_url('https://ultimatemultisite.com/privacy-policy/')
-				),
-				'type'    => 'toggle',
-				'default' => 0,
-			],
-			130
-		);
-
-		$this->add_field(
-			'general',
 			'enable_beta_updates',
 			[
 				'title'   => __('Beta Updates', 'ultimate-multisite'),
@@ -2013,7 +1997,6 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			'decimal_separator'                  => '.',
 			'thousand_separator'                 => ',',
 			'precision'                          => '2',
-			'enable_error_reporting'             => 0,
 			'enable_beta_updates'                => 0,
 
 			// Login & Registration

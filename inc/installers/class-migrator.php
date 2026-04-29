@@ -782,7 +782,6 @@ class Migrator extends Base_Installer {
 			'domain_options',
 
 			// Dev Options
-			'enable_error_reporting',
 			'uninstall_wipe_tables',
 
 			// Registration
