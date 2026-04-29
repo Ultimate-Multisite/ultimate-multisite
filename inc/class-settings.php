@@ -200,6 +200,16 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function get_all_with_defaults($check_caps = false) {
 		$all_settings = $this->get_all($check_caps);
+
+		/*
+		 * Seed defaults from get_setting_defaults() for any key not yet saved to
+		 * the database. This ensures the Vue data-state used by the settings UI
+		 * shows the correct initial values on a fresh install instead of leaving
+		 * fields like enable_registration and default_role blank/off.
+		 * Saved values from the DB always win over the defaults.
+		 */
+		$all_settings = array_merge(static::get_setting_defaults(), $all_settings);
+
 		foreach ($this->get_sections() as $section_slug => $section) {
 			foreach ($section['fields'] ?? [] as $field_slug => $field_atts) {
 				if (is_callable($field_atts['value'])) {
@@ -294,7 +304,13 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 		foreach ($sections as $section_slug => $section) {
 			foreach ($section['fields'] ?? [] as $field_slug => $field_atts) {
-				$existing_value = $saved_settings[ $field_slug ] ?? false;
+				$field_default = $field_atts['default'] ?? false;
+
+				if (is_callable($field_default)) {
+					$field_default = call_user_func($field_default);
+				}
+
+				$existing_value = $saved_settings[ $field_slug ] ?? $field_default;
 
 				$field = new Field($field_slug, $field_atts);
 
