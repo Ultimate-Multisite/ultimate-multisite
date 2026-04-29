@@ -45,35 +45,27 @@ class Screenshot_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test api_url uses thum.io service.
+	 * Test api_url uses WordPress.com mShots service.
 	 */
-	public function test_api_url_uses_thum_io() {
+	public function test_api_url_uses_mshots() {
 		$url = Screenshot::api_url('example.com');
-		$this->assertStringContainsString('thum.io', $url);
+		$this->assertStringContainsString('s.wordpress.com/mshots/v1/', $url);
 	}
 
 	/**
-	 * Test api_url includes width parameter.
+	 * Test api_url includes width query parameter.
 	 */
 	public function test_api_url_includes_width_parameter() {
 		$url = Screenshot::api_url('example.com');
-		$this->assertStringContainsString('width/1280', $url);
+		$this->assertStringContainsString('w=1280', $url);
 	}
 
 	/**
-	 * Test api_url includes crop parameter.
+	 * Test api_url prepends https:// to the domain before encoding.
 	 */
-	public function test_api_url_includes_crop_parameter() {
+	public function test_api_url_prepends_https_to_domain() {
 		$url = Screenshot::api_url('example.com');
-		$this->assertStringContainsString('crop/960', $url);
-	}
-
-	/**
-	 * Test api_url includes noanimate parameter.
-	 */
-	public function test_api_url_includes_noanimate() {
-		$url = Screenshot::api_url('example.com');
-		$this->assertStringContainsString('noanimate', $url);
+		$this->assertStringContainsString(rawurlencode('https://example.com'), $url);
 	}
 
 	/**
@@ -98,10 +90,10 @@ class Screenshot_Test extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * Test take_screenshot returns false for invalid URL.
+	 * Test take_screenshot returns false when response body is not a JPEG.
 	 */
 	public function test_take_screenshot_returns_false_for_invalid_url() {
-		// Will fail because the API won't return a valid PNG
+		// Will fail because the mock body is not a valid JPEG.
 		add_filter(
 			'pre_http_request',
 			function () {
@@ -110,7 +102,7 @@ class Screenshot_Test extends WP_UnitTestCase {
 						'code'    => 200,
 						'message' => 'OK',
 					],
-					'body'     => 'not a png',
+					'body'     => 'not a jpeg',
 				];
 			}
 		);

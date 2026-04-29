@@ -30,7 +30,7 @@ class Screenshot {
 	 */
 	public static function api_url($domain): string {
 
-		$url = 'https://image.thum.io/get/width/1280/crop/960/noanimate/' . $domain;
+		$url = 'https://s.wordpress.com/mshots/v1/' . rawurlencode('https://' . $domain) . '?w=1280';
 
 		return apply_filters('wu_screenshot_api_url', $url, $domain);
 	}
@@ -83,15 +83,15 @@ class Screenshot {
 		}
 
 		/*
-		 * Check if the results contain a PNG header.
+		 * Check if the results contain a JPEG header.
 		 */
-		if (! str_starts_with($response['body'], "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a")) {
-			wu_log_add('screenshot-generator', $log_prefix . __('Result is not a PNG file.', 'ultimate-multisite'), LogLevel::ERROR);
+		if (! str_starts_with($response['body'], "\xFF\xD8\xFF")) {
+			wu_log_add('screenshot-generator', $log_prefix . __('Result is not a JPEG file.', 'ultimate-multisite'), LogLevel::ERROR);
 
 			return false;
 		}
 
-		$upload = wp_upload_bits('screenshot-' . gmdate('Y-m-d-H-i-s') . '.png', null, $response['body']);
+		$upload = wp_upload_bits('screenshot-' . gmdate('Y-m-d-H-i-s') . '.jpg', null, $response['body']);
 
 		if ( ! empty($upload['error'])) {
 			wu_log_add('screenshot-generator', $log_prefix . wp_json_encode($upload['error']), LogLevel::ERROR);
