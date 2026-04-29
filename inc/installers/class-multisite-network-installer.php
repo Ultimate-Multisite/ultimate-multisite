@@ -267,6 +267,12 @@ class Multisite_Network_Installer extends Base_Installer {
 	 * sitemeta guarantees network-wide activation regardless of whether
 	 * multisite constants are loaded in this process.
 	 *
+	 * After the write, the WordPress object-cache entry for
+	 * active_sitewide_plugins is explicitly deleted so that
+	 * is_plugin_active_for_network() and wp_get_active_and_valid_plugins()
+	 * return fresh data from the database on the next request — even when a
+	 * persistent object cache (Redis, Memcached, APC) is in use.
+	 *
 	 * @since 2.0.0
 	 * @throws \Exception When the sitemeta write fails.
 	 * @return void
@@ -276,13 +282,14 @@ class Multisite_Network_Installer extends Base_Installer {
 		global $wpdb;
 
 		$sitemeta_table = $wpdb->base_prefix . 'sitemeta';
+		$network_id     = get_current_network_id();
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$existing = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT meta_id, meta_value FROM {$sitemeta_table} WHERE meta_key = %s AND site_id = %d",
 				'active_sitewide_plugins',
-				1
+				$network_id
 			)
 		);
 		// phpcs:enable
@@ -293,8 +300,12 @@ class Multisite_Network_Installer extends Base_Installer {
 			$active_plugins = [];
 		}
 
-		// Already network-activated — nothing to do.
+		// Already network-activated — but still flush the cache so that
+		// is_plugin_active_for_network() returns true even when a persistent
+		// object cache is holding a stale (empty or outdated) plugins list.
 		if (isset($active_plugins[ WP_ULTIMO_PLUGIN_BASENAME ])) {
+			wp_cache_delete( "{$network_id}:active_sitewide_plugins", 'site-options' );
+
 			return;
 		}
 
@@ -314,7 +325,7 @@ class Multisite_Network_Installer extends Base_Installer {
 			$result = $wpdb->insert(
 				$sitemeta_table,
 				[
-					'site_id'    => 1,
+					'site_id'    => $network_id,
 					'meta_key'   => 'active_sitewide_plugins', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 					'meta_value' => $serialized, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 				]
@@ -324,5 +335,17 @@ class Multisite_Network_Installer extends Base_Installer {
 		if (false === $result) {
 			throw new \Exception(esc_html__('Failed to network-activate Ultimate Multisite: could not write to the sitemeta table.', 'ultimate-multisite'));
 		}
+
+		/*
+		 * Invalidate the WordPress object-cache entry so the next call to
+		 * get_site_option( 'active_sitewide_plugins' ) reads the updated
+		 * value from the database rather than returning the stale cached
+		 * value.  This matters on any site using a persistent object cache
+		 * (Redis, Memcached, APC) — without this, is_plugin_active_for_network()
+		 * returns false on the very next page load even though the DB row is
+		 * correct, causing the "Network Activate" button to appear to do
+		 * nothing (sends success JSON, page reloads, still shows NOT activated).
+		 */
+		wp_cache_delete( "{$network_id}:active_sitewide_plugins", 'site-options' );
 	}
 }

@@ -436,4 +436,30 @@ class Multisite_Network_Installer_Test extends \WP_UnitTestCase {
 		$after = $this->get_active_sitewide_plugins();
 		$this->assertArrayHasKey( WP_ULTIMO_PLUGIN_BASENAME, $after );
 	}
+
+	/**
+	 * _install_network_activate() invalidates the object-cache entry so that
+	 * is_plugin_active_for_network() returns true immediately after the write.
+	 *
+	 * This is a regression test for the persistent-object-cache bug: direct
+	 * sitemeta writes without a corresponding wp_cache_delete() left a stale
+	 * active_sitewide_plugins entry in the cache, causing the "Network
+	 * Activate" button to appear to do nothing — the AJAX returned success and
+	 * the page reloaded, but the plugin still showed "NOT Network Activated"
+	 * because get_site_option() returned the cached (pre-write) value.
+	 */
+	public function test_install_network_activate_invalidates_object_cache(): void {
+
+		// Prime the cache with an empty plugins list (simulates a persistent
+		// cache that was populated before our write).
+		$network_id = get_current_network_id();
+		wp_cache_set( "{$network_id}:active_sitewide_plugins", array(), 'site-options' );
+
+		$this->call_install_network_activate();
+
+		// After the write+cache-invalidation, is_plugin_active_for_network()
+		// must return true even if it was previously returning false due to
+		// a stale cache entry.
+		$this->assertTrue( is_plugin_active_for_network( WP_ULTIMO_PLUGIN_BASENAME ) );
+	}
 }
