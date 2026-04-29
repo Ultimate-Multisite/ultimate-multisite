@@ -786,7 +786,19 @@ class Checkout {
 					);
 
 					if ( ! $allow) {
-						$account_url = get_admin_url(wu_get_main_site_id(), 'admin.php?page=account');
+						/*
+						 * Build the account URL on the customer's own subsite
+						 * rather than the main network site. The "account" admin
+						 * page lives in each subsite's wp-admin. Using
+						 * wu_get_main_site_id() would force the main-site domain
+						 * which breaks when domain mapping is active.
+						 *
+						 * Falls back to the main site only if the membership has
+						 * no published sites yet (pending site scenario).
+						 */
+						$membership_sites = $existing_membership->get_sites();
+						$account_blog_id  = ! empty($membership_sites) ? $membership_sites[0]->get_id() : wu_get_main_site_id();
+						$account_url      = get_admin_url($account_blog_id, 'admin.php?page=account');
 
 						return new \WP_Error(
 							'duplicate_signup',
