@@ -3316,6 +3316,13 @@ class Checkout {
 	/**
 	 * Cleans up expired draft and pending payments (older than 30 days).
 	 *
+	 * When a pending payment is cancelled, the associated membership is also
+	 * cancelled if it is still in the `pending` state. This ensures that any
+	 * `pending_site` record stored in membership meta is cleaned up via the
+	 * `wu_transition_membership_status` → `handle_pending_site_on_cancellation`
+	 * chain, preventing orphaned pending_site rows from accumulating in the
+	 * database. Fixes: GH#982.
+	 *
 	 * @since 2.1.4
 	 * @return void
 	 */
@@ -3343,6 +3350,23 @@ class Checkout {
 			if ($payment->get_status() === Payment_Status::PENDING) {
 				$payment->set_status(Payment_Status::CANCELLED);
 				$payment->save();
+
+				/*
+				 * Also cancel the associated membership if it is still in
+				 * `pending` state. A 30-day-old unconfirmed payment means the
+				 * customer never completed the signup; keeping the membership
+				 * in `pending` would leave any pending_site meta orphaned
+				 * because no active membership owns it. Cancelling via
+				 * cancel() fires wu_transition_membership_status, which
+				 * invokes handle_pending_site_on_cancellation() to move the
+				 * pending_site to a 24-hour transient for potential reclaim
+				 * before deleting it from membership meta. GH#982.
+				 */
+				$membership = $payment->get_membership();
+
+				if ($membership && Membership_Status::PENDING === $membership->get_status()) {
+					$membership->cancel();
+				}
 			} else {
 				$payment->delete();
 			}

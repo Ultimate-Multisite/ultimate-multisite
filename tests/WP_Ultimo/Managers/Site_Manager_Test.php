@@ -4601,4 +4601,136 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 		$this->assertIsString($date);
 		$this->assertNotEmpty($date);
 	}
+
+	// ========================================================================
+	// delete_pending_sites — GH#982 safety-net for orphaned pending_site records
+	// ========================================================================
+
+	/**
+	 * GH#982 safety-net: delete_pending_sites must clean up a pending_site record
+	 * stored in membership meta when the membership is still in `pending` state
+	 * and was last modified more than 1 day ago.
+	 *
+	 * This covers the case where the primary fix (cleanup_expired_drafts) was not
+	 * in place yet (pre-existing orphans) or where the membership was put into
+	 * `pending` state via a code path that did not call cancel() on the payment.
+	 */
+	public function test_delete_pending_sites_removes_orphaned_pending_site_for_pending_membership(): void {
+
+		$customer = wu_create_customer([
+			'username' => 'orphan_pending_test_' . wp_rand(),
+			'email'    => 'orphan' . wp_rand() . '@example.com',
+			'password' => 'password123',
+		]);
+
+		if (is_wp_error($customer)) {
+			$this->markTestSkipped('Could not create customer: ' . $customer->get_error_message());
+			return;
+		}
+
+		$membership = wu_create_membership([
+			'customer_id'     => $customer->get_id(),
+			'plan_id'         => 0,
+			'status'          => \WP_Ultimo\Database\Memberships\Membership_Status::PENDING,
+			'skip_validation' => true,
+		]);
+
+		if (is_wp_error($membership)) {
+			$customer->delete();
+			$this->markTestSkipped('Could not create membership: ' . $membership->get_error_message());
+			return;
+		}
+
+		// Create a pending_site record in membership meta.
+		// Pass membership_id so that Site::get_membership() can look up the
+		// owning membership when delete_pending_sites iterates get_all_by_type.
+		$membership->create_pending_site([
+			'title'         => 'Orphan Site GH982',
+			'path'          => '/gh982/',
+			'membership_id' => $membership->get_id(),
+		]);
+
+		$this->assertNotFalse($membership->get_pending_site(), 'pending_site should exist before cleanup.');
+
+		// Backdate the membership's date_modified to more than 1 day ago so the
+		// safety-net condition in delete_pending_sites fires.
+		global $wpdb;
+		$old_date = gmdate('Y-m-d H:i:s', strtotime('-2 days'));
+		$wpdb->update(
+			"{$wpdb->prefix}wu_memberships",
+			['date_modified' => $old_date],
+			['id' => $membership->get_id()]
+		);
+
+		$manager = $this->get_manager_instance();
+		$manager->delete_pending_sites();
+
+		// After the daily cron run, the pending_site must be removed.
+		$refreshed = wu_get_membership($membership->get_id());
+		$this->assertNotFalse($refreshed, 'Membership should still exist.');
+		$this->assertFalse(
+			$refreshed->get_pending_site(),
+			'pending_site must be removed by the safety-net in delete_pending_sites for pending-state memberships (GH#982).'
+		);
+
+		$membership->delete();
+		$customer->delete();
+	}
+
+	/**
+	 * GH#982 safety-net: delete_pending_sites must NOT remove the pending_site
+	 * when the membership was modified less than 1 day ago (site creation may
+	 * still be in progress).
+	 */
+	public function test_delete_pending_sites_preserves_recent_pending_site_for_pending_membership(): void {
+
+		$customer = wu_create_customer([
+			'username' => 'recent_pending_test_' . wp_rand(),
+			'email'    => 'recent' . wp_rand() . '@example.com',
+			'password' => 'password123',
+		]);
+
+		if (is_wp_error($customer)) {
+			$this->markTestSkipped('Could not create customer: ' . $customer->get_error_message());
+			return;
+		}
+
+		$membership = wu_create_membership([
+			'customer_id'     => $customer->get_id(),
+			'plan_id'         => 0,
+			'status'          => \WP_Ultimo\Database\Memberships\Membership_Status::PENDING,
+			'skip_validation' => true,
+		]);
+
+		if (is_wp_error($membership)) {
+			$customer->delete();
+			$this->markTestSkipped('Could not create membership: ' . $membership->get_error_message());
+			return;
+		}
+
+		// Create a pending_site record — the membership was just modified (now).
+		// Pass membership_id so that Site::get_membership() can look up the
+		// owning membership when delete_pending_sites iterates get_all_by_type.
+		$membership->create_pending_site([
+			'title'         => 'Recent Pending Site GH982',
+			'path'          => '/gh982-recent/',
+			'membership_id' => $membership->get_id(),
+		]);
+
+		$this->assertNotFalse($membership->get_pending_site(), 'pending_site should exist before cleanup.');
+
+		$manager = $this->get_manager_instance();
+		$manager->delete_pending_sites();
+
+		// The pending_site must still be there — it is less than 1 day old.
+		$refreshed = wu_get_membership($membership->get_id());
+		$this->assertNotFalse($refreshed);
+		$this->assertNotFalse(
+			$refreshed->get_pending_site(),
+			'A recently created pending_site must not be removed by delete_pending_sites (GH#982).'
+		);
+
+		$membership->delete();
+		$customer->delete();
+	}
 }

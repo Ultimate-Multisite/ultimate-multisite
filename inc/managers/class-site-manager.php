@@ -1014,11 +1014,31 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Delete pending sites from non-pending memberships
 	 *
+	 * Runs daily via `wu_daily`. Cleans up stale `pending_site` records in two
+	 * scenarios:
+	 *
+	 * 1. Active/trialing membership with a pending_site older than 1 day: the
+	 *    site was supposed to be published but the async job never ran or was
+	 *    lost. Remove the stale record so the membership does not remain stuck.
+	 *
+	 * 2. Membership still in `pending` state with a pending_site older than
+	 *    1 day: the customer never completed payment. `cleanup_expired_drafts`
+	 *    (primary fix, GH#982) cancels the membership after 30 days, which
+	 *    triggers `handle_pending_site_on_cancellation()` automatically. This
+	 *    branch acts as a safety net for records that slip through — for
+	 *    example if the cron payment cleanup ran before the hook was in place,
+	 *    or if the membership was put into `pending` state via a code path
+	 *    that did not call `cancel()`. In this case we directly delete the
+	 *    pending_site from membership meta; no site was ever created, so
+	 *    there is nothing to reclaim. GH#982.
+	 *
 	 * @since 2.1.3
 	 */
 	public function delete_pending_sites(): void {
 
 		$pending_sites = \WP_Ultimo\Models\Site::get_all_by_type('pending');
+
+		$one_day_ago = gmdate('Y-m-d H:i:s', strtotime('-1 days'));
 
 		foreach ($pending_sites as $site) {
 			if ($site->is_publishing()) {
@@ -1027,10 +1047,33 @@ class Site_Manager extends Base_Manager {
 
 			$membership = $site->get_membership();
 
+			// Guard against pending_site objects that lack a valid membership_id
+			// (e.g. created without one in an unusual code path, or serialised
+			// before GH#982 normalised the data).
+			if ( ! $membership) {
+				continue;
+			}
+
 			if ($membership->is_active() || $membership->is_trialing()) {
 
 				// Check if the last modify has more than some time, to avoid the deletion of sites on creation process
-				if ($membership->get_date_modified() < gmdate('Y-m-d H:i:s', strtotime('-1 days'))) {
+				if ($membership->get_date_modified() < $one_day_ago) {
+					$membership->delete_pending_site();
+				}
+			} elseif (Membership_Status::PENDING === $membership->get_status()) {
+
+				/*
+				 * Safety net for orphaned pending_sites on `pending` memberships.
+				 *
+				 * The primary fix (cleanup_expired_drafts) cancels the membership
+				 * after 30 days, which triggers handle_pending_site_on_cancellation.
+				 * This branch catches records that predate that fix or were created
+				 * via a code path that skipped the payment watchdog (e.g. manual
+				 * gateway, admin-created memberships without a payment). We wait at
+				 * least 1 day before deleting to avoid removing sites that are in
+				 * the process of being published. GH#982.
+				 */
+				if ($membership->get_date_modified() < $one_day_ago) {
 					$membership->delete_pending_site();
 				}
 			}
