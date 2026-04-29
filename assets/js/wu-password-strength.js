@@ -125,7 +125,7 @@
 			// unnecessary CPU usage once the user has had time to fill the form.
 			this._lastPass1Val = '';
 			this._autofillPoll = setInterval(function() {
-				var currentVal = self.options.pass1.val();
+				const currentVal = self.options.pass1.val();
 				if (currentVal !== self._lastPass1Val) {
 					self._lastPass1Val = currentVal;
 					self.checkStrength();
@@ -410,14 +410,14 @@
 		 * super_strong — a reward for users who go above and beyond.
 		 *
 		 * @param {string} password
-		 * @return {boolean}
+		 * @return {boolean} True if password meets all super-strong criteria.
 		 */
 		checkSuperStrongRules(password) {
-			return password.length >= 12
-				&& /[A-Z]/.test(password)
-				&& /[a-z]/.test(password)
-				&& /[0-9]/.test(password)
-				&& /[!@#$%^&*()_+\-={};:'",.<>?~\[\]\/|`\\]/.test(password);
+			return password.length >= 12 &&
+				/[A-Z]/.test(password) &&
+				/[a-z]/.test(password) &&
+				/[0-9]/.test(password) &&
+				/[!@#$%^&*()_+\-={};:'",.<>?~\[\]\/|`\\]/.test(password);
 		},
 
 		/**
@@ -455,6 +455,30 @@
 		 */
 		isValid() {
 			return this.isPasswordValid;
+		},
+
+		/**
+		 * Destroy the strength checker and remove event listeners.
+		 *
+		 * Call before re-initializing to prevent duplicate handlers when
+		 * the password field DOM element is replaced by a Vue update cycle
+		 * (e.g. the inline login prompt being shown/hidden causes Vue 2 to
+		 * recycle adjacent sibling DOM nodes, creating a fresh #field-password
+		 * element whose jQuery bindings are missing).
+		 *
+		 * @since 2.5.2
+		 */
+		destroy() {
+			if (this.options.pass1 && this.options.pass1.length) {
+				this.options.pass1.off('keyup input change');
+			}
+			if (this.options.pass2 && this.options.pass2.length) {
+				this.options.pass2.off('keyup input change');
+			}
+			if (this._autofillPoll) {
+				clearInterval(this._autofillPoll);
+				this._autofillPoll = null;
+			}
 		}
 	};
 

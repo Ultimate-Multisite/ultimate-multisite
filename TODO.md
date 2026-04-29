@@ -121,6 +121,10 @@ Overall coverage: **35%** (20,720 / 59,212 statements). 90 files at 0% coverage.
 - [x] GH#813 fix: guard false return from get_available_site_templates() in switch_template() — TypeError on PHP 8.0+ ref:GH#813 pr:#819 completed:2026-04-13
 - [x] GH#814 test(reactivation): add unit tests verifying all PR #751 review findings were addressed ref:GH#814 pr:#817 completed:2026-04-13
 
+## Production Bugs (2026-04-28)
+
+- [ ] t531 fix(checkout): password fields and strength meter stop working after inline login popup + email change — Vue 2 recycles login-prompt DOM node as password-div, detaching jQuery bindings on #field-password #bug #auto-dispatch ~3h ref:GH#973 logged:2026-04-28
+
 ## Production Bugs (2026-04-22)
 
 - [ ] t529 fix(membership): orphan pending_site after membership cancellation — watchdog cancels membership but pending_site meta stays, customer retries checkout and gets no site #bug #auto-dispatch ~4h ref:GH#902
