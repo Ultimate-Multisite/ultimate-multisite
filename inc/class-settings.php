@@ -72,6 +72,12 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 		add_filter('site_option_menu_items', [$this, 'force_plugins_menu'], 10, 3);
 		add_filter('default_site_option_menu_items', [$this, 'force_plugins_menu'], 10, 3);
+
+		// Persist the registration state into the WP core site option so the
+		// Network Admin Settings page reflects reality and registration survives
+		// plugin deactivation in the correct state.
+		add_action('wu_activation', [$this, 'sync_wp_registration_option']);
+		add_action('wu_after_save_settings', [$this, 'sync_wp_registration_option']);
 	}
 
 	/**
@@ -95,6 +101,28 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 		$status = wu_get_setting('enable_registration', true) ? 'all' : $status;
 
 		return $status;
+	}
+
+	/**
+	 * Persist the registration state into the WordPress core site option.
+	 *
+	 * The pre_site_option_registration filter already overrides the value at
+	 * read-time, but the stored WP core option stays 'none' (the WP default).
+	 * This causes the Network Admin Settings page to show "No registrations
+	 * allowed" and means registration goes dark if the plugin is deactivated.
+	 *
+	 * Hooked to wu_activation (one-time on plugin activation) and to
+	 * wu_after_save_settings (whenever the settings form is saved) so the
+	 * stored value always matches the plugin setting.
+	 *
+	 * @since 2.0.11
+	 * @return void
+	 */
+	public function sync_wp_registration_option() {
+
+		$enabled = wu_get_setting('enable_registration', true);
+
+		update_site_option('registration', $enabled ? 'all' : 'none');
 	}
 
 	/**
