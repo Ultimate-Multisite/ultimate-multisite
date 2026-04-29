@@ -68,8 +68,11 @@ inc/
   traits/                # Shared traits (Singleton, deprecated compat)
   exception/             # Runtime_Exception
 tests/
-  WP_Ultimo/             # Unit tests mirroring inc/ structure
+  WP_Ultimo/             # Unit tests mirroring inc/ structure (main test suite)
   Admin_Pages/           # Admin page tests
+  Builders/              # Block editor / widget builder tests
+  functional/            # Functional/integration tests (e.g. SSO)
+  unit/                  # Standalone unit tests (API schema, checkout request, etc.)
   e2e/                   # Cypress E2E tests
   bootstrap.php          # WP test bootstrap (loads plugin via muplugins_loaded)
 views/                   # PHP template files
@@ -267,6 +270,9 @@ read them will produce `read:file_not_found`:
 | `inc/class-site.php` | Does not exist at root of `inc/`; model classes are in `inc/models/` |
 | `inc/class-domain.php` | Does not exist at root of `inc/`; model classes are in `inc/models/` |
 | `lang/*.po`, `lang/*.mo` | Compiled translation files are not tracked; only `lang/ultimate-multisite.pot` is in the repo |
+| `inc/bootstrap.php` | Does not exist; plugin bootstraps from `ultimate-multisite.php` at repo root |
+| `tests/WP_Ultimo/bootstrap.php` | Does not exist; test bootstrap is at `tests/bootstrap.php` |
+| `inc/class-plugin.php`, `inc/class-main.php` | Do not exist; the main plugin class is `inc/class-wp-ultimo.php` |
 
 Always verify a file is tracked before reading it with `git ls-files '<path>'`. An empty result means the file does not exist in the repo.
 
