@@ -1292,7 +1292,7 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			return null;
 		}
 
-		if (wu_validate_date($expiration)) {
+		if ($expiration && wu_validate_date($expiration)) {
 			$expiration_timestamp = wu_date($expiration)->format('U');
 		}
 
