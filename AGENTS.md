@@ -276,6 +276,12 @@ read them will produce `read:file_not_found`:
 | `inc/class-membership-manager.php`, `inc/class-customer-manager.php` (etc.) | Do not exist at root of `inc/`; manager classes are in `inc/managers/` (e.g. `inc/managers/class-membership-manager.php`) |
 | `inc/class-gateway.php`, `inc/class-payment-gateway.php` | Do not exist; gateway classes are in `inc/gateways/` |
 | `inc/functions/class-*.php` | Functions in `inc/functions/` are plain procedural PHP (not OOP class files); they are named `inc/functions/customer.php`, `inc/functions/checkout.php`, etc. |
+| `class-wp-ultimo.php` (at repo root) | Does not exist at root; the main plugin class is at `inc/class-wp-ultimo.php` |
+| `inc/managers/class-manager.php` | Does not exist; manager classes are concrete (e.g. `inc/managers/class-membership-manager.php`, not a base `class-manager.php`) |
+| `inc/helpers/class-arr.php`, `inc/helpers/class-hash.php` | May exist — verify with `git ls-files 'inc/helpers/class-*.php'`; file names in helpers vary |
+| `tests/unit/*.php` | The `tests/unit/` directory exists but contains limited files — verify with `git ls-files 'tests/unit/'` before reading |
+| `inc/checkout/class-signup.php` | Does not exist; signup flow uses `inc/checkout/class-checkout.php` |
+| `assets/js/*.js` (unminified) | Verify with `git ls-files 'assets/js/'`; some files have both `.js` and `.min.js`, others only `.min.js` |
 
 Always verify a file is tracked before reading it with `git ls-files '<path>'`. An empty result means the file does not exist in the repo.
 
@@ -286,9 +292,14 @@ messages or tool output. Constructed URLs (e.g. building a GitHub raw URL from a
 guessing a docs URL from a package name) account for the majority of `webfetch:other` failures
 in this codebase.
 
-Do **not** use webfetch for WordPress documentation, PHP manual pages, Stripe/PayPal API docs,
-BerlinDB documentation, WooCommerce docs, npm package docs, WP Plugin Handbook, or any other
-developer documentation URLs — these requests consistently fail.
+Do **not** use webfetch for any of these — they consistently fail:
+
+- WordPress documentation (`developer.wordpress.org`, `make.wordpress.org`, `codex.wordpress.org`)
+- PHP manual pages (`php.net/manual/`)
+- Stripe/PayPal API docs (`stripe.com/docs`, `developer.paypal.com`)
+- BerlinDB documentation
+- WooCommerce docs, npm package docs, WP Plugin Handbook
+- Any other developer documentation URLs
 
 Do **not** use webfetch for GitHub URLs (issues, PRs, raw content, commits). Use the `gh` CLI
 instead:
@@ -312,6 +323,8 @@ Use the codebase itself for API/hook research:
 ### Read Before Edit (Mandatory)
 
 The Edit tool **requires** a prior Read call on the same file in the **current conversation session**. A prior read from a previous conversation does not count — if the session restarts or the context is cleared, re-read every file before editing it. If you attempt to edit without reading first, the tool will fail. Always read the complete target file before editing — even for small changes.
+
+> **Session restart resets ALL read state.** If your conversation context was cleared, compacted, or this is a new session, you have NOT read any file — even if you remember doing so in a prior session. Re-read every file you intend to edit before making any edits.
 
 **Required per-file workflow — follow this every time:**
 
@@ -496,6 +509,20 @@ vendor/bin/phpunit --filter 'WP_Ultimo\\Checkout\\Cart_Test'        # fully-qual
 ```
 
 Only run the full suite (`vendor/bin/phpunit`) for final verification, not during iterative development.
+
+**`vendor/bin/phpcbf` exits 1 on successful auto-fixes** — phpcbf uses a non-standard exit
+code convention: exits `0` only when no violations were found (nothing to fix), exits `1`
+when it successfully auto-fixed violations, and exits `2+` on hard errors. This means a
+clean auto-fix run returns exit code `1`, which `&&` chains and `set -e` scripts treat as
+failure:
+
+```bash
+vendor/bin/phpcbf inc/path/to/file.php          # exits 1 even when it fixed everything (false failure)
+vendor/bin/phpcbf inc/path/to/file.php || true  # correct — ignore expected exit code 1
+```
+
+After phpcbf runs and modifies a file, you MUST re-read the file before calling Edit on it
+(see [Read Before Edit](#read-before-edit-mandatory)).
 
 **`npm run env:*` and `npm run cy:*` require Docker and `@wordpress/env`** — the `env:start`,
 `env:stop`, and Cypress E2E scripts (`cy:open:*`, `cy:run:*`) use the `@wordpress/env`
