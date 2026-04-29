@@ -356,6 +356,115 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 	}
 
 	// =========================================================================
+	// General catch-all — backfill_all_postmeta
+	// =========================================================================
+
+	/**
+	 * Test that backfill_all_postmeta copies ALL missing postmeta for any post type.
+	 *
+	 * This is the final safety net — after specific backfills (nav_menu,
+	 * attachment, elementor), this method copies any remaining missing
+	 * postmeta for pages, CPTs, WooCommerce products, LMS courses, etc.
+	 */
+	public function test_all_postmeta_catch_all_copies_missing_meta() {
+		// Create a page on the source site with various meta keys.
+		switch_to_blog($this->from_blog_id);
+		$page_id = self::factory()->post->create(
+			[
+				'post_type'  => 'page',
+				'post_title' => 'Page with custom meta',
+			]
+		);
+		update_post_meta($page_id, '_thumbnail_id', '42');
+		update_post_meta($page_id, '_wp_page_template', 'full-width.php');
+		update_post_meta($page_id, '_custom_field', 'custom-value');
+		restore_current_blog();
+
+		// Mirror the post to target (simulates MUCD's post copy).
+		switch_to_blog($this->to_blog_id);
+		self::factory()->post->create(
+			[
+				'import_id'  => $page_id,
+				'post_type'  => 'page',
+				'post_title' => 'Page with custom meta',
+			]
+		);
+		restore_current_blog();
+
+		// Run the catch-all backfill.
+		Testable_Site_Duplicator::backfill_all_postmeta($this->from_blog_id, $this->to_blog_id);
+
+		// Verify all meta was copied.
+		switch_to_blog($this->to_blog_id);
+		$this->assertEquals('42', get_post_meta($page_id, '_thumbnail_id', true));
+		$this->assertEquals('full-width.php', get_post_meta($page_id, '_wp_page_template', true));
+		$this->assertEquals('custom-value', get_post_meta($page_id, '_custom_field', true));
+		restore_current_blog();
+	}
+
+	/**
+	 * Test that backfill_all_postmeta does not overwrite existing meta (NOT EXISTS guard).
+	 */
+	public function test_all_postmeta_catch_all_does_not_overwrite_existing() {
+		// Create a page on the source site with meta.
+		switch_to_blog($this->from_blog_id);
+		$page_id = self::factory()->post->create(
+			[
+				'post_type'  => 'page',
+				'post_title' => 'Existing meta page',
+			]
+		);
+		update_post_meta($page_id, '_custom_field', 'source-value');
+		restore_current_blog();
+
+		// Mirror the post to target with a different meta value.
+		switch_to_blog($this->to_blog_id);
+		self::factory()->post->create(
+			[
+				'import_id'  => $page_id,
+				'post_type'  => 'page',
+				'post_title' => 'Existing meta page',
+			]
+		);
+		update_post_meta($page_id, '_custom_field', 'target-value');
+		restore_current_blog();
+
+		// Run the catch-all backfill.
+		Testable_Site_Duplicator::backfill_all_postmeta($this->from_blog_id, $this->to_blog_id);
+
+		// Existing target meta must be preserved — NOT overwritten.
+		switch_to_blog($this->to_blog_id);
+		$this->assertEquals('target-value', get_post_meta($page_id, '_custom_field', true));
+		restore_current_blog();
+	}
+
+	/**
+	 * Test that backfill_all_postmeta only copies meta for posts that exist in target.
+	 */
+	public function test_all_postmeta_catch_all_skips_orphaned_posts() {
+		// Create a post on source that does NOT exist on target.
+		switch_to_blog($this->from_blog_id);
+		$orphan_id = self::factory()->post->create(
+			[
+				'post_type'  => 'post',
+				'post_title' => 'Orphan post',
+			]
+		);
+		update_post_meta($orphan_id, '_orphan_meta', 'should-not-copy');
+		restore_current_blog();
+
+		// Do NOT create a matching post on the target.
+
+		// Run the catch-all backfill.
+		Testable_Site_Duplicator::backfill_all_postmeta($this->from_blog_id, $this->to_blog_id);
+
+		// No meta should exist on the target for the orphan post.
+		switch_to_blog($this->to_blog_id);
+		$this->assertEmpty(get_post_meta($orphan_id, '_orphan_meta', true));
+		restore_current_blog();
+	}
+
+	// =========================================================================
 	// Bug 1 — backfill_kit_settings
 	// =========================================================================
 
@@ -1053,5 +1162,19 @@ class Testable_Site_Duplicator extends Site_Duplicator {
 	 */
 	public static function verify_kit_integrity($from_site_id, $to_site_id) {
 		parent::verify_kit_integrity($from_site_id, $to_site_id);
+	}
+
+	/**
+	 * Expose backfill_all_postmeta.
+	 */
+	public static function backfill_all_postmeta($from_site_id, $to_site_id) {
+		parent::backfill_all_postmeta($from_site_id, $to_site_id);
+	}
+
+	/**
+	 * Expose rewrite_backfilled_postmeta_urls.
+	 */
+	public static function rewrite_backfilled_postmeta_urls($from_site_id, $to_site_id) {
+		parent::rewrite_backfilled_postmeta_urls($from_site_id, $to_site_id);
 	}
 }

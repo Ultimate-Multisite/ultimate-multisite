@@ -196,7 +196,7 @@ class Site_Duplicator {
 				'keep_users'   => true,
 				'public'       => true,
 				'domain'       => $current_site->domain,
-				'copy_files'   => wu_get_setting('copy_media', true),
+				'copy_files'   => '' !== wu_get_setting('copy_media', true) ? (bool) wu_get_setting('copy_media', true) : true,
 				'network_id'   => get_current_network_id(),
 				'meta'         => [],
 				'user_id'      => 0,
@@ -406,18 +406,19 @@ class Site_Duplicator {
 		self::backfill_nav_menu_postmeta($from_site_id, $to_site_id);
 		self::backfill_attachment_postmeta($from_site_id, $to_site_id);
 		self::backfill_elementor_postmeta($from_site_id, $to_site_id);
+		self::backfill_all_postmeta($from_site_id, $to_site_id);
 		self::backfill_kit_settings($from_site_id, $to_site_id);
 	}
 
 	/**
-	 * Rewrite source-site URLs to target-site URLs in backfilled postmeta rows.
+	 * Rewrite source-site URLs to target-site URLs across all cloned tables.
 	 *
 	 * backfill_postmeta() inserts rows after MUCD_Data::copy_data() has already
 	 * run its source→target URL replacement pass (db_update_data()), so those
 	 * rows contain raw template-site URLs. This method applies the same URL
-	 * substitution to the target's postmeta table, correcting any template
-	 * references left by the backfill (e.g. _menu_item_url custom links,
-	 * _elementor_* JSON containing the template domain).
+	 * substitution to the target's postmeta, posts, options, termmeta, and
+	 * commentmeta tables, correcting any template references left by the
+	 * backfill or missed by MUCD's pass.
 	 *
 	 * Safe to run after MUCD has already rewritten the copied rows: those rows
 	 * no longer contain the source URL, so REPLACE() is a no-op for them.
@@ -460,22 +461,99 @@ class Site_Duplicator {
 			str_replace('/', '\\/', $from_clean) => str_replace('/', '\\/', $to_clean),
 		];
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		foreach ($replacements as $from => $to) {
+		/*
+		 * Tables and columns to rewrite. postmeta is the primary target
+		 * (backfilled rows), but posts.post_content, options.option_value,
+		 * termmeta.meta_value, and commentmeta.meta_value may also contain
+		 * stale template URLs — either from the backfill or from MUCD's
+		 * pass missing a JSON-encoded variant.
+		 */
+		$tables = [
+			"{$to_prefix}postmeta"    => 'meta_value',
+			"{$to_prefix}posts"       => 'post_content',
+			"{$to_prefix}options"     => 'option_value',
+			"{$to_prefix}termmeta"    => 'meta_value',
+			"{$to_prefix}commentmeta" => 'meta_value',
+		];
 
-			if ($from === $to) {
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ($tables as $table => $column) {
+
+			// Skip tables that don't exist (e.g. termmeta on older WP versions).
+			$exists = $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s LIMIT 1',
+					$table
+				)
+			);
+
+			if ( ! $exists) {
 				continue;
 			}
 
-			$wpdb->query(
-				$wpdb->prepare(
-					"UPDATE {$to_prefix}postmeta SET meta_value = REPLACE(meta_value, %s, %s) WHERE meta_value LIKE %s",
-					$from,
-					$to,
-					'%' . $wpdb->esc_like($from) . '%'
-				)
-			);
+			foreach ($replacements as $from => $to) {
+
+				if ($from === $to) {
+					continue;
+				}
+
+				$wpdb->query(
+					$wpdb->prepare(
+						"UPDATE `{$table}` SET `{$column}` = REPLACE(`{$column}`, %s, %s) WHERE `{$column}` LIKE %s",
+						$from,
+						$to,
+						'%' . $wpdb->esc_like($from) . '%'
+					)
+				);
+			}
 		}
+		// phpcs:enable
+	}
+
+	/**
+	 * Catch-all: backfill ANY missing postmeta for ANY post type.
+	 *
+	 * Final safety net after the targeted backfill methods (nav_menu,
+	 * attachment, Elementor). Copies every postmeta row from the source
+	 * that exists for a post present in the target but is missing from
+	 * the target's postmeta table.
+	 *
+	 * Covers: _thumbnail_id, _wp_page_template, page-builder meta,
+	 * LMS course meta, WooCommerce product meta, and any custom fields
+	 * not handled by the specific backfill methods above.
+	 *
+	 * NOT EXISTS guard makes it idempotent — safe to re-run, never duplicates.
+	 *
+	 * @since 2.3.3
+	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
+	 *
+	 * @param int $from_site_id Source blog ID.
+	 * @param int $to_site_id   Target blog ID.
+	 */
+	protected static function backfill_all_postmeta($from_site_id, $to_site_id) {
+
+		global $wpdb;
+
+		$from_prefix = $wpdb->get_blog_prefix((int) $from_site_id);
+		$to_prefix   = $wpdb->get_blog_prefix((int) $to_site_id);
+
+		if ($from_prefix === $to_prefix) {
+			return;
+		}
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query(
+			"INSERT INTO {$to_prefix}postmeta (post_id, meta_key, meta_value)
+			SELECT src.post_id, src.meta_key, src.meta_value
+			FROM {$from_prefix}postmeta src
+			INNER JOIN {$to_prefix}posts tgt
+					ON tgt.ID = src.post_id
+			WHERE NOT EXISTS (
+				SELECT 1 FROM {$to_prefix}postmeta tpm
+				WHERE tpm.post_id = src.post_id
+				  AND tpm.meta_key = src.meta_key
+			)"
+		);
 		// phpcs:enable
 	}
 

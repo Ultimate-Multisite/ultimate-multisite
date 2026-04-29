@@ -41,8 +41,9 @@ class Elementor_Compat {
 	/**
 	 * Makes sure we force Elementor to regenerate styles after site duplication.
 	 *
-	 * Uses the Elementor API when available, otherwise clears the CSS cache
-	 * via direct database operations. This fallback is important because
+	 * Deletes stale compiled CSS files from disk (copied verbatim from the
+	 * template site's uploads), clears CSS metadata, and uses the Elementor
+	 * API to regenerate when available. This fallback is important because
 	 * Elementor classes are typically not loaded in the network admin
 	 * context where site duplication runs.
 	 *
@@ -56,11 +57,24 @@ class Elementor_Compat {
 			return;
 		}
 
-		switch_to_blog($site['site_id']);
+		$blog_id = (int) $site['site_id'];
 
-		// Try the Elementor API if available.
+		switch_to_blog($blog_id);
+
+		// Step 1: Delete stale compiled CSS files from disk.
+		// MUCD_Files copies the template's upload directory including
+		// pre-compiled post-*.css and global.css files. These contain
+		// hardcoded template URLs and must be deleted so Elementor
+		// rebuilds them with the correct cloned-site URLs.
+		self::delete_stale_css_files();
+
+		// Step 2: Try the Elementor API if available.
 		if (class_exists('\Elementor\Plugin') && ! empty(\Elementor\Plugin::$instance->files_manager)) {
 			\Elementor\Plugin::$instance->files_manager->clear_cache(); // phpcs:ignore
+
+			// Ensure external CSS mode for subsequent requests.
+			update_option('elementor_css_print_method', 'external');
+
 			restore_current_blog();
 
 			return;
@@ -79,13 +93,58 @@ class Elementor_Compat {
 			['%s']
 		);
 
+		// Also delete inline SVG cache metadata.
+		$wpdb->delete( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->postmeta,
+			['meta_key' => '_elementor_inline_svg'], // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			['%s']
+		);
+
 		// Clear the global CSS option so Elementor rebuilds it.
 		delete_option('_elementor_global_css');
 
-		// Reset the CSS print timestamp to force full regeneration.
-		delete_option('elementor_css_print_method');
+		// Ensure external CSS mode so Elementor generates CSS files on
+		// the first frontend visit rather than falling back to inline.
+		update_option('elementor_css_print_method', 'external');
 
 		restore_current_blog();
+	}
+
+	/**
+	 * Delete stale compiled Elementor CSS files from the uploads directory.
+	 *
+	 * When MUCD_Files copies the template's uploads, it includes pre-compiled
+	 * post-*.css and global.css files in elementor/css/. These files contain
+	 * hardcoded template-site URLs (in background-image, font-face, etc.)
+	 * that won't match the cloned site. Deleting them forces Elementor to
+	 * rebuild from the corrected postmeta on the first frontend visit.
+	 *
+	 * @since 2.3.3
+	 * @return void
+	 */
+	private static function delete_stale_css_files(): void {
+
+		$upload  = wp_upload_dir();
+		$css_dir = rtrim($upload['basedir'], '/\\') . '/elementor/css';
+
+		if ( ! is_dir($css_dir)) {
+			return;
+		}
+
+		$files = glob($css_dir . '/post-*.css');
+
+		if (is_array($files)) {
+			foreach ($files as $file) {
+				wp_delete_file($file);
+			}
+		}
+
+		// Also remove global.css.
+		$global_css = $css_dir . '/global.css';
+
+		if (file_exists($global_css)) {
+			wp_delete_file($global_css);
+		}
 	}
 
 	/**
