@@ -1350,9 +1350,34 @@ class Site extends Base_Model implements Limitable, Notable {
 	 */
 	public function get_site_url() {
 
-		$url = set_url_scheme(esc_url(sprintf($this->get_domain() . '/' . trim($this->get_path(), '/'))));
+		/*
+		 * For sites already saved to the database, WordPress's get_home_url()
+		 * builds the correct full URL (including scheme and port) from the
+		 * site's stored options. We cannot safely construct it ourselves from
+		 * domain + path because the `domain` column in wp_blogs may include a
+		 * port (e.g. "example.com:8080"), which causes esc_url() to
+		 * misidentify the hostname as a protocol and return an empty string.
+		 */
+		if ($this->get_id()) {
+			return get_home_url($this->get_id());
+		}
 
-		return $url;
+		/*
+		 * For new sites not yet persisted, fall back to manual construction.
+		 * Prepend the scheme explicitly so esc_url() receives a valid URL.
+		 */
+		$domain = rtrim($this->get_domain(), '/');
+		$path   = '/' . trim($this->get_path(), '/');
+
+		if (empty($domain)) {
+			return '';
+		}
+
+		if ( ! str_contains($domain, '://')) {
+			$domain = (is_ssl() ? 'https' : 'http') . '://' . $domain;
+		}
+
+		return esc_url($domain . $path);
 	}
 
 	/**
