@@ -2022,6 +2022,7 @@ class Site extends Base_Model implements Limitable, Notable {
 				$membership = $memberships[0];
 
 				$this->set_membership_id($membership->get_id());
+				$this->membership = $membership;
 
 				update_site_meta($this->get_id(), self::META_MEMBERSHIP_ID, $membership->get_id());
 			}

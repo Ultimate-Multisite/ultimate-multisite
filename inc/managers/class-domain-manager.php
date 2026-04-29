@@ -1164,7 +1164,21 @@ class Domain_Manager extends Base_Manager {
 		 */
 		$domain->set_primary_domain(true);
 
-		$domain->save();
+		$save_result = $domain->save();
+		if (is_wp_error($save_result)) {
+			wu_log_add(
+				"domain-{$domain_url}",
+				sprintf(
+					// translators: %1$s is the domain name, %2$d is the blog ID, %3$s is the error message.
+					__('Failed to auto-promote %1$s as primary domain for site %2$d: %3$s', 'ultimate-multisite'),
+					$domain_url,
+					$blog_id,
+					$save_result->get_error_message()
+				),
+				LogLevel::ERROR
+			);
+			return;
+		}
 
 		wu_log_add(
 			"domain-{$domain_url}",
