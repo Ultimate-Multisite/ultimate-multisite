@@ -1874,6 +1874,17 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 		$this->add_field(
 			'other',
+			'enable_jumper',
+			[
+				'title'   => __('Enable Jumper', 'ultimate-multisite'),
+				'desc'    => __('The Jumper is a command-palette overlay that lets network admins quickly navigate to any site or admin page. Disable it here if you prefer not to show it.', 'ultimate-multisite'),
+				'type'    => 'toggle',
+				'default' => 1,
+			]
+		);
+
+		$this->add_field(
+			'other',
 			'error_reporting_header',
 			[
 				'title' => __('Logging', 'ultimate-multisite'),
@@ -2054,6 +2065,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			// Other
 			'hide_tours'                         => 0,
 			'disable_image_zoom'                 => 0,
+			'enable_jumper'                      => 1,
 			'error_logging_level'                => 'default',
 			'security_mode'                      => 0,
 			'uninstall_wipe_tables'              => 0,
