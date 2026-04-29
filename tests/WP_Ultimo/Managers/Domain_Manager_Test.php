@@ -2086,4 +2086,199 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 
 		remove_all_filters('wu_async_process_domains_try_again_time');
 	}
+
+	// ----------------------------------------------------------------
+	// maybe_auto_promote_primary_domain
+	// ----------------------------------------------------------------
+
+	/**
+	 * Simple 2-part custom domain (e.g. mysite.com) reaches done stage
+	 * and should be auto-promoted to primary.
+	 */
+	public function test_auto_promote_simple_custom_domain_on_done(): void {
+		$blog_id = $this->create_test_blog();
+
+		$domain = wu_create_domain([
+			'blog_id'        => $blog_id,
+			'domain'         => 'mysite.com',
+			'stage'          => Domain_Stage::CHECKING_DNS,
+			'primary_domain' => false,
+		]);
+
+		$this->assertNotWPError($domain);
+
+		// Transition to done — hook fires automatically.
+		$domain->set_stage(Domain_Stage::DONE);
+		$domain->save();
+
+		$fetched = wu_get_domain($domain->get_id());
+		$this->assertTrue(
+			$fetched->is_primary_domain(),
+			'A simple 2-part custom domain should be auto-promoted when it reaches done stage.'
+		);
+	}
+
+	/**
+	 * A 3-part custom domain (e.g. shop.mybrand.com) reaching done stage
+	 * should also be auto-promoted — the old TLD-counting heuristic wrongly
+	 * blocked this class of domain.
+	 */
+	public function test_auto_promote_three_part_custom_domain_on_done(): void {
+		$blog_id = $this->create_test_blog();
+
+		$domain = wu_create_domain([
+			'blog_id'        => $blog_id,
+			'domain'         => 'shop.mybrand.com',
+			'stage'          => Domain_Stage::CHECKING_DNS,
+			'primary_domain' => false,
+		]);
+
+		$this->assertNotWPError($domain);
+
+		$domain->set_stage(Domain_Stage::DONE);
+		$domain->save();
+
+		$fetched = wu_get_domain($domain->get_id());
+		$this->assertTrue(
+			$fetched->is_primary_domain(),
+			'A 3-part custom domain (shop.mybrand.com) should be auto-promoted — it is not a WP network subdomain.'
+		);
+	}
+
+	/**
+	 * A domain that is already primary (stage done → done again) should not be
+	 * re-processed — the transition hook only fires on actual stage changes.
+	 */
+	public function test_auto_promote_skips_already_primary(): void {
+		$blog_id = $this->create_test_blog();
+
+		// Create with checking-dns, then promote to done (triggers the hook).
+		$domain = wu_create_domain([
+			'blog_id'        => $blog_id,
+			'domain'         => 'already-primary.com',
+			'stage'          => Domain_Stage::CHECKING_DNS,
+			'primary_domain' => false,
+		]);
+
+		$this->assertNotWPError($domain);
+
+		// First transition: checking-dns → done. Hook promotes to primary.
+		$domain->set_stage(Domain_Stage::DONE);
+		$domain->save();
+
+		$fetched = wu_get_domain($domain->get_id());
+		$this->assertTrue($fetched->is_primary_domain(), 'Domain should be primary after first transition to done.');
+
+		// Second save with same done stage — no stage transition, hook does NOT fire.
+		// primary_domain must remain true.
+		$fetched->save();
+
+		$fetched2 = wu_get_domain($domain->get_id());
+		$this->assertTrue(
+			$fetched2->is_primary_domain(),
+			'An already-primary domain should remain primary after a redundant save.'
+		);
+	}
+
+	/**
+	 * If a blog already has a non-network primary custom domain, a newly-done
+	 * domain should NOT displace it.
+	 */
+	public function test_auto_promote_skips_when_existing_primary_custom_domain(): void {
+		$blog_id = $this->create_test_blog();
+
+		// First domain: already primary.
+		$first = wu_create_domain([
+			'blog_id'        => $blog_id,
+			'domain'         => 'first-custom.com',
+			'stage'          => Domain_Stage::DONE,
+			'primary_domain' => true,
+		]);
+
+		$this->assertNotWPError($first);
+		$this->assertTrue($first->is_primary_domain());
+
+		// Second domain: reaches done but should NOT displace the first.
+		$second = wu_create_domain([
+			'blog_id'        => $blog_id,
+			'domain'         => 'second-custom.com',
+			'stage'          => Domain_Stage::CHECKING_DNS,
+			'primary_domain' => false,
+		]);
+
+		$this->assertNotWPError($second);
+
+		$second->set_stage(Domain_Stage::DONE);
+		$second->save();
+
+		// Reload both.
+		$first_after  = wu_get_domain($first->get_id());
+		$second_after = wu_get_domain($second->get_id());
+
+		$this->assertTrue(
+			$first_after->is_primary_domain(),
+			'The original primary domain should remain primary.'
+		);
+		$this->assertFalse(
+			$second_after->is_primary_domain(),
+			'The new domain should NOT be auto-promoted when an existing primary custom domain exists.'
+		);
+	}
+
+	/**
+	 * WP multisite native subdomain (e.g. site.{network_host}) reaching done
+	 * stage should NOT be auto-promoted.
+	 */
+	public function test_auto_promote_skips_wp_network_subdomain(): void {
+		$blog_id = $this->create_test_blog();
+
+		$network_host = strtolower( (string) wp_parse_url( network_home_url(), PHP_URL_HOST ) );
+		$network_host = (string) preg_replace( '/:\d+$/', '', $network_host );
+
+		// Build a domain that looks like a native WP multisite subdomain.
+		$wp_subdomain = 'testsite.' . $network_host;
+
+		$domain = wu_create_domain([
+			'blog_id'        => $blog_id,
+			'domain'         => $wp_subdomain,
+			'stage'          => Domain_Stage::CHECKING_DNS,
+			'primary_domain' => false,
+		]);
+
+		$this->assertNotWPError($domain);
+
+		$domain->set_stage(Domain_Stage::DONE);
+		$domain->save();
+
+		$fetched = wu_get_domain($domain->get_id());
+		$this->assertFalse(
+			$fetched->is_primary_domain(),
+			"A WP network subdomain ({$wp_subdomain}) should NOT be auto-promoted."
+		);
+	}
+
+	/**
+	 * done-without-ssl stage also triggers auto-promotion.
+	 */
+	public function test_auto_promote_on_done_without_ssl(): void {
+		$blog_id = $this->create_test_blog();
+
+		$domain = wu_create_domain([
+			'blog_id'        => $blog_id,
+			'domain'         => 'nossl.mybrand.com',
+			'stage'          => Domain_Stage::CHECKING_DNS,
+			'primary_domain' => false,
+		]);
+
+		$this->assertNotWPError($domain);
+
+		$domain->set_stage(Domain_Stage::DONE_WITHOUT_SSL);
+		$domain->save();
+
+		$fetched = wu_get_domain($domain->get_id());
+		$this->assertTrue(
+			$fetched->is_primary_domain(),
+			'A custom domain reaching done-without-ssl should also be auto-promoted.'
+		);
+	}
 }
