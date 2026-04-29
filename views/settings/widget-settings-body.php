@@ -263,38 +263,6 @@ defined('ABSPATH') || exit;
 	</tbody>
 </table>
 
-<div id="error_reporting" data-type="heading">
-	<h3>Error Reporting</h3>
-	<p>Help us make Ultimate Multisite better by automatically reporting fatal errors and warnings so we can fix them as
-		soon
-		as possible.</p>
-</div>
-
-<table class="form-table">
-	<tbody>
-
-
-	<tr>
-		<th scope="row"><label for="enable_error_reporting"><?php esc_html_e('Help Improve Ultimate Multisite', 'ultimate-multisite'); ?></label></th>
-		<td>
-
-			<label for="enable_error_reporting">
-				<input name="enable_error_reporting" type="checkbox" id="enable_error_reporting" value="1">
-				<?php esc_html_e('Help Improve Ultimate Multisite', 'ultimate-multisite'); ?>
-			</label>
-
-			<p class="description" id="enable_error_reporting-desc">
-				<?php esc_html_e('Allow Ultimate Multisite to collect anonymous usage data and error reports to help us improve the plugin. We collect: PHP version, WordPress version, plugin version, network type, aggregate counts, active gateways, and error logs. We never collect personal data, customer information, or domain names.', 'ultimate-multisite'); ?>
-				<a href="https://ultimatemultisite.com/privacy-policy/" target="_blank"><?php esc_html_e('Learn more', 'ultimate-multisite'); ?></a>.
-			</p>
-
-		</td>
-	</tr>
-
-
-	</tbody>
-</table>
-
 <div id="uninstall" data-type="heading">
 	<h3>Uninstall Options</h3>
 	<p>Change the plugin behavior on uninstall.</p>

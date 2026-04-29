@@ -77,9 +77,6 @@ class Tracker implements \WP_Ultimo\Interfaces\Singleton {
 
 		// Customize fatal error message for network sites
 		add_filter('wp_php_error_message', [$this, 'customize_fatal_error_message'], 10, 2);
-
-		// Send initial data when tracking is first enabled
-		add_action('wu_settings_update', [$this, 'maybe_send_initial_data'], 10, 2);
 	}
 
 	/**
@@ -100,12 +97,15 @@ class Tracker implements \WP_Ultimo\Interfaces\Singleton {
 	/**
 	 * Check if tracking is enabled.
 	 *
+	 * Tracking is always enabled. Users provide consent at the point of
+	 * feedback submission rather than via a global settings toggle.
+	 *
 	 * @since 2.5.0
 	 * @return bool
 	 */
 	public function is_tracking_enabled(): bool {
 
-		return (bool) wu_get_setting('enable_error_reporting', false);
+		return true;
 	}
 
 	/**
@@ -127,32 +127,6 @@ class Tracker implements \WP_Ultimo\Interfaces\Singleton {
 		}
 
 		$this->send_tracking_data();
-	}
-
-	/**
-	 * Send initial data when tracking is first enabled.
-	 *
-	 * @since 2.5.0
-	 * @param string $setting_id The setting being updated.
-	 * @param mixed  $value The new value.
-	 * @return void
-	 */
-	public function maybe_send_initial_data(string $setting_id, $value): void {
-
-		if ('enable_error_reporting' !== $setting_id) {
-			return;
-		}
-
-		if ( ! $value) {
-			return;
-		}
-
-		// Check if we've never sent data before
-		$last_send = get_site_option(self::LAST_SEND_OPTION, 0);
-
-		if (0 === $last_send) {
-			$this->send_tracking_data();
-		}
 	}
 
 	/**

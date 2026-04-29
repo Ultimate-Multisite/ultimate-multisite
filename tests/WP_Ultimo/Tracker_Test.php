@@ -54,13 +54,13 @@ class Tracker_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test is_tracking_enabled returns bool.
+	 * Test is_tracking_enabled always returns true.
 	 */
 	public function test_is_tracking_enabled(): void {
 
 		$result = $this->get_tracker()->is_tracking_enabled();
 
-		$this->assertIsBool($result);
+		$this->assertTrue($result);
 	}
 
 	/**
@@ -489,14 +489,13 @@ class Tracker_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test maybe_send_error does nothing when tracking disabled.
+	 * Test maybe_send_error does nothing with error level when tracking is enabled.
 	 */
-	public function test_maybe_send_error_tracking_disabled(): void {
+	public function test_maybe_send_error_tracking_enabled(): void {
 
-		// Tracking is disabled by default in tests.
+		// Tracking is always enabled; verify the method runs without exceptions.
 		$this->get_tracker()->maybe_send_error('test', 'error message', \Psr\Log\LogLevel::ERROR);
 
-		// Should not throw — just exercises the early return.
 		$this->assertTrue(true);
 	}
 
@@ -587,29 +586,9 @@ class Tracker_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test maybe_send_initial_data does nothing for wrong setting.
+	 * Test maybe_send_tracking_data runs without exception.
 	 */
-	public function test_maybe_send_initial_data_wrong_setting(): void {
-
-		$this->get_tracker()->maybe_send_initial_data('other_setting', true);
-
-		$this->assertTrue(true);
-	}
-
-	/**
-	 * Test maybe_send_initial_data does nothing when value is false.
-	 */
-	public function test_maybe_send_initial_data_false_value(): void {
-
-		$this->get_tracker()->maybe_send_initial_data('enable_error_reporting', false);
-
-		$this->assertTrue(true);
-	}
-
-	/**
-	 * Test maybe_send_tracking_data does nothing when tracking disabled.
-	 */
-	public function test_maybe_send_tracking_data_disabled(): void {
+	public function test_maybe_send_tracking_data(): void {
 
 		$this->get_tracker()->maybe_send_tracking_data();
 
