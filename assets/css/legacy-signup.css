@@ -13,7 +13,8 @@ body {
   margin: 0;
 }
 .wu-thank-you-pending-site img {
-  max-width: 100%;
+  max-width: 120px;
+  height: auto;
 }
 .wu-setup #wu-thank-you-element table {
   width: 100%;
@@ -21,6 +22,9 @@ body {
 #wu-sites > div {
   max-width: 100%;
   overflow: hidden;
+}
+#wu-sites a {
+  white-space: nowrap;
 }
 .wu-setup .button .dashicons,
 .wu-setup .button .dashicons-before::before {

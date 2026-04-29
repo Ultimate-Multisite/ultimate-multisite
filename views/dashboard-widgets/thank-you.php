@@ -250,10 +250,11 @@ defined('ABSPATH') || exit;
 
 			<div class="wu-bg-gray-100 wu-p-4 wu-rounded wu-mb-2 sm:wu-flex wu-items-center wu-w-full">
 
-					<div class="wu-flex-shrink sm:wu-mr-4">
+					<div class="wu-flex-shrink-0 sm:wu-mr-4">
 
 					<img
 					class="wu-mb-4 sm:wu-mb-0 wu-rounded"
+					style="max-width: 120px;"
 					src="<?php echo esc_attr($site->get_featured_image('thumbnail')); ?>"
 					alt="Thumbnail of Site" />
 
@@ -297,7 +298,7 @@ defined('ABSPATH') || exit;
 
 				</div>
 
-				<div class="wu-justify-align-end sm:wu-ml-4">
+				<div class="wu-flex-shrink-0 sm:wu-ml-4">
 
 					<?php if ($site->get_type() === 'pending') : ?>
 
