@@ -4,8 +4,6 @@
  */
 namespace TenUp\MU_Migration\Helpers;
 
-use Alchemy\Zippy\Zippy;
-
 /**
  * Checks if WooCommerce is active.
  *
@@ -275,30 +273,72 @@ function maybe_restore_current_blog() {
 /**
  * Extracts a zip file to the $dest_dir.
  *
- * @uses Zippy
+ * Uses PHP's built-in ZipArchive (available since PHP 5.2, required by WP 5.3+).
  *
  * @param string $filename
  * @param string $dest_dir
  */
 function extract($filename, $dest_dir) {
-	$zippy = Zippy::load();
+	$zip = new \ZipArchive();
 
-	$site_package = $zippy->open($filename);
-	mkdir($dest_dir);
-	$site_package->extract($dest_dir);
+	if ( $zip->open($filename) !== true ) {
+		return;
+	}
+
+	if ( ! file_exists($dest_dir) ) {
+		mkdir($dest_dir, 0755, true);
+	}
+
+	$zip->extractTo($dest_dir);
+	$zip->close();
 }
 
 /**
- * Creates a zip files with the provided files/folder to zip
+ * Creates a zip file with the provided files/folders.
  *
- * @param string $zip_files    The name of the zip file
- * @param array  $files_to_zip The files to include in the zip file
+ * Uses PHP's built-in ZipArchive (available since PHP 5.2, required by WP 5.3+).
+ * The $files_to_zip array maps archive entry names (keys) to filesystem paths (values).
+ * When key equals value (both are the same filesystem path), the basename is used as
+ * the archive entry name (e.g. individual export files like .sql, .csv, .json).
+ * When the key is a relative path (e.g. 'wp-content/plugins'), all contents of the
+ * filesystem directory (value) are added recursively under that prefix.
  *
- * @return void
+ * @param string $zip_file    The path of the zip file to create.
+ * @param array  $files_to_zip Archive-entry => filesystem-path pairs.
+ *
+ * @return bool True on success, false on failure.
  */
 function zip($zip_file, $files_to_zip) {
 	$files_to_zip = apply_filters('wu_site_exporter_files_to_zip', $files_to_zip);
-	return Zippy::load()->create($zip_file, $files_to_zip, true);
+
+	$zip = new \ZipArchive();
+
+	if ( $zip->open($zip_file, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true ) {
+		return false;
+	}
+
+	foreach ( $files_to_zip as $archive_path => $filesystem_path ) {
+		if ( is_file($filesystem_path) ) {
+			// When key === value both are the full filesystem path; store by basename.
+			$entry_name = ( $archive_path === $filesystem_path ) ? basename($filesystem_path) : $archive_path;
+			$zip->addFile($filesystem_path, $entry_name);
+		} elseif ( is_dir($filesystem_path) ) {
+			$filesystem_path  = rtrim($filesystem_path, DIRECTORY_SEPARATOR);
+			$base_path_length = strlen($filesystem_path) + 1;
+
+			$dir_iterator = new \RecursiveIteratorIterator(
+				new \RecursiveDirectoryIterator($filesystem_path, \RecursiveDirectoryIterator::SKIP_DOTS),
+				\RecursiveIteratorIterator::LEAVES_ONLY
+			);
+
+			foreach ( $dir_iterator as $file_item ) {
+				$relative_path = substr($file_item->getPathname(), $base_path_length);
+				$zip->addFile($file_item->getPathname(), $archive_path . DIRECTORY_SEPARATOR . $relative_path);
+			}
+		}
+	}
+
+	return $zip->close();
 }
 
 /**
