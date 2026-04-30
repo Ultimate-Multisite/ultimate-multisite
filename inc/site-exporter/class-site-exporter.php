@@ -1598,7 +1598,7 @@ final class Site_Exporter {
 
 		wu_exporter_delete_transient("wu_pending_site_import_{$hash}");
 
-		$delete_file = isset($options['delete_file']);
+		$delete_file = !empty($options['delete_file']);
 
 		if ($delete_file) {
 			$attachment_id = attachment_url_to_postid($options['zip_url']);
