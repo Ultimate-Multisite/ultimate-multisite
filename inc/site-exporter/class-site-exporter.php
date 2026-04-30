@@ -1625,7 +1625,9 @@ final class Site_Exporter {
 
 		wu_exporter_save_generation_time($export_name, $time);
 
-		wu_exporter_delete_transient("wu_pending_site_export_{$hash}");
+		if ( ! empty($hash)) {
+			wu_exporter_delete_transient("wu_pending_site_export_{$hash}");
+		}
 
 		return true;
 	}
