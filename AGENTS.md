@@ -85,6 +85,11 @@ inc/
   site-templates/        # Site template management (class-template-placeholders.php)
   tax/                   # Tax calculation and dashboard management
   template-library/      # Template library (API client, installer, repository)
+  country/               # Country-specific tax/address configuration classes
+  contracts/             # PHP contracts (e.g. contracts/Session.php)
+  interfaces/            # Interface definitions (e.g. interface-singleton.php)
+  debug/                 # Debug utilities (class-debug.php)
+  development/           # Development toolkit and Query Monitor integration (dev-only)
 tests/
   WP_Ultimo/             # Unit tests mirroring inc/ structure (main test suite)
   Admin_Pages/           # Admin page tests
@@ -295,8 +300,8 @@ read them will produce `read:file_not_found`:
 | `inc/class-gateway.php`, `inc/class-payment-gateway.php` | Do not exist; gateway classes are in `inc/gateways/` |
 | `inc/functions/class-*.php` | Functions in `inc/functions/` are plain procedural PHP (not OOP class files); they are named `inc/functions/customer.php`, `inc/functions/checkout.php`, etc. |
 | `class-wp-ultimo.php` (at repo root) | Does not exist at root; the main plugin class is at `inc/class-wp-ultimo.php` |
-| `inc/managers/class-manager.php` | Does not exist; manager classes are concrete (e.g. `inc/managers/class-membership-manager.php`, not a base `class-manager.php`) |
-| `inc/helpers/class-arr.php`, `inc/helpers/class-hash.php` | May exist — verify with `git ls-files 'inc/helpers/class-*.php'`; file names in helpers vary |
+| `inc/managers/class-manager.php` | Does not exist; the base manager class is `inc/managers/class-base-manager.php`; concrete managers include `inc/managers/class-membership-manager.php`, `inc/managers/class-customer-manager.php`, etc. |
+| `inc/helpers/class-arr.php`, `inc/helpers/class-hash.php` | Both exist at those exact paths; other confirmed helpers: `class-validator.php`, `class-credential-store.php`, `class-sender.php`, `class-wp-config.php` — run `git ls-files 'inc/helpers/class-*.php'` for the full list |
 | `tests/unit/*.php` | The `tests/unit/` directory exists but contains limited files — verify with `git ls-files 'tests/unit/'` before reading |
 | `inc/checkout/class-signup.php` | Does not exist; signup flow uses `inc/checkout/class-checkout.php` |
 | `assets/js/*.js` (unminified) | Verify with `git ls-files 'assets/js/'`; some files have both `.js` and `.min.js`, others only `.min.js` |
