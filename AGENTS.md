@@ -298,6 +298,8 @@ read them will produce `read:file_not_found`:
 | `inc/class-plugin.php`, `inc/class-main.php` | Do not exist; the main plugin class is `inc/class-wp-ultimo.php` |
 | `inc/class-membership-manager.php`, `inc/class-customer-manager.php` (etc.) | Do not exist at root of `inc/`; manager classes are in `inc/managers/` (e.g. `inc/managers/class-membership-manager.php`) |
 | `inc/managers/class-orphaned-tables-manager.php`, `inc/managers/class-orphaned-users-manager.php` | Do not exist in `inc/managers/`; unlike most manager classes, these two live at the `inc/` root: `inc/class-orphaned-tables-manager.php` and `inc/class-orphaned-users-manager.php` |
+| `inc/managers/class-tracker-manager.php`, `inc/telemetry/class-tracker.php` | Do not exist; the telemetry/usage-tracking singleton is at `inc/class-tracker.php` (root of `inc/`). Background opt-in was removed in 2.5.1 — `is_tracking_enabled()` always returns `false`; do not look for an `enable_error_reporting` setting. |
+| `inc/managers/class-newsletter-manager.php`, `inc/newsletter/class-newsletter.php` | Do not exist; the newsletter opt-in singleton is at `inc/class-newsletter.php` (root of `inc/`). |
 | `inc/class-gateway.php`, `inc/class-payment-gateway.php` | Do not exist; gateway classes are in `inc/gateways/` |
 | `inc/functions/class-*.php` | Functions in `inc/functions/` are plain procedural PHP (not OOP class files); they are named `inc/functions/customer.php`, `inc/functions/checkout.php`, etc. |
 | `class-wp-ultimo.php` (at repo root) | Does not exist at root; the main plugin class is at `inc/class-wp-ultimo.php` |
