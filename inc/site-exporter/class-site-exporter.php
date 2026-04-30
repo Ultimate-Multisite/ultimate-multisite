@@ -1359,22 +1359,39 @@ final class Site_Exporter {
 	/**
 	 * Convert URL to local file path.
 	 *
+	 * Normalises URL schemes before comparison so that HTTP/HTTPS mismatches
+	 * (common when the media library returns HTTP while the site runs HTTPS, or
+	 * vice-versa) do not prevent the conversion from succeeding.
+	 *
+	 * Falls back to wu_exporter_url_to_path() which uses site_url() for a
+	 * broader scheme-normalised replacement and, as a last resort, queries the
+	 * WP media library via attachment_url_to_postid().
+	 *
 	 * @since 2.5.0
 	 *
 	 * @param string $url The URL to convert.
-	 * @return string|false
+	 * @return string|false The local filesystem path, or false on failure.
 	 */
 	private function url_to_path(string $url) {
 
 		$upload_dir = wp_upload_dir();
-		$base_url   = $upload_dir['baseurl'];
-		$base_dir   = $upload_dir['basedir'];
 
-		if (strpos($url, $base_url) === 0) {
-			return str_replace($base_url, $base_dir, $url);
+		// Normalise both sides to HTTPS to survive HTTP/HTTPS mismatches.
+		$base_url   = set_url_scheme($upload_dir['baseurl'], 'https');
+		$base_dir   = $upload_dir['basedir'];
+		$normalized = set_url_scheme($url, 'https');
+
+		if (strpos($normalized, $base_url) === 0) {
+			return str_replace($base_url, $base_dir, $normalized);
 		}
 
-		return false;
+		/*
+		 * Fall back to the site-wide helper which normalises via site_url() and
+		 * queries the media library as a last resort.
+		 */
+		$path = wu_exporter_url_to_path($url);
+
+		return ! empty($path) ? $path : false;
 	}
 
 	/**
