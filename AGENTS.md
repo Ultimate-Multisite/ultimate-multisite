@@ -318,6 +318,13 @@ read them will produce `read:file_not_found`:
 | `inc/class-limit.php`, `inc/class-limits.php` | Do not exist; plan limit classes are in `inc/limitations/` (class-limit-*.php) and enforcement in `inc/limits/` |
 | `tests/WP_Ultimo/Site_Exporter/` | This directory does NOT exist; the site exporter test is a single file at `tests/WP_Ultimo/Site_Exporter_Test.php` |
 | `multisite-ultimate.php` | Does not exist; the plugin entry point is `ultimate-multisite.php` (former name was `multisite-ultimate.php`) |
+| `tests/WP_Ultimo/Cart_Test.php` | Does not exist at the WP_Ultimo root; cart test is at `tests/WP_Ultimo/Checkout/Cart_Test.php` |
+| `tests/WP_Ultimo/Checkout_Test.php` | Does not exist at the WP_Ultimo root; checkout test is at `tests/WP_Ultimo/Checkout/Checkout_Test.php` |
+| `tests/WP_Ultimo/Line_Item_Test.php` | Does not exist at the WP_Ultimo root; line item test is at `tests/WP_Ultimo/Checkout/Line_Item_Test.php` |
+| `tests/WP_Ultimo/Legacy_Checkout_Test.php` | Does not exist at the WP_Ultimo root; legacy checkout test is at `tests/WP_Ultimo/Checkout/Legacy_Checkout_Test.php` |
+| `tests/WP_Ultimo/Managers/Base_Manager_Test.php` | Does not exist; shared manager test assertions use the trait at `tests/WP_Ultimo/Managers/Manager_Test_Trait.php` (not a test class itself) |
+| `inc/class-shortcodes.php`, `inc/ui/class-shortcodes.php` | Do not exist; shortcode page controller is at `inc/admin-pages/class-shortcodes-admin-page.php`; legacy shortcodes compat is at `inc/compat/class-legacy-shortcodes.php`; shortcode signup field is at `inc/checkout/signup-fields/class-signup-field-shortcode.php` |
+| `inc/functions/class-helpers.php`, `inc/functions/class-utils.php` | Do not exist; helper/utility functions are in named files like `inc/functions/array-helpers.php`, `inc/functions/markup-helpers.php`, `inc/functions/number-helpers.php`, `inc/functions/string-helpers.php` (run `git ls-files 'inc/functions/'` for the full list) |
 
 Always verify a file is tracked before reading it with `git ls-files '<path>'`. An empty result means the file does not exist in the repo.
 
@@ -504,6 +511,14 @@ bootstrapped. Use WP-CLI for WordPress-context commands instead:
 ```bash
 wp eval 'echo get_option("blogname");'   # correct — WP context available
 php -r 'echo get_option("blogname");'    # wrong — fatal: Call to undefined function
+```
+
+**`vendor/bin/phpcs --fix` is not a valid PHPCS flag** — PHPCS has no `--fix` option. Auto-fixing
+is a separate binary. Use `vendor/bin/phpcbf` (not `phpcs --fix`) to auto-correct violations:
+
+```bash
+vendor/bin/phpcbf inc/path/to/file.php   # correct — auto-fixes the file
+vendor/bin/phpcs --fix inc/path/to/file.php   # wrong — phpcs ignores unknown flags silently
 ```
 
 **Do not pass `--standard=` to PHPCS** — the coding standard is already declared in
