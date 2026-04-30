@@ -68,6 +68,28 @@ final class Site_Exporter {
 	 */
 	public function setup(): void {
 
+		/*
+		 * Register the mu-migration WP-CLI commands early so WP-CLI discovers
+		 * them during the command bootstrap phase.
+		 *
+		 * Each mu-migration class file ends with a bare `WP_CLI::add_command()`
+		 * call that executes at file-include time. Those files are only loaded
+		 * via `load_dependencies()`, which is normally called lazily from
+		 * `handle_site_export()` / `handle_site_import()` — far too late for
+		 * WP-CLI's command discovery. Calling `load_dependencies()` here when
+		 * WP-CLI is active means the commands are registered before WP-CLI
+		 * finishes bootstrapping.
+		 *
+		 * The `require_once` calls inside `load_dependencies()` are idempotent,
+		 * so calling it again later from `handle_site_export()` is harmless.
+		 *
+		 * This check mirrors the pattern used by the `WP_CLI` trait in
+		 * `inc/apis/trait-wp-cli.php` (see `enable_wp_cli()`).
+		 */
+		if ( defined('WP_CLI') && WP_CLI ) {
+			$this->load_dependencies();
+		}
+
 		add_action('wu_export_site', [$this, 'handle_site_export'], 10, 3);
 
 		add_action('wu_import_site', [$this, 'handle_site_import']);
