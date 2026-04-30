@@ -174,6 +174,20 @@ final class WP_Ultimo {
 		\WP_Ultimo\Credits::get_instance();
 
 		/*
+		 * Loads the Site Exporter early so export/import is available even when
+		 * Ultimate Multisite is not fully set up (e.g. during migration from
+		 * other multisite solutions). The Site Exporter's WordPress-native
+		 * integration (Sites page row actions, Export & Import admin menu) uses
+		 * only WordPress core functions and has no dependency on WP Ultimo being
+		 * configured. The Singleton trait guarantees init() runs only once even
+		 * when the boot sequence reaches the component a second time.
+		 *
+		 * All helper functions it depends on (wu_request, wu_maybe_create_folder,
+		 * wu_exporter_*) are loaded above via load_public_apis() and inc/functions/fs.php.
+		 */
+		\WP_Ultimo\Site_Exporter\Site_Exporter::get_instance();
+
+		/*
 		 * Check if the Ultimate Multisite requirements are present.
 		 *
 		 * Everything we need to run our setup install needs top be loaded before this
@@ -577,11 +591,6 @@ final class WP_Ultimo {
 		 * Loads the Tax functionality
 		 */
 		\WP_Ultimo\Tax\Tax::get_instance();
-
-		/*
-		 * Loads the Site Exporter
-		 */
-		\WP_Ultimo\Site_Exporter\Site_Exporter::get_instance();
 
 		/*
 		 * Loads the template placeholders
