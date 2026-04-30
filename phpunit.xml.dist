@@ -11,7 +11,7 @@
   <coverage includeUncoveredFiles="true" processUncoveredFiles="true">
     <include>
       <directory suffix=".php">./inc</directory>
-      <file>./multisite-ultimate.php</file>
+      <file>./ultimate-multisite.php</file>
     </include>
     <exclude>
       <directory>./inc/ui</directory>

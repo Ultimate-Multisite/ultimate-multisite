@@ -305,6 +305,11 @@ read them will produce `read:file_not_found`:
 | `inc/class-site-template.php` | Does not exist at root of `inc/`; site template logic is at `inc/site-templates/class-template-placeholders.php` |
 | `inc/class-duplication.php` | Does not exist at root of `inc/`; duplication utilities are in `inc/duplication/` |
 | `inc/class-compat.php` | Does not exist; compatibility classes are per-plugin in `inc/compat/` (e.g. `class-elementor-compat.php`) |
+| `inc/class-site-exporter.php` | Does not exist at root of `inc/`; site exporter is at `inc/site-exporter/class-site-exporter.php` |
+| `inc/class-export.php`, `inc/class-importer.php`, `inc/class-import.php` | Do not exist at root of `inc/`; export/import classes are in `inc/site-exporter/` |
+| `inc/class-limit.php`, `inc/class-limits.php` | Do not exist; plan limit classes are in `inc/limitations/` (class-limit-*.php) and enforcement in `inc/limits/` |
+| `tests/WP_Ultimo/Site_Exporter/` | May not exist — verify with `git ls-files 'tests/WP_Ultimo/Site_Exporter/'` before attempting to read |
+| `multisite-ultimate.php` | Does not exist; the plugin entry point is `ultimate-multisite.php` (former name was `multisite-ultimate.php`) |
 
 Always verify a file is tracked before reading it with `git ls-files '<path>'`. An empty result means the file does not exist in the repo.
 
@@ -546,6 +551,10 @@ vendor/bin/phpcbf inc/path/to/file.php || true  # correct — ignore expected ex
 
 After phpcbf runs and modifies a file, you MUST re-read the file before calling Edit on it
 (see [Read Before Edit](#read-before-edit-mandatory)).
+
+**`npm run test:watch` is not supported** — PHPUnit 9 (used by this project) does not have a
+`--watch` flag. Running `npm run test:watch` will print an error and exit 1. Use
+`vendor/bin/phpunit --filter ClassName` to run individual tests repeatedly during development.
 
 **`npm run env:*` and `npm run cy:*` require Docker and `@wordpress/env`** — the `env:start`,
 `env:stop`, and Cypress E2E scripts (`cy:open:*`, `cy:run:*`) use the `@wordpress/env`
