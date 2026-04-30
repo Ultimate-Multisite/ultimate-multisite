@@ -144,6 +144,10 @@ class Import {
 
 		try {
 			return $this->db->query($query);
+		} catch (PDOException $e) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo 'Error with query: ' . $e->getMessage() . "\n";
+			return false;
 		} catch (Error $e) {
 			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			echo 'Error with query: ' . $e->getMessage() . "\n";
@@ -167,8 +171,9 @@ class Import {
 
 		$table = is_multisite() ? $wpdb->base_prefix . $site_id : $wpdb->base_prefix;
 
-		// Get list of tables
-		$tables = $this->query("SHOW TABLES LIKE'" . $table . "%'");
+		// Get list of tables — use PDO::quote() to safely escape the LIKE pattern.
+		$like_pattern = $this->db->quote($table . '%');
+		$tables = $this->query('SHOW TABLES LIKE ' . $like_pattern);
 		if ($tables !== null && $tables !== false) {
 			// Loop through tables
 			$results = $tables->fetchAll(PDO::FETCH_COLUMN);
@@ -178,8 +183,12 @@ class Import {
 				}
 
 				if ($this->forceDropTables === true) {
-					// Delete table with foreign key checks disabled
-					$this->query('SET FOREIGN_KEY_CHECKS=0; DROP TABLE `' . $table . '`; SET FOREIGN_KEY_CHECKS=1;');
+					// Delete table with foreign key checks disabled — split into
+					// separate statements because PDO does not support multi-statement
+					// queries by default (PDO::ATTR_EMULATE_PREPARES off).
+					$this->query('SET FOREIGN_KEY_CHECKS=0');
+					$this->query('DROP TABLE `' . $table . '`');
+					$this->query('SET FOREIGN_KEY_CHECKS=1');
 				} else {
 					// Delete table
 					$this->query('DROP TABLE `' . $table . '`');
