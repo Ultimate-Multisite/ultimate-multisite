@@ -1051,6 +1051,21 @@ class Site_Manager extends Base_Manager {
 			// (e.g. created without one in an unusual code path, or serialised
 			// before GH#982 normalised the data).
 			if ( ! $membership) {
+				/*
+				 * The membership no longer exists (deleted or never created).
+				 * Silently skipping leaves the orphaned pending_site record
+				 * in place permanently, undermining the safety-net cleanup path.
+				 * Instead, clean up both the pending_site meta and the site
+				 * itself so the record is not left dangling. GH#1037.
+				 */
+				$membership_id = (int) $site->get_membership_id();
+
+				if (0 < $membership_id) {
+					delete_metadata('wu_membership', $membership_id, 'pending_site');
+				}
+
+				$site->delete();
+
 				continue;
 			}
 
