@@ -289,9 +289,6 @@ class ImportCommand extends MUMigrationBase {
 
 		$wu_site_exporter_site_id = $this->assoc_args['blog_id'];
 
-		// Terminates the script if sed is not installed.
-		$this->check_for_sed_presence(true);
-
 		// Replaces the db prefix and saves back the modifications to the sql file.
 		if ( ! empty($this->assoc_args['new_prefix']) ) {
 			$this->replace_db_prefix($filename, $this->assoc_args['old_prefix'], $this->assoc_args['new_prefix']);
@@ -676,7 +673,11 @@ class ImportCommand extends MUMigrationBase {
 	}
 
 	/**
-	 * Replaces the db_prefix with a new one using sed.
+	 * Replaces the db_prefix with a new one using pure PHP string replacement.
+	 *
+	 * Processes the SQL file line by line to avoid loading the entire file into
+	 * memory, and writes output to a temporary file before replacing the original.
+	 * Works in both CLI and web/AJAX contexts (no sed dependency).
 	 *
 	 * @param string $filename      The filename of the sql file to which the db prefix should be replaced.
 	 * @param string $old_db_prefix The db prefix to be replaced.
@@ -686,7 +687,7 @@ class ImportCommand extends MUMigrationBase {
 		$new_prefix = $new_db_prefix;
 
 		if ( ! empty($new_prefix) ) {
-			$mysql_chunks_regex = [
+			$mysql_keywords = [
 				'DROP TABLE IF EXISTS',
 				'CREATE TABLE',
 				'LOCK TABLES',
@@ -697,20 +698,33 @@ class ImportCommand extends MUMigrationBase {
 				'REFERENCES',
 			];
 
-			// build sed expressions
-			$sed_commands = [];
-			foreach ( $mysql_chunks_regex as $regex ) {
-				$sed_commands[] = "s/{$regex} `{$old_db_prefix}/{$regex} `{$new_prefix}/g";
-			}
+			$temp_filename = $filename . '.tmp';
+			$input         = fopen($filename, 'r');
+			$output        = fopen($temp_filename, 'w');
 
-			foreach ( $sed_commands as $sed_command ) {
-				$full_command = "sed '$sed_command' -i $filename";
-				$sed_result   = \WP_CLI::launch($full_command, false, false);
-
-				if ( 0 !== $sed_result ) {
-					\WP_CLI::warning(__('Something went wrong while running sed', 'mu-migration'));
+			if ( false === $input || false === $output ) {
+				\WP_CLI::warning(__('Could not open SQL file for prefix replacement', 'mu-migration'));
+				if ( $input ) {
+					fclose($input);
 				}
+				return;
 			}
+
+			while ( false !== ($line = fgets($input)) ) {
+				foreach ( $mysql_keywords as $keyword ) {
+					$line = str_replace(
+						$keyword . ' `' . $old_db_prefix,
+						$keyword . ' `' . $new_prefix,
+						$line
+					);
+				}
+				fwrite($output, $line);
+			}
+
+			fclose($input);
+			fclose($output);
+
+			rename($temp_filename, $filename);
 		}
 	}
 
