@@ -168,30 +168,40 @@ final class Site_Exporter {
 	 * Set up integration with the default WordPress Sites page.
 	 *
 	 * This allows exporting sites even before Ultimate Multisite is fully set up,
-	 * making migration from other solutions easier.
+	 * making migration from other solutions easier. In single-site (non-multisite)
+	 * installs, a Tools > Export & Import menu page is registered instead of the
+	 * network-admin Sites page integration.
 	 *
 	 * @since 2.5.0
 	 * @return void
 	 */
 	private function setup_wordpress_sites_integration(): void {
 
-		// Add export action link to each site row
-		add_filter('manage_sites_action_links', [$this, 'add_wp_sites_row_actions'], 10, 2);
+		if ( is_multisite() ) {
+			// Add export action link to each site row
+			add_filter('manage_sites_action_links', [$this, 'add_wp_sites_row_actions'], 10, 2);
 
-		// Add bulk export action
-		add_filter('bulk_actions-sites-network', [$this, 'add_wp_sites_bulk_actions']);
+			// Add bulk export action
+			add_filter('bulk_actions-sites-network', [$this, 'add_wp_sites_bulk_actions']);
 
-		// Handle bulk export action
-		add_filter('handle_network_bulk_actions-sites-network', [$this, 'handle_wp_sites_bulk_action'], 10, 3);
+			// Handle bulk export action
+			add_filter('handle_network_bulk_actions-sites-network', [$this, 'handle_wp_sites_bulk_action'], 10, 3);
 
-		// Add admin menu page for export/import
-		add_action('network_admin_menu', [$this, 'add_wp_export_menu_page']);
+			// Add admin menu page for export/import (network admin)
+			add_action('network_admin_menu', [$this, 'add_wp_export_menu_page']);
 
-		// Handle direct export requests
+			// Display admin notices (network admin)
+			add_action('network_admin_notices', [$this, 'display_export_notices']);
+		} else {
+			// Single-site: add Tools > Export & Import menu page
+			add_action('admin_menu', [$this, 'add_single_site_export_menu_page']);
+
+			// Display admin notices in regular admin
+			add_action('admin_notices', [$this, 'display_export_notices']);
+		}
+
+		// Handle direct export requests (works in both multisite and single-site)
 		add_action('admin_init', [$this, 'handle_direct_export_request']);
-
-		// Display admin notices
-		add_action('network_admin_notices', [$this, 'display_export_notices']);
 
 		// Enqueue scripts for WordPress sites page
 		add_action('admin_enqueue_scripts', [$this, 'enqueue_wp_sites_scripts']);
@@ -199,6 +209,11 @@ final class Site_Exporter {
 
 	/**
 	 * Add export action link to WordPress Sites page rows.
+	 *
+	 * In multisite, the main site is excluded from the network Sites list because
+	 * it is exported through the regular admin Tools > Export & Import page.
+	 * In single-site installs this filter is never called (the network Sites page
+	 * does not exist), so the guard is multisite-specific.
 	 *
 	 * @since 2.5.0
 	 *
@@ -208,8 +223,9 @@ final class Site_Exporter {
 	 */
 	public function add_wp_sites_row_actions(array $actions, int $blog_id): array {
 
-		// Don't add for main site
-		if (is_main_site($blog_id)) {
+		// In multisite, skip the main site — it is exported from the regular admin
+		// Tools > Export & Import page to avoid confusion in the network admin.
+		if ( is_multisite() && is_main_site($blog_id) ) {
 			return $actions;
 		}
 
@@ -284,7 +300,25 @@ final class Site_Exporter {
 	}
 
 	/**
-	 * Add export/import menu page under Sites.
+	 * Get the admin base URL for the export/import page.
+	 *
+	 * Returns the network admin Sites URL in multisite installations and the
+	 * regular admin Tools URL in single-site installations.
+	 *
+	 * @since 2.5.1
+	 * @return string
+	 */
+	private function get_export_admin_base_url(): string {
+
+		if ( is_multisite() ) {
+			return network_admin_url('sites.php');
+		}
+
+		return admin_url('tools.php');
+	}
+
+	/**
+	 * Add export/import menu page under Sites (multisite network admin).
 	 *
 	 * @since 2.5.0
 	 * @return void
@@ -299,6 +333,339 @@ final class Site_Exporter {
 			'wu-site-export',
 			[$this, 'render_wp_export_page']
 		);
+	}
+
+	/**
+	 * Add export/import menu page under Tools for single-site installs.
+	 *
+	 * Registers a Tools > Export & Import page when the plugin is active on a
+	 * plain (non-multisite) WordPress installation so that site owners can still
+	 * export their site or import an export package without network admin access.
+	 *
+	 * @since 2.5.1
+	 * @return void
+	 */
+	public function add_single_site_export_menu_page(): void {
+
+		add_management_page(
+			__('Export & Import', 'ultimate-multisite'),
+			__('Export & Import', 'ultimate-multisite'),
+			'manage_options',
+			'wu-site-export',
+			[$this, 'render_single_site_export_page']
+		);
+	}
+
+	/**
+	 * Render the export/import page for single-site WordPress installs.
+	 *
+	 * Shown at Tools > Export & Import when running outside of a multisite
+	 * network. Supports exporting the current site and importing a ZIP package
+	 * that was produced by a previous export.
+	 *
+	 * @since 2.5.1
+	 * @return void
+	 */
+	public function render_single_site_export_page(): void {
+
+		$action = wu_request('action', '');
+
+		$exports         = wu_exporter_get_all_exports();
+		$pending_exports = function_exists('wu_exporter_get_pending') ? wu_exporter_get_pending() : [];
+		$pending_imports = wu_exporter_get_pending_imports();
+
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e('Export & Import', 'ultimate-multisite'); ?></h1>
+
+			<?php if ('export' === $action) : ?>
+				<?php $this->render_single_site_export_form(); ?>
+			<?php else : ?>
+				<?php $this->render_single_site_dashboard($exports, $pending_exports, $pending_imports); ?>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the export form for a single-site install.
+	 *
+	 * Shows site information and export options for the single site, then posts
+	 * back to handle_direct_export_request() via admin_init.
+	 *
+	 * @since 2.5.1
+	 * @return void
+	 */
+	private function render_single_site_export_form(): void {
+
+		$site_id  = get_current_blog_id();
+		$site_url = get_bloginfo('url');
+		$sitename = get_bloginfo('name');
+
+		$export_url = wp_nonce_url(
+			add_query_arg(
+				[
+					'page'    => 'wu-site-export',
+					'action'  => 'do_export',
+					'site_id' => $site_id,
+				],
+				admin_url('tools.php')
+			),
+			'wu_export_site_' . $site_id
+		);
+
+		?>
+		<div class="card" style="max-width: 600px;">
+			<h2><?php esc_html_e('Export This Site', 'ultimate-multisite'); ?></h2>
+
+			<p>
+				<?php
+				printf(
+					/* translators: 1: site name, 2: site URL */
+					esc_html__('You are about to export: %1$s (%2$s)', 'ultimate-multisite'),
+					'<strong>' . esc_html($sitename) . '</strong>',
+					esc_html($site_url)
+				);
+				?>
+			</p>
+
+			<form method="post" action="<?php echo esc_url($export_url); ?>">
+				<table class="form-table">
+					<tr>
+						<th scope="row"><?php esc_html_e('Include Themes', 'ultimate-multisite'); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="include_themes" value="1">
+								<?php esc_html_e('Include the active theme and parent theme', 'ultimate-multisite'); ?>
+							</label>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e('Include Plugins', 'ultimate-multisite'); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="include_plugins" value="1">
+								<?php esc_html_e('Include active plugins', 'ultimate-multisite'); ?>
+							</label>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e('Include Uploads', 'ultimate-multisite'); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="include_uploads" value="1" checked>
+								<?php esc_html_e('Include media files from uploads folder', 'ultimate-multisite'); ?>
+							</label>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e('Background Processing', 'ultimate-multisite'); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="background_run" value="1">
+								<?php esc_html_e('Run export in background (recommended for large sites)', 'ultimate-multisite'); ?>
+							</label>
+						</td>
+					</tr>
+				</table>
+
+				<p class="submit">
+					<input type="submit" class="button button-primary" value="<?php esc_attr_e('Export Site', 'ultimate-multisite'); ?>">
+					<a href="<?php echo esc_url(admin_url('tools.php?page=wu-site-export')); ?>" class="button"><?php esc_html_e('Cancel', 'ultimate-multisite'); ?></a>
+				</p>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the export/import dashboard for single-site installs.
+	 *
+	 * Displays completed exports, pending exports, pending imports and an
+	 * import form. The import form for single-site installs overwrites the
+	 * current site rather than creating a new one, so no "New Site URL"
+	 * field is shown.
+	 *
+	 * @since 2.5.1
+	 *
+	 * @param array $exports         Completed exports.
+	 * @param array $pending_exports Pending exports.
+	 * @param array $pending_imports Pending imports.
+	 * @return void
+	 */
+	private function render_single_site_dashboard(array $exports, array $pending_exports, array $pending_imports): void {
+
+		$export_url = add_query_arg(
+			[
+				'page'   => 'wu-site-export',
+				'action' => 'export',
+			],
+			admin_url('tools.php')
+		);
+
+		?>
+		<div class="card" style="max-width: 800px; margin-bottom: 20px;">
+			<h2><?php esc_html_e('Export This Site', 'ultimate-multisite'); ?></h2>
+			<p><?php esc_html_e('Create a ZIP export of this site\'s database and media uploads. The export can be imported into any Ultimate Multisite network or used as a standalone backup.', 'ultimate-multisite'); ?></p>
+			<p>
+				<a href="<?php echo esc_url($export_url); ?>" class="button button-primary">
+					<?php esc_html_e('Export This Site', 'ultimate-multisite'); ?>
+				</a>
+			</p>
+		</div>
+
+		<?php if ( ! empty($pending_exports) ) : ?>
+		<div class="card" style="max-width: 800px; margin-bottom: 20px;">
+			<h2><?php esc_html_e('Pending Exports', 'ultimate-multisite'); ?></h2>
+			<p><?php esc_html_e('These exports are currently being processed in the background.', 'ultimate-multisite'); ?></p>
+			<table class="wp-list-table widefat fixed striped">
+				<thead>
+					<tr>
+						<th><?php esc_html_e('Site', 'ultimate-multisite'); ?></th>
+						<th><?php esc_html_e('Status', 'ultimate-multisite'); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ($pending_exports as $pending) : ?>
+					<tr>
+						<td><?php echo esc_html($pending->options[0] ?? __('Unknown', 'ultimate-multisite')); ?></td>
+						<td><span class="dashicons dashicons-update spin"></span> <?php esc_html_e('Processing...', 'ultimate-multisite'); ?></td>
+					</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+		</div>
+		<?php endif; ?>
+
+		<?php if ( ! empty($pending_imports) ) : ?>
+		<div class="card" style="max-width: 800px; margin-bottom: 20px;">
+			<h2><?php esc_html_e('Pending Imports', 'ultimate-multisite'); ?></h2>
+			<p><?php esc_html_e('These imports are queued and will be processed shortly.', 'ultimate-multisite'); ?></p>
+			<table class="wp-list-table widefat fixed striped">
+				<thead>
+					<tr>
+						<th><?php esc_html_e('File', 'ultimate-multisite'); ?></th>
+						<th><?php esc_html_e('Actions', 'ultimate-multisite'); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ($pending_imports as $hash => $pending) : ?>
+					<tr>
+						<td><?php echo esc_html(basename($pending->options[0] ?? '')); ?></td>
+						<td>
+							<a href="<?php echo esc_url(wp_nonce_url(add_query_arg('wu-cancel-import', $hash), 'wu-cancel-import')); ?>" class="button button-small">
+								<?php esc_html_e('Cancel', 'ultimate-multisite'); ?>
+							</a>
+						</td>
+					</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+		</div>
+		<?php endif; ?>
+
+		<div class="card" style="max-width: 800px; margin-bottom: 20px;">
+			<h2><?php esc_html_e('Completed Exports', 'ultimate-multisite'); ?></h2>
+
+			<?php if ( empty($exports) ) : ?>
+				<p><?php esc_html_e('No exports available yet. Export this site to see it here.', 'ultimate-multisite'); ?></p>
+			<?php else : ?>
+				<table class="wp-list-table widefat fixed striped">
+					<thead>
+						<tr>
+							<th><?php esc_html_e('File', 'ultimate-multisite'); ?></th>
+							<th><?php esc_html_e('Date', 'ultimate-multisite'); ?></th>
+							<th><?php esc_html_e('Size', 'ultimate-multisite'); ?></th>
+							<th><?php esc_html_e('Actions', 'ultimate-multisite'); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ($exports as $export) : ?>
+						<tr>
+							<td><?php echo esc_html($export['file']); ?></td>
+							<td><?php echo esc_html($export['date']); ?></td>
+							<td><?php echo esc_html($export['size'] ?? '-'); ?></td>
+							<td>
+								<a href="<?php echo esc_url($export['url']); ?>" class="button button-small" target="_blank">
+									<?php esc_html_e('Download', 'ultimate-multisite'); ?>
+								</a>
+								<a href="
+								<?php
+								echo esc_url(
+									wp_nonce_url(
+										add_query_arg(
+											[
+												'page'   => 'wu-site-export',
+												'action' => 'delete',
+												'file'   => $export['file'],
+											],
+											admin_url('tools.php')
+										),
+										'wu_delete_export'
+									)
+								);
+								?>
+											" class="button button-small" onclick="return confirm('<?php esc_attr_e('Are you sure you want to delete this export?', 'ultimate-multisite'); ?>');">
+									<?php esc_html_e('Delete', 'ultimate-multisite'); ?>
+								</a>
+							</td>
+						</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
+		</div>
+
+		<div class="card" style="max-width: 800px;">
+			<h2><?php esc_html_e('Import a Site', 'ultimate-multisite'); ?></h2>
+			<p><?php esc_html_e('Upload a site export ZIP file to import it into this site. This will overwrite the current site\'s database and uploads.', 'ultimate-multisite'); ?></p>
+
+			<div class="notice notice-warning inline" style="margin: 0 0 15px 0;">
+				<p><strong><?php esc_html_e('Warning:', 'ultimate-multisite'); ?></strong> <?php esc_html_e('Importing will replace the current site\'s data. Make sure you have a backup before proceeding.', 'ultimate-multisite'); ?></p>
+			</div>
+
+			<form method="post" action="
+			<?php
+			echo esc_url(
+				wp_nonce_url(
+					add_query_arg(
+						[
+							'page'   => 'wu-site-export',
+							'action' => 'import',
+						],
+						admin_url('tools.php')
+					),
+					'wu_import_site'
+				)
+			);
+			?>
+									">
+				<table class="form-table">
+					<tr>
+						<th scope="row"><label for="zip_url"><?php esc_html_e('ZIP File URL', 'ultimate-multisite'); ?></label></th>
+						<td>
+							<input type="text" name="zip_url" id="zip_url" class="regular-text" placeholder="<?php esc_attr_e('https://example.com/export.zip', 'ultimate-multisite'); ?>">
+							<button type="button" class="button" id="wu-wp-upload-zip"><?php esc_html_e('Upload', 'ultimate-multisite'); ?></button>
+							<p class="description"><?php esc_html_e('Enter the URL to a site export ZIP file, or upload one.', 'ultimate-multisite'); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e('Options', 'ultimate-multisite'); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="delete_zip" value="1" checked>
+								<?php esc_html_e('Delete ZIP file after import', 'ultimate-multisite'); ?>
+							</label>
+						</td>
+					</tr>
+				</table>
+
+				<p class="submit">
+					<input type="submit" class="button button-primary" value="<?php esc_attr_e('Import Site', 'ultimate-multisite'); ?>">
+				</p>
+			</form>
+		</div>
+		<?php
 	}
 
 	/**
@@ -604,7 +971,12 @@ final class Site_Exporter {
 	}
 
 	/**
-	 * Handle direct export requests from the WordPress Sites page.
+	 * Handle direct export requests from the WordPress Sites page or Tools page.
+	 *
+	 * Works in both multisite (network admin Sites page) and single-site installs
+	 * (regular admin Tools > Export & Import page). The required capability and
+	 * redirect destination are determined by `get_export_admin_base_url()` and
+	 * `current_user_can_export()`.
 	 *
 	 * @since 2.5.0
 	 * @return void
@@ -618,6 +990,10 @@ final class Site_Exporter {
 			return;
 		}
 
+		// Required capability differs between multisite and single-site.
+		$required_cap = is_multisite() ? 'manage_network' : 'manage_options';
+		$base_url     = $this->get_export_admin_base_url();
+
 		// Handle export
 		if ('do_export' === $action) {
 			$site_id = absint(wu_request('site_id', 0));
@@ -626,7 +1002,7 @@ final class Site_Exporter {
 				wp_die(esc_html__('Security check failed.', 'ultimate-multisite'));
 			}
 
-			if (! current_user_can('manage_network')) {
+			if (! current_user_can($required_cap)) {
 				wp_die(esc_html__('You do not have permission to export sites.', 'ultimate-multisite'));
 			}
 
@@ -647,7 +1023,7 @@ final class Site_Exporter {
 							'page'    => 'wu-site-export',
 							'message' => 'export_error',
 						],
-						network_admin_url('sites.php')
+						$base_url
 					)
 				);
 				exit;
@@ -661,7 +1037,7 @@ final class Site_Exporter {
 						'page'    => 'wu-site-export',
 						'message' => $message,
 					],
-					network_admin_url('sites.php')
+					$base_url
 				)
 			);
 			exit;
@@ -675,7 +1051,7 @@ final class Site_Exporter {
 				wp_die(esc_html__('Security check failed.', 'ultimate-multisite'));
 			}
 
-			if (! current_user_can('manage_network')) {
+			if (! current_user_can($required_cap)) {
 				wp_die(esc_html__('You do not have permission to delete exports.', 'ultimate-multisite'));
 			}
 
@@ -694,7 +1070,7 @@ final class Site_Exporter {
 						'page'    => 'wu-site-export',
 						'message' => 'deleted',
 					],
-					network_admin_url('sites.php')
+					$base_url
 				)
 			);
 			exit;
@@ -706,15 +1082,22 @@ final class Site_Exporter {
 				wp_die(esc_html__('Security check failed.', 'ultimate-multisite'));
 			}
 
-			if (! current_user_can('manage_network')) {
+			if (! current_user_can($required_cap)) {
 				wp_die(esc_html__('You do not have permission to import sites.', 'ultimate-multisite'));
 			}
 
 			$zip_url    = sanitize_text_field(wp_unslash($_POST['zip_url']));
-			$new_url    = sanitize_text_field(wp_unslash($_POST['new_url'] ?? ''));
 			$delete_zip = ! empty($_POST['delete_zip']);
 
-			if (empty($zip_url) || empty($new_url)) {
+			// In single-site installs the import overwrites the current site, so
+			// new_url is not required — fall back to the current site URL.
+			if ( is_multisite() ) {
+				$new_url = sanitize_text_field(wp_unslash($_POST['new_url'] ?? ''));
+			} else {
+				$new_url = sanitize_text_field(wp_unslash($_POST['new_url'] ?? get_site_url()));
+			}
+
+			if ( empty($zip_url) || ( is_multisite() && empty($new_url) ) ) {
 				wp_safe_redirect(
 					add_query_arg(
 						[
@@ -722,7 +1105,7 @@ final class Site_Exporter {
 							'message' => 'import_error',
 							'error'   => 'missing_fields',
 						],
-						network_admin_url('sites.php')
+						$base_url
 					)
 				);
 				exit;
@@ -738,7 +1121,7 @@ final class Site_Exporter {
 							'message' => 'import_error',
 							'error'   => 'file_not_found',
 						],
-						network_admin_url('sites.php')
+						$base_url
 					)
 				);
 				exit;
@@ -760,7 +1143,7 @@ final class Site_Exporter {
 						'page'    => 'wu-site-export',
 						'message' => 'import_started',
 					],
-					network_admin_url('sites.php')
+					$base_url
 				)
 			);
 			exit;
@@ -824,7 +1207,11 @@ final class Site_Exporter {
 	 */
 	public function enqueue_wp_sites_scripts(string $hook): void {
 
-		if ('sites_page_wu-site-export' !== $hook) {
+		// Multisite: hook is "sites_page_wu-site-export".
+		// Single-site (Tools menu): hook is "tools_page_wu-site-export".
+		$allowed_hooks = ['sites_page_wu-site-export', 'tools_page_wu-site-export'];
+
+		if (! in_array($hook, $allowed_hooks, true)) {
 			return;
 		}
 
