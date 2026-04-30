@@ -42,14 +42,16 @@ function wu_exporter_export(int $site_id, array $options = [], bool $async = fal
 			'site-exporter'
 		);
 	} else {
-		do_action_ref_array(
-			'wu_export_site',
-			[
-				'site_id' => $site_id,
-				'options' => $options,
-			],
-			'site-exporter'
-		);
+		/*
+		 * For the synchronous path, call the exporter directly so errors can
+		 * be captured and returned to the caller. Using do_action_ref_array()
+		 * previously discarded the return value, making silent failures invisible.
+		 */
+		$result = \WP_Ultimo\Site_Exporter\Site_Exporter::get_instance()->handle_site_export($site_id, $options);
+
+		if (is_wp_error($result)) {
+			return $result;
+		}
 	}
 
 	return true;

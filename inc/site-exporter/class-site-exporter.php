@@ -572,7 +572,20 @@ final class Site_Exporter {
 
 			$background = ! empty($_POST['background_run']);
 
-			wu_exporter_export($site_id, $options, $background);
+			$export_result = wu_exporter_export($site_id, $options, $background);
+
+			if (is_wp_error($export_result)) {
+				wp_safe_redirect(
+					add_query_arg(
+						[
+							'page'    => 'wu-site-export',
+							'message' => 'export_error',
+						],
+						network_admin_url('sites.php')
+					)
+				);
+				exit;
+			}
 
 			$message = $background ? 'export_started' : 'export_complete';
 
@@ -708,6 +721,9 @@ final class Site_Exporter {
 		}
 
 		switch ($message) {
+			case 'export_error':
+				echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__('The site export failed. Please check server logs for details or try again.', 'ultimate-multisite') . '</p></div>';
+				break;
 			case 'export_complete':
 				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Site exported successfully!', 'ultimate-multisite') . '</p></div>';
 				break;
@@ -908,7 +924,7 @@ final class Site_Exporter {
 			wp_send_json_error(new \WP_Error('invalid-site', __('Invalid site selected.', 'ultimate-multisite')));
 		}
 
-		wu_exporter_export(
+		$export_result = wu_exporter_export(
 			$site_id,
 			[
 				'plugins' => wu_request('include_plugins'),
@@ -917,6 +933,10 @@ final class Site_Exporter {
 			],
 			wu_request('background_run')
 		);
+
+		if (is_wp_error($export_result)) {
+			wp_send_json_error($export_result);
+		}
 
 		$message = wu_request('background_run')
 			? __('Export started in background...', 'ultimate-multisite')
@@ -1488,9 +1508,9 @@ final class Site_Exporter {
 	 * @param int    $site_id The ID of the site being exported.
 	 * @param array  $options Export generation options.
 	 * @param string $hash The hash generated.
-	 * @return bool
+	 * @return true|\WP_Error True on success, WP_Error on failure.
 	 */
-	public function handle_site_export(int $site_id, array $options = [], string $hash = ''): bool {
+	public function handle_site_export(int $site_id, array $options = [], string $hash = '') {
 
 		$this->load_dependencies();
 
@@ -1518,7 +1538,24 @@ final class Site_Exporter {
 
 		$start = microtime(true);
 
-		$command->all([$base_path . $export_name], $args);
+		try {
+			$command->all([$base_path . $export_name], $args);
+		} catch (\Exception $e) {
+			// Log the exception for server admins and return a user-friendly error.
+			error_log('WP Ultimo site export error: ' . $e->getMessage());
+
+			return new \WP_Error(
+				'export-failed',
+				__('The site export failed due to a server error. Please check server logs for details.', 'ultimate-multisite')
+			);
+		}
+
+		if (! file_exists($base_path . $export_name)) {
+			return new \WP_Error(
+				'export-failed',
+				__('The export file could not be created. Please check server permissions and available disk space, then try again.', 'ultimate-multisite')
+			);
+		}
 
 		$time = microtime(true) - $start;
 
