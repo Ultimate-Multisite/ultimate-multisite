@@ -460,7 +460,10 @@ class ImportCommand extends MUMigrationBase {
 		} elseif ( $is_multisite ) {
 			$blog_id = (int) $assoc_args['blog_id'];
 		} else {
+			// Single-site install: import into the existing site (blog_id = 1).
+			// The import will overwrite the current site's database tables.
 			$blog_id = 1;
+			WP_CLI::log( __( 'Single-site install detected. Importing into the existing site (blog_id=1). Existing content will be overwritten by the imported data.', 'mu-migration' ) );
 		}
 
 		if ( ! $blog_id ) {
