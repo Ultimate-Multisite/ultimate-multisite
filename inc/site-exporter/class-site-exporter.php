@@ -70,11 +70,11 @@ final class Site_Exporter {
 
 		add_action('wu_export_site', [$this, 'handle_site_export'], 10, 3);
 
-		add_action('wu_import_site', [$this, 'handle_site_import'], 10, 3);
+		add_action('wu_import_site', [$this, 'handle_site_import']);
 
 		add_filter('wu_site_exporter_files_to_zip', [$this, 'maybe_exclude_wp_ultimo_plugins']);
 
-		add_action('cron_schedules', [$this, 'maybe_add_schedule']);
+		add_filter('cron_schedules', [$this, 'maybe_add_schedule']);
 
 		add_action('init', [$this, 'maybe_run_imports']);
 
@@ -1457,7 +1457,16 @@ final class Site_Exporter {
 	}
 
 	/**
-	 * Maybe adds a new schedule.
+	 * Adds the custom cron schedule interval.
+	 *
+	 * Always registers the wu_site_every_minute interval so that
+	 * wp_schedule_event() can succeed regardless of whether there are
+	 * pending imports at the time the cron_schedules filter runs.
+	 * Previously this method returned early when no imports were pending,
+	 * creating a circular dependency: the schedule was only registered when
+	 * imports existed, but the event could not be scheduled until the
+	 * interval was registered — meaning the very first import might never
+	 * be processed.
 	 *
 	 * @since 2.5.0
 	 *
@@ -1465,12 +1474,6 @@ final class Site_Exporter {
 	 * @return array
 	 */
 	public function maybe_add_schedule(array $schedules): array {
-
-		$pending_imports = wu_exporter_get_pending_imports();
-
-		if (empty($pending_imports)) {
-			return $schedules;
-		}
 
 		$schedules['wu_site_every_minute'] = [
 			'interval' => 60,
