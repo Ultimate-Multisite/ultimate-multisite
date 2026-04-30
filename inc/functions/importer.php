@@ -87,15 +87,19 @@ function wu_exporter_get_pending_imports(): array {
 
 	if (is_multisite()) {
 		$table = "{$wpdb->base_prefix}sitemeta";
+		$like  = $wpdb->esc_like('_site_transient_wu_pending_site_import_') . '%';
 
-		$query = "SELECT meta_key, meta_value as options FROM {$table} WHERE meta_key LIKE '\\_site\\_transient\\_wu\\_pending\\_site\\_import\\_%'";
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is built from $wpdb->base_prefix, not user input.
+		$query = $wpdb->prepare("SELECT meta_key, meta_value as options FROM {$table} WHERE meta_key LIKE %s", $like);
 	} else {
 		$table = "{$wpdb->base_prefix}options";
+		$like  = $wpdb->esc_like('_transient_wu_pending_site_import_') . '%';
 
-		$query = "SELECT option_name, option_value as options FROM {$table} WHERE option_name LIKE '\\_transient\\_wu\\_pending\\_site\\_import\\_%'";
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is built from $wpdb->base_prefix, not user input.
+		$query = $wpdb->prepare("SELECT option_name, option_value as options FROM {$table} WHERE option_name LIKE %s", $like);
 	}
 
-	$results = $wpdb->get_results($query); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+	$results = $wpdb->get_results($query); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
 	$results = array_map(
 		function ($item) {

@@ -183,7 +183,7 @@ function wu_exporter_add_pending(int $site_id, array $options = [], bool $async 
 
 	$hash = md5(serialize($base)); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize
 
-	wu_exporter_set_transient("wu_pending_site_export_{$hash}", $site_id, 2 * HOUR_IN_SECONDS);
+	wu_exporter_set_transient("wu_pending_site_export_{$hash}", $base, 2 * HOUR_IN_SECONDS);
 
 	return $hash;
 }
@@ -200,11 +200,24 @@ function wu_exporter_get_pending(): array {
 
 	$table = is_multisite() ? "{$wpdb->base_prefix}sitemeta" : "{$wpdb->base_prefix}options";
 
-	$like = is_multisite() ? '\\_site\\_transient\\_wu\\_pending\\_site\\_export\\_%' : '\\_transient\\_wu\\_pending\\_site\\_export\\_%';
+	$like = is_multisite()
+		? $wpdb->esc_like('_site_transient_wu_pending_site_export_') . '%'
+		: $wpdb->esc_like('_transient_wu_pending_site_export_') . '%';
 
-	$query = "SELECT meta_key, meta_value as site_id FROM {$table} WHERE meta_key LIKE '{$like}'";
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is built from $wpdb->base_prefix, not user input.
+	$query = $wpdb->prepare("SELECT meta_key, meta_value as options FROM {$table} WHERE meta_key LIKE %s", $like);
 
-	return $wpdb->get_results($query); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+	$results = $wpdb->get_results($query); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+	return array_map(
+		function ($item) {
+
+			$item->options = maybe_unserialize($item->options);
+
+			return $item;
+		},
+		$results
+	);
 }
 
 /**
