@@ -1327,6 +1327,17 @@ class Customer_Edit_Admin_Page extends Edit_Admin_Page {
 				$membership->set_status(Membership_Status::ACTIVE);
 
 				$membership->save();
+
+				/*
+				 * Explicitly publish any pending site here rather than relying on
+				 * the wu_transition_membership_status hook. That hook bails out
+				 * when the customer's email_verification is still "pending" in the
+				 * DB — which it is at this point because parent::handle_save() has
+				 * not yet persisted the new value. publish_pending_site_async() is
+				 * idempotent: if the site is already publishing the inner guard
+				 * in publish_pending_site() returns early.
+				 */
+				$membership->publish_pending_site_async();
 			}
 		}
 	}
