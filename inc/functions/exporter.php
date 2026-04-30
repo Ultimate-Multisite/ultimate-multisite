@@ -47,8 +47,7 @@ function wu_exporter_export(int $site_id, array $options = [], bool $async = fal
 			[
 				'site_id' => $site_id,
 				'options' => $options,
-			],
-			'site-exporter'
+			]
 		);
 	}
 
