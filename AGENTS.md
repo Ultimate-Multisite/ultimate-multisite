@@ -297,6 +297,7 @@ read them will produce `read:file_not_found`:
 | `tests/WP_Ultimo/bootstrap.php` | Does not exist; test bootstrap is at `tests/bootstrap.php` |
 | `inc/class-plugin.php`, `inc/class-main.php` | Do not exist; the main plugin class is `inc/class-wp-ultimo.php` |
 | `inc/class-membership-manager.php`, `inc/class-customer-manager.php` (etc.) | Do not exist at root of `inc/`; manager classes are in `inc/managers/` (e.g. `inc/managers/class-membership-manager.php`) |
+| `inc/managers/class-orphaned-tables-manager.php`, `inc/managers/class-orphaned-users-manager.php` | Do not exist in `inc/managers/`; unlike most manager classes, these two live at the `inc/` root: `inc/class-orphaned-tables-manager.php` and `inc/class-orphaned-users-manager.php` |
 | `inc/class-gateway.php`, `inc/class-payment-gateway.php` | Do not exist; gateway classes are in `inc/gateways/` |
 | `inc/functions/class-*.php` | Functions in `inc/functions/` are plain procedural PHP (not OOP class files); they are named `inc/functions/customer.php`, `inc/functions/checkout.php`, etc. |
 | `class-wp-ultimo.php` (at repo root) | Does not exist at root; the main plugin class is at `inc/class-wp-ultimo.php` |
@@ -312,8 +313,10 @@ read them will produce `read:file_not_found`:
 | `inc/class-compat.php` | Does not exist; compatibility classes are per-plugin in `inc/compat/` (e.g. `class-elementor-compat.php`) |
 | `inc/class-site-exporter.php` | Does not exist at root of `inc/`; site exporter is at `inc/site-exporter/class-site-exporter.php` |
 | `inc/class-export.php`, `inc/class-importer.php`, `inc/class-import.php` | Do not exist at root of `inc/`; export/import classes are in `inc/site-exporter/` |
+| `inc/site-exporter/class-replace.php`, `inc/site-exporter/class-import.php`, `inc/site-exporter/class-manager.php`, `inc/site-exporter/class-max-execution-time.php` | Do not exist directly in `inc/site-exporter/`; these four files live in a `database/` subdirectory, e.g. `inc/site-exporter/database/class-import.php` |
+| `inc/site-exporter/class-export-handler.php` | Does not exist; the download handler is at `inc/site-exporter/class-export-download-handler.php` |
 | `inc/class-limit.php`, `inc/class-limits.php` | Do not exist; plan limit classes are in `inc/limitations/` (class-limit-*.php) and enforcement in `inc/limits/` |
-| `tests/WP_Ultimo/Site_Exporter/` | May not exist — verify with `git ls-files 'tests/WP_Ultimo/Site_Exporter/'` before attempting to read |
+| `tests/WP_Ultimo/Site_Exporter/` | This directory does NOT exist; the site exporter test is a single file at `tests/WP_Ultimo/Site_Exporter_Test.php` |
 | `multisite-ultimate.php` | Does not exist; the plugin entry point is `ultimate-multisite.php` (former name was `multisite-ultimate.php`) |
 
 Always verify a file is tracked before reading it with `git ls-files '<path>'`. An empty result means the file does not exist in the repo.
@@ -332,6 +335,7 @@ Do **not** use webfetch for any of these — they consistently fail:
 - Stripe/PayPal API docs (`stripe.com/docs`, `developer.paypal.com`)
 - BerlinDB documentation
 - WooCommerce docs, npm package docs, WP Plugin Handbook
+- WP-CLI documentation (`wp-cli.org`, `make.wp-cli.org`, `developer.wp-cli.org`)
 - Any other developer documentation URLs
 
 Do **not** use webfetch for GitHub URLs (issues, PRs, raw content, commits). Use the `gh` CLI
@@ -560,6 +564,21 @@ After phpcbf runs and modifies a file, you MUST re-read the file before calling 
 **`npm run test:watch` is not supported** — PHPUnit 9 (used by this project) does not have a
 `--watch` flag. Running `npm run test:watch` will print an error and exit 1. Use
 `vendor/bin/phpunit --filter ClassName` to run individual tests repeatedly during development.
+
+**`npm run translate` and `npm run build:translate` require `scripts/translate.php`** — this
+file is NOT tracked in the repository (it is used only in private release workflows).
+Running either command will fail with `No such file or directory`. For i18n string extraction,
+use `npm run makepot` instead (which calls `scripts/makepot.js`, which IS tracked):
+
+```bash
+npm run makepot   # correct — extracts translatable strings to lang/ultimate-multisite.pot
+npm run translate   # wrong — requires scripts/translate.php which is not in the repo
+```
+
+**`inc/site-exporter/mu-migration/` is a vendored library with its own `composer.json`** — never
+run `composer install` inside `inc/site-exporter/mu-migration/`. It is a bundled copy of the
+mu-migration tool with its own dependency manifest. Run `composer install` from the **repo root**
+only.
 
 **`npm run env:*` and `npm run cy:*` require Docker and `@wordpress/env`** — the `env:start`,
 `env:stop`, and Cypress E2E scripts (`cy:open:*`, `cy:run:*`) use the `@wordpress/env`
