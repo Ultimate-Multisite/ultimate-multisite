@@ -58,6 +58,9 @@ function wu_exporter_export(int $site_id, array $options = [], bool $async = fal
 /**
  * Gets a list of all the exports generated to date.
  *
+ * Each export entry includes an authenticated download URL that requires
+ * `manage_network` capability — no direct public URL is exposed.
+ *
  * @since 2.5.0
  * @return array
  */
@@ -79,8 +82,7 @@ function wu_exporter_get_all_exports(): array {
 		}
 	);
 
-	$results  = [];
-	$base_url = wu_exporter_get_folder();
+	$results = [];
 
 	foreach ($zip_files as $filepath) {
 		$filename  = basename($filepath);
@@ -89,11 +91,28 @@ function wu_exporter_get_all_exports(): array {
 			'path' => $filepath,
 			'date' => wp_date(get_option('date_format') . ' ' . get_option('time_format'), filemtime($filepath)),
 			'size' => size_format(filesize($filepath)),
-			'url'  => trailingslashit($base_url) . $filename,
+			'url'  => wu_exporter_get_download_url($filename),
 		];
 	}
 
 	return $results;
+}
+
+/**
+ * Returns an authenticated download URL for an export ZIP file.
+ *
+ * The URL routes through the WordPress admin, requires `manage_network`
+ * capability, and includes a nonce. Export files are never served via
+ * direct public URLs.
+ *
+ * @since 2.5.1
+ *
+ * @param string $filename The export filename (e.g. wu-site-export-2-2025-01-01-1735686000.zip).
+ * @return string
+ */
+function wu_exporter_get_download_url(string $filename): string {
+
+	return \WP_Ultimo\Site_Exporter\Export_Download_Handler::download_url($filename);
 }
 
 /**

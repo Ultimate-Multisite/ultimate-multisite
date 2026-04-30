@@ -94,8 +94,52 @@ final class Site_Exporter {
 		add_filter('wu_site_bulk_actions', [$this, 'add_bulk_export_action']);
 		add_action('wu_handle_bulk_action_form_site_export', [$this, 'handle_bulk_export'], 10, 3);
 
+		// Authenticated file download handler (GH#1010)
+		Export_Download_Handler::get_instance()->init();
+
+		// Protect the export folder for sites upgrading from versions that lacked .htaccess protection.
+		add_action('admin_init', [$this, 'maybe_protect_export_folder']);
+
 		// WordPress default Sites page integration (works without Ultimate Multisite setup)
 		$this->setup_wordpress_sites_integration();
+	}
+
+	/**
+	 * Ensures the export folder has .htaccess and index.html protection files.
+	 *
+	 * `wu_maybe_create_folder()` adds these files when creating the folder, but
+	 * existing installations may have the folder without them. This method is
+	 * idempotent — it only writes the protection files when they are absent.
+	 *
+	 * @since 2.5.1
+	 * @return void
+	 */
+	public function maybe_protect_export_folder(): void {
+
+		// wu_maybe_create_folder() returns a path with a trailing slash already.
+		$folder_path = wu_maybe_create_folder('wu-site-exports');
+
+		$htaccess = $folder_path . '.htaccess';
+
+		if (! file_exists($htaccess)) {
+			$fp = @fopen($htaccess, 'w'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen, WordPress.PHP.NoSilencedErrors.Discouraged
+
+			if ($fp) {
+				@fwrite($fp, 'deny from all'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite, WordPress.PHP.NoSilencedErrors.Discouraged
+				@fclose($fp); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose, WordPress.PHP.NoSilencedErrors.Discouraged
+			}
+		}
+
+		$index = $folder_path . 'index.html';
+
+		if (! file_exists($index)) {
+			$fp = @fopen($index, 'w'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen, WordPress.PHP.NoSilencedErrors.Discouraged
+
+			if ($fp) {
+				@fwrite($fp, ''); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite, WordPress.PHP.NoSilencedErrors.Discouraged
+				@fclose($fp); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose, WordPress.PHP.NoSilencedErrors.Discouraged
+			}
+		}
 	}
 
 	/**
