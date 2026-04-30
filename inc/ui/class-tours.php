@@ -45,6 +45,28 @@ class Tours {
 	}
 
 	/**
+	 * Normalize a tour ID to a safe user-settings key.
+	 *
+	 * WordPress's user-settings cookie is sanitized with
+	 * preg_replace('/[^A-Za-z0-9=&_]/', '', ...) before being stored, and
+	 * PHP's parse_str() converts hyphens in key names to underscores. Either
+	 * path mangles keys like "wp-ultimo-dashboard" so that get_user_setting()
+	 * can never find the value that was saved, making every tour re-show on
+	 * every session. Replacing hyphens with underscores before building the
+	 * setting key keeps write and read in sync regardless of which code path
+	 * (cookie or database) WordPress uses for retrieval.
+	 *
+	 * @since 2.1.1
+	 *
+	 * @param string $id The tour ID.
+	 * @return string The normalized user-settings key.
+	 */
+	protected function get_setting_key($id) {
+
+		return 'wu_tour_' . str_replace('-', '_', $id);
+	}
+
+	/**
 	 * Mark the tour as finished for a particular user.
 	 *
 	 * @since 2.0.0
@@ -57,7 +79,7 @@ class Tours {
 		$id = wu_request('tour_id');
 
 		if ($id) {
-			set_user_setting("wu_tour_$id", true);
+			set_user_setting($this->get_setting_key($id), true);
 			if (\function_exists('save_user_settings')) {
 				\save_user_settings();
 			}
@@ -168,7 +190,7 @@ class Tours {
 					return;
 				}
 
-				$finished = (bool) get_user_setting("wu_tour_$id", false);
+				$finished = (bool) get_user_setting($this->get_setting_key($id), false);
 
 				$finished = apply_filters('wu_tour_finished', $finished, $id, get_current_user_id());
 

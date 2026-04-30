@@ -121,6 +121,94 @@ class Tours_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test get_setting_key normalises hyphens to underscores.
+	 *
+	 * Regression test: WordPress's user-settings cookie is sanitised with
+	 * preg_replace('/[^A-Za-z0-9=&_]/', '') before storage, and PHP's
+	 * parse_str() converts hyphens in key names to underscores. Either path
+	 * mangles "wu_tour_wp-ultimo-dashboard" so that get_user_setting() never
+	 * finds the stored value, causing tours to re-show every session.
+	 * get_setting_key() must replace hyphens with underscores so writes and
+	 * reads use the same key regardless of which storage path WordPress takes.
+	 */
+	public function test_get_setting_key_replaces_hyphens_with_underscores(): void {
+
+		$instance = $this->get_instance();
+
+		$reflection = new \ReflectionClass($instance);
+		$method     = $reflection->getMethod('get_setting_key');
+		$method->setAccessible(true);
+
+		// Hyphenated IDs (the real-world broken cases).
+		$this->assertSame('wu_tour_wp_ultimo_dashboard', $method->invoke($instance, 'wp-ultimo-dashboard'));
+		$this->assertSame('wu_tour_checkout_form_editor', $method->invoke($instance, 'checkout-form-editor'));
+		$this->assertSame('wu_tour_checkout_form_list', $method->invoke($instance, 'checkout-form-list'));
+
+		// Underscore-only IDs must pass through unchanged.
+		$this->assertSame('wu_tour_dashboard', $method->invoke($instance, 'dashboard'));
+		$this->assertSame('wu_tour_new_product_warning', $method->invoke($instance, 'new_product_warning'));
+
+		// Mixed: hyphens become underscores, existing underscores untouched.
+		$this->assertSame('wu_tour_my_mixed_id', $method->invoke($instance, 'my-mixed_id'));
+	}
+
+	/**
+	 * Test that the normalised key survives WordPress's user-settings round-trip.
+	 *
+	 * Regression test: WordPress's cookie sanitizer in wp_user_settings() uses
+	 * preg_replace('/[^A-Za-z0-9=&_]/', ...) which strips hyphens, and
+	 * wp_set_all_user_settings() builds the stored string via a per-character
+	 * allow-list before calling parse_str(). A hyphenated raw tour ID like
+	 * 'wp-ultimo-dashboard' would produce a key that is not reliably found by
+	 * get_user_setting() across different WordPress versions and storage paths.
+	 *
+	 * This test verifies that the underscore-normalised key produced by
+	 * get_setting_key() round-trips correctly through the parse_str() step that
+	 * WordPress uses internally when reading settings back.
+	 *
+	 * Note: set_user_setting() cannot be called directly in PHPUnit because it
+	 * guards on headers_sent() which is true after the test bootstrap output.
+	 * The parse_str round-trip (the actual failure mechanism) is tested directly.
+	 */
+	public function test_normalised_key_survives_user_settings_round_trip(): void {
+
+		$instance = $this->get_instance();
+
+		$reflection = new \ReflectionClass($instance);
+		$method     = $reflection->getMethod('get_setting_key');
+		$method->setAccessible(true);
+
+		$tour_id     = 'wp-ultimo-dashboard';
+		$setting_key = $method->invoke($instance, $tour_id);
+
+		// The normalised key must contain only alphanumeric + underscore characters
+		// so it is safe for every WordPress user-settings code path.
+		$this->assertMatchesRegularExpression(
+			'/^[A-Za-z0-9_]+$/',
+			$setting_key,
+			'Normalised setting key must contain only alphanumeric and underscore characters.'
+		);
+
+		// Simulate what WordPress does internally: build the query string and
+		// parse it back. With the normalised key the stored key equals the
+		// lookup key, so get_user_setting() finds the value. A hyphenated key
+		// would be mangled here (stripped or converted), causing the tour to
+		// re-show every session.
+		$stored_string = $setting_key . '=1';
+		$parsed        = [];
+		parse_str($stored_string, $parsed);
+
+		$this->assertArrayHasKey(
+			$setting_key,
+			$parsed,
+			'Normalised key must survive parse_str() unchanged. ' .
+			'A hyphenated key is mangled by parse_str(), causing the tour to re-show every session.'
+		);
+
+		$this->assertSame('1', $parsed[ $setting_key ]);
+	}
+
+	/**
 	 * Test enqueue_scripts uses wp_add_inline_script on 'underscore', not wu-admin.
 	 *
 	 * Regression test for GH#707: wu_tours was localized onto wu-admin which is
