@@ -105,7 +105,12 @@ document.addEventListener("DOMContentLoaded", () => {
         // navigation and break the infinite-reload loop that occurred when the
         // "stopped" branch fired window.location.reload() on every page load
         // after site creation had already finished.
-        is_post_redirect: new URLSearchParams(window.location.search).has("_t")
+        is_post_redirect: new URLSearchParams(window.location.search).has("_t"),
+        // One-time guard for the Case 1 "stopped" reload.  Multiple
+        // check_site_created() callbacks can be queued before the first reload
+        // fires (async polling overlap), so we set this flag before calling
+        // window.location.reload() and bail out of subsequent calls.
+        _reload_done: false
       };
     },
     computed: {
@@ -205,8 +210,11 @@ document.addEventListener("DOMContentLoaded", () => {
           this.creating = false;
           this.stopped_count++;
           if (this.stopped_count >= 3) {
-            if (this.running_count > 0) {
+            if (this.running_count > 0 && !this._reload_done) {
               // Case 1: was running this session, now stopped — one-time reload.
+              // _reload_done guards against multiple queued callbacks all firing
+              // reload before the first navigation clears the page.
+              this._reload_done = true;
               window.location.reload();
             } else if (!wu_thank_you.creating) {
               // Case 2: PHP already reported creation complete — mark ready.
