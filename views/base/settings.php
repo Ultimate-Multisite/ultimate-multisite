@@ -141,7 +141,7 @@ defined('ABSPATH') || exit;
 				<a
 					id="tab-selector-<?php echo esc_attr($section_name); ?>-link"
 					href="<?php echo esc_url($page->get_section_link($section_name)); ?>" 
-					class="wu-block wu-py-0 wu-px-4 wu-no-underline wu-text-sm wu-rounded <?php echo ! $clickable_navigation && ! $is_pre_current_section ? 'wu-pointer-events-none' : ''; ?> <?php echo $current_section === $section_name ? 'wu-bg-gray-300 wu-text-gray-800' : 'wu-text-gray-600 hover:wu-text-gray-700'; ?>"
+					class="wu-block wu-py-2 wu-no-underline wu-text-sm wu-rounded <?php echo ! $clickable_navigation && ! $is_pre_current_section ? 'wu-pointer-events-none' : ''; ?> <?php echo $current_section === $section_name ? 'wu-bg-gray-300 wu-text-gray-800' : 'wu-text-gray-600 hover:wu-text-gray-700'; ?>"
 				>
 
 					<span class="<?php echo esc_attr($section['icon']); ?> wu-align-text-bottom wu-mr-1"></span>
@@ -205,7 +205,7 @@ defined('ABSPATH') || exit;
 				<li class="wu-sticky">
 
 					<!-- Menu Link -->
-					<a href="<?php echo esc_url($page->get_section_link($section_name)); ?>" class="wu-block wu-py-0 wu-px-4 wu-no-underline wu-text-sm wu-rounded <?php echo ! $clickable_navigation && ! $is_pre_current_section ? 'wu-pointer-events-none' : ''; ?> <?php echo $current_section === $section_name ? 'wu-bg-gray-300 wu-text-gray-800' : 'wu-text-gray-600 hover:wu-text-gray-700'; ?>">
+					<a href="<?php echo esc_url($page->get_section_link($section_name)); ?>" class="wu-block wu-py-2 wu-no-underline wu-text-sm wu-rounded <?php echo ! $clickable_navigation && ! $is_pre_current_section ? 'wu-pointer-events-none' : ''; ?> <?php echo $current_section === $section_name ? 'wu-bg-gray-300 wu-text-gray-800' : 'wu-text-gray-600 hover:wu-text-gray-700'; ?>">
 
 					<span class="<?php echo esc_attr($section['icon']); ?> wu-align-text-bottom wu-mr-1"></span>
 
