@@ -341,7 +341,15 @@ class Ajax implements \WP_Ultimo\Interfaces\Singleton {
 						]
 					) . '#wrapper-field-' . $item['setting_id'];
 
-					return $item;
+					/*
+					 * Strip non-scalar values (Closures, objects) so the result is
+					 * safe for json_encode and PHP 8.x string casts below.
+					 * Field atts store Closures for 'value', 'display_value', 'img', etc.
+					 */
+					return array_filter(
+						$item,
+						fn($v) => is_scalar($v) || is_array($v) || is_null($v)
+					);
 				},
 				$section['fields']
 			);
