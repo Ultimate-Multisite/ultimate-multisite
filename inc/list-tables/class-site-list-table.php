@@ -55,6 +55,11 @@ class Site_List_Table extends Base_List_Table {
 	/**
 	 * Overrides the parent method to add pending sites.
 	 *
+	 * In the "All Sites" view (type=all or no type parameter) pending sites are
+	 * always prepended to the list.  Pending sites live in membership meta rather
+	 * than in the wp_blogs table, so they are fetched separately and merged into
+	 * the result set with proper pagination awareness.
+	 *
 	 * @since 2.0.0
 	 *
 	 * @param integer $per_page Number of items to display per page.
@@ -71,6 +76,18 @@ class Site_List_Table extends Base_List_Table {
 
 			return $count ? count($pending_sites) : $pending_sites;
 		}
+
+		/*
+		 * For the "All Sites" view (type=all or no type), always fetch pending
+		 * sites so they can be prepended to the regular list.
+		 */
+		$pending_sites = [];
+
+		if ( ! $type || 'all' === $type ) {
+			$pending_sites = \WP_Ultimo\Models\Site::get_all_by_type('pending');
+		}
+
+		$pending_count = count($pending_sites);
 
 		$query = [
 			'number' => $per_page,
@@ -90,17 +107,70 @@ class Site_List_Table extends Base_List_Table {
 
 		$query = apply_filters("wu_{$this->id}_get_items", $query, $this);
 
+		if ($count) {
+			return (int) wu_get_sites($query) + $pending_count;
+		}
+
+		if (0 === $pending_count) {
+			return wu_get_sites($query);
+		}
+
+		/*
+		 * Pending sites always occupy virtual slots 0 … ($pending_count - 1).
+		 * Regular sites follow from slot $pending_count onwards.
+		 *
+		 * For the current page we calculate which portion of that virtual list
+		 * falls within the page window [$virtual_start, $virtual_start + $per_page).
+		 */
+		$virtual_start = ($page_number - 1) * $per_page;
+
+		if ($virtual_start < $pending_count) {
+			// This page starts inside the pending block.
+			$pending_offset  = $virtual_start;
+			$pending_to_show = min($pending_count - $pending_offset, $per_page);
+			$page_pending    = array_slice($pending_sites, $pending_offset, $pending_to_show);
+
+			$regular_to_show = $per_page - $pending_to_show;
+
+			if ($regular_to_show <= 0) {
+				return $page_pending;
+			}
+
+			$query['number'] = $regular_to_show;
+			$query['offset'] = 0;
+
+			return array_merge($page_pending, wu_get_sites($query));
+		}
+
+		// This page is entirely within the regular sites block; shift the offset
+		// back by the number of pending sites that precede all regular sites.
+		$query['offset'] = $virtual_start - $pending_count;
+
 		return wu_get_sites($query);
 	}
 
 	/**
 	 * Render the bulk edit checkbox.
 	 *
+	 * Pending sites displayed inside the "All Sites" view cannot be bulk-actioned
+	 * (the bulk-delete handler expects blog IDs, not membership IDs).  Return an
+	 * empty string so no checkbox is rendered for them in that context; the row
+	 * actions (Publish / Delete) remain available for individual management.
+	 *
 	 * @param \WP_Ultimo\Models\Site $item Site object.
 	 */
 	public function column_cb($item): string {
 
 		if ($item->get_type() === 'pending') {
+			/*
+			 * In the dedicated "Pending" view, bulk-delete-pending uses
+			 * membership IDs as values.  In any other view (e.g. "All Sites")
+			 * skip the checkbox to avoid mixing IDs with regular bulk-delete.
+			 */
+			if ('pending' !== wu_request('type')) {
+				return '';
+			}
+
 			return sprintf('<input type="checkbox" name="bulk-delete[]" value="%s" />', $item->get_membership_id());
 		}
 

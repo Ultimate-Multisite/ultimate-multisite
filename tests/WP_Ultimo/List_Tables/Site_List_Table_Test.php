@@ -218,9 +218,12 @@ class Site_List_Table_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test column_cb returns checkbox with membership_id for pending site.
+	 * Test column_cb returns checkbox with membership_id for pending site in the
+	 * dedicated Pending view (type=pending).
 	 */
-	public function test_column_cb_returns_membership_id_for_pending_site(): void {
+	public function test_column_cb_returns_membership_id_for_pending_site_in_pending_view(): void {
+
+		$_REQUEST['type'] = 'pending';
 
 		$item = $this->getMockBuilder( \stdClass::class )
 			->addMethods( [ 'get_type', 'get_id', 'get_membership_id' ] )
@@ -233,6 +236,45 @@ class Site_List_Table_Test extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'type="checkbox"', $output );
 		$this->assertStringContainsString( '7', $output );
+	}
+
+	/**
+	 * Test column_cb returns no checkbox for pending site in the All Sites view,
+	 * because bulk-delete uses blog IDs and pending sites only have membership IDs.
+	 */
+	public function test_column_cb_returns_empty_for_pending_site_in_all_view(): void {
+
+		$_REQUEST['type'] = 'all';
+
+		$item = $this->getMockBuilder( \stdClass::class )
+			->addMethods( [ 'get_type', 'get_id', 'get_membership_id' ] )
+			->getMock();
+		$item->method( 'get_type' )->willReturn( 'pending' );
+		$item->method( 'get_id' )->willReturn( 3 );
+		$item->method( 'get_membership_id' )->willReturn( 7 );
+
+		$output = $this->table->column_cb( $item );
+
+		$this->assertSame( '', $output );
+	}
+
+	/**
+	 * Test column_cb returns no checkbox for pending site when no type filter is
+	 * set (equivalent to the All Sites default view).
+	 */
+	public function test_column_cb_returns_empty_for_pending_site_with_no_type(): void {
+
+		unset( $_REQUEST['type'] );
+
+		$item = $this->getMockBuilder( \stdClass::class )
+			->addMethods( [ 'get_type', 'get_id', 'get_membership_id' ] )
+			->getMock();
+		$item->method( 'get_type' )->willReturn( 'pending' );
+		$item->method( 'get_id' )->willReturn( 3 );
+
+		$output = $this->table->column_cb( $item );
+
+		$this->assertSame( '', $output );
 	}
 
 	// =========================================================================
