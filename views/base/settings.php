@@ -90,6 +90,20 @@ defined('ABSPATH') || exit;
 		#wu-settings-search-box .selectize-dropdown-content {
 			max-height: 70vh;
 		}
+		/* Constrain the right sidebar so its metabox content never overflows
+		   the grid cell (WP's .postbox has min-width:255px which can push it
+		   past the column boundary on narrower viewports). */
+		.wu-settings-sidebar {
+			min-width: 0;
+			overflow: hidden;
+		}
+		.wu-settings-sidebar .postbox {
+			min-width: 0;
+		}
+		.wu-settings-sidebar img {
+			max-width: 100%;
+			height: auto;
+		}
 		</style>
 
 		<div data-wu-app="settings_menu" data-state="{}">
@@ -277,7 +291,7 @@ defined('ABSPATH') || exit;
 
 		</div>
 
-		<div class="sm:wu-col-span-8 sm:wu-col-start-5 lg:wu-col-span-4 lg:wu-col-start-9 metabox-holder wu-min-w-0">
+		<div class="sm:wu-col-span-8 sm:wu-col-start-5 lg:wu-col-span-3 lg:wu-col-start-10 metabox-holder wu-settings-sidebar">
 
 		<?php
 		/**
