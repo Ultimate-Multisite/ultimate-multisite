@@ -66,9 +66,14 @@ class Screenshot {
 	 */
 	public static function api_url($domain, int $width = self::DEFAULT_WIDTH, int $height = self::DEFAULT_HEIGHT): string {
 
+		// Strip any pre-existing scheme to avoid `https://https://example.com`
+		// when callers pass a full URL (e.g. `Site::get_active_site_url()` which
+		// returns the URL with scheme for mapped domains).
+		$clean_domain = preg_replace( '#^https?://#i', '', (string) $domain );
+
 		$url = add_query_arg(
 			[
-				'url'              => 'https://' . $domain,
+				'url'              => 'https://' . $clean_domain,
 				'screenshot'       => 'true',
 				'viewport.width'   => $width,
 				'viewport.height'  => $height,
@@ -91,7 +96,10 @@ class Screenshot {
 	 */
 	public static function fallback_api_url($domain, int $width = self::DEFAULT_WIDTH, int $height = self::DEFAULT_HEIGHT): string {
 
-		$url = 'https://image.thum.io/get/width/' . $width . '/crop/' . $height . '/noanimate/' . $domain;
+		// Ensure the domain is passed with a scheme to thum.io so it does not
+		// receive a malformed URL when the caller already passes a full URL.
+		$clean_domain = preg_replace( '#^https?://#i', '', (string) $domain );
+		$url          = 'https://image.thum.io/get/width/' . $width . '/crop/' . $height . '/noanimate/https://' . $clean_domain;
 
 		/**
 		 * Filters the fallback screenshot API URL.
