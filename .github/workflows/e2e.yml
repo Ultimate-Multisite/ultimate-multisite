@@ -62,7 +62,9 @@ jobs:
             const fs = require('fs');
             const path = require('path');
             const config = JSON.parse(fs.readFileSync('.wp-env.json', 'utf8'));
-            const override = { config: { phpVersion: '${{ matrix.php }}' }, env: {} };
+            // phpVersion must be a top-level wp-env option, not inside 'config'
+            // (config maps to wp-config.php constants; phpVersion there is a no-op).
+            const override = { phpVersion: '${{ matrix.php }}', env: {} };
             for (const [envName, envConfig] of Object.entries(config.env || {})) {
               if (envConfig.plugins) {
                 const existing = envConfig.plugins.filter(p => {
@@ -77,7 +79,28 @@ jobs:
           "
 
       - name: Start WordPress Test Environment
-        run: npm run env:start:test
+        run: |
+          # Retry up to 3 times — wp-env occasionally gets a transient 502 from
+          # the wordpress.org CDN when downloading the core zip.
+          set +e
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt: starting WordPress test environment..."
+            npm run env:start:test
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ WordPress environment started (attempt $attempt)"
+              break
+            fi
+            echo "⚠️ Attempt $attempt failed (exit $EXIT_CODE)"
+            if [ $attempt -lt 3 ]; then
+              echo "Stopping any partial environment and retrying in 30s..."
+              npm run env:stop 2>/dev/null || true
+              sleep 30
+            else
+              echo "❌ All 3 attempts failed — giving up"
+              exit $EXIT_CODE
+            fi
+          done
 
       - name: Wait for WordPress to be ready
         run: |
