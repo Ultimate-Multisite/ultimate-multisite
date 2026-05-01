@@ -3,7 +3,7 @@
 /**
  * Ultimate Multisite Sunrise
  * Plugin URI: https://ultimatemultisite.com
- * Version: 2.0.0.10
+ * Version: 2.0.0.11
  * License: GPLv2
  * License URI: http://www.gnu.org/licenses/gpl-2.0.html
  *
@@ -18,16 +18,17 @@
  * @since 2.0.0.5 Change return statement to a continue statement to prevent an early exit from the file.
  * @since 2.0.0.9 Rename plugin file.
  * @since 2.0.0.10 Rename plugin file, again!
+ * @since 2.0.0.11 Use WP_PLUGIN_DIR/WPMU_PLUGIN_DIR constants when defined; remove multi-tenancy cookie domain override (moved to multi-tenancy plugin).
  *
  * @author      Arindo Duque
  * @category    WP_Ultimo
  * @package     WP_Ultimo/Sunrise
- * @version     2.0.0.10
+ * @version     2.0.0.11
  */
 
 defined('ABSPATH') || exit;
 
-const WP_ULTIMO_SUNRISE_VERSION = '2.0.0.10';
+const WP_ULTIMO_SUNRISE_VERSION = '2.0.0.11';
 
 $wu_sunrise = defined('WP_PLUGIN_DIR')
 	? WP_PLUGIN_DIR . '/ultimate-multisite/inc/class-sunrise.php'
