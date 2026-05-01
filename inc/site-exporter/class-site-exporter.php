@@ -1446,9 +1446,16 @@ final class Site_Exporter {
 			);
 		}
 
+		/*
+		 * Background export queued. Redirect to the sites list and pass
+		 * message=export_started so display_export_notices() (hooked to
+		 * network_admin_notices) displays the correct success banner.
+		 * Using 'updated' here would be invisible — the list view only
+		 * handles 'deleted', and the export notice handler reads 'message'.
+		 */
 		wp_send_json_success(
 			[
-				'redirect_url' => wu_network_admin_url('wp-ultimo-sites', ['updated' => __('Export started in background...', 'ultimate-multisite')]),
+				'redirect_url' => wu_network_admin_url('wp-ultimo-sites', ['message' => 'export_started']),
 			]
 		);
 	}
@@ -1565,7 +1572,7 @@ final class Site_Exporter {
 
 		wp_send_json_success(
 			[
-				'redirect_url' => wu_network_admin_url('wp-ultimo-sites', ['updated' => __('Import process started.', 'ultimate-multisite')]),
+				'redirect_url' => wu_network_admin_url('wp-ultimo-sites', ['message' => 'import_started']),
 			]
 		);
 	}
