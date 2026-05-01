@@ -59,13 +59,21 @@ class Export_Download_Handler {
 	/**
 	 * Generates an authenticated, nonce-protected download URL for an export file.
 	 *
+	 * Returns an HTML-escaped URL suitable for use in `href` attributes.
+	 * `wp_nonce_url()` internally calls `esc_html()`, which converts `&` to
+	 * `&amp;`. Always pass the return value through `esc_url()` when echoing
+	 * it into HTML.
+	 *
+	 * For use in JavaScript/JSON contexts where the URL must contain literal
+	 * `&` separators, call `raw_download_url()` instead.
+	 *
 	 * The URL routes through the WordPress admin and requires `manage_network`
 	 * capability. It cannot be guessed without a valid nonce.
 	 *
 	 * @since 2.5.1
 	 *
 	 * @param string $filename The export filename.
-	 * @return string
+	 * @return string HTML-escaped URL (ampersands as &amp;).
 	 */
 	public static function download_url(string $filename): string {
 
@@ -79,6 +87,32 @@ class Export_Download_Handler {
 				network_admin_url('sites.php')
 			),
 			self::nonce_action($filename)
+		);
+	}
+
+	/**
+	 * Generates a raw (non-HTML-escaped) download URL for use in JSON or JS.
+	 *
+	 * Unlike `download_url()`, this method builds the URL with `add_query_arg()`
+	 * and `wp_create_nonce()` directly, bypassing `wp_nonce_url()`'s internal
+	 * `esc_html()` call. The result contains literal `&` separators, which is
+	 * required for URLs embedded in `wp_send_json_success()` responses.
+	 *
+	 * @since 2.5.1
+	 *
+	 * @param string $filename The export filename.
+	 * @return string Raw URL (ampersands as &, not &amp;).
+	 */
+	public static function raw_download_url(string $filename): string {
+
+		return add_query_arg(
+			[
+				'page'      => 'wu-site-export',
+				'action'    => 'download',
+				'file'      => rawurlencode($filename),
+				'_wpnonce'  => wp_create_nonce(self::nonce_action($filename)),
+			],
+			network_admin_url('sites.php')
 		);
 	}
 

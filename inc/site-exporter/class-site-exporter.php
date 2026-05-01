@@ -1207,6 +1207,42 @@ final class Site_Exporter {
 	 */
 	public function enqueue_wp_sites_scripts(string $hook): void {
 
+		/*
+		 * The Ultimate Multisite Sites list page (wp-ultimo-sites) hosts the
+		 * "Import Site" wubox modal which contains an "Upload ZIP File" button
+		 * that opens the WordPress media library (wp.media).
+		 *
+		 * wubox injects modal HTML via innerHTML, so inline <script> tags inside
+		 * the modal response are never executed. The click handler must be
+		 * registered on the parent page using event delegation so it is present
+		 * before the modal opens.
+		 *
+		 * Hook: "wp-ultimo_page_wp-ultimo-sites" (network admin submenu under
+		 * parent slug "wp-ultimo", menu slug "wp-ultimo-sites").
+		 */
+		if ('wp-ultimo_page_wp-ultimo-sites' === $hook) {
+			wp_enqueue_media();
+
+			wp_add_inline_script(
+				'media-editor',
+				"jQuery(document).on('click', '#wu-upload-zip-btn', function(e) {
+					e.preventDefault();
+					var frame = wp.media({
+						title: '" . esc_js(__('Select or Upload ZIP File', 'ultimate-multisite')) . "',
+						button: { text: '" . esc_js(__('Use this file', 'ultimate-multisite')) . "' },
+						multiple: false
+					});
+					frame.on('select', function() {
+						var attachment = frame.state().get('selection').first().toJSON();
+						jQuery('#wu-import-zip-url').val(attachment.url);
+					});
+					frame.open();
+				});"
+			);
+
+			return;
+		}
+
 		// Multisite: hook is "sites_page_wu-site-export".
 		// Single-site (Tools menu): hook is "tools_page_wu-site-export".
 		$allowed_hooks = ['sites_page_wu-site-export', 'tools_page_wu-site-export'];
@@ -1365,13 +1401,19 @@ final class Site_Exporter {
 	/**
 	 * Handles the export site modal submission.
 	 *
+	 * On synchronous (non-background) exports, the response includes a
+	 * `download_url` key so the JS can immediately trigger a ZIP download
+	 * and close the modal. On background exports, a `redirect_url` is
+	 * returned to navigate back to the sites list with a status message.
+	 *
 	 * @since 2.5.0
 	 * @return void
 	 */
 	public function handle_export_site_modal(): void {
 
-		$site_id = wu_request('exporting_site', '');
-		$site    = wu_get_site($site_id);
+		$site_id    = wu_request('exporting_site', '');
+		$site       = wu_get_site($site_id);
+		$background = (bool) wu_request('background_run');
 
 		if (! $site) {
 			wp_send_json_error(new \WP_Error('invalid-site', __('Invalid site selected.', 'ultimate-multisite')));
@@ -1384,20 +1426,29 @@ final class Site_Exporter {
 				'themes'  => wu_request('include_themes'),
 				'uploads' => wu_request('include_uploads'),
 			],
-			wu_request('background_run')
+			$background
 		);
 
 		if (is_wp_error($export_result)) {
 			wp_send_json_error($export_result);
 		}
 
-		$message = wu_request('background_run')
-			? __('Export started in background...', 'ultimate-multisite')
-			: __('Export completed!', 'ultimate-multisite');
+		if (! $background && is_string($export_result)) {
+			/*
+			 * Synchronous export succeeded — the filename was returned.
+			 * Send a download_url so wubox.js can close the modal and
+			 * immediately trigger the ZIP download without a page redirect.
+			 */
+			wp_send_json_success(
+				[
+					'download_url' => wu_exporter_get_raw_download_url($export_result),
+				]
+			);
+		}
 
 		wp_send_json_success(
 			[
-				'redirect_url' => wu_network_admin_url('wp-ultimo-sites', ['updated' => $message]),
+				'redirect_url' => wu_network_admin_url('wp-ultimo-sites', ['updated' => __('Export started in background...', 'ultimate-multisite')]),
 			]
 		);
 	}
@@ -1463,26 +1514,14 @@ final class Site_Exporter {
 
 		$form->render();
 
-		// Add media uploader script
-		?>
-		<script>
-		jQuery(document).ready(function($) {
-			$('#wu-upload-zip-btn').on('click', function(e) {
-				e.preventDefault();
-				var frame = wp.media({
-					title: '<?php echo esc_js(__('Select or Upload ZIP File', 'ultimate-multisite')); ?>',
-					button: { text: '<?php echo esc_js(__('Use this file', 'ultimate-multisite')); ?>' },
-					multiple: false
-				});
-				frame.on('select', function() {
-					var attachment = frame.state().get('selection').first().toJSON();
-					$('#wu-import-zip-url').val(attachment.url);
-				});
-				frame.open();
-			});
-		});
-		</script>
-		<?php
+		/*
+		 * NOTE: do NOT add a <script> tag here.
+		 *
+		 * wubox loads modal content via fetch() and injects it with innerHTML,
+		 * which does not execute inline <script> tags. The click handler for
+		 * #wu-upload-zip-btn is registered via event delegation in
+		 * enqueue_wp_sites_scripts() on the parent page instead.
+		 */
 	}
 
 	/**
@@ -1981,7 +2020,7 @@ final class Site_Exporter {
 	 * @param int    $site_id The ID of the site being exported.
 	 * @param array  $options Export generation options.
 	 * @param string $hash The hash generated.
-	 * @return true|\WP_Error True on success, WP_Error on failure.
+	 * @return string|\WP_Error The export filename on success, WP_Error on failure.
 	 */
 	public function handle_site_export(int $site_id, array $options = [], string $hash = '') {
 
@@ -2038,7 +2077,7 @@ final class Site_Exporter {
 			wu_exporter_delete_transient("wu_pending_site_export_{$hash}");
 		}
 
-		return true;
+		return $export_name;
 	}
 
 	/**

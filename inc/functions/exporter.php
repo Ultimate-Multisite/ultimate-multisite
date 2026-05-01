@@ -16,12 +16,15 @@ defined('ABSPATH') || exit;
 /**
  * Exports a sub-site.
  *
+ * Returns the export filename string on synchronous success, `true` on
+ * asynchronous (background) success, or a WP_Error on failure.
+ *
  * @since 2.5.0
  *
  * @param int   $site_id The site ID.
  * @param array $options The flags on what to export.
  * @param bool  $async   If we should generate the export file asynchronously.
- * @return \WP_Error|true
+ * @return string|true|\WP_Error Filename on sync success, true on async success, WP_Error on failure.
  */
 function wu_exporter_export(int $site_id, array $options = [], bool $async = false) {
 
@@ -41,20 +44,19 @@ function wu_exporter_export(int $site_id, array $options = [], bool $async = fal
 			],
 			'site-exporter'
 		);
-	} else {
-		/*
-		 * For the synchronous path, call the exporter directly so errors can
-		 * be captured and returned to the caller. Using do_action_ref_array()
-		 * previously discarded the return value, making silent failures invisible.
-		 */
-		$result = \WP_Ultimo\Site_Exporter\Site_Exporter::get_instance()->handle_site_export($site_id, $options);
 
-		if (is_wp_error($result)) {
-			return $result;
-		}
+		return true;
 	}
 
-	return true;
+	/*
+	 * For the synchronous path, call the exporter directly so errors can
+	 * be captured and returned to the caller. Using do_action_ref_array()
+	 * previously discarded the return value, making silent failures invisible.
+	 *
+	 * On success, handle_site_export() returns the export filename string so
+	 * callers (e.g. the modal handler) can build an immediate download URL.
+	 */
+	return \WP_Ultimo\Site_Exporter\Site_Exporter::get_instance()->handle_site_export($site_id, $options);
 }
 
 /**
@@ -103,6 +105,10 @@ function wu_exporter_get_all_exports(): array {
 /**
  * Returns an authenticated download URL for an export ZIP file.
  *
+ * Returns an HTML-escaped URL (ampersands as &amp;) suitable for use in
+ * `href` attributes. For use in JavaScript/JSON contexts, call
+ * `wu_exporter_get_raw_download_url()` instead.
+ *
  * The URL routes through the WordPress admin, requires `manage_network`
  * capability, and includes a nonce. Export files are never served via
  * direct public URLs.
@@ -110,11 +116,29 @@ function wu_exporter_get_all_exports(): array {
  * @since 2.5.1
  *
  * @param string $filename The export filename (e.g. wu-site-export-2-2025-01-01-1735686000.zip).
- * @return string
+ * @return string HTML-escaped URL.
  */
 function wu_exporter_get_download_url(string $filename): string {
 
 	return \WP_Ultimo\Site_Exporter\Export_Download_Handler::download_url($filename);
+}
+
+/**
+ * Returns a raw (non-HTML-escaped) download URL for use in JSON or JS.
+ *
+ * Unlike `wu_exporter_get_download_url()`, this returns a URL with literal
+ * `&` separators so it can be safely embedded in `wp_send_json_success()`
+ * payloads and used directly as `window.location.href` or an anchor `href`
+ * in JavaScript without HTML-entity decoding.
+ *
+ * @since 2.5.1
+ *
+ * @param string $filename The export filename (e.g. wu-site-export-2-2025-01-01-1735686000.zip).
+ * @return string Raw URL (literal & separators).
+ */
+function wu_exporter_get_raw_download_url(string $filename): string {
+
+	return \WP_Ultimo\Site_Exporter\Export_Download_Handler::raw_download_url($filename);
 }
 
 /**

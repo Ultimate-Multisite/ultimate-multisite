@@ -254,6 +254,17 @@ const formSubmit = (form) => async (event) => {
       window[key].update();
     });
   }
+  if (typeof response.data.download_url === "string") {
+    blocked_form.unblock();
+    removeBox();
+    // Trigger the ZIP download without navigating away from the current page.
+    const a = document.createElement("a");
+    a.href = response.data.download_url;
+    a.setAttribute("download", "");
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
   if (typeof response.data.redirect_url === "string") {
     window.location.href = response.data.redirect_url;
   }
