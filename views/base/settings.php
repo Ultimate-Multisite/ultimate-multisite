@@ -86,7 +86,7 @@ defined('ABSPATH') || exit;
 		<style>
 		#wu-settings-search-box .selectize-dropdown {
 			width: max-content !important;
-			max-height: 70vh;
+			max-height: 70vh !important;
 		}
 		</style>
 

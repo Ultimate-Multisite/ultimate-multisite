@@ -330,9 +330,12 @@ class Ajax implements \WP_Ultimo\Interfaces\Singleton {
 			$section['fields'] = array_map(
 				function ($item) use ($section, $section_slug) {
 
-					$item['section'] = $section_slug;
+				$item['section'] = $section_slug;
 
-					$item['section_title'] = wu_get_isset($section, 'title', '');
+				// Normalise to string so array_filter never strips it and
+				// the JS template always receives a defined scalar value.
+				$raw_title              = wu_get_isset($section, 'title', '');
+				$item['section_title']  = is_scalar($raw_title) ? (string) $raw_title : '';
 
 					$item['url'] = wu_network_admin_url(
 						'wp-ultimo-settings',

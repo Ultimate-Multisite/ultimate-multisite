@@ -113,7 +113,7 @@ defined('ABSPATH') || exit;
 
 		<span class="wu-block">{{ title }}</span>
 
-		<small>{{ section_title }}</small>
+		<small>{{ typeof section_title !== 'undefined' ? section_title : '' }}</small>
 
 	</div>
 
