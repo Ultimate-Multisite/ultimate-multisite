@@ -154,11 +154,11 @@ For a private server with a dedicated IP, the webserver can be setup to serve th
 
 = Site screenshots show a Cloudflare challenge page instead of the actual site =
 
-Ultimate Multisite uses [WordPress.com mShots](https://mshots.wordpress.com/) to generate site screenshots. If your network is behind Cloudflare with Bot Fight Mode or similar protections enabled, the screenshot service may be blocked and return a Cloudflare challenge page instead of your site screenshot.
+Ultimate Multisite uses [Microlink](https://microlink.io/) as its primary screenshot provider and falls back to [thum.io](https://www.thum.io/) if Microlink is unavailable. If your network is behind Cloudflare with Bot Fight Mode or similar protections enabled, the screenshot service may be blocked and return a Cloudflare challenge page instead of your site screenshot.
 
-**Solution:** Create a Cloudflare WAF exception rule to allow the mShots crawler, or temporarily disable Bot Fight Mode for screenshot generation.
+**Solution:** Create a Cloudflare WAF exception rule to allow the screenshot service crawlers, or temporarily disable Bot Fight Mode for screenshot generation.
 
-**Note:** Screenshots require sites to be publicly accessible. Local development environments cannot generate screenshots regardless of Cloudflare settings.
+**Note:** Screenshots require sites to be publicly accessible. Local development environments cannot generate screenshots regardless of Cloudflare settings. Microlink's free tier allows 50 screenshot requests per day without an API key — this is generally sufficient since screenshots are only taken once per site at creation time.
 
 == Requirements ==
 
@@ -210,6 +210,19 @@ This plugin connects to external services to provide optional functionality. All
 - Processes PayPal payments
 - https://www.paypal.com/us/legalhub/privacy-full
 
+= Site Screenshots =
+
+**Microlink** (primary)
+- Generates site thumbnail screenshots using a headless browser
+- Sends only the target site URL; no user data is transmitted
+- Free tier: 50 requests per day without an API key
+- https://microlink.io/privacy
+
+**thum.io** (fallback)
+- Used as a fallback when Microlink is unavailable
+- Sends only the target site URL; no user data is transmitted
+- https://www.thum.io/
+
 = Hosting Integrations =
 
 Integrations may send site configuration data and API credentials only when explicitly enabled.
@@ -238,7 +251,7 @@ Version [2.9.1] - Released on 2026-05-01
 - Fix: Trial period now correctly applied for returning customers whose cancelled subscription had zero renewals
 - Fix: Site import no longer fails when the target URL has no http:// scheme
 - Fix: Export modal now downloads the ZIP file immediately on synchronous export
-- Fix: mShots screenshot capture now retries when the service returns a loading placeholder
+- Improved: Screenshot provider switched to Microlink (free, 1024x768 viewport) with thum.io fallback, replacing unreliable mShots
 
 Version [2.9.0] - Released on 2026-04-30
 - New: Single-site export and import added under Tools > Export & Import
