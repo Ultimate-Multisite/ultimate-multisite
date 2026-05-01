@@ -68,6 +68,7 @@
         "maxmind-db/reader": "^1.12"
     },
     "require-dev": {
+
         "composer/installers": "^1.9.0",
         "phpunit/phpunit": "^9.6.22",
         "yoast/phpunit-polyfills": "^1.1.3",
@@ -202,10 +203,7 @@
         "psr-4": {
             "Utils\\Rector\\": "utils/rector/src",
             "Utils\\Rector\\Tests\\": "utils/rector/tests"
-        },
-        "files": [
-            "vendor/php-stubs/wordpress-stubs/wordpress-stubs.php"
-        ]
+        }
     },
     "replace": {
         "paragonie/random_compat": "9.99.99"
