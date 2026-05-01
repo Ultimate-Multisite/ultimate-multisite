@@ -132,6 +132,18 @@ class Top_Admin_Nav_Menu {
 			],
 		];
 
+		// Checkout Forms
+		$checkout_forms = [
+			'id'     => 'wp-ultimo-checkout-forms',
+			'parent' => 'wp-ultimo',
+			'title'  => __('Checkout Forms', 'ultimate-multisite'),
+			'href'   => network_admin_url('admin.php?page=wp-ultimo-checkout-forms'),
+			'meta'   => [
+				'class' => 'wp-ultimo-top-menu',
+				'title' => __('Go to the checkout forms page', 'ultimate-multisite'),
+			],
+		];
+
 		$container = [
 			'id'     => 'wp-ultimo-settings-group',
 			'parent' => 'wp-ultimo',
@@ -183,6 +195,10 @@ class Top_Admin_Nav_Menu {
 
 		if (current_user_can('wu_read_discount_codes')) {
 			$wp_admin_bar->add_node($discount_codes);
+		}
+
+		if (current_user_can('wu_read_checkout_forms')) {
+			$wp_admin_bar->add_node($checkout_forms);
 		}
 
 		if (current_user_can('wu_read_settings')) {
