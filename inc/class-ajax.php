@@ -339,7 +339,7 @@ class Ajax implements \WP_Ultimo\Interfaces\Singleton {
 						[
 							'tab' => $section_slug,
 						]
-					) . '#' . $item['setting_id'];
+					) . '#wrapper-field-' . $item['setting_id'];
 
 					return $item;
 				},
