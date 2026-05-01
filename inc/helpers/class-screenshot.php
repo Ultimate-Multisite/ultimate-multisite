@@ -2,6 +2,9 @@
 /**
  * Takes screenshots from websites.
  *
+ * Uses Microlink as the primary screenshot provider (free, no API key, supports
+ * viewport dimensions) with thum.io as a fallback.
+ *
  * @package WP_Ultimo
  * @subpackage Helper
  * @since 2.0.0
@@ -22,57 +25,121 @@ defined('ABSPATH') || exit;
 class Screenshot {
 
 	/**
-	 * JPEG file signature (magic bytes). Every valid JPEG starts with these three bytes.
+	 * PNG file signature (magic bytes).
+	 *
+	 * @since 2.0.0
+	 */
+	const PNG_MAGIC = "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a";
+
+	/**
+	 * JPEG file signature (magic bytes).
 	 *
 	 * @since 2.0.11
 	 */
 	const JPEG_MAGIC = "\xFF\xD8\xFF";
 
 	/**
-	 * GIF file signature (magic bytes). mShots returns an 8.7 KB GIF "loading"
-	 * placeholder while the real screenshot is being generated.
+	 * Default viewport width for screenshots.
 	 *
 	 * @since 2.0.11
 	 */
-	const GIF_MAGIC = "\x47\x49\x46";
+	const DEFAULT_WIDTH = 1024;
 
 	/**
-	 * Returns the api link for the screenshot.
+	 * Default viewport height for screenshots.
 	 *
-	 * @since 2.0.0
+	 * @since 2.0.11
+	 */
+	const DEFAULT_HEIGHT = 768;
+
+	/**
+	 * Returns the primary (Microlink) API URL for a screenshot.
+	 *
+	 * Microlink returns a PNG image directly when the `embed=screenshot.url`
+	 * parameter is used. Free tier allows 50 requests/day without an API key.
+	 *
+	 * @since 2.0.11
 	 *
 	 * @param string $domain Original site domain.
+	 * @param int    $width  Viewport width.  Default 1024.
+	 * @param int    $height Viewport height. Default 768.
 	 */
-	public static function api_url($domain): string {
+	public static function api_url($domain, int $width = self::DEFAULT_WIDTH, int $height = self::DEFAULT_HEIGHT): string {
 
-		$url = 'https://s.wordpress.com/mshots/v1/' . rawurlencode('https://' . $domain) . '?w=1280';
+		$url = add_query_arg(
+			[
+				'url'              => 'https://' . $domain,
+				'screenshot'       => 'true',
+				'viewport.width'   => $width,
+				'viewport.height'  => $height,
+				'embed'            => 'screenshot.url',
+			],
+			'https://api.microlink.io/'
+		);
 
 		return apply_filters('wu_screenshot_api_url', $url, $domain);
 	}
 
 	/**
+	 * Returns the fallback (thum.io) API URL for a screenshot.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $domain Original site domain.
+	 * @param int    $width  Image width. Default 1024.
+	 * @param int    $height Crop height. Default 768.
+	 */
+	public static function fallback_api_url($domain, int $width = self::DEFAULT_WIDTH, int $height = self::DEFAULT_HEIGHT): string {
+
+		$url = 'https://image.thum.io/get/width/' . $width . '/crop/' . $height . '/noanimate/' . $domain;
+
+		/**
+		 * Filters the fallback screenshot API URL.
+		 *
+		 * @since 2.0.11
+		 *
+		 * @param string $url    The fallback API URL.
+		 * @param string $domain The site domain.
+		 */
+		return apply_filters('wu_screenshot_fallback_api_url', $url, $domain);
+	}
+
+	/**
 	 * Takes in a URL and creates it as an attachment.
+	 *
+	 * Tries the primary provider (Microlink) first, then falls back to thum.io
+	 * if the primary fails.
 	 *
 	 * @since 2.0.0
 	 *
 	 * @param string $url Image URL to download.
-	 * @return string|false
+	 * @return int|false Attachment ID on success, false on failure.
 	 */
 	public static function take_screenshot($url) {
 
-		$url = self::api_url($url);
+		$primary_api_url = self::api_url($url);
 
-		return self::save_image_from_url($url);
+		$result = self::save_image_from_url($primary_api_url);
+
+		if (false !== $result) {
+			return $result;
+		}
+
+		wu_log_add('screenshot-generator', __('Primary provider (Microlink) failed, trying fallback (thum.io).', 'ultimate-multisite'));
+
+		$fallback_api_url = self::fallback_api_url($url);
+
+		return self::save_image_from_url($fallback_api_url);
 	}
 
 	/**
 	 * Downloads the image from the URL and saves it as a WordPress attachment.
 	 *
-	 * Delegates the HTTP fetch (with mShots GIF-placeholder retry) to
-	 * {@see Screenshot::fetch_image_body()}.
+	 * Accepts both PNG and JPEG responses — the file extension and MIME type
+	 * are determined from the actual response body, not assumed.
 	 *
 	 * @since 2.0.0
-	 * @since 2.0.11 HTTP fetch extracted into fetch_image_body() with GIF retry logic.
+	 * @since 2.0.11 Accepts both PNG and JPEG; format auto-detected from response body.
 	 *
 	 * @param string $url Image URL to download.
 	 * @return int|false Attachment ID on success, false on failure.
@@ -82,13 +149,42 @@ class Screenshot {
 		// translators: %s is the API URL.
 		$log_prefix = sprintf(__('Downloading image from "%s":', 'ultimate-multisite'), $url) . ' ';
 
-		$body = self::fetch_image_body($url, $log_prefix);
+		$response = wp_remote_get(
+			$url,
+			[
+				'timeout'    => 50,
+				'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+			]
+		);
 
-		if (false === $body) {
+		if (is_wp_error($response)) {
+			wu_log_add('screenshot-generator', $log_prefix . $response->get_error_message(), LogLevel::ERROR);
+
 			return false;
 		}
 
-		$upload = wp_upload_bits('screenshot-' . gmdate('Y-m-d-H-i-s') . '.jpg', null, $body);
+		if (wp_remote_retrieve_response_code($response) !== 200) {
+			wu_log_add('screenshot-generator', $log_prefix . wp_remote_retrieve_response_message($response), LogLevel::ERROR);
+
+			return false;
+		}
+
+		$body = $response['body'];
+
+		/*
+		 * Detect image format from magic bytes.
+		 */
+		if (str_starts_with($body, self::PNG_MAGIC)) {
+			$extension = 'png';
+		} elseif (str_starts_with($body, self::JPEG_MAGIC)) {
+			$extension = 'jpg';
+		} else {
+			wu_log_add('screenshot-generator', $log_prefix . __('Result is not a valid image file (expected PNG or JPEG).', 'ultimate-multisite'), LogLevel::ERROR);
+
+			return false;
+		}
+
+		$upload = wp_upload_bits('screenshot-' . gmdate('Y-m-d-H-i-s') . '.' . $extension, null, $body);
 
 		if ( ! empty($upload['error'])) {
 			wu_log_add('screenshot-generator', $log_prefix . wp_json_encode($upload['error']), LogLevel::ERROR);
@@ -125,125 +221,5 @@ class Screenshot {
 		wu_log_add('screenshot-generator', $log_prefix . __('Success!', 'ultimate-multisite'));
 
 		return $attach_id;
-	}
-
-	/**
-	 * Fetches the raw image body from a URL, retrying when mShots returns a GIF placeholder.
-	 *
-	 * mShots (s.wordpress.com/mshots/v1/) returns an ~8.7 KB GIF "loading" placeholder on the
-	 * first request to a URL it has not recently cached; the real JPEG arrives 2–30 seconds
-	 * later on subsequent requests. This method detects the GIF signature and retries up to
-	 * five times with increasing wait intervals before giving up.
-	 *
-	 * HTTP errors (non-200 status or WP_Error) abort immediately without further retries.
-	 *
-	 * The retry schedule can be customised via the {@see 'wu_mshots_retry_delays'} filter.
-	 *
-	 * @since 2.0.11
-	 *
-	 * @param string $url        Image URL to fetch.
-	 * @param string $log_prefix Log message prefix for contextual logging.
-	 * @return string|false Raw JPEG image bytes on success, false on failure.
-	 */
-	protected static function fetch_image_body(string $url, string $log_prefix) {
-
-		/**
-		 * Filters the retry delay schedule (in seconds) used when mShots returns a GIF placeholder.
-		 *
-		 * The array defines wait times before each successive retry attempt.  The first HTTP
-		 * request is always immediate; each element adds one retry attempt after sleeping the
-		 * given number of seconds.  Pass an empty array to disable retries entirely.
-		 *
-		 * Example — shorten delays for unit tests:
-		 *   add_filter( 'wu_mshots_retry_delays', fn() => [ 0, 0 ] );
-		 *
-		 * @since 2.0.11
-		 *
-		 * @param int[] $delays Seconds to wait before each successive retry. Default [3, 5, 8, 12, 15].
-		 */
-		$retry_delays = (array) apply_filters('wu_mshots_retry_delays', [3, 5, 8, 12, 15]);
-
-		/*
-		 * Build the full attempt schedule: one immediate first attempt (delay 0) followed
-		 * by one attempt per entry in $retry_delays.
-		 *   e.g. [0, 3, 5, 8, 12, 15] → 6 total attempts.
-		 */
-		$all_delays  = array_merge([0], $retry_delays);
-		$total       = count($all_delays);
-
-		foreach ($all_delays as $attempt_index => $delay) {
-
-			if ($delay > 0) {
-				sleep($delay); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.sleep_sleep
-			}
-
-			$response = wp_remote_get(
-				$url,
-				[
-					'timeout'    => 50,
-					'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-				]
-			);
-
-			if (is_wp_error($response)) {
-				wu_log_add('screenshot-generator', $log_prefix . $response->get_error_message(), LogLevel::ERROR);
-
-				return false;
-			}
-
-			if (wp_remote_retrieve_response_code($response) !== 200) {
-				wu_log_add('screenshot-generator', $log_prefix . wp_remote_retrieve_response_message($response), LogLevel::ERROR);
-
-				return false;
-			}
-
-			$body = $response['body'];
-
-			/*
-			 * Success: the response is a JPEG — return the body for saving.
-			 */
-			if (str_starts_with($body, self::JPEG_MAGIC)) {
-				return $body;
-			}
-
-			/*
-			 * mShots GIF placeholder detected. Log and retry if attempts remain,
-			 * otherwise log the final failure and fall through to return false.
-			 */
-			if (str_starts_with($body, self::GIF_MAGIC)) {
-
-				$is_last_attempt = ($attempt_index + 1 >= $total);
-
-				if ($is_last_attempt) {
-					wu_log_add(
-						'screenshot-generator',
-						$log_prefix . __('mShots still returning loading placeholder after all retries.', 'ultimate-multisite'),
-						LogLevel::ERROR
-					);
-				} else {
-					wu_log_add(
-						'screenshot-generator',
-						$log_prefix . sprintf(
-							/* translators: 1: current attempt number, 2: total attempts, 3: seconds until next retry */
-							__('mShots loading placeholder on attempt %1$d of %2$d, retrying in %3$ds.', 'ultimate-multisite'),
-							$attempt_index + 1,
-							$total,
-							$retry_delays[$attempt_index]
-						)
-					);
-				}
-
-				continue;
-			}
-
-			/*
-			 * Unexpected body format — neither JPEG nor GIF. Do not retry.
-			 */
-			wu_log_add('screenshot-generator', $log_prefix . __('Result is not a JPEG file.', 'ultimate-multisite'), LogLevel::ERROR);
-
-			return false;
-		}
-
-		return false;
 	}
 }
