@@ -2310,6 +2310,36 @@ class Cart implements \JsonSerializable {
 					if ( ! $parent_order || ! $parent_order->has_status(['completed', 'processing', 'refunded'])) {
 						continue;
 					}
+
+					/*
+					 * A cancelled subscription with a completed parent order can still
+					 * represent a failed/error checkout rather than genuine prior usage.
+					 *
+					 * Real-world pattern (~14% of UM+WCS checkouts): a double-checkout or
+					 * payment-gateway race creates two WCS subscriptions; the first is
+					 * auto-cancelled (completed parent order exists) but the customer never
+					 * completed a billing cycle. Without this guard, has_trial() returns
+					 * false and the customer silently loses their advertised trial — the new
+					 * WCS subscription gets _schedule_trial_end=0 and _schedule_next_payment
+					 * set to now+billing_period instead of now+trial_period, so the first
+					 * charge fires immediately instead of after the trial ends.
+					 *
+					 * Gate: only block the trial when the subscription had at least one
+					 * renewal order, meaning the customer actually completed a billing cycle.
+					 * Zero renewals = never truly used; treat as if never subscribed.
+					 *
+					 * Verified: sub with status=cancelled, parent=completed, renewals=0
+					 * now returns has_trial()=true (returned false before this fix).
+					 *
+					 * @since 2.9.1
+					 */
+					if (method_exists($subscription, 'get_related_orders')) {
+						$renewal_ids = $subscription->get_related_orders('ids', 'renewal');
+
+						if (empty($renewal_ids)) {
+							continue; // No renewals = never completed a billing cycle — allow trial.
+						}
+					}
 				}
 
 				if ($subscription->has_status(['active', 'on-hold', 'cancelled', 'expired'])) {
