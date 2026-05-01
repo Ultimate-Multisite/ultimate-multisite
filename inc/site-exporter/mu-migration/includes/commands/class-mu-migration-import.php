@@ -651,7 +651,18 @@ class ImportCommand extends MUMigrationBase {
 	 * @return bool|false|int
 	 */
 	private function create_new_site($meta_data) {
-		$parsed_url = parse_url(esc_url($meta_data->url));
+		$url = $meta_data->url;
+
+		// esc_url() strips URLs whose scheme is not in the allowed list.
+		// Users (and the import modal form) often provide just a domain
+		// like "newsite.example.com" or "newsite.example.com:8080" without
+		// a scheme. Ensure a scheme is present so esc_url() and parse_url()
+		// both return a 'host' key.
+		if ( ! preg_match( '#^https?://#i', $url ) ) {
+			$url = 'http://' . $url;
+		}
+
+		$parsed_url = parse_url(esc_url($url));
 		$site_id    = get_main_network_id();
 
 		$parsed_url['path'] = isset($parsed_url['path']) ? $parsed_url['path'] : '/';
