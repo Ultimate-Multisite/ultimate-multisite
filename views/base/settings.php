@@ -68,7 +68,7 @@ defined('ABSPATH') || exit;
 
 		<div class="sm:wu-col-span-4 lg:wu-col-span-2">
 
-		<div class="wu-py-4 wu-relative">
+		<div id="wu-settings-search-box" class="wu-py-4 wu-relative">
 
 			<input
 			data-model='setting'
@@ -82,6 +82,13 @@ defined('ABSPATH') || exit;
 			>
 
 		</div>
+
+		<style>
+		#wu-settings-search-box .selectize-dropdown {
+			min-width: 500px;
+			max-height: 500px;
+		}
+		</style>
 
 		<div data-wu-app="settings_menu" data-state="{}">
 
