@@ -451,6 +451,25 @@ class ImportCommand extends MUMigrationBase {
 
 		$old_url = $site_meta_data->url;
 
+		/*
+		 * Normalise new_url once here so every downstream path receives a
+		 * consistent, scheme-qualified URL.  The import modal placeholder
+		 * shows bare-domain format ("newsite.example.com" / "newsite.example.com:8080"),
+		 * so users commonly omit the scheme.  esc_url() treats the leading
+		 * subdomain segment as the URL scheme when no "://" is present and
+		 * silently returns ""; parse_url() then returns no 'host' key, which
+		 * causes create_new_site() and the search-replace path to fail.
+		 *
+		 * Prepending "http://" once here means:
+		 *  - $site_meta_data->url passed to create_new_site() is scheme-qualified.
+		 *  - $tables_assoc_args['new_url'] = esc_url($assoc_args['new_url']) (line ~484)
+		 *    produces a well-formed URL instead of an empty string.
+		 *  - Helpers\parse_url_for_search_replace() receives a usable value.
+		 */
+		if ( ! empty($assoc_args['new_url']) && ! preg_match( '#^https?://#i', $assoc_args['new_url'] ) ) {
+			$assoc_args['new_url'] = 'http://' . $assoc_args['new_url'];
+		}
+
 		if ( ! empty($assoc_args['new_url']) ) {
 			$site_meta_data->url = $assoc_args['new_url'];
 		}
@@ -664,6 +683,23 @@ class ImportCommand extends MUMigrationBase {
 
 		$parsed_url = parse_url(esc_url($url));
 		$site_id    = get_main_network_id();
+
+		/*
+		 * parse_url() returns false for seriously malformed input, and omits
+		 * the 'host' key when the URL has no scheme (esc_url() silently strips
+		 * scheme-less URLs).  The caller normalises new_url before setting
+		 * $meta_data->url, so this should only trigger for unexpected inputs;
+		 * fail early with a clear message rather than an "Undefined index" notice.
+		 */
+		if ( empty($parsed_url['host']) ) {
+			WP_CLI::error(
+				sprintf(
+					/* translators: %s: the URL that could not be parsed */
+					__( 'Unable to parse host from URL "%s". Ensure new_url includes a valid scheme (e.g. http://newsite.example.com).', 'mu-migration' ),
+					$meta_data->url
+				)
+			);
+		}
 
 		$parsed_url['path'] = isset($parsed_url['path']) ? $parsed_url['path'] : '/';
 
