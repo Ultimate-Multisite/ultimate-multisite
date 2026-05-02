@@ -240,13 +240,24 @@ class Signup_Field_Site_Url extends Base_Signup_Field {
 			],
 			'available_domains'             => [
 				'order'             => 30,
+				'type'              => 'text',
+				'title'             => __('Available Domain', 'ultimate-multisite'),
+				'desc'              => __('The domain used as the base for auto-generated subsite URLs.', 'ultimate-multisite'),
+				'value'             => $current_site->domain,
+				'tab'               => 'content',
+				'wrapper_html_attr' => [
+					'v-show' => 'auto_generate_site_url',
+				],
+			],
+			'available_domains_multi'       => [
+				'order'             => 30,
 				'type'              => 'textarea',
 				'title'             => __('Available Domains', 'ultimate-multisite'),
-				'desc'              => __('Enter one domain option per line. When auto-generate is enabled, the first domain is used as the base for new subsites.', 'ultimate-multisite'),
+				'desc'              => __('Enter one domain option per line.', 'ultimate-multisite'),
 				'value'             => $current_site->domain . PHP_EOL,
 				'tab'               => 'content',
 				'wrapper_html_attr' => [
-					'v-show' => 'auto_generate_site_url || enable_domain_selection',
+					'v-show' => '!auto_generate_site_url && enable_domain_selection',
 				],
 				'html_attr'         => [
 					'rows' => 4,
@@ -305,16 +316,14 @@ class Signup_Field_Site_Url extends Base_Signup_Field {
 			 * on ultimateagentwp.ai should create subsites under
 			 * ultimateagentwp.ai, not under the network primary mygratis.site).
 			 */
-			if (! empty($attributes['available_domains'])) {
-				$domains = array_filter(array_map('trim', explode(PHP_EOL, $attributes['available_domains'])));
+			$domain = trim(wu_get_isset($attributes, 'available_domains', ''));
 
-				if (! empty($domains)) {
-					$checkout_fields['site_domain'] = [
-						'type'  => 'hidden',
-						'id'    => 'site_domain',
-						'value' => $domains[0],
-					];
-				}
+			if (! empty($domain)) {
+				$checkout_fields['site_domain'] = [
+					'type'  => 'hidden',
+					'id'    => 'site_domain',
+					'value' => $domain,
+				];
 			}
 
 			if (! empty($attributes['display_url_preview_with_auto'])) {
@@ -372,8 +381,8 @@ class Signup_Field_Site_Url extends Base_Signup_Field {
 			];
 		}
 
-		if ($attributes['available_domains'] && $attributes['enable_domain_selection']) {
-			$options = $this->get_domain_options($attributes['available_domains']);
+		if (! empty($attributes['available_domains_multi']) && $attributes['enable_domain_selection']) {
+			$options = $this->get_domain_options($attributes['available_domains_multi']);
 
 			$checkout_fields['site_domain'] = [
 				'name'              => __('Domain', 'ultimate-multisite'),
