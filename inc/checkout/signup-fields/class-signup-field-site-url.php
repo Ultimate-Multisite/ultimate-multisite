@@ -242,11 +242,11 @@ class Signup_Field_Site_Url extends Base_Signup_Field {
 				'order'             => 30,
 				'type'              => 'textarea',
 				'title'             => __('Available Domains', 'ultimate-multisite'),
-				'desc'              => __('Enter one domain option per line.', 'ultimate-multisite'),
+				'desc'              => __('Enter one domain option per line. When auto-generate is enabled, the first domain is used as the base for new subsites.', 'ultimate-multisite'),
 				'value'             => $current_site->domain . PHP_EOL,
 				'tab'               => 'content',
 				'wrapper_html_attr' => [
-					'v-show' => '!auto_generate_site_url && enable_domain_selection',
+					'v-show' => 'auto_generate_site_url || enable_domain_selection',
 				],
 				'html_attr'         => [
 					'rows' => 4,
@@ -295,6 +295,28 @@ class Signup_Field_Site_Url extends Base_Signup_Field {
 					'value' => 'autogenerate',
 				],
 			];
+
+			/*
+			 * When available_domains is configured, inject a hidden site_domain
+			 * field so the checkout session uses the correct base domain instead
+			 * of falling back to $current_site->domain (the network primary).
+			 *
+			 * This is critical for domain-mapped checkout sites (e.g. a checkout
+			 * on ultimateagentwp.ai should create subsites under
+			 * ultimateagentwp.ai, not under the network primary mygratis.site).
+			 */
+			if (! empty($attributes['available_domains'])) {
+				$domains = array_filter(array_map('trim', explode(PHP_EOL, $attributes['available_domains'])));
+
+				if (! empty($domains)) {
+					$checkout_fields['site_domain'] = [
+						'type'  => 'hidden',
+						'id'    => 'site_domain',
+						'value' => $domains[0],
+					];
+				}
+			}
+
 			if (! empty($attributes['display_url_preview_with_auto'])) {
 				$content = wu_get_template_contents('legacy/signup/steps/step-domain-url-preview');
 
