@@ -312,9 +312,6 @@ class Signup_Field_Site_Url extends Base_Signup_Field {
 			 * field so the checkout session uses the correct base domain instead
 			 * of falling back to $current_site->domain (the network primary).
 			 *
-			 * This is critical for domain-mapped checkout sites (e.g. a checkout
-			 * on ultimateagentwp.ai should create subsites under
-			 * ultimateagentwp.ai, not under the network primary mygratis.site).
 			 */
 			$domain = trim(wu_get_isset($attributes, 'available_domains', ''));
 
