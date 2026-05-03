@@ -57,6 +57,14 @@
     justify-content: center;
   }
 
+  /* Hide the ORDER column header on mobile.
+     WordPress's responsive CSS uses th.column-primary ~ th to hide headers
+     AFTER column-primary, but ORDER precedes it so needs explicit hiding.
+     The order number is still accessible via the toggle-row "Show more details" button. */
+  #wu-checkout-editor-app th.column-order {
+    display: none !important;
+  }
+
   /* Hide the move/drag column on mobile — drag reordering is impractical on touch */
   #wu-checkout-editor-app .column-move {
     display: none !important;

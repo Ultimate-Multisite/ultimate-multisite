@@ -15,7 +15,7 @@ defined('ABSPATH') || exit;
 
 		<tr>
 
-			<th v-for="(header_label, header) in headers" :key="header" scope="col" v-html="header_label" :class="'manage-column column-' + header"></th>
+			<th v-for="(header_label, header) in headers" :key="header" scope="col" v-html="header_label" :class="'manage-column column-' + header + (header === 'name' ? ' column-primary' : '')"></th>
 
 		</tr>
 
