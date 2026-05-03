@@ -37,3 +37,38 @@
 .wu-draggable-field-ghost .wu-placeholder-sortable {
   display: none;
 }
+
+/* Mobile responsive styles for checkout form editor */
+@media screen and (max-width: 782px) {
+
+  /* Stack the top header bar vertically */
+  #wu-checkout-editor-app .postbox > .wu-flex.wu-items-center {
+    flex-direction: column;
+    gap: 8px;
+  }
+  #wu-checkout-editor-app .postbox > .wu-flex.wu-items-center > div {
+    width: 100% !important;
+    text-align: center;
+  }
+  #wu-checkout-editor-app .postbox > .wu-flex.wu-items-center > div:last-child {
+    text-align: center;
+  }
+  #wu-checkout-editor-app .postbox > .wu-flex.wu-items-center > div ul {
+    justify-content: center;
+  }
+
+  /* Hide the move/drag column on mobile — drag reordering is impractical on touch */
+  #wu-checkout-editor-app .column-move {
+    display: none !important;
+  }
+
+  /* Ensure the step action buttons stack properly on mobile */
+  #wu-checkout-editor-app .wu-bg-gray-100 ul {
+    flex-direction: column;
+    align-items: center;
+  }
+  #wu-checkout-editor-app .wu-bg-gray-100 ul li {
+    margin-left: 0 !important;
+    margin-bottom: 4px;
+  }
+}
