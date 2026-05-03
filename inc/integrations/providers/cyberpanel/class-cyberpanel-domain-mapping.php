@@ -7,7 +7,8 @@
  *
  * Flow for custom domains:
  * 1. User maps a domain in Ultimate Multisite -> wu_add_domain fires
- * 2. This module calls CyberPanel createWebsite to add the domain
+ * 2. This module calls CyberPanel addChildDomain to add the domain
+ *    as a child of the master domain (sharing the same document root)
  * 3. Then issues SSL via CyberPanel's acme.sh/Let's Encrypt integration
  * 4. User points DNS A record to server IP -> domain works
  *
@@ -71,7 +72,7 @@ class CyberPanel_Domain_Mapping extends Base_Capability_Module implements Domain
 
 		return [
 			'will'     => [
-				__('Create a website on CyberPanel when a custom domain is mapped.', 'ultimate-multisite'),
+				__('Add a child domain on CyberPanel when a custom domain is mapped (shares the master domain document root).', 'ultimate-multisite'),
 				__('Automatically issue a Let\'s Encrypt SSL certificate for the mapped domain.', 'ultimate-multisite'),
 			],
 			'will_not' => [
@@ -109,8 +110,9 @@ class CyberPanel_Domain_Mapping extends Base_Capability_Module implements Domain
 	/**
 	 * Called when a new domain is mapped.
 	 *
-	 * Creates a website on CyberPanel for the mapped domain, then
-	 * explicitly issues an SSL certificate as a safety net.
+	 * Adds a child domain on CyberPanel under the master domain so the
+	 * mapped domain shares the same document root as the WordPress
+	 * multisite installation, then issues an SSL certificate.
 	 *
 	 * @since 2.6.0
 	 *
@@ -123,31 +125,31 @@ class CyberPanel_Domain_Mapping extends Base_Capability_Module implements Domain
 		$master_domain = $this->get_cyberpanel()->get_master_domain();
 
 		wu_log_add('integration-cyberpanel', sprintf(
-			'Adding domain: %s for site ID: %d (master: %s)',
+			'Adding child domain: %s for site ID: %d (master: %s)',
 			$domain,
 			$site_id,
 			$master_domain
 		));
 
-		// Step 1: Create website on CyberPanel for this domain
-		$result = $this->create_website($domain, $master_domain);
+		// Step 1: Add as child domain so it shares the master's document root
+		$result = $this->create_child_domain($domain, $master_domain);
 
 		if (is_wp_error($result)) {
-			wu_log_add('integration-cyberpanel', 'Failed to create website: ' . $result->get_error_message(), LogLevel::ERROR);
+			wu_log_add('integration-cyberpanel', 'Failed to add child domain: ' . $result->get_error_message(), LogLevel::ERROR);
 
 			return;
 		}
 
-		wu_log_add('integration-cyberpanel', sprintf('Website %s created, requesting SSL...', $domain));
+		wu_log_add('integration-cyberpanel', sprintf('Child domain %s added under %s, requesting SSL...', $domain, $master_domain));
 
 		// Step 2: Issue SSL certificate explicitly as a safety net
-		$this->issue_ssl($domain);
+		$this->issue_ssl($master_domain, $domain);
 	}
 
 	/**
 	 * Called when a mapped domain is removed.
 	 *
-	 * Deletes the website from CyberPanel.
+	 * Removes the child domain from CyberPanel.
 	 *
 	 * @since 2.6.0
 	 *
@@ -157,9 +159,11 @@ class CyberPanel_Domain_Mapping extends Base_Capability_Module implements Domain
 	 */
 	public function on_remove_domain(string $domain, int $site_id): void {
 
-		wu_log_add('integration-cyberpanel', sprintf('Removing domain: %s for site ID: %d', $domain, $site_id));
+		$master_domain = $this->get_cyberpanel()->get_master_domain();
 
-		$this->delete_website($domain);
+		wu_log_add('integration-cyberpanel', sprintf('Removing child domain: %s for site ID: %d (master: %s)', $domain, $site_id, $master_domain));
+
+		$this->delete_child_domain($domain, $master_domain);
 	}
 
 	/**
@@ -196,72 +200,72 @@ class CyberPanel_Domain_Mapping extends Base_Capability_Module implements Domain
 	}
 
 	/**
-	 * Create a website on CyberPanel for the mapped domain.
+	 * Add a child domain on CyberPanel under the master domain.
 	 *
-	 * CyberPanel's standard API does not have a dedicated child-domain
-	 * endpoint, so we use createWebsite to add the domain as a website
-	 * under the same server. The ssl=1 flag triggers automatic Let's
-	 * Encrypt issuance during creation.
+	 * Uses the addChildDomain endpoint so the mapped domain shares the
+	 * master domain's document root. This ensures requests to the child
+	 * domain are served by the existing WordPress multisite installation
+	 * instead of creating a separate, empty website.
 	 *
 	 * @since 2.6.0
 	 *
-	 * @param string $domain        The domain to add.
+	 * @param string $domain        The domain to add as a child.
 	 * @param string $master_domain The main CyberPanel website domain.
 	 * @return array|\WP_Error
 	 */
-	private function create_website(string $domain, string $master_domain) {
+	private function create_child_domain(string $domain, string $master_domain) {
 
 		$username = $this->get_cyberpanel()->get_credential('WU_CYBERPANEL_USERNAME');
 
-		return $this->get_cyberpanel()->api_call('createWebsite', [
-			'domainName'    => $domain,
-			'ownerEmail'    => 'ssl@' . $master_domain,
-			'packageName'   => 'Default',
-			'websiteOwner'  => $username,
-			'ownerPassword' => wp_generate_password(24, false), // Random, not used for login
-			'phpSelection'  => 'PHP 8.3',
-			'ssl'           => 1,
+		return $this->get_cyberpanel()->api_call('addChildDomain', [
+			'masterDomain' => $master_domain,
+			'childDomain'  => $domain,
+			'owner'        => $username,
+			'path'         => '/home/' . $master_domain . '/public_html',
 		]);
 	}
 
 	/**
-	 * Delete a website from CyberPanel.
+	 * Remove a child domain from CyberPanel.
 	 *
 	 * @since 2.6.0
 	 *
-	 * @param string $domain The domain to remove.
+	 * @param string $domain        The child domain to remove.
+	 * @param string $master_domain The main CyberPanel website domain.
 	 * @return array|\WP_Error
 	 */
-	private function delete_website(string $domain) {
+	private function delete_child_domain(string $domain, string $master_domain) {
 
-		return $this->get_cyberpanel()->api_call('deleteWebsite', [
-			'domainName' => $domain,
+		return $this->get_cyberpanel()->api_call('deleteChildDomain', [
+			'masterDomain' => $master_domain,
+			'childDomain'  => $domain,
 		]);
 	}
 
 	/**
-	 * Issue an SSL certificate for a domain via CyberPanel.
+	 * Issue an SSL certificate for a child domain via CyberPanel.
 	 *
-	 * CyberPanel uses acme.sh internally for Let's Encrypt. While
-	 * createWebsite with ssl=1 auto-issues SSL, we also trigger it
-	 * explicitly as a safety net.
+	 * CyberPanel uses acme.sh internally for Let's Encrypt. The SSL
+	 * issuance is triggered on the master domain which covers its
+	 * child domains.
 	 *
 	 * @since 2.6.0
 	 *
-	 * @param string $domain The domain to issue SSL for.
+	 * @param string $master_domain The master domain that owns the child.
+	 * @param string $child_domain  The child domain to issue SSL for.
 	 * @return void
 	 */
-	private function issue_ssl(string $domain): void {
+	private function issue_ssl(string $master_domain, string $child_domain): void {
 
 		$result = $this->get_cyberpanel()->api_call('submitWebsiteStatus', [
-			'websiteName' => $domain,
+			'websiteName' => $master_domain,
 			'state'       => 'issueSSL',
 		]);
 
 		if (is_wp_error($result)) {
-			wu_log_add('integration-cyberpanel', 'SSL issuance failed for ' . $domain . ': ' . $result->get_error_message(), LogLevel::ERROR);
+			wu_log_add('integration-cyberpanel', 'SSL issuance failed for ' . $child_domain . ': ' . $result->get_error_message(), LogLevel::ERROR);
 		} else {
-			wu_log_add('integration-cyberpanel', 'SSL issued for ' . $domain);
+			wu_log_add('integration-cyberpanel', 'SSL issued for ' . $child_domain . ' (via master: ' . $master_domain . ')');
 		}
 	}
 
