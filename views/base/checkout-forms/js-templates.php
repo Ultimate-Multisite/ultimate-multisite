@@ -116,7 +116,7 @@ defined('ABSPATH') || exit;
 					</span>
 				</div>
 
-				<button type="button" class="toggle-row">
+				<button type="button" class="toggle-row" @click.prevent="$event.target.closest('tr').classList.toggle('is-expanded')">
 					<span class="screen-reader-text">
 						<?php esc_html_e('Show more details', 'ultimate-multisite'); ?>
 					</span>
