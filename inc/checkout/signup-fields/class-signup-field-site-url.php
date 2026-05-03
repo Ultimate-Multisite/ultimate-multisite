@@ -311,10 +311,8 @@ class Signup_Field_Site_Url extends Base_Signup_Field {
 			 * When available_domains is configured, inject a hidden site_domain
 			 * field so the checkout session uses the correct base domain instead
 			 * of falling back to $current_site->domain (the network primary).
-			 *
 			 */
 			$domain = trim(wu_get_isset($attributes, 'available_domains', ''));
-
 			if (! empty($domain)) {
 				$checkout_fields['site_domain'] = [
 					'type'  => 'hidden',
@@ -425,10 +423,25 @@ class Signup_Field_Site_Url extends Base_Signup_Field {
 	 */
 	protected function get_domain_options($domain_options): array {
 
-		$domains = array_filter(explode(PHP_EOL, $domain_options));
-
-		$domains = array_map(fn($item) => trim((string) $item), $domains);
+		$domains = $this->parse_domains($domain_options);
 
 		return array_combine($domains, $domains);
+	}
+
+	/**
+	 * Parse a newline-separated string of domains into a trimmed, filtered array.
+	 *
+	 * Centralises the explode/trim/filter logic so both the auto-generate path
+	 * (to_fields_array) and the domain-selection path (get_domain_options) share
+	 * the same implementation.
+	 *
+	 * @since 2.9.2
+	 *
+	 * @param string $raw Raw newline-separated domain string.
+	 * @return array
+	 */
+	private function parse_domains($raw): array {
+
+		return array_values(array_filter(array_map('trim', explode(PHP_EOL, (string) $raw))));
 	}
 }
