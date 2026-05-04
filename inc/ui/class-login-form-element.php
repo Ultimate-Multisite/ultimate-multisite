@@ -375,6 +375,12 @@ class Login_Form_Element extends Base_Element {
 		// Default 'redirect' value takes the user back to the request URI.
 		$redirect_to = wu_get_current_url();
 
+		// For SSO flow, use return_url if present (overrides default redirect).
+		$return_url = wu_request('return_url', '');
+		if ( ! empty($return_url) ) {
+			$redirect_to = $return_url;
+		}
+
 		return [
 			'display_title'          => 1,
 			'title'                  => __('Login', 'ultimate-multisite'),
