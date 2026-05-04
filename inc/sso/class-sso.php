@@ -645,10 +645,26 @@ class SSO {
 			return;
 		}
 
-		// Check if this is an SSO flow (return_url param present)
+		// Check if this is an SSO flow (sso param or return_url param present)
+		$sso_action = $this->input('sso', '');
 		$return_url = $this->input('return_url', '');
 
+		// Also extract return_url from redirect_to if present
 		if ( empty($return_url) ) {
+			$redirect_to = $this->input('redirect_to', '');
+			if ( $redirect_to ) {
+				$parsed = wp_parse_url($redirect_to, PHP_URL_QUERY);
+				if ( $parsed ) {
+					parse_str($parsed, $query_params);
+					if ( ! empty($query_params['return_url']) ) {
+						$return_url = $query_params['return_url'];
+					}
+				}
+			}
+		}
+
+		// Check for SSO flow - either sso param or return_url pointing to different domain
+		if ( empty($sso_action) && empty($return_url) ) {
 			return;
 		}
 
