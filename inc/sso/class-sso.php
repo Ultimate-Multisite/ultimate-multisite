@@ -271,6 +271,9 @@ class SSO {
 		// Modify login form's hidden redirect_to field to point to subsite.
 		add_filter('login_form_defaults', [$this, 'modify_login_form_defaults']);
 
+		// If user is already logged in and visiting login page with SSO params, redirect to subsite.
+		add_action('login_init', [$this, 'handle_already_logged_in_on_login_page']);
+
 		/**
 		 * Adds the SSO scripts to the head of the front-end
 		 * and the login page to try to perform a SSO flow.
@@ -625,6 +628,46 @@ class SSO {
 		$hmac = hash_hmac('sha256', $payload, wp_salt('auth'));
 
 		return base64_encode($hmac . '::' . $payload);
+	}
+
+	/**
+	 * Handle case where user is already logged in on main site but visits login page.
+	 *
+	 * If visiting login page with SSO params and already logged in, redirect directly
+	 * to the subsite with a verification token.
+	 *
+	 * @since 2.0.11
+	 * @return void
+	 */
+	public function handle_already_logged_in_on_login_page(): void {
+		// Only process if user is logged in and we have SSO params
+		if ( ! is_user_logged_in() ) {
+			return;
+		}
+
+		// Check if this is an SSO flow (return_url param present)
+		$return_url = $this->input('return_url', '');
+
+		if ( empty($return_url) ) {
+			return;
+		}
+
+		// Get the subsite URL
+		$return_host = wp_parse_url($return_url, PHP_URL_HOST);
+		$main_host  = wp_parse_url(get_site_url(), PHP_URL_HOST);
+
+		// Only redirect if actually going to a different domain
+		if ( ! $return_host || $return_host === $main_host ) {
+			return;
+		}
+
+		// Generate token and redirect to subsite
+		$token = $this->generate_sso_token(get_current_user_id());
+
+		$redirect_url = add_query_arg('wu_sso_token', $token, $return_url);
+
+		wp_safe_redirect($redirect_url, 302, 'WP-Ultimo-SSO');
+		exit;
 	}
 
 	/**
