@@ -554,6 +554,11 @@ class SSO {
 	 */
 	public function handle_login_redirect($redirect_to, $requested_redirect_to, $user): string {
 
+		// Check if user is valid (WP_Error means login failed)
+		if ( ! $user || is_wp_error($user) ) {
+			return $redirect_to;
+		}
+
 		// Check if this is part of an SSO flow (we have return_url or already came from subsite).
 		$return_url = $this->input('return_url', '');
 
