@@ -565,8 +565,7 @@ class SSO {
 			return $redirect_to;
 		}
 
-
-		$return_url = $this->get_sso_return_url($redirect_to);
+		$return_url  = $this->get_sso_return_url($redirect_to);
 		$redirect_to = $this->get_sso_redirect_to($return_url);
 
 		if ( ! empty($return_url) ) {
@@ -583,7 +582,8 @@ class SSO {
 	 *
 	 * @since 2.0.11
 	 *
-	 * @param int $user_id User ID.
+	 * @param int    $user_id  User ID.
+	 * @param string $audience Token audience URL.
 	 * @return string The token.
 	 */
 	private function generate_sso_token(int $user_id, string $audience): string {
@@ -733,7 +733,7 @@ class SSO {
 		}
 
 		[$expected_hmac, $payload_json] = explode('::', $decoded, 2);
-		$hmac = hash_hmac('sha256', $payload_json, wp_salt('auth'));
+		$hmac                           = hash_hmac('sha256', $payload_json, wp_salt('auth'));
 
 		if ( ! hash_equals($hmac, $expected_hmac) ) {
 			return new \WP_Error('invalid_signature', __('Invalid SSO token signature.', 'ultimate-multisite'));
@@ -819,7 +819,7 @@ class SSO {
 			return;
 		}
 
-		// Generate token and redirect to subsite
+		// Generate token and redirect to subsite.
 		$redirect_url = $this->add_cookie_less_sso_token($return_url, get_current_user_id());
 		$redirect_url = add_query_arg('redirect_to', $this->get_sso_redirect_to($return_url), $redirect_url);
 
