@@ -239,6 +239,8 @@ class SSO {
 
 		add_action('plugins_loaded', [$this, 'handle_requests'], 0);
 
+		// Register both server and broker handlers.
+		// The handle_requests() method will route to the correct one based on is_main_site().
 		add_action('wu_sso_handle_sso_grant', [$this, 'handle_server']);
 
 		add_action('wu_sso_handle_sso', [$this, 'handle_broker'], 20);
@@ -262,6 +264,12 @@ class SSO {
 		add_action('init', [$this, 'convert_bearer_into_auth_cookies']);
 
 		add_filter('removable_query_args', [$this, 'add_sso_removable_query_args']);
+
+		// Handle redirect after login to send user back to subsite.
+		add_filter('login_redirect', [$this, 'handle_login_redirect'], 20, 3);
+
+		// Modify login form's hidden redirect_to field to point to subsite.
+		add_filter('login_form_defaults', [$this, 'modify_login_form_defaults']);
 
 		/**
 		 * Adds the SSO scripts to the head of the front-end
@@ -381,7 +389,8 @@ class SSO {
 
 			$redirect_url = add_query_arg(
 				[
-					$sso_path => 'login',
+					$sso_path     => 'login',
+					'return_url' => home_url(),
 				],
 				wp_login_url($redirect_after)
 			);
@@ -433,7 +442,13 @@ class SSO {
 
 		do_action('wu_sso_handle', $action, $return_type, $this);
 
-		do_action("wu_sso_handle_{$action}", $return_type, $this);
+		// Route to server or broker based on whether this is the main site.
+		// Main site acts as SSO server; subsites act as brokers.
+		if ( is_main_site() ) {
+			do_action("wu_sso_handle_{$action}_grant", $return_type, $this);
+		} else {
+			do_action("wu_sso_handle_{$action}", $return_type, $this);
+		}
 	}
 
 	/**
@@ -450,64 +465,131 @@ class SSO {
 
 		$server = $this->get_server();
 
-		try {
-			$verification_code = $server->attach();
-			$error             = null;
-		} catch (SSO_Session_Exception $e) {
-			if (is_ssl()) {
-				$verification_code = null;
-
-				$error = [
-					'code'    => $e->getCode(),
-					'message' => $e->getMessage(),
-				];
-			} else {
-				$verification_code = 'must-redirect';
-			}
-		} catch (\Throwable $th) {
-			$verification_code = null;
-
-			$error = [
-				'code'    => $th->getCode(),
-				'message' => $th->getMessage(),
-			];
+		// If user is already logged in on the main site, handle the SSO flow differently.
+		// They don't need to go through the broker attach flow - just redirect back with credentials.
+		if ( is_user_logged_in() ) {
+			$this->handle_main_site_logged_in_user($response_type);
+			return;
 		}
+
+		// If user is not logged in, we need to show the login page.
+		// The SSO script is already enqueued via wp_head/login_head hooks on broker sites,
+		// but not on the main site. We need to manually handle the redirect back
+		// after login by modifying the login form's redirect_to field.
 
 		if ('jsonp' === $response_type) {
 			header('Content-Type: application/javascript; charset=utf-8');
 
 			printf(
 				'wu.sso(%s, %d);',
-				wp_json_encode(
-					$error ?? [
-						'code'       => 200,
-						'verify'     => $verification_code,
-						'return_url' => $this->input('return_url', ''),
-					]
-				),
+				wp_json_encode([
+					'code'       => 200,
+					'verify'     => 'login-required',
+					'return_url' => $this->input('return_url', ''),
+				]),
 				200
 			);
 
 			status_header(200);
-
-			exit;
-		} elseif ('redirect' === $response_type) {
-			$args = [
-				'sso_verify' => $verification_code ?: 'invalid',
-			];
-
-			if (isset($error) && $error) {
-				$args['sso_error'] = $error['message'];
-			}
-
-			$return_url = remove_query_arg('sso_verify', sanitize_text_field(wp_unslash($_GET['return_url'] ?? ''))); // phpcs:ignore WordPress.Security.NonceVerification
-
-			$url = add_query_arg($args, $return_url);
-
-			wp_safe_redirect($url, 303, 'WP-Ultimo-SSO');
-
 			exit;
 		}
+
+		// Get the return URL (subsite) to redirect to after login.
+		// Just let WordPress show the login page - don't exit.
+		// The login form will have redirect_to parameter.
+	}
+
+	/**
+	 * Handle SSO request when user is already logged in on main site.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $response_type Redirect or jsonp.
+	 * @return void
+	 */
+	private function handle_main_site_logged_in_user($response_type): void {
+
+		$return_url = $this->input('return_url', get_home_url());
+		$redirect_to = $this->input('redirect_to', admin_url());
+
+		// If user is logged in, redirect back to the subsite with verification.
+		$verification_code = wp_create_nonce('wu_sso_' . get_current_user_id());
+
+		if ('jsonp' === $response_type) {
+			header('Content-Type: application/javascript; charset=utf-8');
+
+			printf(
+				'wu.sso(%s, %d);',
+				wp_json_encode([
+					'code'       => 200,
+					'verify'     => $verification_code,
+					'return_url' => $return_url,
+				]),
+				200
+			);
+
+			status_header(200);
+			exit;
+		}
+
+		// Redirect back to the subsite with verification code.
+		$url = add_query_arg([
+			'sso_verify'  => $verification_code,
+			'redirect_to'  => $redirect_to,
+		], $return_url);
+
+		wp_safe_redirect($url, 302, 'WP-Ultimo-SSO');
+		exit;
+	}
+
+	/**
+	 * Handle login redirect to send user back to subsite after SSO login.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $redirect_to The default redirect URL.
+	 * @param string $requested_redirect_to The redirect URL requested by user.
+	 * @param WP_User $user The user who logged in.
+	 * @return string The redirect URL.
+	 */
+	public function handle_login_redirect($redirect_to, $requested_redirect_to, $user): string {
+
+		// Check if this is part of an SSO flow (we have return_url or already came from subsite).
+		$return_url = $this->input('return_url', '');
+
+		if ( ! empty($return_url) ) {
+			// Get the subsite URL and redirect there.
+			return $return_url;
+		}
+
+		// If redirect_to points to a subsite (different domain), use that.
+		if ( ! empty($redirect_to) && wu_is_same_domain() === false ) {
+			return $redirect_to;
+		}
+
+		// Default: send to the subsite dashboard or main site admin.
+		return $redirect_to;
+	}
+
+	/**
+	 * Modify login form defaults to include return_url for SSO.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param array $defaults Default login form arguments.
+	 * @return array Modified defaults.
+	 */
+	public function modify_login_form_defaults($defaults): array {
+
+		// Check if this is part of an SSO flow.
+		$return_url = $this->input('return_url', '');
+
+		if ( ! empty($return_url) ) {
+			// Set redirect_to to the subsite URL.
+			$defaults['redirect_to'] = $return_url;
+		}
+
+		return $defaults;
 	}
 
 	/**
