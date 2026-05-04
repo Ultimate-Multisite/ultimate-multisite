@@ -100,33 +100,61 @@ class Site_Duplicator {
 			return false;
 		}
 
-		// FIX (KP) — Reset blog/cache context BEFORE override.
-		// MUCD_Data::copy_data() leaves $wpdb in template-blog context and
-		// pollutes email_exists() / user lookup caches. On consecutive
-		// override calls, this causes create_admin() to fail with
-		// "Could not create admin user". Forcing context reset prevents this.
+		/*
+		 * Capture the caller's blog ID so we can restore it on exit.
+		 *
+		 * MUCD_Data::copy_data() may leave $wpdb in template-blog context
+		 * without calling restore_current_blog(). On consecutive override
+		 * calls within the same request, this causes email_exists() to
+		 * query the wrong users table and create_admin() to fail.
+		 *
+		 * We unwind any stale switch state now, then restore the caller's
+		 * context in the cleanup epilogue.
+		 *
+		 * @since 2.4.0
+		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/pull/1082
+		 */
+		$caller_blog_id = get_current_blog_id();
+
 		while ( function_exists('ms_is_switched') && ms_is_switched() ) {
 			restore_current_blog();
 		}
+
 		wp_cache_flush();
 
-		// FIX (KP) — Pre-extend timeouts. Default 30s PHP-FPM timeout
-		// truncates copy_files for sites >50MB of media. 300s/512M is safe.
-		@set_time_limit(300);
-		@ini_set('memory_limit', '512M');
+		/*
+		 * Pre-extend timeouts for sites with large media directories.
+		 * Only raise the memory limit — never lower an existing higher value.
+		 *
+		 * @since 2.4.0
+		 */
+		@set_time_limit(300); // phpcs:ignore
+
+		$current_memory = wp_convert_hr_to_bytes((string) ini_get('memory_limit'));
+
+		if ( $current_memory > 0 && $current_memory < 512 * MB_IN_BYTES ) {
+			@ini_set('memory_limit', '512M'); // phpcs:ignore
+		}
+
 		if ( ! defined('WP_IMPORTING') ) {
 			define('WP_IMPORTING', true);
 		}
 
-		// FIX (KP) — Snapshot identity BEFORE process_duplication runs.
-		// copy_data() will overwrite blogname / admin_email / wp_blogmeta
-		// from the template. We need the originals to restore after.
+		/*
+		 * Snapshot identity options BEFORE process_duplication() runs.
+		 *
+		 * copy_data() will overwrite admin_email and blogdescription from
+		 * the template. blogname is already restored by process_duplication()
+		 * itself (line ~333); home/siteurl are included as a safety net.
+		 *
+		 * @since 2.4.0
+		 */
 		$identity_snapshot = [
-			'blogname'         => get_blog_option($to_site_id, 'blogname'),
-			'blogdescription'  => get_blog_option($to_site_id, 'blogdescription'),
-			'home'             => get_blog_option($to_site_id, 'home'),
-			'siteurl'          => get_blog_option($to_site_id, 'siteurl'),
-			'admin_email'      => get_blog_option($to_site_id, 'admin_email'),
+			'blogname'        => get_blog_option($to_site_id, 'blogname'),
+			'blogdescription' => get_blog_option($to_site_id, 'blogdescription'),
+			'home'            => get_blog_option($to_site_id, 'home'),
+			'siteurl'         => get_blog_option($to_site_id, 'siteurl'),
+			'admin_email'     => get_blog_option($to_site_id, 'admin_email'),
 		];
 
 		$to_site_membership_id = $to_site->get_membership_id();
@@ -138,10 +166,14 @@ class Site_Duplicator {
 		// Determine email - use customer email if available, otherwise use site admin email
 		$email = $to_site_customer ? $to_site_customer->get_email_address() : get_blog_option($to_site_id, 'admin_email');
 
-		// FIX (KP) — Pre-clean user cache for the customer's user_id so
-		// email_exists() returns the correct value during create_admin().
+		/*
+		 * Pre-clean user cache so email_exists() returns the correct
+		 * value during create_admin().
+		 *
+		 * @since 2.4.0
+		 */
 		if ( $to_site_customer && method_exists($to_site_customer, 'get_user_id') ) {
-			clean_user_cache( $to_site_customer->get_user_id() );
+			clean_user_cache($to_site_customer->get_user_id());
 		}
 
 		$args = wp_parse_args(
@@ -165,23 +197,25 @@ class Site_Duplicator {
 
 			wu_log_add('site-duplication', $message, LogLevel::ERROR);
 
+			self::cleanup_override_context($to_site_id, $to_site_customer, $caller_blog_id);
+
 			return false;
 		}
 
-		// FIX (KP) — Restore identity IMMEDIATELY after copy_data overwrote it.
-		// blogname is the customer's brand — must NEVER be replaced with template's name.
+		/*
+		 * Restore identity options immediately after copy_data overwrote them.
+		 *
+		 * Guard with false !== (not empty()) so intentionally blank values
+		 * like an empty blogdescription are preserved. get_blog_option()
+		 * returns false when the option does not exist.
+		 *
+		 * @since 2.4.0
+		 */
 		foreach ($identity_snapshot as $opt_key => $opt_val) {
-			if ( ! empty($opt_val) ) {
+			if ( false !== $opt_val ) {
 				update_blog_option($to_site_id, $opt_key, $opt_val);
 			}
 		}
-
-		// FIX (KP) — Force-copy Elementor Kit settings/data from source template.
-		// MUCD copies postmeta rows but Elementor's serialize/cache layer
-		// sometimes retains stale values, causing the customer site to render
-		// with previous template's colors. Explicit overwrite + CSS regen
-		// guarantees colors match the chosen template.
-		self::force_copy_elementor_kit($from_site_id, $to_site_id);
 
 		$new_to_site = wu_get_site($duplicate_site_id);
 
@@ -202,18 +236,13 @@ class Site_Duplicator {
 			$message = sprintf(__('Attempt to override site %1$d with data from site %2$d failed: %3$s', 'ultimate-multisite'), $from_site_id, $to_site_id, $saved->get_error_message());
 
 			wu_log_add('site-duplication', $message, LogLevel::ERROR);
+
+			self::cleanup_override_context($to_site_id, $to_site_customer, $caller_blog_id);
+
 			return false;
 		}
 
-		// FIX (KP) — Cleanup context AFTER override so next call starts clean.
-		while ( function_exists('ms_is_switched') && ms_is_switched() ) {
-			restore_current_blog();
-		}
-		wp_cache_flush();
-		clean_blog_cache($to_site_id);
-		if ( $to_site_customer && method_exists($to_site_customer, 'get_user_id') ) {
-			clean_user_cache( $to_site_customer->get_user_id() );
-		}
+		self::cleanup_override_context($to_site_id, $to_site_customer, $caller_blog_id);
 
 		// translators: %1$d is the ID of the site template used, and %2$d is the ID of the overriden site.
 		$message = sprintf(__('Attempt to override site %1$d with data from site %2$d successful.', 'ultimate-multisite'), $from_site_id, $duplicate_site_id);
@@ -224,83 +253,37 @@ class Site_Duplicator {
 	}
 
 	/**
-	 * FIX (KP) — Force-copy Elementor Kit settings + data from source template.
+	 * Clean up blog/cache context after an override_site() call.
 	 *
-	 * MUCD_Data::copy_data() copies postmeta rows but the Elementor Kit's
-	 * `_elementor_page_settings` and `_elementor_data` are sometimes stale
-	 * because Elementor uses internal caches. Forcing an explicit copy +
-	 * regen guarantees colors/typography match the chosen template.
+	 * Unwinds any lingering switch_to_blog() state left by MUCD, flushes
+	 * caches, and restores the caller's original blog context so
+	 * consecutive override calls and downstream code start clean.
 	 *
-	 * @since 2.x.x
+	 * @since 2.4.0
+	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/pull/1082
 	 *
-	 * @param int $from_template_id Source template blog_id (e.g. plantilla1.example.com)
-	 * @param int $to_blog_id       Target customer subsite blog_id
-	 * @return bool true if Kit copied and regen'd, false if skipped
+	 * @param int        $to_site_id      Target site blog ID (for cache invalidation).
+	 * @param object|false $to_site_customer Customer object or false.
+	 * @param int        $caller_blog_id  Blog ID captured at method entry.
 	 */
-	public static function force_copy_elementor_kit($from_template_id, $to_blog_id) {
-		$from_template_id = (int) $from_template_id;
-		$to_blog_id = (int) $to_blog_id;
+	private static function cleanup_override_context($to_site_id, $to_site_customer, $caller_blog_id) {
 
-		if ( $from_template_id <= 0 || $to_blog_id <= 1 ) {
-			return false;
-		}
-		if ( ! class_exists('\Elementor\Plugin') ) {
-			return false;
+		while ( function_exists('ms_is_switched') && ms_is_switched() ) {
+			restore_current_blog();
 		}
 
-		// Read Kit settings from source template.
-		switch_to_blog($from_template_id);
-		$src_kit_id = (int) get_option('elementor_active_kit');
-		$src_settings = $src_kit_id > 0 ? get_post_meta($src_kit_id, '_elementor_page_settings', true) : null;
-		$src_data = $src_kit_id > 0 ? get_post_meta($src_kit_id, '_elementor_data', true) : null;
-		$src_all_meta = $src_kit_id > 0 ? get_post_meta($src_kit_id) : [];
-		restore_current_blog();
+		wp_cache_flush();
+		clean_blog_cache($to_site_id);
 
-		if ( $src_kit_id <= 0 || empty($src_settings) ) {
-			return false;
+		if ( $to_site_customer && method_exists($to_site_customer, 'get_user_id') ) {
+			clean_user_cache($to_site_customer->get_user_id());
 		}
 
-		// Apply to target subsite.
-		switch_to_blog($to_blog_id);
-		$dst_kit_id = (int) get_option('elementor_active_kit');
-		if ( $dst_kit_id <= 0 ) {
-			update_option('elementor_active_kit', $src_kit_id);
-			$dst_kit_id = $src_kit_id;
+		// Restore the caller's blog context rather than leaving the
+		// request in the network root context.
+		if ( get_current_blog_id() !== $caller_blog_id ) {
+			switch_to_blog($caller_blog_id);
 		}
-
-		update_post_meta($dst_kit_id, '_elementor_page_settings', $src_settings);
-		if ( ! empty($src_data) ) {
-			update_post_meta($dst_kit_id, '_elementor_data', $src_data);
-		}
-
-		// Copy ALL _elementor_* and _wp_* meta from src Kit.
-		if ( ! empty($src_all_meta) ) {
-			foreach ($src_all_meta as $meta_key => $values) {
-				if ( strpos($meta_key, '_elementor') !== 0 && strpos($meta_key, '_wp_') !== 0 ) {
-					continue;
-				}
-				if ( in_array($meta_key, ['_elementor_page_settings', '_elementor_data'], true) ) {
-					continue;
-				}
-				delete_post_meta($dst_kit_id, $meta_key);
-				foreach ($values as $v) {
-					$unserialized = maybe_unserialize($v);
-					add_post_meta($dst_kit_id, $meta_key, $unserialized);
-				}
-			}
-		}
-
-		// Regenerate Kit CSS so frontend reflects new colors immediately.
-		if ( class_exists('\Elementor\Core\Files\CSS\Post') ) {
-			try {
-				(new \Elementor\Core\Files\CSS\Post($dst_kit_id))->update();
-			} catch (\Throwable $e) {
-				// Continue — caller should not fail because of CSS regen issues.
-			}
-		}
-
-		restore_current_blog();
-		return true;
 	}
 
 	/**
@@ -894,6 +877,22 @@ class Site_Duplicator {
 			// Clear compiled CSS so Elementor_Compat::regenerate_css() will
 			// rebuild with the correct Kit settings on wu_duplicate_site.
 			delete_post_meta($kit_id_to, '_elementor_css');
+
+			/*
+			 * Actively regenerate Kit CSS so the frontend reflects
+			 * new colors/typography immediately, without waiting for
+			 * Elementor's lazy rebuild on wu_duplicate_site.
+			 *
+			 * @since 2.4.0
+			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/pull/1082
+			 */
+			if ( class_exists('\Elementor\Core\Files\CSS\Post') ) {
+				try {
+					( new \Elementor\Core\Files\CSS\Post($kit_id_to) )->update();
+				} catch ( \Throwable $e ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
+					// Non-fatal — CSS will be rebuilt on next page load.
+				}
+			}
 		}
 
 		restore_current_blog();
