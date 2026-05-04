@@ -261,6 +261,8 @@ class SSO {
 		 */
 		add_filter('determine_current_user', [$this, 'determine_current_user'], 90);
 
+		add_action('init', [$this, 'handle_cookie_less_sso_token'], 4);
+
 		add_action('init', [$this, 'convert_bearer_into_auth_cookies']);
 
 		add_filter('removable_query_args', [$this, 'add_sso_removable_query_args']);
@@ -273,6 +275,9 @@ class SSO {
 
 		// If user is already logged in and visiting login page with SSO params, redirect to subsite.
 		add_action('login_init', [$this, 'handle_already_logged_in_on_login_page']);
+
+		// Custom login pages (e.g. /login/) do not fire login_init.
+		add_action('template_redirect', [$this, 'handle_already_logged_in_on_login_page'], 1);
 
 		/**
 		 * Adds the SSO scripts to the head of the front-end
@@ -393,9 +398,10 @@ class SSO {
 			$redirect_url = add_query_arg(
 				[
 					$sso_path     => 'login',
-					'return_url' => home_url(),
+					'return_url'  => home_url(),
+					'redirect_to' => $redirect_after ?: admin_url(),
 				],
-				wp_login_url($redirect_after)
+				wp_login_url()
 			);
 
 			wp_safe_redirect($redirect_url);
@@ -512,8 +518,8 @@ class SSO {
 	 */
 	private function handle_main_site_logged_in_user($response_type): void {
 
-		$return_url = $this->input('return_url', get_home_url());
-		$redirect_to = $this->input('redirect_to', admin_url());
+		$return_url  = $this->get_sso_return_url(get_home_url());
+		$redirect_to = $this->get_sso_redirect_to($return_url);
 
 		// If user is logged in, redirect back to the subsite with verification.
 		$verification_code = wp_create_nonce('wu_sso_' . get_current_user_id());
@@ -535,11 +541,8 @@ class SSO {
 			exit;
 		}
 
-		// Redirect back to the subsite with verification code.
-		$url = add_query_arg([
-			'sso_verify'  => $verification_code,
-			'redirect_to'  => $redirect_to,
-		], $return_url);
+		$url = $this->add_cookie_less_sso_token($return_url, get_current_user_id());
+		$url = add_query_arg('redirect_to', $redirect_to, $url);
 
 		wp_safe_redirect($url, 302, 'WP-Ultimo-SSO');
 		exit;
@@ -562,47 +565,13 @@ class SSO {
 			return $redirect_to;
 		}
 
-		// Check if this is part of an SSO flow (we have return_url or already came from subsite).
-		$return_url = $this->input('return_url', '');
 
-		// Also extract return_url from redirect_to if it's encoded as a query param
-		if ( empty($return_url) && ! empty($redirect_to) ) {
-			$parsed = wp_parse_url($redirect_to, PHP_URL_QUERY);
-			if ( $parsed ) {
-				parse_str($parsed, $query_params);
-				if ( ! empty($query_params['return_url']) ) {
-					$return_url = $query_params['return_url'];
-				}
-			}
-		}
+		$return_url = $this->get_sso_return_url($redirect_to);
+		$redirect_to = $this->get_sso_redirect_to($return_url);
 
 		if ( ! empty($return_url) ) {
-			// Check if redirecting to a different domain (needs magic token for cookie-less auth)
-			$return_host = wp_parse_url($return_url, PHP_URL_HOST);
-			$main_host   = wp_parse_url(get_site_url(), PHP_URL_HOST);
-
-			if ( $return_host && $return_host !== $main_host ) {
-				// Generate a time-limited magic token for cookie-less authentication
-				$token = $this->generate_sso_token($user->ID);
-				$return_url = add_query_arg('wu_sso_token', $token, $return_url);
-			}
-
-			// Get the subsite URL and redirect there.
-			return $return_url;
-		}
-
-		// If redirect_to points to a subsite (different domain), use that.
-		if ( ! empty($redirect_to) && wu_is_same_domain() === false ) {
-			// Generate magic token for cross-domain redirect
-			$redirect_host = wp_parse_url($redirect_to, PHP_URL_HOST);
-			$main_host   = wp_parse_url(get_site_url(), PHP_URL_HOST);
-
-			if ( $redirect_host && $redirect_host !== $main_host ) {
-				$token = $this->generate_sso_token($user->ID);
-				$redirect_to = add_query_arg('wu_sso_token', $token, $redirect_to);
-			}
-
-			return $redirect_to;
+			$url = $this->add_cookie_less_sso_token($return_url, $user->ID);
+			return add_query_arg('redirect_to', $redirect_to, $url);
 		}
 
 		// Default: send to the subsite dashboard or main site admin.
@@ -617,17 +586,209 @@ class SSO {
 	 * @param int $user_id User ID.
 	 * @return string The token.
 	 */
-	private function generate_sso_token(int $user_id): string {
-		// Token expires in 5 minutes
+	private function generate_sso_token(int $user_id, string $audience): string {
+		$audience_host = strtolower((string) wp_parse_url($audience, PHP_URL_HOST));
+
+		// Token expires in 5 minutes.
 		$expiry = time() + 300;
+		$jti    = wp_generate_uuid4();
+
 		$payload = wp_json_encode([
 			'user_id' => $user_id,
 			'exp'    => $expiry,
+			'aud'    => $audience_host,
+			'jti'    => $jti,
 		]);
-		// HMAC-signed token
+
+		set_site_transient('wu_sso_magic_' . $jti, 1, 300);
+
+		// HMAC-signed token.
 		$hmac = hash_hmac('sha256', $payload, wp_salt('auth'));
 
-		return base64_encode($hmac . '::' . $payload);
+		return rtrim(strtr(base64_encode($hmac . '::' . $payload), '+/', '-_'), '=');
+	}
+
+	/**
+	 * Add a cookie-less SSO token to a cross-domain URL.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $url     URL to decorate.
+	 * @param int    $user_id User ID.
+	 * @return string
+	 */
+	private function add_cookie_less_sso_token(string $url, int $user_id): string {
+		if ( ! $this->is_cross_domain_url($url) || $user_id <= 0 ) {
+			return $url;
+		}
+
+		return add_query_arg('wu_sso_token', $this->generate_sso_token($user_id, $url), $url);
+	}
+
+	/**
+	 * Return the SSO return URL from request params or a direct redirect_to URL.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $fallback Fallback URL.
+	 * @return string
+	 */
+	private function get_sso_return_url(string $fallback = ''): string {
+		$return_url  = $this->input('return_url', '');
+		$redirect_to = $this->input('redirect_to', $fallback);
+
+		if ( ! empty($redirect_to) && $this->is_cross_domain_url($redirect_to) ) {
+			return esc_url_raw($redirect_to);
+		}
+
+		if ( empty($return_url) && ! empty($redirect_to) ) {
+			$parsed = wp_parse_url($redirect_to, PHP_URL_QUERY);
+
+			if ( $parsed ) {
+				parse_str($parsed, $query_params);
+
+				if ( ! empty($query_params['return_url']) ) {
+					$return_url = $query_params['return_url'];
+				}
+			}
+		}
+
+		return esc_url_raw($return_url ?: $fallback);
+	}
+
+	/**
+	 * Resolve the final URL after the target site consumes the SSO token.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $return_url Return URL.
+	 * @return string
+	 */
+	private function get_sso_redirect_to(string $return_url): string {
+		$redirect_to = $this->input('redirect_to', '');
+
+		if ( ! empty($redirect_to) && $this->is_cross_domain_url($redirect_to) ) {
+			return esc_url_raw($redirect_to);
+		}
+
+		if ( ! empty($return_url) && $this->is_cross_domain_url($return_url) ) {
+			return esc_url_raw(rtrim($return_url, '/') . '/wp/wp-admin/');
+		}
+
+		return esc_url_raw($redirect_to ?: admin_url());
+	}
+
+	/**
+	 * Validate and consume a cookie-less SSO token on the target site.
+	 *
+	 * @since 2.0.11
+	 * @return void
+	 */
+	public function handle_cookie_less_sso_token(): void {
+		$token = $this->input('wu_sso_token', '');
+
+		if ( empty($token) ) {
+			return;
+		}
+
+		$result = $this->validate_sso_token($token);
+
+		if ( is_wp_error($result) ) {
+			wu_log_add(self::LOG_FILE_NAME, $result->get_error_message(), LogLevel::ERROR);
+			return;
+		}
+
+		$user_id = (int) $result['user_id'];
+
+		wp_set_auth_cookie($user_id, true);
+		wp_set_current_user($user_id);
+
+		$redirect_to = $this->input('redirect_to', admin_url());
+		$redirect_to = remove_query_arg('wu_sso_token', $redirect_to);
+
+		wp_safe_redirect(wp_validate_redirect($redirect_to, admin_url()), 302, 'WP-Ultimo-SSO');
+		exit;
+	}
+
+	/**
+	 * Validate a cookie-less SSO token.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $token Token to validate.
+	 * @return array|\WP_Error
+	 */
+	private function validate_sso_token(string $token) {
+		$token   = strtr($token, '-_', '+/');
+		$padding = strlen($token) % 4;
+
+		if ( $padding ) {
+			$token .= str_repeat('=', 4 - $padding);
+		}
+
+		$decoded = base64_decode($token, true);
+
+		if ( ! $decoded || false === strpos($decoded, '::') ) {
+			return new \WP_Error('invalid_token', __('Invalid SSO token format.', 'ultimate-multisite'));
+		}
+
+		[$expected_hmac, $payload_json] = explode('::', $decoded, 2);
+		$hmac = hash_hmac('sha256', $payload_json, wp_salt('auth'));
+
+		if ( ! hash_equals($hmac, $expected_hmac) ) {
+			return new \WP_Error('invalid_signature', __('Invalid SSO token signature.', 'ultimate-multisite'));
+		}
+
+		$payload = json_decode($payload_json, true);
+
+		if ( json_last_error() !== JSON_ERROR_NONE ) {
+			return new \WP_Error('invalid_payload', __('Invalid SSO token payload.', 'ultimate-multisite'));
+		}
+
+		if ( empty($payload['exp']) || $payload['exp'] < time() ) {
+			return new \WP_Error('token_expired', __('SSO token has expired.', 'ultimate-multisite'));
+		}
+
+		$current_host = strtolower((string) wp_parse_url(home_url(), PHP_URL_HOST));
+		$audience     = strtolower((string) ($payload['aud'] ?? ''));
+
+		if ( empty($audience) || $audience !== $current_host ) {
+			return new \WP_Error('invalid_audience', __('Invalid SSO token audience.', 'ultimate-multisite'));
+		}
+
+		$jti = (string) ($payload['jti'] ?? '');
+
+		if ( empty($jti) || ! get_site_transient('wu_sso_magic_' . $jti) ) {
+			return new \WP_Error('invalid_token', __('SSO token has already been used or is invalid.', 'ultimate-multisite'));
+		}
+
+		delete_site_transient('wu_sso_magic_' . $jti);
+
+		$user = get_user_by('id', (int) ($payload['user_id'] ?? 0));
+
+		if ( ! $user ) {
+			return new \WP_Error('user_not_found', __('User not found.', 'ultimate-multisite'));
+		}
+
+		return [
+			'user_id' => $user->ID,
+		];
+	}
+
+	/**
+	 * Check if a URL points to a different host from the main site.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $url URL to check.
+	 * @return bool
+	 */
+	private function is_cross_domain_url(string $url): bool {
+		$host      = strtolower((string) wp_parse_url($url, PHP_URL_HOST));
+		$main_host = strtolower((string) wp_parse_url(get_site_url(), PHP_URL_HOST));
+		$scheme    = strtolower((string) wp_parse_url($url, PHP_URL_SCHEME));
+
+		return ! empty($host) && ! empty($main_host) && $host !== $main_host && in_array($scheme, ['http', 'https'], true);
 	}
 
 	/**
@@ -647,40 +808,20 @@ class SSO {
 
 		// Check if this is an SSO flow (sso param or return_url param present)
 		$sso_action = $this->input('sso', '');
-		$return_url = $this->input('return_url', '');
-
-		// Also extract return_url from redirect_to if present
-		if ( empty($return_url) ) {
-			$redirect_to = $this->input('redirect_to', '');
-			if ( $redirect_to ) {
-				$parsed = wp_parse_url($redirect_to, PHP_URL_QUERY);
-				if ( $parsed ) {
-					parse_str($parsed, $query_params);
-					if ( ! empty($query_params['return_url']) ) {
-						$return_url = $query_params['return_url'];
-					}
-				}
-			}
-		}
+		$return_url = $this->get_sso_return_url();
 
 		// Check for SSO flow - either sso param or return_url pointing to different domain
 		if ( empty($sso_action) && empty($return_url) ) {
 			return;
 		}
 
-		// Get the subsite URL
-		$return_host = wp_parse_url($return_url, PHP_URL_HOST);
-		$main_host  = wp_parse_url(get_site_url(), PHP_URL_HOST);
-
-		// Only redirect if actually going to a different domain
-		if ( ! $return_host || $return_host === $main_host ) {
+		if ( ! $this->is_cross_domain_url($return_url) ) {
 			return;
 		}
 
 		// Generate token and redirect to subsite
-		$token = $this->generate_sso_token(get_current_user_id());
-
-		$redirect_url = add_query_arg('wu_sso_token', $token, $return_url);
+		$redirect_url = $this->add_cookie_less_sso_token($return_url, get_current_user_id());
+		$redirect_url = add_query_arg('redirect_to', $this->get_sso_redirect_to($return_url), $redirect_url);
 
 		wp_safe_redirect($redirect_url, 302, 'WP-Ultimo-SSO');
 		exit;
@@ -697,7 +838,7 @@ class SSO {
 	public function modify_login_form_defaults($defaults): array {
 
 		// Check if this is part of an SSO flow.
-		$return_url = $this->input('return_url', '');
+		$return_url = $this->get_sso_return_url();
 
 		if ( ! empty($return_url) ) {
 			// Set redirect_to to the subsite URL.
