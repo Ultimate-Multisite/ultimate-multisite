@@ -557,6 +557,17 @@ class SSO {
 		// Check if this is part of an SSO flow (we have return_url or already came from subsite).
 		$return_url = $this->input('return_url', '');
 
+		// Also extract return_url from redirect_to if it's encoded as a query param
+		if ( empty($return_url) && ! empty($redirect_to) ) {
+			$parsed = wp_parse_url($redirect_to, PHP_URL_QUERY);
+			if ( $parsed ) {
+				parse_str($parsed, $query_params);
+				if ( ! empty($query_params['return_url']) ) {
+					$return_url = $query_params['return_url'];
+				}
+			}
+		}
+
 		if ( ! empty($return_url) ) {
 			// Get the subsite URL and redirect there.
 			return $return_url;
