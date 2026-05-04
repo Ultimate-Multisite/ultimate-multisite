@@ -569,17 +569,57 @@ class SSO {
 		}
 
 		if ( ! empty($return_url) ) {
+			// Check if redirecting to a different domain (needs magic token for cookie-less auth)
+			$return_host = wp_parse_url($return_url, PHP_URL_HOST);
+			$main_host   = wp_parse_url(get_site_url(), PHP_URL_HOST);
+
+			if ( $return_host && $return_host !== $main_host ) {
+				// Generate a time-limited magic token for cookie-less authentication
+				$token = $this->generate_sso_token($user->ID);
+				$return_url = add_query_arg('wu_sso_token', $token, $return_url);
+			}
+
 			// Get the subsite URL and redirect there.
 			return $return_url;
 		}
 
 		// If redirect_to points to a subsite (different domain), use that.
 		if ( ! empty($redirect_to) && wu_is_same_domain() === false ) {
+			// Generate magic token for cross-domain redirect
+			$redirect_host = wp_parse_url($redirect_to, PHP_URL_HOST);
+			$main_host   = wp_parse_url(get_site_url(), PHP_URL_HOST);
+
+			if ( $redirect_host && $redirect_host !== $main_host ) {
+				$token = $this->generate_sso_token($user->ID);
+				$redirect_to = add_query_arg('wu_sso_token', $token, $redirect_to);
+			}
+
 			return $redirect_to;
 		}
 
 		// Default: send to the subsite dashboard or main site admin.
 		return $redirect_to;
+	}
+
+	/**
+	 * Generate a time-limited SSO token for cookie-less authentication.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param int $user_id User ID.
+	 * @return string The token.
+	 */
+	private function generate_sso_token(int $user_id): string {
+		// Token expires in 5 minutes
+		$expiry = time() + 300;
+		$payload = wp_json_encode([
+			'user_id' => $user_id,
+			'exp'    => $expiry,
+		]);
+		// HMAC-signed token
+		$hmac = hash_hmac('sha256', $payload, wp_salt('auth'));
+
+		return base64_encode($hmac . '::' . $payload);
 	}
 
 	/**
