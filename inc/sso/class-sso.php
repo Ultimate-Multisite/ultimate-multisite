@@ -398,9 +398,10 @@ class SSO {
 			$redirect_url = add_query_arg(
 				[
 					$sso_path     => 'login',
-					'return_url' => home_url(),
+					'return_url'  => home_url(),
+					'redirect_to' => $redirect_after ?: admin_url(),
 				],
-				wp_login_url($redirect_after)
+				wp_login_url()
 			);
 
 			wp_safe_redirect($redirect_url);
@@ -517,8 +518,8 @@ class SSO {
 	 */
 	private function handle_main_site_logged_in_user($response_type): void {
 
-		$return_url = $this->get_sso_return_url(get_home_url());
-		$redirect_to = $this->input('redirect_to', admin_url());
+		$return_url  = $this->get_sso_return_url(get_home_url());
+		$redirect_to = $this->get_sso_redirect_to($return_url);
 
 		// If user is logged in, redirect back to the subsite with verification.
 		$verification_code = wp_create_nonce('wu_sso_' . get_current_user_id());
@@ -564,10 +565,12 @@ class SSO {
 			return $redirect_to;
 		}
 
-		$return_url = $this->get_sso_return_url($redirect_to);
+		$return_url  = $this->get_sso_return_url($redirect_to);
+		$redirect_to = $this->get_sso_redirect_to($return_url);
 
 		if ( ! empty($return_url) ) {
-			return $this->add_cookie_less_sso_token($return_url, $user->ID);
+			$url = $this->add_cookie_less_sso_token($return_url, $user->ID);
+			return add_query_arg('redirect_to', $redirect_to, $url);
 		}
 
 		// Default: send to the subsite dashboard or main site admin.
@@ -654,6 +657,28 @@ class SSO {
 	}
 
 	/**
+	 * Resolve the final URL after the target site consumes the SSO token.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $return_url Return URL.
+	 * @return string
+	 */
+	private function get_sso_redirect_to(string $return_url): string {
+		$redirect_to = $this->input('redirect_to', '');
+
+		if ( ! empty($redirect_to) && $this->is_cross_domain_url($redirect_to) ) {
+			return esc_url_raw($redirect_to);
+		}
+
+		if ( ! empty($return_url) && $this->is_cross_domain_url($return_url) ) {
+			return esc_url_raw(rtrim($return_url, '/') . '/wp/wp-admin/');
+		}
+
+		return esc_url_raw($redirect_to ?: admin_url());
+	}
+
+	/**
 	 * Validate and consume a cookie-less SSO token on the target site.
 	 *
 	 * @since 2.0.11
@@ -708,7 +733,7 @@ class SSO {
 		}
 
 		[$expected_hmac, $payload_json] = explode('::', $decoded, 2);
-		$hmac                          = hash_hmac('sha256', $payload_json, wp_salt('auth'));
+		$hmac                           = hash_hmac('sha256', $payload_json, wp_salt('auth'));
 
 		if ( ! hash_equals($hmac, $expected_hmac) ) {
 			return new \WP_Error('invalid_signature', __('Invalid SSO token signature.', 'ultimate-multisite'));
@@ -796,6 +821,7 @@ class SSO {
 
 		// Generate token and redirect to subsite.
 		$redirect_url = $this->add_cookie_less_sso_token($return_url, get_current_user_id());
+		$redirect_url = add_query_arg('redirect_to', $this->get_sso_redirect_to($return_url), $redirect_url);
 
 		wp_safe_redirect($redirect_url, 302, 'WP-Ultimo-SSO');
 		exit;
