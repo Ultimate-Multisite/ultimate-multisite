@@ -189,6 +189,40 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test identity option restoration preserves intentionally blank values.
+	 */
+	public function test_restore_identity_options_preserves_blank_values() {
+		$target_site_id = self::factory()->blog->create(
+			[
+				'domain' => 'blank-description.example.com',
+				'path'   => '/',
+				'title'  => 'Blank Description',
+			]
+		);
+
+		update_blog_option($target_site_id, 'blogdescription', 'Template description');
+		update_blog_option($target_site_id, 'admin_email', 'template@example.com');
+
+		$method = new \ReflectionMethod(Site_Duplicator::class, 'restore_identity_options');
+		$method->setAccessible(true);
+		$method->invoke(
+			null,
+			$target_site_id,
+			[
+				'blogdescription' => '',
+				'admin_email'     => false,
+				'blogname'        => null,
+			]
+		);
+
+		$this->assertSame('', get_blog_option($target_site_id, 'blogdescription'));
+		$this->assertSame('template@example.com', get_blog_option($target_site_id, 'admin_email'));
+		$this->assertSame('Blank Description', get_blog_option($target_site_id, 'blogname'));
+
+		wpmu_delete_blog($target_site_id, true);
+	}
+
+	/**
 	 * Test override with invalid target site.
 	 */
 	public function test_override_invalid_target_site() {
