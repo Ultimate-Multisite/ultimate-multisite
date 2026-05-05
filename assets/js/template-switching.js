@@ -151,6 +151,27 @@
 					}, function(results) {
 
 						/*
+             * Defensive guard — if the server responds with an empty,
+             * non-JSON, or otherwise malformed body (which previously
+             * happened on the override_site() failure path), treat it
+             * as a generic failure so the customer is not left staring
+             * at the loading spinner forever.
+             */
+						if ( ! results || typeof results !== 'object') {
+
+							that.unblock();
+
+							that.confirm_switch = false;
+
+							that.ready = false;
+
+							wu_ajax_error('An error occurred while switching templates.');
+
+							return;
+
+						}
+
+						/*
              * Handle error responses.
              */
 						if (results.success === false) {
@@ -173,20 +194,37 @@
 
 							}
 
-						wu_ajax_error(errorMessage);
+							wu_ajax_error(errorMessage);
 
-						return;
+							return;
 
 						}
 
 						/*
-             * Redirect of we get a redirect URL back.
+             * Redirect if we get a redirect URL back. Guard against
+             * a missing or malformed data payload so a server that
+             * answers success without a redirect URL does not throw
+             * inside this callback (which would silently leave the
+             * page-blocking spinner active).
              */
-						if (typeof results.data.redirect_url === 'string') {
+						if (results.data && typeof results.data.redirect_url === 'string') {
 
 							window.location.href = results.data.redirect_url;
 
+							return;
+
 						} // end if;
+
+						/*
+             * Success without a redirect URL — unblock and reset
+             * state so the customer can try again instead of being
+             * stuck on a loading overlay.
+             */
+						that.unblock();
+
+						that.confirm_switch = false;
+
+						that.ready = false;
 
 					}, function() {
 
@@ -199,7 +237,7 @@
 
 						that.ready = false;
 
-					wu_ajax_error(null);
+						wu_ajax_error(null);
 
 					});
 

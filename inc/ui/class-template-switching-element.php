@@ -272,6 +272,15 @@ class Template_Switching_Element extends Base_Element {
 			$this->site = wu_get_current_site();
 		}
 
+		// Defensive guard — wu_get_current_site() can return false when the request
+		// runs outside a customer-site context. Without this, dereferencing
+		// $this->site below would emit no JSON body and the AJAX caller would
+		// hang on its loading spinner.
+		if ( ! $this->site || ! $this->site->get_id()) {
+			wp_send_json_error(new \WP_Error('site_context_missing', __('Could not determine which site to switch. Please reload the page and try again.', 'ultimate-multisite')));
+			return;
+		}
+
 		$template_id = (int) wu_request('template_id', '');
 
 		// false means MODE_DEFAULT (no restriction) — all templates are allowed.
@@ -279,6 +288,7 @@ class Template_Switching_Element extends Base_Element {
 
 		if (false !== $available_templates && ! in_array($template_id, array_map('intval', $available_templates), true)) {
 			wp_send_json_error(new \WP_Error('not_authorized', __('You are not allowed to use this template.', 'ultimate-multisite')));
+			return;
 		}
 
 		if ( ! $template_id) {
@@ -288,28 +298,44 @@ class Template_Switching_Element extends Base_Element {
 
 		$switch = \WP_Ultimo\Helpers\Site_Duplicator::override_site($template_id, $this->site->get_id());
 
+		if ( ! $switch) {
+			/*
+			 * Site_Duplicator::override_site() returns false on any failure
+			 * (user cap missing, copy_data error, Elementor Kit copy failure,
+			 * etc.) without surfacing a reason. Without an explicit error
+			 * response here, the AJAX call would close with an empty body,
+			 * the JS success handler would throw on results.data.redirect_url,
+			 * and the customer would see an indefinite loading spinner.
+			 */
+			wp_send_json_error(new \WP_Error('switch_failed', __('Could not switch the template. Please contact your network administrator.', 'ultimate-multisite')));
+			return;
+		}
+
 		/**
-		 * Allow plugin developers to hook functions after a user or super admin switches the site template
+		 * Allow plugin developers to hook functions after a user or super admin switches the site template.
+		 *
+		 * Only fires on a successful switch — previously this fired even on failure,
+		 * which caused hooked code (cache clears, notifications, audit logs) to run
+		 * for switches that did not actually happen.
 		 *
 		 * @since 1.9.8
 		 * @param int $id Site ID
 		 * @return void
 		 */
 		do_action('wu_after_switch_template', $this->site->get_id());
+
 		$referer = isset($_SERVER['HTTP_REFERER']) ? sanitize_url(wp_unslash($_SERVER['HTTP_REFERER'])) : '';
 
-		if ($switch) {
-			wp_send_json_success(
-				[
-					'redirect_url' => add_query_arg(
-						[
-							'updated' => 1,
-						],
-						$referer
-					),
-				]
-			);
-		}
+		wp_send_json_success(
+			[
+				'redirect_url' => add_query_arg(
+					[
+						'updated' => 1,
+					],
+					$referer
+				),
+			]
+		);
 	}
 
 	/**
