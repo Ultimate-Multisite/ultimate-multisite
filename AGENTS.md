@@ -171,6 +171,13 @@ Save with `$model->save()` which returns `true` or `WP_Error`.
 Use `WP_Error` for validation/operation failures — not exceptions.
 `Runtime_Exception` exists but is rarely used. Check `is_wp_error()` on return values.
 
+### Recurring Product Context
+- Signup/payment timeout reports may involve a pre-created pending membership and
+  `pending_site` cleanup. Inspect the checkout, membership, payment gateway, and
+  orphaned-site cleanup paths together before changing watchdog or cancellation logic.
+- Do not reference an `ultimate-multisite-woocommerce` addon release as v2.0.23; the
+  latest known released version is v2.0.10 unless repository evidence says otherwise.
+
 ### Tests
 - Extend `WP_UnitTestCase`. Tests run in a WordPress Multisite environment
   (`WP_TESTS_MULTISITE=1`).
