@@ -625,16 +625,21 @@ class Domain_Mapping {
 		// wp_parse_url not available because this happens very early in the WP loading process.
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
 		$domain_base = parse_url($url, PHP_URL_HOST);
-		$domain      = rtrim($domain_base . '/' . $path, '/');
-		$regex       = '#^(\w+://)' . preg_quote($domain, '#') . '#i';
+		$domain      = preg_quote($domain_base, '#') . '(?::\d+)?';
+
+		if ('/' !== $path) {
+			$domain = rtrim($domain . '/' . preg_quote(ltrim($path, '/'), '#'), '/');
+		}
+
+		$regex       = '#^(\w+://)' . $domain . '#i';
 		$mangled     = preg_replace($regex, '${1}' . $current_mapping->get_domain(), $url);
 
 		/*
 		 * Another try if we don't need to deal with subdirectory.
 		 */
 		if ($mangled === $url && $this->current_mapping !== $current_mapping) {
-			$domain  = rtrim($domain_base, '/');
-			$regex   = '#^(\w+://)' . preg_quote($domain, '#') . '#i';
+			$domain  = preg_quote($domain_base, '#') . '(?::\d+)?';
+			$regex   = '#^(\w+://)' . $domain . '#i';
 			$mangled = preg_replace($regex, '${1}' . $current_mapping->get_domain(), $url);
 		}
 
