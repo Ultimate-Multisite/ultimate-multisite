@@ -485,6 +485,65 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->domain_mapping->current_mapping = null;
 	}
 
+	/**
+	 * Test replace_url with null URL returns null without emitting deprecations.
+	 *
+	 * WordPress filters such as `home_url` can occasionally pass null values
+	 * to filter callbacks. PHP 8.1+ deprecates passing null to internal string
+	 * functions like preg_quote() / parse_url(), so the method must short-circuit
+	 * before reaching them.
+	 */
+	public function test_replace_url_null_url_returns_null(): void {
+
+		$blog_id = get_current_blog_id();
+
+		$mapping = new Domain();
+		$mapping->set_domain('mapped.example.com');
+		$mapping->set_blog_id($blog_id);
+		$mapping->set_active(true);
+
+		$result = $this->domain_mapping->replace_url(null, $mapping);
+
+		$this->assertNull($result);
+	}
+
+	/**
+	 * Test replace_url with empty string returns empty string.
+	 */
+	public function test_replace_url_empty_url_returns_empty(): void {
+
+		$blog_id = get_current_blog_id();
+
+		$mapping = new Domain();
+		$mapping->set_domain('mapped.example.com');
+		$mapping->set_blog_id($blog_id);
+		$mapping->set_active(true);
+
+		$result = $this->domain_mapping->replace_url('', $mapping);
+
+		$this->assertSame('', $result);
+	}
+
+	/**
+	 * Test replace_url with a host-less (relative) URL returns it unchanged.
+	 *
+	 * parse_url('/foo', PHP_URL_HOST) returns null. Without a host guard,
+	 * preg_quote(null, '#') triggers a PHP 8.1 deprecation notice.
+	 */
+	public function test_replace_url_relative_url_returns_original(): void {
+
+		$blog_id = get_current_blog_id();
+
+		$mapping = new Domain();
+		$mapping->set_domain('mapped.example.com');
+		$mapping->set_blog_id($blog_id);
+		$mapping->set_active(true);
+
+		$result = $this->domain_mapping->replace_url('/relative/path', $mapping);
+
+		$this->assertSame('/relative/path', $result);
+	}
+
 	// ----------------------------------------------------------------
 	// mangle_url
 	// ----------------------------------------------------------------

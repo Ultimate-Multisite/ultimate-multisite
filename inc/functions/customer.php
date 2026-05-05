@@ -148,8 +148,11 @@ function wu_create_customer($customer_data) {
 	 * operate on the same normalized value. Without this, subtle
 	 * format differences (e.g. trailing whitespace) can cause
 	 * get_user_by() to miss an existing user and create a duplicate.
+	 *
+	 * Cast to string first — `wp_parse_args` defaults `email` to `false`,
+	 * and PHP 8.1+ deprecates passing non-strings to sanitize_email().
 	 */
-	if ($customer_data['email']) {
+	if (! empty($customer_data['email']) && is_string($customer_data['email'])) {
 		$customer_data['email'] = sanitize_email($customer_data['email']);
 	}
 
@@ -166,7 +169,7 @@ function wu_create_customer($customer_data) {
 			$sanitized_username = strtolower($sanitized_username);
 		}
 
-		$customer_data['email'] = sanitize_email($customer_data['email']);
+		$customer_data['email'] = is_string($customer_data['email']) ? sanitize_email($customer_data['email']) : '';
 		if (! is_email($customer_data['email'])) {
 			return new \WP_Error(
 				'invalid_email',
