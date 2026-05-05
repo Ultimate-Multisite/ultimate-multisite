@@ -124,6 +124,9 @@ class Template_Switching_Element extends Base_Element {
 			'wu_template_switching_params',
 			[
 				'ajaxurl' => wu_ajax_url(),
+				'i18n'    => [
+					'reset_confirm' => __('Re-apply your current template? This will overwrite your site content with a fresh copy of the template. This cannot be undone.', 'ultimate-multisite'),
+				],
 			]
 		);
 
@@ -399,6 +402,35 @@ class Template_Switching_Element extends Base_Element {
 				'desc'              => $desc,
 				'wrapper_html_attr' => [
 					'v-show'  => 'template_id == original_template_id',
+					'v-cloak' => '1',
+				],
+			];
+
+			/*
+			 * "Reset current template" — re-applies the customer's currently
+			 * assigned template, refreshing the site from the source template.
+			 * Useful when the source template has been updated, or when the
+			 * customer wants to discard their customisations and start over
+			 * without picking a different design.
+			 *
+			 * Only shows when the site is actually on a template (original_template_id > 0).
+			 * Sites created without a template (original_template_id == 0) have
+			 * nothing to reset to.
+			 */
+			// Confirmation text is provided to JS via wp_localize_script (see register_scripts())
+			// so it can be translated; the click handler in template-switching.js shows it via window.confirm().
+			$reset_link = sprintf(
+				'<div class="wu-text-right wu-mt-2"><a href="#" class="wu-no-underline wu-text-2xs wu-uppercase wu-font-semibold wu-text-red-600 hover:wu-text-red-800" v-on:click.prevent="reset_template()">%s</a></div>',
+				esc_html__('Reset current template', 'ultimate-multisite')
+			);
+
+			$checkout_fields['reset_current_template'] = [
+				'type'              => 'note',
+				'wrapper_classes'   => 'wu-w-full',
+				'classes'           => 'wu-w-full',
+				'desc'              => $reset_link,
+				'wrapper_html_attr' => [
+					'v-show'  => 'template_id == original_template_id && original_template_id > 0',
 					'v-cloak' => '1',
 				],
 			];

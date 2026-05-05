@@ -140,6 +140,52 @@
 					});
 
 				},
+				/**
+				 * Re-apply the customer's current template, refreshing
+				 * the site from the source template. Triggered by the
+				 * "Reset current template" link in the form.
+				 *
+				 * Confirms with the customer first because this overwrites
+				 * the site's content. Confirmation text is supplied via
+				 * wu_template_switching_params.i18n.reset_confirm so it
+				 * is translatable.
+				 *
+				 * Setting ready = true triggers the existing watcher which
+				 * calls switch_template() — the same code path used by the
+				 * normal "Process Switch" button.
+				 */
+				reset_template() {
+
+					const params = window.wu_template_switching_params || {};
+					const message = (params.i18n && params.i18n.reset_confirm)
+						? params.i18n.reset_confirm
+						: 'Re-apply your current template? This will overwrite your site content with a fresh copy of the template. This cannot be undone.';
+
+					// Native confirm() matches the existing pattern used elsewhere
+					// in this codebase (edit-placeholders.js, tax-rates.js, dns-management.js)
+					// for destructive customer-facing actions. Avoiding the no-alert
+					// rule would mean introducing modal infrastructure that does not
+					// yet exist on this page.
+					// eslint-disable-next-line no-alert
+					if ( ! window.confirm(message)) {
+
+						return;
+
+					} // end if;
+
+					if ( ! this.original_template_id || this.original_template_id <= 0) {
+
+						return;
+
+					} // end if;
+
+					this.template_id = this.original_template_id;
+
+					this.confirm_switch = true;
+
+					this.ready = true;
+
+				},
 				switch_template() {
 
 					const that = this;
