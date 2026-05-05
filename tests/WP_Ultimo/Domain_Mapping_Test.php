@@ -398,6 +398,25 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test replace_url does not duplicate non-standard ports.
+	 */
+	public function test_replace_url_with_mapping_does_not_duplicate_port(): void {
+
+		$blog_id = get_current_blog_id(); // Always 1 in test env.
+		$site    = get_site($blog_id);
+
+		$mapping = new Domain();
+		$mapping->set_domain('mapped.example.com:8080');
+		$mapping->set_blog_id($blog_id);
+		$mapping->set_active(true);
+		$mapping->set_secure(false);
+
+		$result = $this->domain_mapping->replace_url('http://' . $site->domain . ':8080' . $site->path . 'wp-login.php', $mapping);
+
+		$this->assertSame('http://mapped.example.com:8080/wp-login.php', $result);
+	}
+
+	/**
 	 * Test replace_url with secure mapping uses https scheme.
 	 *
 	 * Uses the main blog (ID 1) which always exists in the test environment.
