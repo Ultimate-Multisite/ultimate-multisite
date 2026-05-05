@@ -997,6 +997,55 @@ class Site_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test is_customer_allowed denies the "no customer in context vs site
+	 * with no customer" case.
+	 *
+	 * Regression guard: previously, when both the requesting customer id and
+	 * the site's stored customer id were 0 (e.g. an orphaned customer_owned
+	 * site with missing wu_customer_id meta, queried by a logged-in user
+	 * with no UM customer association), the method returned true because of
+	 * the `0 === 0` comparison. That silently granted "owner" access on
+	 * unlinked sites — used to render the customer-panel template-switching
+	 * UI and (worse) to gate the AJAX switch handler indirectly. The fix
+	 * defaults to denied when either side is unknown.
+	 */
+	public function test_is_customer_allowed_zero_versus_zero_denied(): void {
+		// Ensure the current user is NOT a network admin (manage_network short-circuits).
+		$subscriber_id = $this->factory()->user->create(['role' => 'subscriber']);
+		wp_set_current_user($subscriber_id);
+
+		$this->site->set_customer_id(0);
+
+		// Calling with explicit 0 customer id (the path used by the AJAX handler
+		// when no UM customer is in context).
+		$this->assertFalse(
+			$this->site->is_customer_allowed(0),
+			'is_customer_allowed must deny when both the requesting customer id and the site customer id are 0.'
+		);
+	}
+
+	/**
+	 * Test is_customer_allowed denies a real customer when the site has no
+	 * customer link.
+	 *
+	 * A site with customer_id == 0 has no owner. Even a real customer should
+	 * not be considered "allowed" on it — only network admins (handled by
+	 * the manage_network short-circuit) can act on unlinked sites.
+	 */
+	public function test_is_customer_allowed_known_customer_versus_unlinked_site_denied(): void {
+		$subscriber_id = $this->factory()->user->create(['role' => 'subscriber']);
+		wp_set_current_user($subscriber_id);
+
+		$this->site->set_customer_id(0);
+
+		$customer_id = $this->customer->get_id();
+		$this->assertFalse(
+			$this->site->is_customer_allowed($customer_id),
+			'is_customer_allowed must deny when the site has no linked customer, even if a real customer id is provided.'
+		);
+	}
+
+	/**
 	 * Test get_customer returns false when customer_id is 0.
 	 */
 	public function test_get_customer_zero_id(): void {

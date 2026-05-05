@@ -467,7 +467,23 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			$customer_id = $customer ? $customer->get_id() : 0;
 		}
 
-		$allowed = absint($customer_id) === absint($this->get_customer_id());
+		$customer_id            = absint($customer_id);
+		$membership_customer_id = absint($this->get_customer_id());
+
+		/*
+		 * Reject the "no customer in context vs membership with no customer" case.
+		 *
+		 * See the matching note on Site::is_customer_allowed(). Treating
+		 * `0 === 0` as "allowed" was a privilege-escalation surface: a
+		 * logged-in user with no UM customer association would be granted
+		 * access to memberships whose customer link is missing. Default to
+		 * denied unless both sides are known and match.
+		 */
+		if (0 === $customer_id || 0 === $membership_customer_id) {
+			$allowed = false;
+		} else {
+			$allowed = $customer_id === $membership_customer_id;
+		}
 
 		return apply_filters('wu_membership_is_customer_allowed', $allowed, $customer_id, $this);
 	}

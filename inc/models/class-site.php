@@ -1053,7 +1053,28 @@ class Site extends Base_Model implements Limitable, Notable {
 			$customer_id = $customer ? $customer->get_id() : 0;
 		}
 
-		$allowed = absint($customer_id) === absint($this->get_customer_id());
+		$customer_id      = absint($customer_id);
+		$site_customer_id = absint($this->get_customer_id());
+
+		/*
+		 * Reject the "no customer in context vs site with no customer" case.
+		 *
+		 * Previously this method returned true when both ids were 0 (`0 === 0`),
+		 * which silently granted access on sites that have not been linked to a
+		 * customer (e.g. orphaned customer_owned sites or fixture/test sites
+		 * with missing wu_customer_id meta). That was a privilege-escalation
+		 * surface: a logged-in user with no UM customer association could be
+		 * treated as the "owner" of any site whose customer link was missing.
+		 *
+		 * The correct interpretation is: only super admins (handled above) and
+		 * the actual linked customer can be considered allowed. If either side
+		 * is unknown, default to denied.
+		 */
+		if (0 === $customer_id || 0 === $site_customer_id) {
+			$allowed = false;
+		} else {
+			$allowed = $customer_id === $site_customer_id;
+		}
 
 		return apply_filters('wu_site_is_customer_allowed', $allowed, $customer_id, $this);
 	}
