@@ -94,7 +94,24 @@ class Billing_Address implements \JsonSerializable {
 	 */
 	public function exists() {
 
-		return ! empty(array_filter($this->attributes));
+		return ! empty(array_filter($this->attributes, [$this, 'has_value']));
+	}
+
+	/**
+	 * Checks if a field value should be rendered as present.
+	 *
+	 * @since 2.5.2
+	 *
+	 * @param mixed $value The value to check.
+	 * @return boolean
+	 */
+	protected function has_value($value) {
+
+		if (is_string($value)) {
+			$value = trim($value);
+		}
+
+		return '' !== $value && null !== $value && false !== $value && [] !== $value;
 	}
 
 	/**
@@ -188,10 +205,10 @@ class Billing_Address implements \JsonSerializable {
 		$fields = self::fields();
 
 		foreach ($fields as $field_key => $field) {
-			if ( ! empty($this->{$field_key})) {
+			if ($this->has_value($this->{$field_key})) {
 				$key = $labels ? $field['title'] : $field_key;
 
-				$address_array[ $key ] = $this->{$field_key};
+				$address_array[ $key ] = is_string($this->{$field_key}) ? trim($this->{$field_key}) : $this->{$field_key};
 			}
 		}
 

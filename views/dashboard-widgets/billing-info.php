@@ -6,8 +6,10 @@
  */
 defined('ABSPATH') || exit;
 
+$billing_address_fields = $billing_address->to_array(true);
+
 ?>
-<div class="wu-styling <?php echo esc_attr($className); ?>">
+<div class="wu-styling <?php echo esc_attr($className); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase ?>">
 
 	<div class="<?php echo esc_attr(wu_env_picker('', 'wu-widget-inset')); ?>">
 
@@ -45,14 +47,23 @@ defined('ABSPATH') || exit;
 		</div>
 		<!-- Title Element - End -->
 
-		<?php if ( ! $billing_address->exists()) : ?>
+		<?php if (empty($billing_address_fields)) : ?>
 
 		<div class="wu-p-4 wu-border-t wu-border-solid wu-border-0 wu-border-gray-200">
 
 			<div class="wu-p-4 wu-bg-gray-100 wu-rounded">
 
-			<?php // translators: %s: Billing address link. ?>
-			<?php printf(wp_kses_post(__('No billing address found. Click <a title="%1$s" href="%2$s" class="wubox wu-no-underline">here</a> to add one.', 'ultimate-multisite')), esc_html__('Update Billing Address', 'ultimate-multisite'), esc_url($update_billing_address_link)); ?>
+			<p class="wu-m-0 wu-mb-3">
+				<?php esc_html_e('No billing address found. Add one now so your invoices and payment details stay up to date.', 'ultimate-multisite'); ?>
+			</p>
+
+			<a
+				title="<?php esc_attr_e('Update Billing Address', 'ultimate-multisite'); ?>"
+				class="wubox button wu-no-underline"
+				href="<?php echo esc_attr($update_billing_address_link); ?>"
+			>
+				<?php esc_html_e('Add Billing Address', 'ultimate-multisite'); ?>
+			</a>
 
 			</div>
 
@@ -62,7 +73,7 @@ defined('ABSPATH') || exit;
 
 		<div class="wu-overflow-hidden">
 
-			<?php foreach ($billing_address->to_array(true) as $label => $value) : ?>
+			<?php foreach ($billing_address_fields as $label => $value) : ?>
 
 			<div class="wu-border-t wu-border-solid wu-border-0 wu-border-gray-200 wu-px-4 wu-py-2 sm:wu-p-0">
 
@@ -89,7 +100,7 @@ defined('ABSPATH') || exit;
 
 	<!-- Billing Address - End -->
 
-	<?php if ($membership->is_recurring() && false) : ?>
+	<?php if ($membership->is_recurring() && false) : // phpcs:ignore Generic.CodeAnalysis.UnconditionalIfStatement.Found ?>
 
 		<!-- Payment Method -->
 
@@ -98,7 +109,7 @@ defined('ABSPATH') || exit;
 		<!-- Title Element -->
 		<div class="wu-p-4 wu-flex wu-items-center <?php echo esc_attr(wu_env_picker('', 'wu-bg-gray-100 wu-border-solid wu-border-0 wu-border-b wu-border-t wu-border-gray-200')); ?>">
 
-			<?php if (true) : ?>
+			<?php if (true) : // phpcs:ignore Generic.CodeAnalysis.UnconditionalIfStatement.Found ?>
 
 			<h3 class="wu-m-0 <?php echo esc_attr(wu_env_picker('', 'wu-widget-title')); ?>">
 
