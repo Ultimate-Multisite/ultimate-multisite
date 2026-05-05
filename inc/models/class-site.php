@@ -1048,7 +1048,35 @@ class Site extends Base_Model implements Limitable, Notable {
 		}
 
 		if ( ! $customer_id) {
+			/*
+			 * Resolve the current customer.
+			 *
+			 * `WP_Ultimo()->currents->get_customer()` returns the
+			 * customer cached on the Current singleton, which is
+			 * populated by Current::load_currents() — a method
+			 * hooked to the `init` and `wp` actions. That works
+			 * for normal admin and front-end requests, but NOT
+			 * for the wu-ajax light-ajax pipeline, which dispatches
+			 * its handlers at `plugins_loaded` (priority 20) and
+			 * calls `die()` before `init` ever fires. In that
+			 * pipeline `currents->get_customer()` returns null
+			 * even when the user IS logged in as a real customer,
+			 * causing the call site to fall through to
+			 * "$customer_id = 0" and is_customer_allowed() to
+			 * always return false — which surfaced as a spurious
+			 * `not_authorized` on the customer-panel template-
+			 * switching AJAX call.
+			 *
+			 * We fall back to `wu_get_current_customer()` which
+			 * derives the customer directly from
+			 * `get_current_user_id()` and has no dependency on
+			 * the Current singleton having loaded yet.
+			 */
 			$customer = WP_Ultimo()->currents->get_customer();
+
+			if ( ! $customer) {
+				$customer = wu_get_current_customer();
+			}
 
 			$customer_id = $customer ? $customer->get_id() : 0;
 		}
