@@ -648,7 +648,7 @@ class SSO {
 				parse_str($parsed, $query_params);
 
 				if ( ! empty($query_params['return_url']) ) {
-					$return_url = $query_params['return_url'];
+					$return_url = esc_url_raw($query_params['return_url']);
 				}
 			}
 		}
@@ -807,7 +807,7 @@ class SSO {
 		}
 
 		// Check if this is an SSO flow (sso param or return_url param present)
-		$sso_action = $this->input('sso', '');
+		$sso_action = $this->input($this->get_url_path(), '');
 		$return_url = $this->get_sso_return_url();
 
 		// Check for SSO flow - either sso param or return_url pointing to different domain

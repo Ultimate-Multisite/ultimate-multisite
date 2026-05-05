@@ -44,6 +44,8 @@ class SSO_Test extends \WP_UnitTestCase {
 		unset($_REQUEST['return_type']);
 		unset($_REQUEST['broker']);
 		unset($_REQUEST['sso_verify']);
+		unset($_REQUEST['return_url']);
+		unset($_REQUEST['redirect_to']);
 		unset($_COOKIE['wu_sso_denied']);
 
 		parent::tearDown();
@@ -126,6 +128,43 @@ class SSO_Test extends \WP_UnitTestCase {
 
 		$this->assertSame('mysso', $sso->get_url_path());
 		$this->assertSame('mysso-grant', $sso->get_url_path('grant'));
+	}
+
+	/**
+	 * Test nested return_url values are extracted from redirect_to.
+	 */
+	public function test_get_sso_return_url_extracts_nested_return_url_from_redirect_to(): void {
+		$sso        = SSO::get_instance();
+		$return_url = 'https://customer.example.com/wp/wp-admin/';
+
+		$_REQUEST['redirect_to'] = add_query_arg(
+			'return_url',
+			$return_url,
+			home_url('/wp-login.php')
+		);
+
+		$method = new \ReflectionMethod($sso, 'get_sso_return_url');
+		$method->setAccessible(true);
+
+		$this->assertSame($return_url, $method->invoke($sso));
+	}
+
+	/**
+	 * Test nested return_url values are sanitized when extracted from redirect_to.
+	 */
+	public function test_get_sso_return_url_sanitizes_nested_return_url_from_redirect_to(): void {
+		$sso = SSO::get_instance();
+
+		$_REQUEST['redirect_to'] = add_query_arg(
+			'return_url',
+			'javascript:alert(1)',
+			home_url('/wp-login.php')
+		);
+
+		$method = new \ReflectionMethod($sso, 'get_sso_return_url');
+		$method->setAccessible(true);
+
+		$this->assertSame('', $method->invoke($sso));
 	}
 
 	// ------------------------------------------------------------------
