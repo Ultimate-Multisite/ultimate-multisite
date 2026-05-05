@@ -233,7 +233,7 @@ class Site_Manager extends Base_Manager {
 			if ($checkout->is_last_step()) {
 				$membership = WP_Ultimo()->currents->get_membership();
 
-				$customer = wu_get_current_customer();
+				$customer = WP_Ultimo()->currents->get_customer();
 
 				/*
 				 * Fallback for the wu-ajax light-ajax pipeline.
@@ -466,7 +466,6 @@ class Site_Manager extends Base_Manager {
 		}
 
 		if (false === $can_access) {
-
 			/*
 			 * Allow plugins to provide a reactivation URL for blocked sites.
 			 *
@@ -1096,7 +1095,6 @@ class Site_Manager extends Base_Manager {
 					$membership->delete_pending_site();
 				}
 			} elseif (Membership_Status::PENDING === $membership->get_status()) {
-
 				/*
 				 * Safety net for orphaned pending_sites on `pending` memberships.
 				 *

@@ -139,6 +139,66 @@ class Current_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test that accessors lazy-load currents when read before the init hook cache is populated.
+	 */
+	public function test_accessors_lazy_load_currents(): void {
+
+		$user_id = $this->factory()->user->create(['role' => 'subscriber']);
+
+		$customer = wu_create_customer(
+			[
+				'user_id'       => $user_id,
+				'email_address' => 'current-lazy-load@example.com',
+			]
+		);
+
+		$product = wu_create_product(
+			[
+				'name'          => 'Current Lazy Load Product',
+				'slug'          => 'current-lazy-load-product-' . wp_rand(),
+				'type'          => 'plan',
+				'amount'        => 10,
+				'duration'      => 1,
+				'duration_unit' => 'month',
+				'pricing_type'  => 'paid',
+			]
+		);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id'     => $customer->get_id(),
+				'plan_id'         => $product->get_id(),
+				'status'          => \WP_Ultimo\Database\Memberships\Membership_Status::ACTIVE,
+				'amount'          => 10,
+				'currency'        => 'USD',
+				'skip_validation' => true,
+			]
+		);
+
+		wp_set_current_user($user_id);
+
+		$this->current->set_site(null);
+		$this->current->set_customer(null);
+		$this->current->set_membership(null);
+		$this->set_loaded_state(false);
+
+		$this->assertSame($customer->get_id(), $this->current->get_customer()->get_id());
+		$this->assertSame($membership->get_id(), $this->current->get_membership()->get_id());
+	}
+
+	/**
+	 * Sets the protected loaded flag for lazy-load tests.
+	 *
+	 * @param bool $loaded Whether the current cache should be marked loaded.
+	 */
+	protected function set_loaded_state($loaded): void {
+
+		$property = new \ReflectionProperty(Current::class, 'loaded');
+		$property->setAccessible(true);
+		$property->setValue($this->current, $loaded);
+	}
+
+	/**
 	 * Test param_key returns expected defaults.
 	 */
 	public function test_param_key_returns_defaults(): void {
