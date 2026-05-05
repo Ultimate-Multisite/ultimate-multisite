@@ -38,12 +38,22 @@ class PayPal_OAuth_Handler {
 	/**
 	 * Initialize the OAuth handler.
 	 *
+	 * Short-circuits when the WU_PAYPAL_OAUTH_ENABLED feature flag is off, so
+	 * AJAX endpoints, the OAuth return callback, and the admin-notice surface
+	 * are not registered for non-partner installs. Settings persistence and
+	 * read helpers (is_merchant_connected, get_merchant_details) remain
+	 * available so existing connections degrade gracefully.
+	 *
 	 * @since 2.0.0
 	 * @return void
 	 */
 	public function init(): void {
 
 		$this->test_mode = (bool) (int) wu_get_setting('paypal_rest_sandbox_mode', true);
+
+		if ( ! $this->is_oauth_feature_enabled()) {
+			return;
+		}
 
 		// Register AJAX handlers
 		add_action('wp_ajax_wu_paypal_connect', [$this, 'ajax_initiate_oauth']);
@@ -496,37 +506,55 @@ class PayPal_OAuth_Handler {
 	/**
 	 * Check if the PayPal OAuth Connect feature is enabled.
 	 *
-	 * The feature flag is controlled by the PayPal proxy plugin on
-	 * ultimatemultisite.com. OAuth Connect is only available when the
-	 * proxy has partner credentials configured (i.e. the PayPal
-	 * partnership is active). The result is cached for 12 hours.
+	 * Resolution order (highest priority first):
 	 *
-	 * Local override: define WU_PAYPAL_OAUTH_ENABLED as true in
-	 * wp-config.php to force-enable without the proxy check.
+	 *   1. The `wu_paypal_oauth_enabled` filter, if it returns a non-null
+	 *      bool. This is the canonical override hook for tests and addons.
+	 *   2. The `WU_PAYPAL_OAUTH_ENABLED` constant, if defined. This is the
+	 *      framework-wide default (set in constants.php to `false` since
+	 *      v2.6.0). When the constant is defined the proxy probe is skipped
+	 *      entirely so non-partner installs make no outbound HTTP requests
+	 *      during settings rendering.
+	 *   3. The `wu_paypal_oauth_enabled` site transient, populated by a
+	 *      previous proxy probe.
+	 *   4. A live `/status` probe to the partner proxy, cached for 12 hours
+	 *      on success and 1 hour on failure.
+	 *
+	 * Step (4) is dead code on shipped installs because the constant short-
+	 * circuits in step (2). It remains in the codebase so the proxy probe
+	 * can be re-enabled (by leaving the constant undefined in wp-config.php)
+	 * once Ultimate Multisite is approved as a PayPal partner again.
+	 *
+	 * To re-enable one-click onboarding after partner approval, define
+	 * `WU_PAYPAL_OAUTH_ENABLED` as `true` in wp-config.php.
 	 *
 	 * @since 2.0.0
 	 * @return bool
 	 */
 	public function is_oauth_feature_enabled(): bool {
 
-		// Local constant override (useful for dev/testing)
-		if (defined('WU_PAYPAL_OAUTH_ENABLED')) {
-			return (bool) WU_PAYPAL_OAUTH_ENABLED;
-		}
-
 		/**
 		 * Filters whether the PayPal OAuth Connect feature is enabled.
 		 *
-		 * Return a non-null value to override the remote check.
+		 * Return a non-null value to override the constant, transient, and
+		 * proxy probe. Used by tests and by addons that need to force-toggle
+		 * the flow without mutating wp-config.php.
 		 *
 		 * @since 2.0.0
 		 *
-		 * @param bool|null $enabled Null to use remote check, bool to override.
+		 * @param bool|null $enabled Null to defer to lower-priority sources,
+		 *                           bool to override.
 		 */
 		$override = apply_filters('wu_paypal_oauth_enabled', null);
 
 		if (null !== $override) {
 			return (bool) $override;
+		}
+
+		// Constant default — primary on/off switch. Defined in constants.php
+		// as false so non-partner installs never reach the proxy probe.
+		if (defined('WU_PAYPAL_OAUTH_ENABLED')) {
+			return (bool) WU_PAYPAL_OAUTH_ENABLED;
 		}
 
 		// Check cached flag from proxy

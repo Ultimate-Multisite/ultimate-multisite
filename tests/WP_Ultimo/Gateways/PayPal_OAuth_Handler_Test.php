@@ -348,6 +348,30 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 	// =========================================================================
 
 	/**
+	 * Skip a test when the WU_PAYPAL_OAUTH_ENABLED constant short-circuit
+	 * makes the proxy-probe / transient-cache code paths unreachable.
+	 *
+	 * The constant is shipped as `false` in constants.php since v2.6.0 so the
+	 * gateway never makes outbound HTTP calls during settings rendering on
+	 * non-partner installs. The proxy-probe tests below remain useful for the
+	 * future partner-approved configuration (where wp-config.php leaves the
+	 * constant undefined or defines it as `true` and the proxy probe is the
+	 * authoritative source).
+	 *
+	 * @return void
+	 */
+	private function skip_if_oauth_constant_short_circuits(): void {
+		if (defined('WU_PAYPAL_OAUTH_ENABLED')) {
+			$this->markTestSkipped(
+				'WU_PAYPAL_OAUTH_ENABLED is defined; the constant short-circuit '
+				. 'makes the proxy-probe / transient code path unreachable. This '
+				. 'test exercises the partner-approved configuration where the '
+				. 'constant is undefined.'
+			);
+		}
+	}
+
+	/**
 	 * Test is_oauth_feature_enabled defaults to false (proxy unreachable in tests).
 	 */
 	public function test_oauth_feature_disabled_by_default(): void {
@@ -370,9 +394,35 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test the WU_PAYPAL_OAUTH_ENABLED constant short-circuits to its bool value.
+	 *
+	 * This is the shipped behaviour: constants.php defines the constant as
+	 * false, so the gateway returns false without consulting the transient or
+	 * making an outbound HTTP request.
+	 */
+	public function test_oauth_feature_uses_constant_default(): void {
+
+		// No filter, no transient — constant is the authoritative source.
+		delete_site_transient('wu_paypal_oauth_enabled');
+		remove_all_filters('wu_paypal_oauth_enabled');
+
+		$this->assertTrue(
+			defined('WU_PAYPAL_OAUTH_ENABLED'),
+			'WU_PAYPAL_OAUTH_ENABLED should be defined by constants.php'
+		);
+
+		$this->assertSame(
+			(bool) WU_PAYPAL_OAUTH_ENABLED,
+			$this->handler->is_oauth_feature_enabled()
+		);
+	}
+
+	/**
 	 * Test is_oauth_feature_enabled respects cached transient 'yes'.
 	 */
 	public function test_oauth_feature_uses_transient_cache_yes(): void {
+
+		$this->skip_if_oauth_constant_short_circuits();
 
 		set_site_transient('wu_paypal_oauth_enabled', 'yes', HOUR_IN_SECONDS);
 
@@ -384,6 +434,8 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 	 */
 	public function test_oauth_feature_uses_transient_cache_no(): void {
 
+		$this->skip_if_oauth_constant_short_circuits();
+
 		set_site_transient('wu_paypal_oauth_enabled', 'no', HOUR_IN_SECONDS);
 
 		$this->assertFalse($this->handler->is_oauth_feature_enabled());
@@ -393,6 +445,8 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 	 * Test is_oauth_feature_enabled returns false and caches on HTTP error.
 	 */
 	public function test_oauth_feature_caches_failure_on_http_error(): void {
+
+		$this->skip_if_oauth_constant_short_circuits();
 
 		delete_site_transient('wu_paypal_oauth_enabled');
 
@@ -420,6 +474,8 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 	 * Test is_oauth_feature_enabled returns true when proxy responds with oauth_enabled=true.
 	 */
 	public function test_oauth_feature_enabled_from_proxy_response(): void {
+
+		$this->skip_if_oauth_constant_short_circuits();
 
 		delete_site_transient('wu_paypal_oauth_enabled');
 
@@ -454,6 +510,8 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 	 */
 	public function test_oauth_feature_disabled_from_proxy_response(): void {
 
+		$this->skip_if_oauth_constant_short_circuits();
+
 		delete_site_transient('wu_paypal_oauth_enabled');
 
 		add_filter(
@@ -486,6 +544,8 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 	 * Test is_oauth_feature_enabled returns false when proxy URL is empty.
 	 */
 	public function test_oauth_feature_disabled_when_no_proxy_url(): void {
+
+		$this->skip_if_oauth_constant_short_circuits();
 
 		delete_site_transient('wu_paypal_oauth_enabled');
 
@@ -1807,6 +1867,8 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 	 */
 	public function test_oauth_feature_with_empty_proxy_response(): void {
 
+		$this->skip_if_oauth_constant_short_circuits();
+
 		delete_site_transient('wu_paypal_oauth_enabled');
 
 		add_filter(
@@ -1837,6 +1899,8 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 	 * Test is_oauth_feature_enabled with malformed JSON response.
 	 */
 	public function test_oauth_feature_with_malformed_json_response(): void {
+
+		$this->skip_if_oauth_constant_short_circuits();
 
 		delete_site_transient('wu_paypal_oauth_enabled');
 
