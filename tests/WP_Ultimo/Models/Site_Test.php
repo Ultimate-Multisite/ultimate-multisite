@@ -997,6 +997,30 @@ class Site_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test is_customer_allowed denies zero requester versus zero owner.
+	 */
+	public function test_is_customer_allowed_zero_versus_zero_denied(): void {
+		wp_set_current_user(0);
+		$this->site->set_customer_id(0);
+
+		$result = $this->site->is_customer_allowed(0);
+
+		$this->assertFalse($result, 'is_customer_allowed should deny access when neither side has a known customer ID.');
+	}
+
+	/**
+	 * Test is_customer_allowed denies known requester versus unlinked site.
+	 */
+	public function test_is_customer_allowed_known_customer_versus_unlinked_site_denied(): void {
+		$customer_id = $this->customer->get_id();
+		$this->site->set_customer_id(0);
+
+		$result = $this->site->is_customer_allowed($customer_id);
+
+		$this->assertFalse($result, 'is_customer_allowed should deny access when the site has no linked customer ID.');
+	}
+
+	/**
 	 * Test get_customer returns false when customer_id is 0.
 	 */
 	public function test_get_customer_zero_id(): void {

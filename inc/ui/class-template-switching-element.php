@@ -24,6 +24,30 @@ class Template_Switching_Element extends Base_Element {
 	use \WP_Ultimo\Traits\Singleton;
 
 	/**
+	 * Permission state when the current customer can switch templates.
+	 *
+	 * @since 2.9.3
+	 * @var string
+	 */
+	const STATE_OK = 'ok';
+
+	/**
+	 * Permission state when the current site is not linked to a membership.
+	 *
+	 * @since 2.9.3
+	 * @var string
+	 */
+	const STATE_NO_MEMBERSHIP = 'no_membership';
+
+	/**
+	 * Permission state when the current customer is not allowed to manage the site.
+	 *
+	 * @since 2.9.3
+	 * @var string
+	 */
+	const STATE_NOT_ALLOWED = 'not_allowed';
+
+	/**
 	 * The id of the element.
 	 *
 	 * @since 2.0.0
@@ -56,6 +80,14 @@ class Template_Switching_Element extends Base_Element {
 	 * @var array
 	 */
 	protected $products;
+
+	/**
+	 * Current template-switching permission state.
+	 *
+	 * @since 2.9.3
+	 * @var string
+	 */
+	protected $permission_state = self::STATE_NOT_ALLOWED;
 
 	/**
 	 * The icon of the UI element.
@@ -228,12 +260,13 @@ class Template_Switching_Element extends Base_Element {
 		$this->site = wu_get_current_site();
 
 		if ( ! $this->site || ! $this->site->is_customer_allowed()) {
-			$this->set_display(false);
+			$this->permission_state = self::STATE_NOT_ALLOWED;
 
 			return;
 		}
 
 		$this->membership = $this->site->get_membership();
+		$this->permission_state = $this->membership ? self::STATE_OK : self::STATE_NO_MEMBERSHIP;
 
 		$this->products = [];
 
@@ -281,6 +314,11 @@ class Template_Switching_Element extends Base_Element {
 		// hang on its loading spinner.
 		if ( ! $this->site || ! $this->site->get_id()) {
 			wp_send_json_error(new \WP_Error('site_context_missing', __('Could not determine which site to switch. Please reload the page and try again.', 'ultimate-multisite')));
+			return;
+		}
+
+		if ( ! $this->site->is_customer_allowed()) {
+			wp_send_json_error(new \WP_Error('not_authorized', __('You are not allowed to switch templates for this site.', 'ultimate-multisite')));
 			return;
 		}
 
@@ -356,12 +394,30 @@ class Template_Switching_Element extends Base_Element {
 	 */
 	public function output($atts, $content = null) {
 
+		if ( ! $this->site || self::STATE_NOT_ALLOWED === $this->permission_state) {
+			$this->render_not_allowed_notice();
+
+			return;
+		}
+
 		if ($this->site) {
+			if (self::STATE_NO_MEMBERSHIP === $this->permission_state) {
+				$this->render_no_membership_notice();
+
+				$atts['template_selection_sites'] = $this->defaults()['template_selection_sites'];
+			}
+
 			$filter_template_limits = \WP_Ultimo\Limits\Site_Template_Limits::get_instance();
 
 			$atts['products'] = $this->products;
 
-			$template_selection_field = $filter_template_limits->maybe_filter_template_selection_options($atts);
+			if (self::STATE_NO_MEMBERSHIP === $this->permission_state) {
+				$template_selection_field = [
+					'sites' => array_filter(array_map('absint', explode(',', $atts['template_selection_sites']))),
+				];
+			} else {
+				$template_selection_field = $filter_template_limits->maybe_filter_template_selection_options($atts);
+			}
 
 			if ( ! isset($template_selection_field['sites'])) {
 				$template_selection_field['sites'] = [];
@@ -503,6 +559,34 @@ class Template_Switching_Element extends Base_Element {
 
 			$form->render();
 		}
+	}
+
+	/**
+	 * Render the not-authorized notice.
+	 *
+	 * @since 2.9.3
+	 * @return void
+	 */
+	protected function render_not_allowed_notice() {
+
+		printf(
+			'<div class="notice notice-warning wu-m-0 wu-p-4"><p>%s</p></div>',
+			esc_html__('Template switching is not available right now. Please contact your network administrator for help with this site.', 'ultimate-multisite')
+		);
+	}
+
+	/**
+	 * Render the no-membership informational notice.
+	 *
+	 * @since 2.9.3
+	 * @return void
+	 */
+	protected function render_no_membership_notice() {
+
+		printf(
+			'<div class="notice notice-info wu-m-0 wu-mb-4 wu-p-4"><p>%s</p></div>',
+			esc_html__('This site is not currently linked to a membership, so plan-specific template restrictions do not apply.', 'ultimate-multisite')
+		);
 	}
 
 	/**
