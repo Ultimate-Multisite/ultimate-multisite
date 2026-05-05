@@ -47,16 +47,6 @@
 		<exclude-pattern>/tests/</exclude-pattern>
 	</rule>
 
-	<!-- Test files may use inline arrays for readability. -->
-	<rule ref="WordPress.Arrays.ArrayDeclaration.MultiLineNotAllowed">
-		<exclude-pattern>/tests/</exclude-pattern>
-	</rule>
-	<rule ref="WordPress.Arrays.ArrayDeclaration.CloseBraceNewLine">
-		<exclude-pattern>/tests/</exclude-pattern>
-	</rule>
-	<rule ref="WordPress.Arrays.ArrayDeclaration.AssociativeKeyFound">
-		<exclude-pattern>/tests/</exclude-pattern>
-	</rule>
 	<rule ref="WordPress.Arrays.ArrayKeySpacingRestrictions">
 		<exclude-pattern>/tests/</exclude-pattern>
 	</rule>
