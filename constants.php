@@ -51,3 +51,23 @@ if ( ! defined('WU_TEMPLATE_LIBRARY_ENABLED')) {
 if ( ! defined('WU_EXTERNAL_CRON_ENABLED')) {
 	define('WU_EXTERNAL_CRON_ENABLED', false);
 }
+
+/**
+ * Feature flag: Enable PayPal OAuth ("Connect with PayPal") onboarding.
+ *
+ * When set to true, enables the PayPal Partner Referrals one-click onboarding
+ * flow. This requires an active PayPal Commerce Platform partner agreement —
+ * `/v2/customer/partner-referrals`, partner-token minting via the proxy, and
+ * `PayPal-Auth-Assertion` impersonation only work for approved partners.
+ *
+ * Defaults to false. Without partner status, merchants set up PayPal via the
+ * guided manual-credentials wizard (developer.paypal.com REST app). When
+ * Ultimate Multisite is approved as a PayPal partner again, define
+ * WU_PAYPAL_OAUTH_ENABLED as true in wp-config.php to re-enable the
+ * one-click flow.
+ *
+ * @since 2.6.0
+ */
+if ( ! defined('WU_PAYPAL_OAUTH_ENABLED')) {
+	define('WU_PAYPAL_OAUTH_ENABLED', false);
+}

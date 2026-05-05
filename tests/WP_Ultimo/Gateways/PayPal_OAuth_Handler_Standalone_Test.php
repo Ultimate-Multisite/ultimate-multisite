@@ -397,20 +397,31 @@ class PayPal_OAuth_Handler_Standalone_Test extends TestCase {
 	}
 
 	/**
-	 * Test is_oauth_feature_enabled with WU_PAYPAL_OAUTH_ENABLED constant.
+	 * Test is_oauth_feature_enabled honours the WU_PAYPAL_OAUTH_ENABLED constant.
+	 *
+	 * Since v2.6.0 constants.php ships with the constant defined as false. The
+	 * handler must return that bool value verbatim — no proxy probe, no
+	 * transient lookup. If the constant is undefined (legacy / partner-approved
+	 * configuration) this test is skipped because the standalone test cannot
+	 * un-define a constant once the plugin bootstrap has set it.
 	 *
 	 * @runInSeparateProcess
 	 * @preserveGlobalState disabled
 	 */
 	public function test_is_oauth_feature_enabled_with_constant(): void {
 
-		// Define the constant
 		if (!defined('WU_PAYPAL_OAUTH_ENABLED')) {
-			define('WU_PAYPAL_OAUTH_ENABLED', true);
+			$this->markTestSkipped(
+				'WU_PAYPAL_OAUTH_ENABLED is undefined in this configuration; the '
+				. 'constant short-circuit is exercised by the main test suite.'
+			);
 		}
 
-		// The method should return true when constant is defined
-		$this->assertTrue($this->handler->is_oauth_feature_enabled());
+		$this->assertSame(
+			(bool) WU_PAYPAL_OAUTH_ENABLED,
+			$this->handler->is_oauth_feature_enabled(),
+			'is_oauth_feature_enabled must return the constant value verbatim.'
+		);
 	}
 
 	/**

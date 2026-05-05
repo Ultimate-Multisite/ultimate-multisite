@@ -1734,6 +1734,22 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 					],
 				]
 			);
+		} else {
+			// Guided wizard CTA — surfaces the manual-credentials walkthrough
+			// when the partner OAuth flow is unavailable.
+			wu_register_settings_field(
+				'payment-gateways',
+				'paypal_rest_setup_wizard_cta',
+				[
+					'title'   => __('Guided setup', 'ultimate-multisite'),
+					'desc'    => __('Walk through PayPal credential creation step by step, with verification and automatic webhook installation.', 'ultimate-multisite'),
+					'type'    => 'html',
+					'content' => [$this, 'render_setup_wizard_cta'],
+					'require' => [
+						'active_gateways' => 'paypal-rest',
+					],
+				]
+			);
 		}
 
 		// Build the require array for manual key fields.
@@ -1815,6 +1831,13 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 			__('Webhooks are automatically configured when you connect your PayPal account or save settings with valid API credentials.', 'ultimate-multisite')
 		);
 
+		// Webhook URL display — visible whenever the manual credential fields
+		// are visible, which mirrors the $live_key_require gating above.
+		$webhook_require = $live_key_require;
+		// $live_key_require pins sandbox to 0 — webhook URL is the same in
+		// both modes, so drop that pin to keep it visible in sandbox too.
+		unset($webhook_require['paypal_rest_sandbox_mode']);
+
 		wu_register_settings_field(
 			'payment-gateways',
 			'paypal_rest_webhook_url',
@@ -1826,10 +1849,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 				'copy'            => true,
 				'display_value'   => $this->get_webhook_listener_url(),
 				'wrapper_classes' => '',
-				'require'         => [
-					'active_gateways'              => 'paypal-rest',
-					'paypal_rest_show_manual_keys' => 1,
-				],
+				'require'         => $webhook_require,
 			]
 		);
 	}
@@ -1945,6 +1965,32 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 //				esc_html__('No application fee — thank you for your support!', 'ultimate-multisite')
 //			);
 //		}
+	}
+
+	/**
+	 * Renders the "Open Setup Wizard" CTA button.
+	 *
+	 * Surfaced when the partner OAuth path is disabled, so merchants get a
+	 * one-click route into the guided manual-credentials walkthrough.
+	 *
+	 * @since 2.6.0
+	 * @return void
+	 */
+	public function render_setup_wizard_cta(): void {
+
+		$wizard_url = wu_network_admin_url('wp-ultimo-paypal-setup-wizard');
+
+		printf(
+			'<div class="wu-p-4 wu-bg-blue-50 wu-border wu-border-blue-200 wu-rounded wu-text-sm wu-mb-4">
+				<p class="wu-font-semibold wu-text-blue-800 wu-mb-2 wu-mt-0">%s</p>
+				<p class="wu-text-blue-700 wu-mb-3 wu-mt-0">%s</p>
+				<a href="%s" class="button button-primary">%s</a>
+			</div>',
+			esc_html__('First time setting up PayPal?', 'ultimate-multisite'),
+			esc_html__('The guided wizard walks you through creating PayPal API credentials, verifies them, and installs the webhook automatically — no copy-and-paste from the PayPal docs required.', 'ultimate-multisite'),
+			esc_url($wizard_url),
+			esc_html__('Open setup wizard', 'ultimate-multisite')
+		);
 	}
 
 	/**
