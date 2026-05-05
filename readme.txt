@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 7.4.30
 Tested up to: 6.9
-Stable tag: 2.9.2
+Stable tag: 2.9.3
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -246,6 +246,16 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+Version [2.9.3] - Released on 2026-05-04
+- Fix: Mapped domain URLs no longer contain duplicate port numbers
+- Fix: Redirect hosts and cookie domains now strip port numbers, preventing authentication failures on non-standard ports
+- Fix: CyberPanel integration now correctly uses child domains for domain mapping
+- Fix: Cookie-less cross-domain SSO token redirects are handled reliably in all cases
+- Fix: SSO login flow correctly carries return_url through cross-domain redirects, including when visiting the main login page while already logged in
+- Fix: 13 bugs in site template switching (override_site) that could cause customer site corruption are resolved
+- Fix: Checkout form editor is now fully functional on mobile devices
+- Fix: Auto-generated site URLs now use available domains correctly
+
 Version [2.9.2] - Released on 2026-05-01
 - Fix: Screenshot URLs no longer contain a doubled https:// scheme when the site URL already includes a protocol
 - Fix: Add-on sunrise.php path now resolved relative to WP_CONTENT_DIR instead of WP_PLUGIN_DIR, fixing add-on activation on non-standard WordPress installs
