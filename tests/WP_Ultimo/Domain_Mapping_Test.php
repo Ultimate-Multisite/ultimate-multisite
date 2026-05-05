@@ -208,6 +208,18 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test allow_network_redirect_hosts strips ports from existing allowed hosts.
+	 */
+	public function test_allow_network_redirect_hosts_adds_port_stripped_existing_host(): void {
+
+		$allowed = ['main.test:8080'];
+		$result  = $this->domain_mapping->allow_network_redirect_hosts($allowed, 'main.test');
+
+		$this->assertContains('main.test:8080', $result);
+		$this->assertContains('main.test', $result);
+	}
+
+	/**
 	 * Test allow_network_redirect_hosts with unknown host not added.
 	 */
 	public function test_allow_network_redirect_hosts_unknown_host_not_added(): void {
