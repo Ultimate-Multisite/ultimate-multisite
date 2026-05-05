@@ -424,8 +424,21 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 			/*
 			 * We can't use canceled intents
 			 * for obvious reasons...
+			 *
+			 * We also can't reuse intents that are already
+			 * in a terminal state (succeeded), or that have
+			 * been captured already - Stripe rejects updates
+			 * to those PaymentIntents (e.g. application_fee_amount
+			 * cannot be updated after capture).
+			 *
+			 * Treating them as missing forces a fresh intent
+			 * to be created for the retry, which is the
+			 * correct behaviour for a "finish payment" flow
+			 * landing on an already-captured PI.
 			 */
-			if ( ! empty($existing_intent) && 'canceled' === $existing_intent->status) {
+			$terminal_intent_statuses = ['canceled', 'succeeded'];
+
+			if ( ! empty($existing_intent) && in_array($existing_intent->status, $terminal_intent_statuses, true)) {
 				$existing_intent = false;
 			}
 
@@ -472,8 +485,16 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 					 */
 					$intent_options['idempotency_key'] = wu_stripe_generate_idempotency_key($idempotency_args);
 
-					// Unset some options we can't update.
-					$unset_args = ['confirmation_method', 'confirm'];
+					/*
+					 * Unset some options we can't update.
+					 *
+					 * application_fee_amount is set at PaymentIntent
+					 * creation time and cannot be modified once the
+					 * intent has progressed to capture. Stripe also
+					 * rejects updates that include confirmation_method
+					 * or confirm.
+					 */
+					$unset_args = ['confirmation_method', 'confirm', 'application_fee_amount'];
 
 					foreach ($unset_args as $unset_arg) {
 						if (isset($intent_args[ $unset_arg ])) {

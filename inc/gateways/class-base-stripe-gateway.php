@@ -1723,12 +1723,31 @@ class Base_Stripe_Gateway extends Base_Gateway {
 
 		/*
 		 * Subscription arguments for Stripe
+		 *
+		 * `billing_mode: { type: flexible }` is required when subscription
+		 * items have different recurring intervals (e.g. a monthly hosting
+		 * plan combined with a yearly domain registration). Without it,
+		 * Stripe rejects subscription creation with:
+		 * "All prices on a subscription must have the same `recurring.interval`
+		 *  and `recurring.interval_count` unless flexible billing mode is enabled
+		 *  and you're on the 2025-06-30.basil API version or later."
+		 *
+		 * Flexible mode is safe for single-interval carts too — it only
+		 * unlocks the multi-interval case without changing single-interval
+		 * behaviour.
+		 *
+		 * Requires Stripe API version 2025-06-30.basil or later. The bundled
+		 * stripe/stripe-php SDK pins a newer version (2025-08-27.basil at the
+		 * time of writing), so this is always satisfied.
+		 *
+		 * @since 2.5.x
 		 */
 		$sub_args = [
 			'customer'               => $s_customer->id,
 			'items'                  => array_values($stripe_cart),
 			'default_payment_method' => $payment_method->id,
 			'proration_behavior'     => 'none',
+			'billing_mode'           => ['type' => 'flexible'],
 			'metadata'               => $this->get_customer_metadata(),
 		];
 
