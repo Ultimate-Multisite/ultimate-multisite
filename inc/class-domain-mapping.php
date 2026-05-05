@@ -226,43 +226,82 @@ class Domain_Mapping {
 			return $allowed_hosts;
 		}
 
-		$host = strtolower($host);
+		$allowed_hosts = (array) $allowed_hosts;
+		$host          = strtolower($host);
+		$host_no_port  = preg_replace('/:\d+$/', '', $host);
 
-		// If already allowed, bail early
-		if (in_array($host, (array) $allowed_hosts, true)) {
-			return $allowed_hosts;
+		foreach ($allowed_hosts as $allowed_host) {
+			$allowed_host_no_port = preg_replace('/:\d+$/', '', strtolower($allowed_host));
+
+			if (
+				$allowed_host_no_port !== $allowed_host
+				&& ! in_array($allowed_host_no_port, $allowed_hosts, true)
+			) {
+				$allowed_hosts[] = $allowed_host_no_port;
+			}
 		}
 
+		// If already allowed, bail early
+		if (
+			in_array($host, $allowed_hosts, true)
+			|| in_array($host_no_port, $allowed_hosts, true)
+		) {
+			return array_values(array_unique($allowed_hosts));
+		}
+
+		$hosts_to_allow = array_values(array_unique([$host, $host_no_port]));
+
 		// 1) Check mapped domains (including www/no-www variants)
-		$domains_to_check = $this->get_www_and_nowww_versions($host);
+		$domains_to_check = [];
+
+		foreach ($hosts_to_allow as $host_to_check) {
+			$domains_to_check = array_merge(
+				$domains_to_check,
+				$this->get_www_and_nowww_versions($host_to_check)
+			);
+		}
+
+		$domains_to_check = array_values(array_unique($domains_to_check));
 		$mapping          = Domain::get_by_domain($domains_to_check);
 
 		if ($mapping && ! is_wp_error($mapping)) {
-			$allowed_hosts[] = $host;
+			$allowed_hosts = array_merge($allowed_hosts, $hosts_to_allow);
 			return array_values(array_unique($allowed_hosts));
 		}
 
 		// 2) Check if any site is registered with this domain on the network
-		$site = function_exists('get_site_by_path') ? get_site_by_path($host, '/') : null;
+		$site = null;
+
+		if (function_exists('get_site_by_path')) {
+			foreach ($hosts_to_allow as $host_to_check) {
+				$site = get_site_by_path($host_to_check, '/');
+
+				if ($site instanceof \WP_Site) {
+					break;
+				}
+			}
+		}
 
 		if ($site instanceof \WP_Site) {
-			$allowed_hosts[] = $host;
+			$allowed_hosts = array_merge($allowed_hosts, $hosts_to_allow);
 			return array_values(array_unique($allowed_hosts));
 		}
 
 		// Fallback: try a lightweight site query by domain (if available in this context)
 		if (function_exists('get_sites')) {
-			$maybe = get_sites(
-				[
-					'number' => 1,
-					'domain' => $host,
-					'fields' => 'ids',
-				]
-			);
+			foreach ($hosts_to_allow as $host_to_check) {
+				$maybe = get_sites(
+					[
+						'number' => 1,
+						'domain' => $host_to_check,
+						'fields' => 'ids',
+					]
+				);
 
-			if (! empty($maybe)) {
-				$allowed_hosts[] = $host;
-				return array_values(array_unique($allowed_hosts));
+				if (! empty($maybe)) {
+					$allowed_hosts = array_merge($allowed_hosts, $hosts_to_allow);
+					return array_values(array_unique($allowed_hosts));
+				}
 			}
 		}
 
