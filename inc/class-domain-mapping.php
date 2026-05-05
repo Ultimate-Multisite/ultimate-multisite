@@ -613,6 +613,14 @@ class Domain_Mapping {
 			return $url;
 		}
 
+		// Bail if the URL is not a usable string. WordPress filters such as
+		// `home_url` and `site_url` can occasionally pass null/false/empty
+		// values, and on PHP 8.1+ passing those into preg_quote()/parse_url()
+		// emits deprecation notices.
+		if (! is_string($url) || '' === $url) {
+			return $url;
+		}
+
 		// Get the site associated with the mapping
 		$path = $current_mapping->get_path();
 
@@ -625,7 +633,14 @@ class Domain_Mapping {
 		// wp_parse_url not available because this happens very early in the WP loading process.
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
 		$domain_base = parse_url($url, PHP_URL_HOST);
-		$domain      = preg_quote($domain_base, '#') . '(?::\d+)?';
+
+		// Relative URLs (no host) cannot be re-mapped — return as-is rather
+		// than feeding null into preg_quote() (deprecated on PHP 8.1+).
+		if (! is_string($domain_base) || '' === $domain_base) {
+			return $url;
+		}
+
+		$domain = preg_quote($domain_base, '#') . '(?::\d+)?';
 
 		if ('/' !== $path) {
 			$domain = rtrim($domain . '/' . preg_quote(ltrim($path, '/'), '#'), '/');
