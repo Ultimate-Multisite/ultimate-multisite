@@ -93,10 +93,25 @@ class Site_Duplicator {
 	 */
 	public static function override_site($from_site_id, $to_site_id, $args = []) {
 
+		$from_site = wu_get_site($from_site_id);
+
+		if ( ! $from_site) {
+			// translators: %d is the source template site ID.
+			$message = sprintf(__('Source template site %d not found. Cannot override site.', 'ultimate-multisite'), $from_site_id);
+
+			wu_log_add('site-duplication', new \WP_Error('source_template_site_not_found', $message), LogLevel::ERROR);
+
+			return false;
+		}
+
 		$to_site = wu_get_site($to_site_id);
 
-		if (! $to_site) {
-			wu_log_add('site-duplication', sprintf('Target site %d not found', $to_site_id), LogLevel::ERROR);
+		if ( ! $to_site) {
+			// translators: %d is the destination site ID.
+			$message = sprintf(__('Destination site %d not found. Cannot override site.', 'ultimate-multisite'), $to_site_id);
+
+			wu_log_add('site-duplication', new \WP_Error('destination_site_not_found', $message), LogLevel::ERROR);
+
 			return false;
 		}
 
@@ -231,8 +246,8 @@ class Site_Duplicator {
 
 		self::cleanup_override_context($to_site_id, $to_site_customer, $caller_blog_id);
 
-		// translators: %1$d is the ID of the site template used, and %2$d is the ID of the overriden site.
-		$message = sprintf(__('Attempt to override site %1$d with data from site %2$d successful.', 'ultimate-multisite'), $from_site_id, $duplicate_site_id);
+		// translators: %1$d is the ID of the site template used, and %2$d is the ID of the overridden site.
+		$message = sprintf(__('Attempt to override destination site %2$d with data from source template site %1$d successful.', 'ultimate-multisite'), $from_site_id, $duplicate_site_id);
 
 		wu_log_add('site-duplication', $message);
 
@@ -249,9 +264,9 @@ class Site_Duplicator {
 	 * @since 2.4.0
 	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/pull/1082
 	 *
-	 * @param int        $to_site_id      Target site blog ID (for cache invalidation).
+	 * @param int          $to_site_id      Target site blog ID (for cache invalidation).
 	 * @param object|false $to_site_customer Customer object or false.
-	 * @param int        $caller_blog_id  Blog ID captured at method entry.
+	 * @param int          $caller_blog_id  Blog ID captured at method entry.
 	 */
 	private static function cleanup_override_context($to_site_id, $to_site_customer, $caller_blog_id) {
 
@@ -543,7 +558,7 @@ class Site_Duplicator {
 	/**
 	 * Rewrite source-site URLs to target-site URLs across all cloned tables.
 	 *
-	 * backfill_postmeta() inserts rows after MUCD_Data::copy_data() has already
+	 * Backfill_postmeta() inserts rows after MUCD_Data::copy_data() has already
 	 * run its source→target URL replacement pass (db_update_data()), so those
 	 * rows contain raw template-site URLs. This method applies the same URL
 	 * substitution to the target's postmeta, posts, options, termmeta, and
@@ -606,7 +621,7 @@ class Site_Duplicator {
 			"{$to_prefix}commentmeta" => 'meta_value',
 		];
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 		foreach ($tables as $table => $column) {
 
 			// Skip tables that don't exist (e.g. termmeta on older WP versions).
@@ -622,7 +637,6 @@ class Site_Duplicator {
 			}
 
 			foreach ($replacements as $from => $to) {
-
 				if ($from === $to) {
 					continue;
 				}
@@ -671,7 +685,7 @@ class Site_Duplicator {
 			return;
 		}
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 		$wpdb->query(
 			"INSERT INTO {$to_prefix}postmeta (post_id, meta_key, meta_value)
 			SELECT src.post_id, src.meta_key, src.meta_value
@@ -737,7 +751,7 @@ class Site_Duplicator {
 					  SELECT 1 FROM {$to_prefix}postmeta tpm
 					  WHERE tpm.post_id = src.post_id
 						AND tpm.meta_key = src.meta_key
-				  )",
+					  )", // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 				...$meta_keys
 			)
 		);
@@ -895,7 +909,7 @@ class Site_Duplicator {
 			 */
 			if ( class_exists('\Elementor\Core\Files\CSS\Post') ) {
 				try {
-					( new \Elementor\Core\Files\CSS\Post($kit_id_to) )->update();
+					(new \Elementor\Core\Files\CSS\Post($kit_id_to))->update();
 				} catch ( \Throwable $e ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
 					// Non-fatal — CSS will be rebuilt on next page load.
 				}
