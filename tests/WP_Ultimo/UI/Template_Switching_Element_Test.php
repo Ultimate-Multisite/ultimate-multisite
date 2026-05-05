@@ -53,6 +53,7 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 		}
 
 		$ref->setValue( $element, null );
+		WP_Ultimo()->currents->set_customer( false );
 
 		parent::tear_down();
 	}
@@ -167,6 +168,9 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 	 * Empty template_id must yield a JSON error body, not silence.
 	 */
 	public function test_switch_template_missing_template_id_emits_json_error(): void {
+		$user_id = $this->factory()->user->create( [ 'role' => 'administrator' ] );
+		grant_super_admin( $user_id );
+		wp_set_current_user( $user_id );
 
 		// Force a fake site object so the "missing site context" guard is bypassed
 		// and we hit the template_id check.
@@ -194,6 +198,64 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 
 		$decoded = $this->decode_json( $result['output'] );
 		$this->assertSame( false, $decoded['success'] );
+	}
+
+	/**
+	 * Unauthorized callers must be rejected before template override runs.
+	 */
+	public function test_switch_template_rejects_unauthorized_caller(): void {
+
+		$owner_user_id = $this->factory()->user->create( [ 'role' => 'subscriber' ] );
+		$other_user_id = $this->factory()->user->create( [ 'role' => 'subscriber' ] );
+
+		$owner_customer = wu_create_customer(
+			[
+				'user_id'       => $owner_user_id,
+				'email_address' => 'template-owner@example.com',
+			]
+		);
+
+		$other_customer = wu_create_customer(
+			[
+				'user_id'       => $other_user_id,
+				'email_address' => 'template-other@example.com',
+			]
+		);
+
+		if ( is_wp_error( $owner_customer ) || is_wp_error( $other_customer ) ) {
+			$this->markTestSkipped( 'Customer creation failed.' );
+		}
+
+		$site_id = $this->factory()->blog->create();
+		$site    = wu_get_site( $site_id );
+		$site->set_type( 'customer_owned' );
+		$site->set_customer_id( $owner_customer->get_id() );
+		$site->save();
+
+		WP_Ultimo()->currents->set_customer( $other_customer );
+		wp_set_current_user( $other_user_id );
+		$_REQUEST['template_id'] = '1';
+
+		$element = Template_Switching_Element::get_instance();
+		$ref     = new \ReflectionProperty( $element, 'site' );
+
+		if ( PHP_VERSION_ID < 80100 ) {
+			$ref->setAccessible( true );
+		}
+
+		$ref->setValue( $element, $site );
+
+		$result = $this->call_switch_template();
+
+		$this->assertTrue(
+			$result['exception'],
+			'wp_send_json_error must be reached for unauthorized template switching.'
+		);
+
+		$decoded = $this->decode_json( $result['output'] );
+
+		$this->assertSame( false, $decoded['success'] );
+		$this->assertSame( 'not_authorized', $decoded['data'][0]['code'] );
 	}
 
 }

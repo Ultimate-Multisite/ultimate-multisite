@@ -1053,7 +1053,10 @@ class Site extends Base_Model implements Limitable, Notable {
 			$customer_id = $customer ? $customer->get_id() : 0;
 		}
 
-		$allowed = absint($customer_id) === absint($this->get_customer_id());
+		$customer_id      = absint($customer_id);
+		$site_customer_id = absint($this->get_customer_id());
+
+		$allowed = $customer_id && $site_customer_id && $site_customer_id === $customer_id;
 
 		return apply_filters('wu_site_is_customer_allowed', $allowed, $customer_id, $this);
 	}

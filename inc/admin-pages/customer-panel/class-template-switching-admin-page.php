@@ -164,7 +164,30 @@ class Template_Switching_Admin_Page extends \WP_Ultimo\Admin_Pages\Base_Customer
 	 * @return void
 	 */
 	public function register_widgets(): void {
-		\WP_Ultimo\UI\Simple_Text_Element::get_instance()->as_inline_content(get_current_screen()->id, 'wu_dash_before_metaboxes');
-		\WP_Ultimo\UI\Template_Switching_Element::get_instance()->as_inline_content(get_current_screen()->id, 'wu_dash_before_metaboxes');
+		add_action(
+			'wu_dash_before_metaboxes',
+			function () {
+				$screen_id = get_current_screen()->id;
+
+				ob_start();
+
+				\WP_Ultimo\UI\Simple_Text_Element::get_instance()->as_inline_content($screen_id, 'wu_template_switching_content');
+				\WP_Ultimo\UI\Template_Switching_Element::get_instance()->as_inline_content($screen_id, 'wu_template_switching_content');
+
+				do_action('wu_template_switching_content');
+
+				$content = ob_get_clean();
+
+				if (trim($content)) {
+					echo $content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Buffered widget output is escaped by each element.
+					return;
+				}
+
+				printf(
+					'<div class="notice notice-info wu-m-0 wu-p-4"><p>%s</p></div>',
+					esc_html__('Template switching is not available right now. Please contact your network administrator.', 'ultimate-multisite')
+				);
+			}
+		);
 	}
 }
