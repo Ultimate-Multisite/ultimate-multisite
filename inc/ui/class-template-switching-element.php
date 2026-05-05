@@ -337,6 +337,16 @@ class Template_Switching_Element extends Base_Element {
 			return;
 		}
 
+		/*
+		 * Capture the customer's current template id BEFORE override_site()
+		 * runs. override_site() rewrites the stored template id as part of
+		 * the duplication, so reading $this->site->get_template_id() afterwards
+		 * would always return the newly applied template and we'd lose the
+		 * ability to distinguish "Reset" (template_id matches previous) from
+		 * "Switch" (template_id differs).
+		 */
+		$previous_template_id = (int) $this->site->get_template_id();
+
 		$switch = \WP_Ultimo\Helpers\Site_Duplicator::override_site($template_id, $this->site->get_id());
 
 		if ( ! $switch) {
@@ -367,11 +377,37 @@ class Template_Switching_Element extends Base_Element {
 
 		$referer = isset($_SERVER['HTTP_REFERER']) ? sanitize_url(wp_unslash($_SERVER['HTTP_REFERER'])) : '';
 
+		/*
+		 * Distinguish reset from switch on the redirect so the page can
+		 * tell the customer which action just succeeded. The duplication
+		 * itself is identical for both paths (override_site() runs the
+		 * same way regardless), so this flag is purely cosmetic — but
+		 * "Template reset successfully" reads correctly when the customer
+		 * just re-applied their existing template, where "Template
+		 * switched successfully" would be misleading.
+		 *
+		 * Comparing to the *previous* template id (pre-override) is
+		 * deliberate: by the time this code runs, override_site() has
+		 * already changed the stored template id, so we have to compare
+		 * against the value we captured before calling it.
+		 */
+		$action_label = ((int) $template_id === (int) $previous_template_id) ? 'reset' : 'switch';
+
+		/*
+		 * Use a namespaced query var (`wu_template_action`) rather than the
+		 * generic `action` key. WordPress's wp-admin/admin.php treats
+		 * `?action=...` as a request to dispatch an admin-action handler
+		 * (admin_action_{name} hook) and rewrites/strips the URL during
+		 * routing, which would drop our `updated=1` flag from the final
+		 * address bar and silently break the success notice. The
+		 * namespaced key bypasses that handling entirely.
+		 */
 		wp_send_json_success(
 			[
 				'redirect_url' => add_query_arg(
 					[
-						'updated' => 1,
+						'updated'              => 1,
+						'wu_template_action'   => $action_label,
 					],
 					$referer
 				),
@@ -425,11 +461,45 @@ class Template_Switching_Element extends Base_Element {
 
 			$atts['template_selection_sites'] = implode(',', $template_selection_field['sites']);
 
+			/*
+			 * Current-template summary card — rendered before the grid so the
+			 * customer can see "what they're on" plus the Reset button up front
+			 * without scrolling. The card is always visible (no v-show) because
+			 * "what is the site's current template?" remains true regardless of
+			 * what template_id the customer has clicked in the grid below.
+			 *
+			 * Reset is co-located here (instead of as a separate row at the
+			 * bottom) because the operation acts on the current template, not
+			 * on the grid selection. Pairing them avoids a stray red link
+			 * floating below the grid.
+			 */
+			$current_template_id = (int) $this->site->get_template_id();
+			$current_template    = $current_template_id > 0 ? wu_get_site($current_template_id) : false;
+
 			$site_list = explode(',', $atts['template_selection_sites']);
 
 			$sites = array_map('wu_get_site', $site_list);
 
 			$sites = array_filter($sites);
+
+			/*
+			 * Hide the current template from the "Available Templates" grid.
+			 * The current template is already shown in the summary card above,
+			 * so listing it again as a "Select" option is redundant and a
+			 * little confusing — the customer can re-apply it via the
+			 * "Reset Current Template" button in the card. Doing this filter
+			 * here (in the customer-panel switching element) instead of in
+			 * views/checkout/templates/template-selection/clean.php keeps the
+			 * filter scoped to switching only — the same view is reused for
+			 * new-customer signup, where there is no "current template" to
+			 * exclude.
+			 */
+			if ($current_template_id > 0) {
+				$sites = array_filter(
+					$sites,
+					static fn($site_template) => (int) $site_template->get_id() !== $current_template_id
+				);
+			}
 
 			$categories = \WP_Ultimo\Models\Site::get_all_categories($sites);
 
@@ -450,21 +520,6 @@ class Template_Switching_Element extends Base_Element {
 					esc_html_e('Template does not exist.', 'ultimate-multisite');
 				}
 			};
-
-			/*
-			 * Current-template summary card — rendered before the grid so the
-			 * customer can see "what they're on" plus the Reset button up front
-			 * without scrolling. The card is always visible (no v-show) because
-			 * "what is the site's current template?" remains true regardless of
-			 * what template_id the customer has clicked in the grid below.
-			 *
-			 * Reset is co-located here (instead of as a separate row at the
-			 * bottom) because the operation acts on the current template, not
-			 * on the grid selection. Pairing them avoids a stray red link
-			 * floating below the grid.
-			 */
-			$current_template_id = (int) $this->site->get_template_id();
-			$current_template    = $current_template_id > 0 ? wu_get_site($current_template_id) : false;
 
 			$current_card_renderer = function () use ($current_template, $current_template_id) {
 				wu_get_template(
@@ -502,7 +557,11 @@ class Template_Switching_Element extends Base_Element {
 			 */
 			$checkout_fields['template_element'] = [
 				'type'              => 'note',
-				'wrapper_classes'   => 'wu-w-full',
+				// `wu-template-switching-grid-field` is a marker class
+				// targeted by the scoped <style> at the bottom of output()
+				// to tighten the gap between the category filter row and
+				// the cards grid — see the style block for rationale.
+				'wrapper_classes'   => 'wu-w-full wu-template-switching-grid-field',
 				'classes'           => 'wu-w-full',
 				'desc'              => $desc,
 				'wrapper_html_attr' => [
@@ -510,57 +569,88 @@ class Template_Switching_Element extends Base_Element {
 				],
 			];
 
-			$checkout_fields['confirm_group'] = [
-				'type'            => 'group',
-				'classes'         => 'wu-justify-center wu-w-1/2 wu-grid',
-				'wrapper_classes' => 'wu-bg-gray-100 wu-mt-4 wu-max-w-screen-md wu-mx-auto',
-				'fields'          => [
-					'back_to_template_selection' => [
-						'type'              => 'note',
-						'order'             => 0,
-						'desc'              => function () {
-							printf('<a href="#" class="wu-no-underline wu-mt-1 wu-uppercase wu-text-2xs wu-font-semibold wu-text-gray-600" v-on:click.prevent="template_id = original_template_id; confirm_switch = false">%s</a>', esc_html__('&larr; Back to Template Selection', 'ultimate-multisite'));
-						},
-						'wrapper_html_attr' => [
-							'v-init:original_template_id' => $this->site->get_template_id(),
-							'v-show'                      => 'template_id != original_template_id',
-							'v-cloak'                     => '1',
-						],
-					],
-					'confirm_switch'             => [
-						'type'              => 'toggle',
-						'title'             => __('Confirm template switch?', 'ultimate-multisite'),
-						'desc'              => __('Switching your current template completely overwrites the content of your site with the contents of the newly chosen template. All customizations will be lost. This action cannot be undone.', 'ultimate-multisite'),
-						'tooltip'           => '',
-						'wrapper_classes'   => 'wu-w-full wu-box-border wu-items-center wu-flex wu-justify-between wu-p-4 wu-py-5 wu-m-0 wu-border-t wu-border-l-0 wu-border-r-0 wu-border-b-0 wu-border-gray-300 wu-border-solid',
-						'value'             => 0,
-						'html_attr'         => [
-							'v-model' => 'confirm_switch',
-						],
-						'wrapper_html_attr' => [
-							'v-show'  => 'template_id != 0 && template_id != original_template_id',
-							'v-cloak' => 1,
-						],
-					],
-					'submit_switch'              => [
-						'type'              => 'link',
-						'display_value'     => __('Process Switch', 'ultimate-multisite'),
-						'wrapper_classes'   => 'wu-text-right wu-bg-gray-100 wu-w-full wu-box-border wu-items-center wu-flex wu-justify-between wu-p-4 wu-py-5 wu-m-0 wu-border-t wu-border-l-0 wu-border-r-0 wu-border-b-0 wu-border-gray-300 wu-border-solid',
-						'classes'           => 'button button-primary',
-						'wrapper_html_attr' => [
-							'v-cloak'            => 1,
-							'v-show'             => 'confirm_switch',
-							'v-on:click.prevent' => 'ready = true',
-						],
-					],
+			/*
+			 * Confirmation panel — replaces the previous (toggle + button)
+			 * confirm_group with a single card whose visual layout matches
+			 * the current-template card at the top of the page. The same
+			 * panel handles two actions:
+			 *
+			 *   - "Switch to {target}?" — when template_id is a grid template
+			 *     the customer just picked.
+			 *   - "Reset to {current}?" — when template_id has been set back
+			 *     to original_template_id by the Reset button.
+			 *
+			 * The panel cards are emitted by views/ui/template-switching-
+			 * confirm.php which builds one v-if-guarded card per candidate
+			 * site (current + all available). Vue's v-if shows only the card
+			 * matching the active template_id, so the customer always sees a
+			 * single panel with the correct thumbnail, name, and disclaimer.
+			 *
+			 * Visibility is keyed off `confirm_active` (set true by the grid
+			 * Select buttons and the Reset button, false on cancel) rather
+			 * than the previous `template_id != original_template_id` check
+			 * — the latter could not distinguish "I clicked Reset" from
+			 * "I'm already on this template, do nothing".
+			 */
+			$confirm_sites    = $sites;
+			$current_in_sites = false;
+
+			foreach ($confirm_sites as $candidate_site) {
+				if ((int) $candidate_site->get_id() === $current_template_id) {
+					$current_in_sites = true;
+					break;
+				}
+			}
+
+			if ( ! $current_in_sites && $current_template instanceof \WP_Ultimo\Models\Site) {
+				array_unshift($confirm_sites, $current_template);
+			}
+
+			$confirm_renderer = function () use ($confirm_sites, $current_template_id) {
+				wu_get_template(
+					'ui/template-switching-confirm',
+					[
+						'confirm_sites'        => $confirm_sites,
+						'original_template_id' => $current_template_id,
+					]
+				);
+			};
+
+			$checkout_fields['confirm_panel'] = [
+				'type'              => 'note',
+				'wrapper_classes'   => 'wu-w-full wu-bg-transparent wu-p-0 wu-template-switching-confirm-field',
+				'classes'           => 'wu-w-full wu-p-0',
+				'desc'              => $confirm_renderer,
+				'wrapper_html_attr' => [
+					'v-show'  => 'confirm_active',
+					'v-cloak' => '1',
 				],
 			];
 
+			/*
+			 * Both v-init directives MUST be present on the same element
+			 * so Vue processes them in the same bind phase. If only
+			 * `template_id` is initialised, the JS watcher then sees
+			 * `template_id` move from 0 → current and `original_template_id`
+			 * still at its data() default of -1, so the
+			 * `new_value == original_template_id` short-circuit cannot
+			 * fire and the watcher flips `confirm_active = true` —
+			 * which renders the confirm panel on first paint without the
+			 * customer doing anything.
+			 *
+			 * Listing `original_template_id` *first* in the array means
+			 * the rendered HTML emits its attribute before `template_id`,
+			 * giving Vue a chance to bind it before the `template_id`
+			 * watcher runs. The watcher itself also defends against the
+			 * inverse ordering (see template-switching.js: it bails out
+			 * early when original_template_id <= 0).
+			 */
 			$checkout_fields['template_id'] = [
 				'type'      => 'hidden',
 				'html_attr' => [
-					'v-model'            => 'template_id',
-					'v-init:template_id' => $this->site->get_template_id(),
+					'v-init:original_template_id' => $this->site->get_template_id(),
+					'v-init:template_id'          => $this->site->get_template_id(),
+					'v-model'                     => 'template_id',
 				],
 			];
 
@@ -576,7 +666,74 @@ class Template_Switching_Element extends Base_Element {
 				]
 			);
 
+			/*
+			 * Constrain the page to a reasonable reading width and centre it
+			 * inside the customer panel. The previous full-bleed layout made
+			 * the current-template card stretch the entire admin width, which
+			 * left a lot of empty horizontal space on wide monitors and made
+			 * the grid cards much wider than necessary. wu-max-w-screen-lg
+			 * (1024px) lines up with the rest of the customer panel content
+			 * areas; wu-mx-auto centres it.
+			 */
+			/*
+			 * Scoped CSS adjustments for the switching page only. Each rule
+			 * is scoped to .wu-template-switching-wrap so signup/checkout
+			 * (which reuses views/checkout/templates/template-selection/
+			 * clean.php) is not affected.
+			 *
+			 * 1. Hide the category filter list when only the "All" item is
+			 *    present. The shared clean.php view always renders the
+			 *    filter row even when there are zero real categories, which
+			 *    leaves a lonely "All" link with no other options — pure
+			 *    visual noise on the switching page where almost all
+			 *    customers have a flat (uncategorised) template list.
+			 *    `:has(li:nth-child(2))` is supported in all evergreen
+			 *    browsers (Chrome 105+, Safari 15.4+, Firefox 121+); on
+			 *    older browsers the list simply remains visible — graceful
+			 *    degradation, not a regression.
+			 *
+			 * 2. Tighten the vertical gap between the filter row and the
+			 *    grid. The form widget wraps each field in `wu-py-5` (20px
+			 *    top + 20px bottom) which, combined with the filter row's
+			 *    own `wu-mb-4` (16px) and the grid container's natural
+			 *    margin, produced ~80px of empty space between the two —
+			 *    far too much given they are visually one unit (filter +
+			 *    its filtered grid). Pulling top padding off the grid
+			 *    field-wrapper closes the gap to a comfortable ~24px.
+			 */
+			?>
+			<style>
+				.wu-template-switching-wrap #wu-site-template-filter:not(:has(li:nth-child(2))) {
+					display: none;
+				}
+				.wu-template-switching-wrap li.wu-template-switching-grid-field {
+					padding-top: 0;
+				}
+				.wu-template-switching-wrap #wu-site-template-filter {
+					margin-bottom: 0;
+				}
+			</style>
+			<?php
+			/*
+			 * Inline `max-width` + `margin: 0 auto` instead of the
+			 * `wu-max-w-screen-lg wu-mx-auto` utility classes. The compiled
+			 * `assets/css/framework.css` scopes every max-width utility under
+			 * `.wu-styling :is(...)` (a Tailwind purge artefact), so the
+			 * classes only take effect inside an element whose ancestor has
+			 * `class="wu-styling"`. The customer-panel admin shell does not
+			 * apply that wrapper class, which left the page rendering full
+			 * width despite the utility classes being present in the markup.
+			 * Using an inline style guarantees the cap is honoured regardless
+			 * of CSS scope, without rebuilding framework.css.
+			 *
+			 * 960px (vs the 1024px of `wu-max-w-screen-lg`) gives a slightly
+			 * tighter reading width that makes the 3-column grid feel less
+			 * sparse on wide monitors and prevents card thumbnails from
+			 * stretching too tall when only 1-2 templates exist.
+			 */
+			echo '<div class="wu-template-switching-wrap" style="max-width:960px;margin:0 auto;">';
 			$form->render();
+			echo '</div>';
 		}
 	}
 

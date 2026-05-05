@@ -51,6 +51,30 @@ defined('ABSPATH') || exit;
 
 	</h1>
 	<hr class="wp-header-end">
+
+	<?php
+	/*
+	 * Render the updated/notice message exposed to this view via $labels.
+	 *
+	 * Mirrors the pattern in views/base/edit.php and views/base/centered.php:
+	 * customer-panel pages that use dash.php (e.g. Switch Template) set
+	 * $hide_admin_notices = true on the page class, which suppresses the
+	 * standard WordPress success notice. Without rendering the label here
+	 * the customer never sees confirmation that their action succeeded —
+	 * the page redirects to ?updated=1 and looks identical to the pre-action
+	 * state, which reads as "nothing happened".
+	 *
+	 * Guarded behind isset() so the dozen other pages that use dash.php
+	 * without supplying a $labels array (Dashboard, Account, My Sites,
+	 * Add New Site, Debug) keep working unchanged.
+	 */
+	?>
+	<?php if (! empty($labels['updated_message']) && isset($_GET['updated'])) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
+		<div id="message" class="updated notice wu-admin-notice notice-success is-dismissible below-h2">
+			<p><?php echo esc_html($labels['updated_message']); ?></p>
+		</div>
+	<?php endif; ?>
+
 	<?php do_action('wu_dash_before_metaboxes', $page); ?>
 	<?php if (apply_filters('wu_dashboard_display_widgets', true)) : ?>
 

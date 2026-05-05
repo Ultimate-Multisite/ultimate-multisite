@@ -53,9 +53,31 @@ $has_current_template = $current_template instanceof \WP_Ultimo\Models\Site && $
 			</div>
 
 			<div class="wu-flex-shrink-0">
+				<?php
+				/*
+				 * Outlined-red "secondary destructive" styling for the Reset
+				 * button. Reset is a destructive action (it overwrites the
+				 * site's content with a fresh template copy — the JS
+				 * confirm() in reset_template() warns about this) so the
+				 * colour must signal danger; but it is also a *secondary*
+				 * action on this page, ranked below the primary "Select a
+				 * different template" path the customer is more likely to
+				 * take. Filled blue (Select) for primary + outlined red for
+				 * destructive matches Material/HIG guidance and produces
+				 * better visual hierarchy than two equally-heavy filled
+				 * buttons. Hover fills the button red as a tactile cue that
+				 * the click is consequential. Inline style is used because
+				 * `hover:wu-bg-red-*` and `wu-border-red-*` variants are
+				 * absent from the compiled framework.css; rebuilding CSS for
+				 * a single hover transition is overkill.
+				 */
+				?>
 				<a
 					href="#"
 					class="button wu-no-underline"
+					style="background-color: transparent; border: 1px solid #c53030; color: #c53030; transition: background-color 0.15s, color 0.15s;"
+					onmouseover="this.style.backgroundColor='#c53030';this.style.color='#ffffff';"
+					onmouseout="this.style.backgroundColor='transparent';this.style.color='#c53030';"
 					v-on:click.prevent="reset_template()"
 					title="<?php esc_attr_e('Re-apply this template, overwriting the site with a fresh copy.', 'ultimate-multisite'); ?>"
 				>
