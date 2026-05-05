@@ -81,6 +81,20 @@ class Billing_Address_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test exists treats whitespace-only fields as empty.
+	 */
+	public function test_exists_returns_false_for_whitespace_only_fields(): void {
+
+		$address = new Billing_Address([
+			'billing_email'          => ' ',
+			'billing_address_line_1' => "\t",
+			'billing_country'        => "\n",
+		]);
+
+		$this->assertFalse($address->exists());
+	}
+
+	/**
 	 * Test magic getter returns empty string for missing attributes.
 	 */
 	public function test_magic_getter_returns_empty_for_missing(): void {
@@ -182,6 +196,22 @@ class Billing_Address_Test extends WP_UnitTestCase {
 		$this->assertArrayHasKey('billing_email', $array);
 		$this->assertArrayNotHasKey('company_name', $array);
 		$this->assertArrayNotHasKey('billing_state', $array);
+	}
+
+	/**
+	 * Test to_array trims values and excludes whitespace-only fields.
+	 */
+	public function test_to_array_trims_and_excludes_whitespace_only_fields(): void {
+
+		$address = new Billing_Address([
+			'billing_email'          => ' billing@example.com ',
+			'billing_address_line_1' => ' ',
+			'billing_country'        => "\t",
+		]);
+
+		$array = $address->to_array();
+
+		$this->assertSame(['billing_email' => 'billing@example.com'], $array);
 	}
 
 	/**
