@@ -247,6 +247,13 @@ class Domain_Manager extends Base_Manager {
 	 */
 	public function determine_cookie_domain(string $host, string $network_domain): ?string {
 
+		$host           = $this->normalize_cookie_domain_host($host);
+		$network_domain = $this->normalize_cookie_domain_host($network_domain);
+
+		if ('' === $host || '' === $network_domain) {
+			return null;
+		}
+
 		// Case 1: Mapped domain — host does not belong to the network domain at all.
 		if ( ! preg_match('/' . preg_quote($network_domain, '/') . '$/', '.' . $host)) {
 			return '.' . $host;
@@ -263,6 +270,35 @@ class Domain_Manager extends Base_Manager {
 
 		// Host is the network root domain itself — no override needed.
 		return null;
+	}
+
+	/**
+	 * Normalizes a host before using it as a cookie domain.
+	 *
+	 * Browser cookie domain attributes must contain only the hostname. Non-standard
+	 * local/staging ports in HTTP_HOST (for example, example.com:8080) must not be
+	 * copied into COOKIE_DOMAIN because browsers reject malformed domain attributes.
+	 *
+	 * @since 2.4.8
+	 *
+	 * @param string $host The raw host value.
+	 * @return string The host without a port suffix or trailing dot.
+	 */
+	protected function normalize_cookie_domain_host(string $host): string {
+
+		$host = trim($host);
+
+		if ('' === $host) {
+			return '';
+		}
+
+		$parsed_host = wp_parse_url('http://' . $host, PHP_URL_HOST);
+
+		if (is_string($parsed_host) && '' !== $parsed_host) {
+			$host = $parsed_host;
+		}
+
+		return rtrim($host, '.');
 	}
 
 	/**

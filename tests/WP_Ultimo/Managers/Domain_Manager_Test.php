@@ -2058,6 +2058,30 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 		$this->assertEquals('.www.ultimatemultisite.com', $result, 'www subdomain should use specific cookie domain');
 	}
 
+	/**
+	 * HTTP_HOST values with non-standard ports must not copy the port into COOKIE_DOMAIN.
+	 */
+	public function test_determine_cookie_domain_strips_port_from_mapped_domain(): void {
+		$result = $this->domain_manager->determine_cookie_domain('translate.example.com:8080', 'ultimatemultisite.com');
+		$this->assertEquals('.translate.example.com', $result, 'Mapped domain cookie attribute must not include a port');
+	}
+
+	/**
+	 * Subdomain subsites on non-standard ports should keep the specific host without the port.
+	 */
+	public function test_determine_cookie_domain_strips_port_from_subdomain_subsite(): void {
+		$result = $this->domain_manager->determine_cookie_domain('translate.ultimatemultisite.com:8080', 'ultimatemultisite.com');
+		$this->assertEquals('.translate.ultimatemultisite.com', $result, 'Subdomain subsite cookie attribute must not include a port');
+	}
+
+	/**
+	 * Network root hosts with a port should still use the default WordPress cookie domain.
+	 */
+	public function test_determine_cookie_domain_network_root_with_port_returns_null(): void {
+		$result = $this->domain_manager->determine_cookie_domain('ultimatemultisite.com:8080', 'ultimatemultisite.com');
+		$this->assertNull($result, 'Network root with a port should not require a COOKIE_DOMAIN override');
+	}
+
 	// ----------------------------------------------------------------
 	// NEW: try_again_time filter
 	// ----------------------------------------------------------------
