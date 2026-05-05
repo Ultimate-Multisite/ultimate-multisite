@@ -8,6 +8,7 @@
 
 namespace WP_Ultimo\Tests\Helpers;
 
+use Psr\Log\LogLevel;
 use WP_Ultimo\Helpers\Site_Duplicator;
 use WP_Ultimo\Models\Customer;
 use WP_Ultimo\Models\Site;
@@ -47,9 +48,9 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		// Create test customer
 		$this->customer = wu_create_customer(
 			[
-				'username'      => 'testuser',
-				'email' => 'test@example.com',
-				'password'      => 'password123',
+				'username' => 'testuser',
+				'email'    => 'test@example.com',
+				'password' => 'password123',
 			]
 		);
 
@@ -174,12 +175,36 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		$this->assertTrue(is_wp_error($target_wu_site));
 		$this->assertEquals('Sorry, that site already exists!', $target_wu_site->get_error_message());
 
-		$args = [];
+		$logged_messages = [];
+		$logger          = function ($handle, $message, $log_level) use (&$logged_messages) {
+			if ('site-duplication' === $handle) {
+				$logged_messages[] = [
+					'message' => $message,
+					'level'   => $log_level,
+				];
+			}
+		};
+
+		add_action('wu_log_add', $logger, 10, 3);
+
+		$args = [
+			'copy_files' => false,
+			'keep_users' => false,
+		];
 
 		$result = Site_Duplicator::override_site($this->template_site_id, $target_site_id, $args);
 
-		// Method should return the target site ID or false
-		$this->assertTrue($result === $target_site_id || $result === false);
+		remove_action('wu_log_add', $logger, 10);
+
+		$validation_errors = array_filter(
+			$logged_messages,
+			function ($log) {
+				return LogLevel::ERROR === $log['level'] && false !== strpos($log['message'], 'not found');
+			}
+		);
+
+		$this->assertEmpty($validation_errors, 'Valid source and destination sites should not fail existence validation.');
+		$this->assertNotFalse($result, 'Valid source and destination sites should complete the override.');
 
 		// Clean up
 		wpmu_delete_blog($target_site_id, true);
@@ -227,13 +252,63 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 	 */
 	public function test_override_invalid_target_site() {
 		$invalid_target_id = 99999;
+		$logged_messages   = [];
+		$logger            = function ($handle, $message, $log_level) use (&$logged_messages) {
+			if ('site-duplication' === $handle) {
+				$logged_messages[] = [
+					'message' => $message,
+					'level'   => $log_level,
+				];
+			}
+		};
+
+		add_action('wu_log_add', $logger, 10, 3);
 
 		$args = [];
 
 		$result = Site_Duplicator::override_site($this->template_site_id, $invalid_target_id, $args);
 
+		remove_action('wu_log_add', $logger, 10);
+
 		// Should handle gracefully
 		$this->assertFalse($result);
+		$this->assertSame(LogLevel::ERROR, $logged_messages[0]['level']);
+		$this->assertStringContainsString('Destination site 99999 not found', $logged_messages[0]['message']);
+	}
+
+	/**
+	 * Test override with invalid source site.
+	 */
+	public function test_override_invalid_source_site() {
+		$invalid_source_id = 99999;
+		$target_site_id    = self::factory()->blog->create(
+			[
+				'domain' => 'invalid-source-target.example.com',
+				'path'   => '/',
+				'title'  => 'Invalid Source Target',
+			]
+		);
+		$logged_messages   = [];
+		$logger            = function ($handle, $message, $log_level) use (&$logged_messages) {
+			if ('site-duplication' === $handle) {
+				$logged_messages[] = [
+					'message' => $message,
+					'level'   => $log_level,
+				];
+			}
+		};
+
+		add_action('wu_log_add', $logger, 10, 3);
+
+		$result = Site_Duplicator::override_site($invalid_source_id, $target_site_id);
+
+		remove_action('wu_log_add', $logger, 10);
+
+		$this->assertFalse($result);
+		$this->assertSame(LogLevel::ERROR, $logged_messages[0]['level']);
+		$this->assertStringContainsString('Source template site 99999 not found', $logged_messages[0]['message']);
+
+		wpmu_delete_blog($target_site_id, true);
 	}
 
 	/**
@@ -396,7 +471,10 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 			]
 		);
 		add_post_meta($post_id, '_wp_attached_file', '2026/04/test-image.jpg');
-		add_post_meta($post_id, '_wp_attachment_metadata', ['width' => 800, 'height' => 600]);
+		add_post_meta($post_id, '_wp_attachment_metadata', [
+			'width'  => 800,
+			'height' => 600,
+		]);
 		add_post_meta($post_id, '_wp_attachment_image_alt', 'Alt text');
 		restore_current_blog();
 
@@ -437,7 +515,7 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		$target_id   = self::factory()->blog->create();
 
 		switch_to_blog($template_id);
-		$post_id = wp_insert_post(
+		$post_id        = wp_insert_post(
 			[
 				'import_id'   => 700,
 				'post_type'   => 'elementor_library',
@@ -486,14 +564,23 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 
 		$real_settings = [
 			'system_colors' => [
-				['_id' => 'primary', 'color' => '#EAC7C7'],
-				['_id' => 'secondary', 'color' => '#ED6363'],
+				[
+					'_id'   => 'primary',
+					'color' => '#EAC7C7',
+				],
+				[
+					'_id'   => 'secondary',
+					'color' => '#ED6363',
+				],
 			],
 			'custom_colors' => [
-				['_id' => 'brand', 'color' => '#FF0000'],
+				[
+					'_id'   => 'brand',
+					'color' => '#FF0000',
+				],
 			],
 		];
-		$real_data = '[{"id":"kit1","elType":"kit","settings":{}}]';
+		$real_data     = '[{"id":"kit1","elType":"kit","settings":{}}]';
 
 		switch_to_blog($template_id);
 		$kit_id = wp_insert_post(
@@ -509,7 +596,14 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		update_post_meta($kit_id, '_elementor_data', $real_data);
 		restore_current_blog();
 
-		$stub_settings = ['system_colors' => [['_id' => 'primary', 'color' => '#6EC1E4']]];
+		$stub_settings = [
+			'system_colors' => [
+				[
+					'_id'   => 'primary',
+					'color' => '#6EC1E4',
+				],
+			],
+		];
 
 		switch_to_blog($target_id);
 		$target_kit_id = wp_insert_post(
@@ -564,7 +658,7 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		$method->invoke(null, $site_id, $site_id);
 
 		switch_to_blog($site_id);
-		$values = get_post_meta(800, '_menu_item_type');
+		$values = get_post_meta(800, '_menu_item_type', false);
 		$this->assertCount(1, $values);
 		restore_current_blog();
 
@@ -607,7 +701,7 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		$method->invoke(null, $template_id, $target_id);
 
 		switch_to_blog($target_id);
-		$values = get_post_meta(900, '_menu_item_type');
+		$values = get_post_meta(900, '_menu_item_type', false);
 		$this->assertCount(1, $values);
 		$this->assertEquals('post_type', $values[0]);
 		restore_current_blog();
