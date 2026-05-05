@@ -852,6 +852,9 @@ final class WP_Ultimo {
 
 		new WP_Ultimo\Admin_Pages\Hosting_Integration_Wizard_Admin_Page();
 
+		$paypal_setup_wizard = new WP_Ultimo\Admin_Pages\PayPal_Setup_Wizard_Admin_Page();
+		$paypal_setup_wizard->register_ajax_handlers();
+
 		new WP_Ultimo\Admin_Pages\Event_List_Admin_Page();
 
 		new WP_Ultimo\Admin_Pages\Event_View_Admin_Page();
