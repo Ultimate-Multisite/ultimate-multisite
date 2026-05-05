@@ -451,42 +451,61 @@ class Template_Switching_Element extends Base_Element {
 				}
 			};
 
+			/*
+			 * Current-template summary card — rendered before the grid so the
+			 * customer can see "what they're on" plus the Reset button up front
+			 * without scrolling. The card is always visible (no v-show) because
+			 * "what is the site's current template?" remains true regardless of
+			 * what template_id the customer has clicked in the grid below.
+			 *
+			 * Reset is co-located here (instead of as a separate row at the
+			 * bottom) because the operation acts on the current template, not
+			 * on the grid selection. Pairing them avoids a stray red link
+			 * floating below the grid.
+			 */
+			$current_template_id = (int) $this->site->get_template_id();
+			$current_template    = $current_template_id > 0 ? wu_get_site($current_template_id) : false;
+
+			$current_card_renderer = function () use ($current_template, $current_template_id) {
+				wu_get_template(
+					'ui/template-switching-current',
+					[
+						'current_template'     => $current_template,
+						'original_template_id' => $current_template_id,
+					]
+				);
+			};
+
+			$checkout_fields['current_template_card'] = [
+				'type'              => 'note',
+				'wrapper_classes'   => 'wu-w-full wu-bg-transparent wu-p-0',
+				'classes'           => 'wu-w-full wu-p-0',
+				'desc'              => $current_card_renderer,
+				'wrapper_html_attr' => [
+					'v-cloak' => '1',
+				],
+			];
+
+			/*
+			 * The grid of available templates. Previously this was hidden
+			 * (v-show="template_id == original_template_id") whenever the
+			 * customer clicked a different template — which made the grid
+			 * disappear, hiding the user's other options behind a confirm
+			 * panel. The grid now stays visible during selection so the
+			 * customer can see context, change their mind, or pick a third
+			 * template without scrolling back from a hidden state.
+			 *
+			 * Selection state ("Selected" vs "Select" on the buttons inside
+			 * the grid) still updates from $parent.template_id, so the visual
+			 * cue for "this is the one you have queued for switching" is
+			 * preserved.
+			 */
 			$checkout_fields['template_element'] = [
 				'type'              => 'note',
 				'wrapper_classes'   => 'wu-w-full',
 				'classes'           => 'wu-w-full',
 				'desc'              => $desc,
 				'wrapper_html_attr' => [
-					'v-show'  => 'template_id == original_template_id',
-					'v-cloak' => '1',
-				],
-			];
-
-			/*
-			 * "Reset current template" — re-applies the customer's currently
-			 * assigned template, refreshing the site from the source template.
-			 * Useful when the source template has been updated, or when the
-			 * customer wants to discard their customisations and start over
-			 * without picking a different design.
-			 *
-			 * Only shows when the site is actually on a template (original_template_id > 0).
-			 * Sites created without a template (original_template_id == 0) have
-			 * nothing to reset to.
-			 */
-			// Confirmation text is provided to JS via wp_localize_script (see register_scripts())
-			// so it can be translated; the click handler in template-switching.js shows it via window.confirm().
-			$reset_link = sprintf(
-				'<div class="wu-text-right wu-mt-2"><a href="#" class="wu-no-underline wu-text-2xs wu-uppercase wu-font-semibold wu-text-red-600 hover:wu-text-red-800" v-on:click.prevent="reset_template()">%s</a></div>',
-				esc_html__('Reset current template', 'ultimate-multisite')
-			);
-
-			$checkout_fields['reset_current_template'] = [
-				'type'              => 'note',
-				'wrapper_classes'   => 'wu-w-full',
-				'classes'           => 'wu-w-full',
-				'desc'              => $reset_link,
-				'wrapper_html_attr' => [
-					'v-show'  => 'template_id == original_template_id && original_template_id > 0',
 					'v-cloak' => '1',
 				],
 			];

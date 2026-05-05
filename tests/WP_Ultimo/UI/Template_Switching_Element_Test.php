@@ -258,4 +258,117 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 		$this->assertSame( 'not_authorized', $decoded['data'][0]['code'] );
 	}
 
+	/**
+	 * Capture the rendered output of the element with a usable site/customer
+	 * context. Used by the layout tests below.
+	 *
+	 * @return string
+	 */
+	private function render_element_with_context(): string {
+
+		$user_id  = $this->factory()->user->create( [ 'role' => 'subscriber' ] );
+		$customer = wu_create_customer(
+			[
+				'user_id'       => $user_id,
+				'email_address' => 'render-' . uniqid() . '@example.com',
+			]
+		);
+
+		if ( is_wp_error( $customer ) ) {
+			$this->markTestSkipped( 'Customer creation failed: ' . $customer->get_error_message() );
+		}
+
+		$site_id = $this->factory()->blog->create();
+		$site    = wu_get_site( $site_id );
+		$site->set_type( 'customer_owned' );
+		$site->set_customer_id( $customer->get_id() );
+		$site->save();
+
+		WP_Ultimo()->currents->set_customer( $customer );
+		wp_set_current_user( $user_id );
+
+		$element = Template_Switching_Element::get_instance();
+
+		// Inject site and a state so output() proceeds.
+		$site_ref  = new \ReflectionProperty( $element, 'site' );
+		$state_ref = new \ReflectionProperty( $element, 'permission_state' );
+
+		if ( PHP_VERSION_ID < 80100 ) {
+			$site_ref->setAccessible( true );
+			$state_ref->setAccessible( true );
+		}
+
+		$site_ref->setValue( $element, $site );
+		$state_ref->setValue( $element, Template_Switching_Element::STATE_NO_MEMBERSHIP );
+
+		ob_start();
+		$element->output( $element->defaults() );
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * The current-template summary card must be present at the top of the
+	 * rendered output so the customer can see "what they're on" before
+	 * scrolling through the grid.
+	 *
+	 * Regression guard for the 2.9.4 redesign that introduced the card.
+	 */
+	public function test_render_includes_current_template_card(): void {
+
+		$html = $this->render_element_with_context();
+
+		$this->assertStringContainsString(
+			'wu-template-switching-current',
+			$html,
+			'Rendered output must include the current-template card wrapper.'
+		);
+
+		$this->assertStringContainsString(
+			'Available Templates',
+			$html,
+			'Rendered output must include the "Available Templates" heading that visually separates the card from the grid.'
+		);
+	}
+
+	/**
+	 * The grid wrapper must NOT carry a v-show that hides it when the
+	 * customer picks a different template. Hiding the grid mid-selection
+	 * was the UX regression this change fixes — the grid stays visible so
+	 * the customer can change their mind without scrolling away from a
+	 * disappeared list.
+	 *
+	 * We assert this by checking that the rendered template_element field
+	 * does not contain `v-show="template_id == original_template_id"` —
+	 * the exact directive that previously hid the grid.
+	 */
+	public function test_render_grid_is_not_hidden_during_selection(): void {
+
+		$html = $this->render_element_with_context();
+
+		$this->assertStringNotContainsString(
+			'v-show="template_id == original_template_id"',
+			$html,
+			'Grid must not be hidden when template_id != original_template_id; the customer needs to see the grid to change their mind.'
+		);
+	}
+
+	/**
+	 * The standalone "reset_current_template" red-link row must no longer
+	 * be emitted — the Reset action lives inside the current-template card
+	 * at the top of the page now. A duplicate row at the bottom would be
+	 * confusing.
+	 */
+	public function test_render_does_not_emit_legacy_bottom_reset_link(): void {
+
+		$html = $this->render_element_with_context();
+
+		// Legacy bottom-row container had this exact class chain.
+		$this->assertStringNotContainsString(
+			'wu-text-red-600 hover:wu-text-red-800',
+			$html,
+			'The legacy bottom-right "Reset current template" red link must be gone; Reset lives in the top card now.'
+		);
+	}
+
 }
