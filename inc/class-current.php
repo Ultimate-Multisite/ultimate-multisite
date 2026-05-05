@@ -70,6 +70,14 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 	protected $membership_set_via_request = false;
 
 	/**
+	 * Whether or not the current objects have been loaded.
+	 *
+	 * @since 2.5.3
+	 * @var boolean
+	 */
+	protected $loaded = false;
+
+	/**
 	 * Called when the singleton is first initialized.
 	 *
 	 * @since 2.0.0
@@ -222,6 +230,8 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function load_currents(): void {
 
+		$this->loaded = true;
+
 		// On the wp hook, only re-run if we're on the frontend
 		// (query var overrides from pretty URLs only work there).
 		// On admin or AJAX, the init run already set everything.
@@ -313,6 +323,10 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function get_site() {
 
+		if ( ! $this->loaded && null === $this->site) {
+			$this->load_currents();
+		}
+
 		return $this->site;
 	}
 
@@ -359,6 +373,10 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function get_customer() {
 
+		if ( ! $this->loaded && null === $this->customer) {
+			$this->load_currents();
+		}
+
 		return $this->customer;
 	}
 
@@ -393,6 +411,10 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 	 * @return \WP_Ultimo\Models\Membership
 	 */
 	public function get_membership() {
+
+		if ( ! $this->loaded && null === $this->membership) {
+			$this->load_currents();
+		}
 
 		return $this->membership;
 	}
