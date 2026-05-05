@@ -141,6 +141,27 @@ class Template_Switching_Admin_Page extends \WP_Ultimo\Admin_Pages\Base_Customer
 	 */
 	public function output(): void {
 		/*
+		 * Pick the success label that matches the action just performed.
+		 * The AJAX handler in Template_Switching_Element::switch_template()
+		 * sets ?wu_template_action=reset when the customer re-applied
+		 * their existing template and ?wu_template_action=switch when
+		 * they moved to a different one. We use a namespaced query var
+		 * (rather than the generic `?action`) because wp-admin/admin.php
+		 * intercepts and rewrites generic `action=` requests as admin-
+		 * action dispatches, which would drop our companion `updated=1`
+		 * flag from the URL and silently break the notice.
+		 *
+		 * Falling back to the switch wording keeps the message correct
+		 * for legacy callers that may redirect with only ?updated=1.
+		 *
+		 * phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display flag, no state change.
+		 */
+		$action  = isset($_GET['wu_template_action']) ? sanitize_key(wp_unslash($_GET['wu_template_action'])) : '';
+		$message = 'reset' === $action
+			? __('Template reset successfully!', 'ultimate-multisite')
+			: __('Template switched successfully!', 'ultimate-multisite');
+
+		/*
 		 * Renders the base edit page layout, with the columns and everything else =)
 		 */
 		wu_get_template(
@@ -151,7 +172,7 @@ class Template_Switching_Admin_Page extends \WP_Ultimo\Admin_Pages\Base_Customer
 				'has_full_position' => false,
 				'content'           => '',
 				'labels'            => [
-					'updated_message' => __('Template switched successfully!', 'ultimate-multisite'),
+					'updated_message' => $message,
 				],
 			]
 		);

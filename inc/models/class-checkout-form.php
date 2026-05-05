@@ -1465,6 +1465,30 @@ class Checkout_Form extends Base_Model {
 			$membership = wu_get_membership(wu_request('membership_id'));
 		}
 
+		/*
+		 * Customer-panel fallback. The Current singleton's membership
+		 * cache is populated by Current::load_currents() at `init`, but
+		 * the wu-ajax light-ajax pipeline dispatches its handlers at
+		 * `plugins_loaded` priority 20 and calls die() before init runs.
+		 * In that pipeline `currents->get_membership()` returns null
+		 * even when the request is being made by a logged-in customer
+		 * with a membership. Without this fallback, the upgrade-/
+		 * downgrade- form returns no fields at all when posted via the
+		 * customer-panel AJAX flow.
+		 *
+		 * We reuse the same "first membership" heuristic that
+		 * Current::load_currents itself uses, so behaviour matches the
+		 * cached path exactly.
+		 */
+		if ( ! $membership) {
+			$customer = wu_get_current_customer();
+
+			if ($customer) {
+				$memberships = (array) $customer->get_memberships();
+				$membership  = wu_get_isset($memberships, 0, false);
+			}
+		}
+
 		if ( ! $membership && current_user_can('manage_options')) {
 			$membership = wu_mock_membership();
 		}
@@ -1656,6 +1680,23 @@ class Checkout_Form extends Base_Model {
 	public static function add_new_site_form_fields() {
 
 		$membership = WP_Ultimo()->currents->get_membership();
+
+		/*
+		 * Customer-panel fallback for the wu-ajax light-ajax pipeline.
+		 * See the equivalent comment in membership_change_form_fields()
+		 * for the full rationale. Without this, posting "add new site"
+		 * via the customer-panel AJAX flow returns no fields at all
+		 * because Current::load_currents() (hooked to `init`) has not
+		 * run by the time the handler dispatches at `plugins_loaded`.
+		 */
+		if ( ! $membership) {
+			$customer = wu_get_current_customer();
+
+			if ($customer) {
+				$memberships = (array) $customer->get_memberships();
+				$membership  = wu_get_isset($memberships, 0, false);
+			}
+		}
 
 		if ( ! $membership) {
 			return [];

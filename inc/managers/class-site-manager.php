@@ -235,6 +235,26 @@ class Site_Manager extends Base_Manager {
 
 				$customer = wu_get_current_customer();
 
+				/*
+				 * Fallback for the wu-ajax light-ajax pipeline.
+				 * Current::load_currents() — which populates the
+				 * Current singleton's membership cache — is hooked to
+				 * `init`, but light-ajax handlers dispatch at
+				 * `plugins_loaded` priority 20 and call die() before
+				 * init runs. Without the fallback below, every
+				 * customer-panel "add new site" submission would emit
+				 * a spurious "not-owner" error for the rightful
+				 * customer because $membership is null.
+				 *
+				 * Mirrors the heuristic used by Current::load_currents
+				 * itself (first membership of the current customer) so
+				 * the cached and uncached paths agree.
+				 */
+				if ( ! $membership && $customer) {
+					$memberships = (array) $customer->get_memberships();
+					$membership  = wu_get_isset($memberships, 0, false);
+				}
+
 				if ( ! $customer || ! $membership || $customer->get_id() !== $membership->get_customer_id()) {
 					$errors->add('not-owner', __('You do not have the necessary permissions to add a site to this membership', 'ultimate-multisite'));
 				}

@@ -462,7 +462,34 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		}
 
 		if ( ! $customer_id) {
+			/*
+			 * Resolve the current customer.
+			 *
+			 * `WP_Ultimo()->currents->get_customer()` returns the
+			 * customer cached on the Current singleton, populated
+			 * by Current::load_currents() — a method hooked to the
+			 * `init` and `wp` actions. The wu-ajax light-ajax
+			 * pipeline dispatches `wu_ajax_*` handlers at
+			 * `plugins_loaded` priority 20 and calls die() before
+			 * `init` ever fires, so the cache is null even when
+			 * the user IS logged in as a real customer. Without
+			 * the fallback below, every membership-gated wu_form
+			 * action (delete site, change payment method, change
+			 * default site, etc.) returns a spurious "not allowed"
+			 * for the rightful owner.
+			 *
+			 * `wu_get_current_customer()` derives the customer
+			 * directly from `get_current_user_id()` and has no
+			 * dependency on the Current singleton having loaded.
+			 *
+			 * Mirrors the equivalent fix in
+			 * Site::is_customer_allowed().
+			 */
 			$customer = WP_Ultimo()->currents->get_customer();
+
+			if ( ! $customer) {
+				$customer = wu_get_current_customer();
+			}
 
 			$customer_id = $customer ? $customer->get_id() : 0;
 		}
