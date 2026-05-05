@@ -242,7 +242,21 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			_doing_it_wrong(esc_html($setting), esc_html__('Dashes are no longer supported when registering a setting. You should change it to underscores in later versions.', 'ultimate-multisite'), '2.0.0');
 		}
 
-		if (isset($settings[ $setting ])) {
+		/*
+		 * Treat the literal string "false" as "not set" when reading a
+		 * setting. Earlier versions of the settings save flow could
+		 * persist the four-letter string "false" for any text field
+		 * that was empty when the user clicked Save (the Vue data-state
+		 * round-tripped a boolean false through v-model and back to
+		 * PHP as the string "false"). Recovering existing installs
+		 * without forcing a manual DB clean-up means treating that
+		 * sentinel as missing so the caller's default (or the field
+		 * default) takes precedence. The bug that produced these values
+		 * is fixed in add_field()'s value/display_value closures, so new
+		 * saves cannot reintroduce the string — this read-side guard
+		 * exists purely for already-corrupted databases.
+		 */
+		if (isset($settings[ $setting ]) && 'false' !== $settings[ $setting ]) {
 			$setting_value = $settings[ $setting ];
 		} elseif (false !== $default_value) {
 			$setting_value = $default_value;
@@ -481,6 +495,31 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 				$default_order = (count($fields) + 1) * 10;
 
+				/*
+				 * Resolve the field's declared default before building the
+				 * value/display_value closures so they can fall back to it
+				 * when the setting has not been saved yet. Previously the
+				 * closures called `wu_get_setting($field_slug)` with no
+				 * default arg, which meant unset settings resolved to
+				 * boolean `false` from `wu_get_setting`'s signature
+				 * default. That `false` then got JSON-encoded into the
+				 * settings page Vue data-state, round-tripped through
+				 * v-model as the literal string "false", and saved back to
+				 * the database — leaving every empty text setting (e.g.
+				 * domain_seller_registrant_*) showing the word "false" in
+				 * its input. Passing the declared default as
+				 * `wu_get_setting`'s second arg keeps unset values empty
+				 * (or whatever the field author specified) and prevents
+				 * the bogus "false" round-trip from re-occurring on every
+				 * settings save.
+				 */
+				$declared_default = $atts['default'] ?? null;
+
+				if (null === $declared_default) {
+					$type             = $atts['type'] ?? 'text';
+					$declared_default = in_array($type, ['toggle', 'checkbox'], true) ? false : '';
+				}
+
 				$atts = wp_parse_args(
 					$atts,
 					[
@@ -488,13 +527,13 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 						'title'             => '',
 						'desc'              => '',
 						'order'             => $default_order,
-						'default'           => null,
+						'default'           => $declared_default,
 						'capability'        => 'manage_network',
 						'wrapper_html_attr' => [],
 						'require'           => [],
 						'html_attr'         => [],
-						'value'             => fn() => wu_get_setting($field_slug),
-						'display_value'     => fn() => wu_get_setting($field_slug),
+						'value'             => fn() => wu_get_setting($field_slug, $declared_default),
+						'display_value'     => fn() => wu_get_setting($field_slug, $declared_default),
 						'img'               => function () use ($field_slug) {
 
 							$img_id = wu_get_setting($field_slug);
