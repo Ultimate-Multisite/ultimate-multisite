@@ -166,5 +166,46 @@ class Template_Switching_Admin_Page extends \WP_Ultimo\Admin_Pages\Base_Customer
 	public function register_widgets(): void {
 		\WP_Ultimo\UI\Simple_Text_Element::get_instance()->as_inline_content(get_current_screen()->id, 'wu_dash_before_metaboxes');
 		\WP_Ultimo\UI\Template_Switching_Element::get_instance()->as_inline_content(get_current_screen()->id, 'wu_dash_before_metaboxes');
+
+		/*
+		 * Defence-in-depth: if both as_inline_content() calls bailed silently
+		 * (e.g. via a third-party `wu_template_switching_should_display`
+		 * filter, or because the page was reached on an unsupported screen),
+		 * the page would render with three empty meta-box columns and no
+		 * explanation. Wrap the action in a buffer so we can detect
+		 * "nothing printed" and emit a fallback notice. Priority 5 starts
+		 * the buffer; priority 999 closes it and emits either the captured
+		 * output or a fallback message.
+		 */
+		add_action(
+			'wu_dash_before_metaboxes',
+			static function (): void {
+				ob_start();
+			},
+			5
+		);
+
+		add_action(
+			'wu_dash_before_metaboxes',
+			static function (): void {
+				$captured = ob_get_clean();
+
+				if (false === $captured || '' === trim((string) $captured)) {
+					printf(
+						'<div class="wu-bg-yellow-100 wu-border wu-border-solid wu-border-yellow-300 wu-text-yellow-800 wu-p-4 wu-rounded">' .
+							'<p class="wu-m-0 wu-font-semibold">%1$s</p>' .
+							'<p class="wu-m-0 wu-mt-2 wu-text-sm">%2$s</p>' .
+							'</div>',
+						esc_html__('Template switching is not available right now.', 'ultimate-multisite'),
+						esc_html__('No template switching widgets are available on this page. If you reached this page expecting to switch your site template, please contact your network administrator.', 'ultimate-multisite')
+					);
+
+					return;
+				}
+
+				echo $captured; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- previously-buffered widget HTML, already escaped at source.
+			},
+			999
+		);
 	}
 }

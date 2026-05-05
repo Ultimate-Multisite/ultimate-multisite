@@ -24,6 +24,26 @@ class Template_Switching_Element extends Base_Element {
 	use \WP_Ultimo\Traits\Singleton;
 
 	/**
+	 * Permission state: site exists, customer is allowed, full switching UI.
+	 */
+	const STATE_OK = 'ok';
+
+	/**
+	 * Permission state: site exists, customer is allowed, but no membership
+	 * is linked. Switching is still permitted; the available templates fall
+	 * back to whatever the site's limitations expose.
+	 */
+	const STATE_NO_MEMBERSHIP = 'no_membership';
+
+	/**
+	 * Permission state: no site, or the site exists but the current user is
+	 * not its customer (and not a network admin). UI shows a denial notice
+	 * instead of the switching grid so the user is not left staring at an
+	 * empty page wondering what went wrong.
+	 */
+	const STATE_NOT_ALLOWED = 'not_allowed';
+
+	/**
 	 * The id of the element.
 	 *
 	 * @since 2.0.0
@@ -56,6 +76,18 @@ class Template_Switching_Element extends Base_Element {
 	 * @var array
 	 */
 	protected $products;
+
+	/**
+	 * Permission state computed during setup().
+	 *
+	 * Used by output() to decide whether to render the full grid, the grid
+	 * with a "no membership" notice, or a denial notice. Always set to one
+	 * of the STATE_* constants by the time output() runs.
+	 *
+	 * @since 2.5.2
+	 * @var string
+	 */
+	protected $permission_state = self::STATE_OK;
 
 	/**
 	 * The icon of the UI element.
@@ -227,17 +259,27 @@ class Template_Switching_Element extends Base_Element {
 
 		$this->site = wu_get_current_site();
 
+		/*
+		 * Decide which UI state to render.
+		 *
+		 * Previously this method called $this->set_display(false) whenever the
+		 * customer was not allowed or no site was found, which left the page
+		 * with three empty meta-box columns and no explanation — a confusing
+		 * dead-end for end users. We now always render something: either the
+		 * full grid, the grid with a "no membership" notice, or a denial
+		 * notice. The actual server-side authorization for AJAX switches
+		 * stays in switch_template().
+		 */
 		if ( ! $this->site || ! $this->site->is_customer_allowed()) {
-			$this->set_display(false);
+			$this->permission_state = self::STATE_NOT_ALLOWED;
+			$this->membership       = null;
+			$this->products         = [];
 
 			return;
 		}
 
 		$this->membership = $this->site->get_membership();
-
-		$this->products = [];
-
-		$all_membership_products = [];
+		$this->products   = [];
 
 		if ($this->membership) {
 			$all_membership_products = $this->membership->get_all_products();
@@ -247,6 +289,19 @@ class Template_Switching_Element extends Base_Element {
 					$this->products[] = $product['product']->get_id();
 				}
 			}
+
+			$this->permission_state = self::STATE_OK;
+		} else {
+			/*
+			 * The customer owns this site but no membership is linked. This
+			 * happens for sites created outside the normal checkout flow
+			 * (manual admin creation, fixtures, legacy migrations, or after
+			 * a membership is deleted but the site is preserved). The
+			 * customer should still be able to switch templates — we simply
+			 * skip the per-product template restriction and let the site's
+			 * own limitations drive the available list.
+			 */
+			$this->permission_state = self::STATE_NO_MEMBERSHIP;
 		}
 	}
 
@@ -281,6 +336,21 @@ class Template_Switching_Element extends Base_Element {
 		// hang on its loading spinner.
 		if ( ! $this->site || ! $this->site->get_id()) {
 			wp_send_json_error(new \WP_Error('site_context_missing', __('Could not determine which site to switch. Please reload the page and try again.', 'ultimate-multisite')));
+			return;
+		}
+
+		/*
+		 * Authorization: confirm the requesting user owns this site.
+		 *
+		 * The wu-ajax-nonce check in class-light-ajax.php protects against
+		 * CSRF, but the nonce is shared across all logged-in users on the
+		 * install. Without this check, customer A could replay a valid nonce
+		 * to switch the template (and overwrite content) on customer B's
+		 * site by passing a forged site context. Network admins bypass this
+		 * via the manage_network short-circuit inside is_customer_allowed().
+		 */
+		if ( ! $this->site->is_customer_allowed()) {
+			wp_send_json_error(new \WP_Error('not_authorized', __('You do not have permission to switch templates on this site.', 'ultimate-multisite')));
 			return;
 		}
 
@@ -356,12 +426,54 @@ class Template_Switching_Element extends Base_Element {
 	 */
 	public function output($atts, $content = null) {
 
+		/*
+		 * Render an explicit denial notice when the customer is not allowed
+		 * to switch templates on this site (or there is no site context at
+		 * all). Previously this branch produced an empty page with no
+		 * explanation; users would see a "Switch Template" header and a
+		 * blank body. Showing a notice keeps the UX informative.
+		 */
+		if (self::STATE_NOT_ALLOWED === $this->permission_state) {
+			?>
+			<div class="wu-bg-yellow-100 wu-border wu-border-solid wu-border-yellow-300 wu-text-yellow-800 wu-p-4 wu-rounded">
+				<p class="wu-m-0 wu-font-semibold">
+					<?php esc_html_e('Template switching is not available right now.', 'ultimate-multisite'); ?>
+				</p>
+				<p class="wu-m-0 wu-mt-2 wu-text-sm">
+					<?php esc_html_e('You do not have permission to switch templates on this site, or the site is not associated with your account. If you believe this is a mistake, please contact your network administrator.', 'ultimate-multisite'); ?>
+				</p>
+			</div>
+			<?php
+			return;
+		}
+
 		if ($this->site) {
 			$filter_template_limits = \WP_Ultimo\Limits\Site_Template_Limits::get_instance();
 
 			$atts['products'] = $this->products;
 
 			$template_selection_field = $filter_template_limits->maybe_filter_template_selection_options($atts);
+
+			/*
+			 * When the customer's site has no linked membership we have an
+			 * empty $atts['products']. The shared limits filter only
+			 * populates $attributes['sites'] when products are non-empty
+			 * (see Site_Template_Limits::maybe_filter_template_selection_options),
+			 * so without intervention we'd render the friendly "no
+			 * membership" banner above an empty grid — defeating the whole
+			 * point of letting the customer switch templates anyway.
+			 *
+			 * Fall back to every registered site template (the same list
+			 * defaults() builds via wu_get_site_templates()). The customer
+			 * still cannot bypass per-site rules: server-side authorization
+			 * lives in switch_template() which calls is_customer_allowed()
+			 * before applying the chosen template.
+			 */
+			if (self::STATE_NO_MEMBERSHIP === $this->permission_state && ! isset($template_selection_field['sites'])) {
+				$default_sites = wu_get_site_templates(['fields' => 'ids']);
+
+				$template_selection_field['sites'] = is_array($default_sites) ? $default_sites : [];
+			}
 
 			if ( ! isset($template_selection_field['sites'])) {
 				$template_selection_field['sites'] = [];
@@ -488,6 +600,24 @@ class Template_Switching_Element extends Base_Element {
 					'v-init:template_id' => $this->site->get_template_id(),
 				],
 			];
+
+			/*
+			 * Inform the customer when their site has no membership link.
+			 * They can still switch templates, but pricing/product-tier
+			 * restrictions don't apply, so the available list may differ
+			 * from what they would normally see. Without this notice the UI
+			 * looks identical to the normal flow but quietly behaves
+			 * differently — better to be explicit.
+			 */
+			if (self::STATE_NO_MEMBERSHIP === $this->permission_state) {
+				?>
+				<div class="wu-bg-blue-100 wu-border wu-border-solid wu-border-blue-300 wu-text-blue-800 wu-p-4 wu-rounded wu-mb-4">
+					<p class="wu-m-0 wu-text-sm">
+						<?php esc_html_e('This site is not currently linked to a membership. You can still switch templates, but plan-specific template restrictions do not apply.', 'ultimate-multisite'); ?>
+					</p>
+				</div>
+				<?php
+			}
 
 			$section_slug = 'wu-template-switching-form';
 
