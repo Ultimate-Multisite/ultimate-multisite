@@ -202,20 +202,7 @@ class Site_Duplicator {
 			return false;
 		}
 
-		/*
-		 * Restore identity options immediately after copy_data overwrote them.
-		 *
-		 * Guard with false !== (not empty()) so intentionally blank values
-		 * like an empty blogdescription are preserved. get_blog_option()
-		 * returns false when the option does not exist.
-		 *
-		 * @since 2.4.0
-		 */
-		foreach ($identity_snapshot as $opt_key => $opt_val) {
-			if ( false !== $opt_val ) {
-				update_blog_option($to_site_id, $opt_key, $opt_val);
-			}
-		}
+		self::restore_identity_options($to_site_id, $identity_snapshot);
 
 		$new_to_site = wu_get_site($duplicate_site_id);
 
@@ -283,6 +270,26 @@ class Site_Duplicator {
 		// request in the network root context.
 		if ( get_current_blog_id() !== $caller_blog_id ) {
 			switch_to_blog($caller_blog_id);
+		}
+	}
+
+	/**
+	 * Restore site identity options after an override table copy.
+	 *
+	 * Blank values are valid identity settings, particularly an intentionally
+	 * empty blogdescription, so only missing option sentinels are skipped.
+	 *
+	 * @since 2.4.0
+	 *
+	 * @param int   $to_site_id        Target site blog ID.
+	 * @param array $identity_snapshot Snapshot of identity option values keyed by option name.
+	 */
+	private static function restore_identity_options($to_site_id, $identity_snapshot) {
+
+		foreach ($identity_snapshot as $opt_key => $opt_val) {
+			if ( false !== $opt_val && null !== $opt_val ) {
+				update_blog_option($to_site_id, $opt_key, $opt_val);
+			}
 		}
 	}
 
