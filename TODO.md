@@ -135,4 +135,4 @@ Overall coverage: **35%** (20,720 / 59,212 statements). 90 files at 0% coverage.
 
 ## Production Bugs (2026-05-05)
 
-- [ ] t532 fix(admin): white page after site deletion in Edit Site screen — post-delete redirect lands on a blank page instead of the site list #bugfix #auto-dispatch ~1h logged:2026-05-05
+- [x] t532 fix(admin): white page after site deletion in Edit Site screen — post-delete redirect lands on a blank page instead of the site list #bugfix #auto-dispatch ~1h logged:2026-05-05 pr:#1125 completed:2026-05-05

@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 7.4.30
 Tested up to: 6.9
-Stable tag: 2.10.0
+Stable tag: 2.10.1
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -246,6 +246,13 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+Version [2.10.1] - Released on 2026-05-05
+- Fix: Unavailable templates are now hidden from the customer panel template grid
+- Fix: Template switching no longer truncates the current template description text
+- Fix: Fatal error prevented when global $wp_query is null during early-hook query access
+- Fix: Stripe checkout preflight now correctly handles null or WP_Error customer objects
+- Fix: Site deletion now propagates errors to prevent silent redirect on failure
+
 Version [2.10.0] - Released on 2026-05-05
 - New: PayPal guided setup wizard for manual credential entry with OAuth flag gate for seamless gateway configuration
 - New: Template switch customer panel redesigned with current-template card, persistent grid, and "Reset current template" button
