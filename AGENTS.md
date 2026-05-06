@@ -510,7 +510,8 @@ gh pr create --title "fix: describe change" --body-file "$BODY_FILE"
 
 Use the same pattern for `gh issue create`, `gh pr comment`, `gh issue comment`, and review
 writes. The heredoc or script may create the local temporary file, but the `gh` write command
-itself must receive only `--body-file "$BODY_FILE"`. Do not use `--body "$(cat <<'EOF' ... EOF)"`,
+itself must receive only the pre-rendered file path. Keep all dynamic Markdown generation in the
+file creation step, not in the GitHub write command. Do not use `--body "$(cat <<'EOF' ... EOF)"`,
 `--body "$(python3 ... )"`, `<(cat <<'EOF' ... EOF)`, or inline heredoc expansions for GitHub
 writes; they trigger the same `bash:other` signature-gate failure.
 
