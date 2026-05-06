@@ -132,3 +132,7 @@ Overall coverage: **35%** (20,720 / 59,212 statements). 90 files at 0% coverage.
 - [ ] t530 fix(checkout): reclaim orphan pending_site on WC order completion — no code picks up transferable pending_site when payment succeeds #bug #auto-dispatch ~4h ref:GH#904
 - [ ] t526 fix(i18n): JS checkout validator missing i18n strings — field_required etc. hardcoded English in checkout.min.js #bug #auto-dispatch ~2h ref:GH#905
 - [ ] t527 fix(ux): default minimum_password_strength too strict — super_strong rejects reasonable passwords, default to strong #enhancement #auto-dispatch ~1h ref:GH#906
+
+## Production Bugs (2026-05-05)
+
+- [ ] t532 fix(admin): white page after site deletion in Edit Site screen — post-delete redirect lands on a blank page instead of the site list #bugfix #auto-dispatch ~1h logged:2026-05-05

@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 7.4.30
 Tested up to: 6.9
-Stable tag: 2.9.3
+Stable tag: 2.10.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -246,6 +246,18 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+Version [2.10.0] - Released on 2026-05-05
+- New: PayPal guided setup wizard for manual credential entry with OAuth flag gate for seamless gateway configuration
+- New: Template switch customer panel redesigned with current-template card, persistent grid, and "Reset current template" button
+- Fix: Template switching no longer hangs the UI on AJAX failure
+- Fix: Template switching permission states secured against unauthorized access
+- Fix: Site override inputs validated before saving
+- Fix: Billing address prompt now shown when address is empty
+- Fix: PHP 8.1 null-to-string deprecation notices resolved
+- Fix: Currents lazy-loaded before init hook to prevent timing issues
+- Fix: Filtered SSO path respected across all login flows
+- Fix: Blank site identity options preserved on save
+
 Version [2.9.3] - Released on 2026-05-04
 - Fix: Mapped domain URLs no longer contain duplicate port numbers
 - Fix: Redirect hosts and cookie domains now strip port numbers, preventing authentication failures on non-standard ports
