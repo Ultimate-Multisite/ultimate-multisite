@@ -483,6 +483,34 @@ class Template_Switching_Element extends Base_Element {
 			$sites = array_filter($sites);
 
 			/*
+			 * Hide templates the network admin has marked as unavailable.
+			 *
+			 * `wu_get_site_templates()` (used upstream to seed the candidate
+			 * list) only filters by `wu_type = site_template` — it does not
+			 * exclude templates the network admin has deactivated, archived,
+			 * marked as deleted, or flagged as spam. Without this filter the
+			 * customer-panel switching grid will list templates that the
+			 * admin explicitly took out of circulation, which is what the
+			 * customer reported as "templates that should not be available
+			 * are still listed".
+			 *
+			 * Mirrors the inactive-only filter in
+			 * inc/checkout/signup-fields/class-signup-field-template-selection.php
+			 * (line 349) and extends it to cover archived/deleted/spam.
+			 * Applied here (in the switching element) rather than in
+			 * `wu_get_site_templates()` so we don't change behaviour for
+			 * network-admin pages or any other callers that legitimately
+			 * want every template.
+			 */
+			$sites = array_filter(
+				$sites,
+				static fn($site_template) => $site_template->is_active()
+					&& ! $site_template->is_archived()
+					&& ! $site_template->is_deleted()
+					&& ! $site_template->is_spam()
+			);
+
+			/*
 			 * Hide the current template from the "Available Templates" grid.
 			 * The current template is already shown in the summary card above,
 			 * so listing it again as a "Select" option is redundant and a
