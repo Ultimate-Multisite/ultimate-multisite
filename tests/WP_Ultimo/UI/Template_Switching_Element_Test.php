@@ -371,4 +371,117 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * Templates the network admin has marked unavailable (inactive,
+	 * archived, deleted, or spam) must not appear in the customer-panel
+	 * "Available Templates" grid.
+	 *
+	 * Regression guard for the customer report that "templates that should
+	 * not be available are still listed". `wu_get_site_templates()` only
+	 * filters by `wu_type = site_template`, so without the additional
+	 * filter in Template_Switching_Element::output() any template whose
+	 * availability flags the admin has cleared still ended up rendered.
+	 *
+	 * The assertion looks for `id="wu-site-template-{ID}"` because the
+	 * grid card wrapper uses that exact attribute (see
+	 * views/checkout/templates/template-selection/clean.php). A simple
+	 * presence check on the title would false-positive on the
+	 * current-template card or hidden DOM markers.
+	 */
+	public function test_render_excludes_unavailable_templates_from_grid(): void {
+
+		// Active + available → must render.
+		$active_id = $this->factory()->blog->create();
+		$active    = wu_get_site( $active_id );
+		$active->set_type( 'site_template' );
+		$active->set_active( true );
+		$active->set_archived( false );
+		$active->set_deleted( false );
+		$active->set_spam( false );
+		$active->save();
+
+		// Inactive (network admin disabled) → must NOT render.
+		$inactive_id = $this->factory()->blog->create();
+		$inactive    = wu_get_site( $inactive_id );
+		$inactive->set_type( 'site_template' );
+		$inactive->set_active( false );
+		$inactive->save();
+
+		// Archived → must NOT render.
+		$archived_id = $this->factory()->blog->create();
+		$archived    = wu_get_site( $archived_id );
+		$archived->set_type( 'site_template' );
+		$archived->set_active( true );
+		$archived->set_archived( true );
+		$archived->save();
+
+		// Deleted → must NOT render.
+		$deleted_id = $this->factory()->blog->create();
+		$deleted    = wu_get_site( $deleted_id );
+		$deleted->set_type( 'site_template' );
+		$deleted->set_active( true );
+		$deleted->set_deleted( true );
+		$deleted->save();
+
+		// Spam → must NOT render.
+		$spam_id = $this->factory()->blog->create();
+		$spam    = wu_get_site( $spam_id );
+		$spam->set_type( 'site_template' );
+		$spam->set_active( true );
+		$spam->set_spam( true );
+		$spam->save();
+
+		$html = $this->render_element_with_context();
+
+		/*
+		 * The grid is rendered client-side by Vue from the JSON payload
+		 * embedded in the `<dynamic :template="...">` tag. Server-side
+		 * HTML therefore does not contain `id="wu-site-template-X"` —
+		 * we have to inspect the encoded `sites` array in the dynamic
+		 * tag's attribute. `wp_json_encode()` then `esc_attr()` produce
+		 * `&quot;sites&quot;:[&quot;2&quot;,...]` in the output.
+		 */
+		if ( ! preg_match( '/get_template\\(\'template-selection\\/clean\',\\s*({.*?})\\)/', $html, $matches ) ) {
+			$this->fail( 'Could not find the dynamic-template JSON payload in the rendered output.' );
+		}
+
+		$decoded_attrs = html_entity_decode( $matches[1], ENT_QUOTES );
+		$attrs         = json_decode( $decoded_attrs, true );
+
+		$this->assertIsArray( $attrs, 'Dynamic-template payload must decode to an array. Got: ' . $decoded_attrs );
+		$this->assertArrayHasKey( 'sites', $attrs );
+
+		$sites = array_map( 'intval', $attrs['sites'] );
+
+		$this->assertContains(
+			(int) $active_id,
+			$sites,
+			'Active, non-archived, non-deleted, non-spam template must appear in the grid sites array.'
+		);
+
+		$this->assertNotContains(
+			(int) $inactive_id,
+			$sites,
+			'Inactive template must not appear in the grid sites array.'
+		);
+
+		$this->assertNotContains(
+			(int) $archived_id,
+			$sites,
+			'Archived template must not appear in the grid sites array.'
+		);
+
+		$this->assertNotContains(
+			(int) $deleted_id,
+			$sites,
+			'Deleted template must not appear in the grid sites array.'
+		);
+
+		$this->assertNotContains(
+			(int) $spam_id,
+			$sites,
+			'Spam template must not appear in the grid sites array.'
+		);
+	}
+
 }
