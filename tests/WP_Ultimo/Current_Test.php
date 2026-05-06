@@ -199,6 +199,62 @@ class Current_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Regression test for the wu-ajax `plugins_loaded` fatal.
+	 *
+	 * The light-ajax pipeline (`Light_Ajax::process_light_ajax`) dispatches
+	 * `wu_ajax_*` handlers at `plugins_loaded` priority 20. The handler for
+	 * `wu_switch_template` calls `Site::is_customer_allowed()`, which (after
+	 * the lazy-load entry from PR #1118) calls `Current::load_currents()`
+	 * before the `wp` action has fired. At that point the global
+	 * `$wp_query` is null, and any `get_query_var()` call inside
+	 * `load_currents()` throws `Call to a member function get() on null`
+	 * on PHP 8+ — surfacing in the customer-panel template-switching UI as
+	 * a generic "A network error occurred" banner because the AJAX call
+	 * died with a 500 instead of returning JSON.
+	 *
+	 * This test temporarily nulls `$GLOBALS['wp_query']` to simulate the
+	 * early-call condition, then asserts `load_currents()` runs to
+	 * completion without fataling. The hash-override branches must be
+	 * skipped via the `$query_vars_ready` guard so the lazy-load can
+	 * still populate the customer/membership fields.
+	 */
+	public function test_load_currents_survives_when_wp_query_is_null(): void {
+
+		set_current_screen('front');
+
+		$user_id = $this->factory()->user->create(['role' => 'subscriber']);
+
+		wu_create_customer(
+			[
+				'user_id'       => $user_id,
+				'email_address' => 'current-no-wp-query@example.com',
+			]
+		);
+
+		wp_set_current_user($user_id);
+
+		$this->current->set_site(null);
+		$this->current->set_customer(null);
+		$this->current->set_membership(null);
+		$this->set_loaded_state(false);
+
+		// Save and null out the global wp_query to simulate the
+		// plugins_loaded entry path where it has not yet been set up.
+		$saved_wp_query      = $GLOBALS['wp_query'] ?? null;
+		$GLOBALS['wp_query'] = null;
+
+		try {
+			$this->current->load_currents();
+
+			// Sanity assertion — if get_query_var() had been called we
+			// would have fataled before reaching this line.
+			$this->assertTrue(true, 'load_currents survived a null $wp_query.');
+		} finally {
+			$GLOBALS['wp_query'] = $saved_wp_query;
+		}
+	}
+
+	/**
 	 * Test param_key returns expected defaults.
 	 */
 	public function test_param_key_returns_defaults(): void {

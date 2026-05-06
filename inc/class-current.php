@@ -239,6 +239,33 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 			return;
 		}
 
+		/*
+		 * `get_query_var()` reads from the global `$wp_query`, which
+		 * WordPress only populates during `parse_query` (just before
+		 * `wp` fires). The lazy-load entry path added in PR #1118 can
+		 * call `load_currents()` from `Site::is_customer_allowed()` /
+		 * `Membership::is_customer_allowed()` while still on
+		 * `plugins_loaded` — for example when the wu-ajax pipeline
+		 * (`Light_Ajax::process_light_ajax`) dispatches
+		 * `wu_ajax_wu_switch_template` at `plugins_loaded` priority 20
+		 * and the handler reads `is_customer_allowed()`. At that point
+		 * `$wp_query` is still null and `get_query_var()` fatals with
+		 * `Call to a member function get() on null` on PHP 8+, which
+		 * crashes the AJAX handler with a 500 — surfacing in the
+		 * customer-panel template-switching UI as a generic
+		 * "A network error occurred. Please check your connection and
+		 * try again." banner.
+		 *
+		 * Skip the pretty-URL hash overrides when we know the query
+		 * cannot have been parsed yet. The wu-ajax pipeline is a flat
+		 * `?wu-ajax=1` POST with no rewrite-driven `site_hash` /
+		 * `membership_hash` query vars, so there is nothing to lose
+		 * by skipping them here. Frontend pretty-URL requests still
+		 * hit `load_currents()` via the `wp` action where `$wp_query`
+		 * is populated and these reads succeed normally.
+		 */
+		$query_vars_ready = did_action('parse_query') && isset($GLOBALS['wp_query']) && $GLOBALS['wp_query'] instanceof \WP_Query;
+
 		$site = false;
 
 		/**
@@ -250,7 +277,9 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 			 */
 			$site_url_param = self::param_key('site');
 
-			$site_hash = wu_request($site_url_param, get_query_var('site_hash'));
+			$site_hash_default = $query_vars_ready ? get_query_var('site_hash') : '';
+
+			$site_hash = wu_request($site_url_param, $site_hash_default);
 
 			$site_from_url = wu_get_site_by_hash($site_hash);
 
@@ -296,7 +325,9 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 		 */
 		$membership_url_param = self::param_key('membership');
 
-		$membership_hash = wu_request($membership_url_param, get_query_var('membership_hash'));
+		$membership_hash_default = $query_vars_ready ? get_query_var('membership_hash') : '';
+
+		$membership_hash = wu_request($membership_url_param, $membership_hash_default);
 
 		if ($membership_hash) {
 			$this->membership_set_via_request = true;
