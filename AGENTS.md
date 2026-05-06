@@ -487,8 +487,9 @@ If `php` is not available, omit the `php -d ...` prefix and call `vendor/bin/php
 
 **GitHub write commands blocked by the signature gate** — aidevops blocks `gh pr create`,
 `gh issue create`, and comment/review writes when `--body` is built from heredocs, process
-substitution, or command substitution because the signature validator cannot inspect the final
-body safely. Write the Markdown to a temporary file first, then pass `--body-file` to `gh`:
+substitution, command substitution, or another shell expansion because the signature validator
+cannot inspect the final body safely. Do not retry the same inline command. Write the complete
+Markdown body to a temporary file first, then pass `--body-file` to `gh`:
 
 ```bash
 BODY_FILE=$(mktemp /tmp/pr-body-XXXXXX.md)
@@ -503,8 +504,11 @@ PY
 gh pr create --title "fix: describe change" --body-file "$BODY_FILE"
 ```
 
-Do not use `--body "$(cat <<'EOF' ... EOF)"`, `<(cat <<'EOF' ... EOF)`, or inline heredoc
-expansions for GitHub writes; they trigger the same `bash:other` signature-gate failure.
+Use the same pattern for `gh issue create`, `gh pr comment`, `gh issue comment`, and review
+writes. The heredoc or script may create the local temporary file, but the `gh` write command
+itself must receive only `--body-file "$BODY_FILE"`. Do not use `--body "$(cat <<'EOF' ... EOF)"`,
+`--body "$(python3 ... )"`, `<(cat <<'EOF' ... EOF)`, or inline heredoc expansions for GitHub
+writes; they trigger the same `bash:other` signature-gate failure.
 
 **WordPress test suite not installed** — `vendor/bin/phpunit` requires a WordPress test
 environment. Without it, it fails with database connection errors or missing `bootstrap.php`
