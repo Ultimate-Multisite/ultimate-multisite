@@ -824,6 +824,41 @@ class Site_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Regression test for t532: Site::delete() must propagate WP_Error from
+	 * wp_delete_site() instead of silently treating it as success.
+	 *
+	 * The old code used `(bool) wp_delete_site()`: any WP_Error (e.g. when the
+	 * underlying blog no longer exists) was truthy, so `handle_model_delete_form()`
+	 * received `true`, sent a JSON success, and the JS redirected the user —
+	 * producing a white page because the site was never actually removed.
+	 *
+	 * We verify this by asking Site::delete() to remove a blog whose underlying
+	 * WordPress site has already been deleted, so wp_delete_site() returns WP_Error.
+	 */
+	public function test_delete_propagates_wp_error_from_wp_delete_site(): void {
+		// Create and immediately delete a real blog so its ID is now invalid.
+		$blog_id = $this->factory()->blog->create();
+		if (is_wp_error($blog_id)) {
+			$this->markTestSkipped('Could not create a blog for this test.');
+		}
+
+		wp_delete_site($blog_id); // removes the blog from wp_blogs
+
+		// Build a Site model pointing at the now-deleted blog_id.
+		// wu_get_site() would return false here since the row is gone, so
+		// we construct it directly with just the id filled in.
+		$site = new Site(['blog_id' => $blog_id]);
+
+		$result = $site->delete();
+
+		$this->assertInstanceOf(
+			\WP_Error::class,
+			$result,
+			'Site::delete() must propagate the WP_Error returned by wp_delete_site() instead of coercing it to true.'
+		);
+	}
+
+	/**
 	 * Test get_type returns main for the main site.
 	 */
 	public function test_get_type_main_site(): void {

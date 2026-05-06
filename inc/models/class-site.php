@@ -1766,7 +1766,7 @@ class Site extends Base_Model implements Limitable, Notable {
 		}
 
 		/**
-		 * Fires after an object is stored into the database.
+		 * Fires before the site is deleted.
 		 *
 		 * @since 2.0.0
 		 *
@@ -1775,15 +1775,29 @@ class Site extends Base_Model implements Limitable, Notable {
 		do_action("wu_{$this->model}_pre_delete", $this); // @phpstan-ignore-line
 
 		try {
-			$result = (bool) wp_delete_site($this->get_id());
+			$wp_result = wp_delete_site($this->get_id());
 		} catch (\Throwable $e) {
-			$result = false;
-
 			wu_log_add('fatal-error', $e->getMessage(), LogLevel::ERROR);
+
+			return false;
 		}
 
+		/*
+		 * wp_delete_site() returns a WP_Error on failure (e.g. trying to
+		 * delete the main site). The old code cast the return to (bool),
+		 * which made WP_Error truthy — so callers received `true` even when
+		 * the deletion had not taken place. Return the WP_Error directly so
+		 * that handle_model_delete_form() can surface the error in the modal
+		 * instead of silently redirecting the user to a blank/white page.
+		 */
+		if (is_wp_error($wp_result)) {
+			return $wp_result;
+		}
+
+		$result = true;
+
 		/**
-		 * Fires after an object is stored into the database.
+		 * Fires after the site is deleted.
 		 *
 		 * @since 2.0.0
 		 *
