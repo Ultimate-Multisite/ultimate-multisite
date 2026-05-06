@@ -366,10 +366,21 @@ function runcommand($command, $args = [], $assoc_args = [], $global_args = []) {
 	$full_command = sprintf('%s %s', $command, $params);
 
 	/**
-	 * If we're in CLI context with real WP-CLI available, use it.
-	 * Otherwise, use pure PHP implementation for web/AJAX context.
+	 * Use real WP-CLI only when actually running through it.
+	 *
+	 * The `WP_CLI` constant is defined by the WP-CLI bootstrap; checking
+	 * `PHP_SAPI === 'cli'` alone is not enough because PHPUnit also runs
+	 * under the CLI SAPI but does not bootstrap WP-CLI, and the
+	 * `wp-cli/wp-cli` package is autoloaded as a dev/runtime dependency
+	 * which makes `class_exists('\WP_CLI')` return true even when there is
+	 * no live WP-CLI runtime. Calling \WP_CLI::runcommand() in that state
+	 * fails with `Undefined constant WP_CLI_ROOT` and the export silently
+	 * falls back to producing only the database dump (no plugins, themes,
+	 * or uploads). Aligning with the rest of the codebase
+	 * (Site_Exporter::setup, trait-wp-cli, external-cron-manager) avoids
+	 * this trap.
 	 */
-	if (PHP_SAPI === 'cli' && class_exists('\WP_CLI') && method_exists('\WP_CLI', 'runcommand')) {
+	if (defined('WP_CLI') && WP_CLI && class_exists('\WP_CLI') && method_exists('\WP_CLI', 'runcommand')) {
 		$options = [
 			'return'     => 'all',
 			'launch'     => false,
@@ -424,6 +435,26 @@ function runcommand($command, $args = [], $assoc_args = [], $global_args = []) {
 			true, // force_drop_tables
 			$wu_site_exporter_site_id
 		);
+	} elseif (strpos($full_command, 'theme enable') === 0) {
+		/*
+		 * Theme activation polyfill for web/AJAX context.
+		 *
+		 * ImportCommand::move_themes() copies imported theme directories into
+		 * place, then calls Helpers\runcommand('theme enable', [<slug>]) to
+		 * activate them. Without this branch the call fell through to the
+		 * empty-stdout default, leaving the imported theme on disk but never
+		 * activated (the destination site continued running its previous
+		 * theme).  switch_theme() is the WordPress core equivalent.
+		 *
+		 * The slug arrives via the positional $args array, so it is in the
+		 * remainder of $full_command after the literal "theme enable ".
+		 */
+		$theme_slug = trim(substr($full_command, strlen('theme enable')));
+		$theme_slug = trim(preg_replace('/\s+--\S+(=\S+)?/', '', $theme_slug));
+
+		if ('' !== $theme_slug) {
+			switch_theme($theme_slug);
+		}
 	}
 
 	return (object) [
@@ -449,9 +480,14 @@ function launch_self($command, $args = [], $assoc_args = [], $exit_on_error = tr
 	global $wpdb, $wu_site_exporter_site_id;
 
 	/**
-	 * If we're in CLI context with real WP-CLI available, use it
+	 * Use real WP-CLI only when actually running through it.
+	 *
+	 * Same reasoning as runcommand() above: PHPUnit and other CLI processes
+	 * may have the wp-cli/wp-cli package autoloaded without a live WP-CLI
+	 * runtime, so we must test for the `WP_CLI` constant set by the WP-CLI
+	 * bootstrap rather than `PHP_SAPI === 'cli'` alone.
 	 */
-	if (PHP_SAPI === 'cli' && class_exists('\WP_CLI') && method_exists('\WP_CLI', 'launch_self')) {
+	if (defined('WP_CLI') && WP_CLI && class_exists('\WP_CLI') && method_exists('\WP_CLI', 'launch_self')) {
 		return \WP_CLI::launch_self($command, $args, $assoc_args, $exit_on_error, $return_detailed, $runtime_args);
 	}
 

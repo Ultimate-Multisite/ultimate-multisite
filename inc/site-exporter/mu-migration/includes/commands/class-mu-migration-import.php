@@ -79,7 +79,10 @@ class ImportCommand extends MUMigrationBase {
 			Helpers\maybe_switch_to_blog($this->assoc_args['blog_id']);
 
 			wp_suspend_cache_addition(true);
-			while ( false !== ($data = fgetcsv($input_file_handler, 0, $delimiter)) ) {
+			// Match the fputcsv() arguments used by ExportCommand::users() so
+			// users.csv files round-trip correctly under PHP 8.4+, where the
+			// default $escape value is being deprecated and removed.
+			while ( false !== ($data = fgetcsv($input_file_handler, 0, $delimiter, '"', '\\')) ) {
 				// Read the labels and skip.
 				if ( 0 === $line++ ) {
 					$labels = $data;
