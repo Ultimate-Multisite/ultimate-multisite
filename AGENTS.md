@@ -173,10 +173,14 @@ Use `WP_Error` for validation/operation failures — not exceptions.
 
 ### Recurring Product Context
 - Signup/payment timeout reports may involve a pre-created pending membership and
-  `pending_site` cleanup. Inspect the checkout, membership, payment gateway, and
-  orphaned-site cleanup paths together before changing watchdog or cancellation logic.
+  `pending_site` cleanup, especially when the payment step times out almost
+  immediately after signup. Inspect the checkout, membership, payment gateway, and
+  orphaned-site cleanup paths together before changing watchdog or cancellation logic;
+  verify both pending membership cancellation and pending site cleanup.
 - Do not reference an `ultimate-multisite-woocommerce` addon release as v2.0.23; the
-  latest known released version is v2.0.10 unless repository evidence says otherwise.
+  latest known released version is v2.0.10 unless repository or release evidence says
+  otherwise. Verify addon version claims before adding them to docs, issues, or
+  user-facing troubleshooting notes.
 
 ### Tests
 - Extend `WP_UnitTestCase`. Tests run in a WordPress Multisite environment
