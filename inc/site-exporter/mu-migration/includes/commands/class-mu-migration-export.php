@@ -348,15 +348,22 @@ class ExportCommand extends MUMigrationBase {
 
 		/*
 		 * Now that we have all users meta keys, we can save everything into a csv file.
+		 *
+		 * Pass $enclosure and $escape explicitly. PHP 8.4 deprecates relying on
+		 * the $escape default and emits a notice on every call; PHP 9 will
+		 * change the default and could break round-tripping CSVs that contain
+		 * backslashes inside quoted fields. The matching fgetcsv() reader
+		 * uses the same defaults below, so explicit arguments keep export and
+		 * import in lock-step.
 		 */
-		fputcsv($file_handler, $headers, $delimiter);
+		fputcsv($file_handler, $headers, $delimiter, '"', '\\');
 
 		foreach ( $user_data_arr as $user_data ) {
 			if ( count($headers) - count($user_data) > 0 ) {
 				$user_temp_data_arr = array_fill(0, count($headers) - count($user_data), '');
 				$user_data          = array_merge(array_values($user_data), $user_temp_data_arr);
 			}
-			fputcsv($file_handler, $user_data, $delimiter);
+			fputcsv($file_handler, $user_data, $delimiter, '"', '\\');
 		}
 
 		fclose($file_handler);
@@ -452,11 +459,31 @@ class ExportCommand extends MUMigrationBase {
 		$rand = rand();
 
 		/*
-		 * Adding rand() to the temporary file names to guarantee uniqueness.
+		 * Place intermediate users/tables/meta files in the system temp
+		 * directory rather than the current working directory.  Writing to
+		 * CWD made the export depend on whichever directory the SAPI started
+		 * in (the WP root in web/AJAX context, the test repo root under
+		 * PHPUnit, an arbitrary path under wp-cron).  That had two failure
+		 * modes:
+		 *
+		 *  - When the CWD was not writable by PHP, file_put_contents() and
+		 *    fopen('w+') silently failed and the resulting ZIP missed the
+		 *    .csv/.sql/.json files entirely (the zip helper just skipped
+		 *    them, producing the "only DB exported" symptom users hit on
+		 *    locked-down hosts).
+		 *  - When the CWD WAS writable but the export aborted before
+		 *    cleanup, the leftovers polluted the WordPress root or the
+		 *    plugin source tree.  The trailing rand() prefix made each
+		 *    failed run leave a fresh pair of files behind.
+		 *
+		 * sys_get_temp_dir() is always writable for the running PHP process
+		 * and is automatically swept by the OS, so neither failure mode
+		 * survives the move.
 		 */
-		$users_file     = 'mu-migration-' . $rand . sanitize_title($site_data['name']) . '.csv';
-		$tables_file    = 'mu-migration-' . $rand . sanitize_title($site_data['name']) . '.sql';
-		$meta_data_file = 'mu-migration-' . $rand . sanitize_title($site_data['name']) . '.json';
+		$tmp_dir        = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+		$users_file     = $tmp_dir . 'mu-migration-' . $rand . sanitize_title($site_data['name']) . '.csv';
+		$tables_file    = $tmp_dir . 'mu-migration-' . $rand . sanitize_title($site_data['name']) . '.sql';
+		$meta_data_file = $tmp_dir . 'mu-migration-' . $rand . sanitize_title($site_data['name']) . '.json';
 
 		\WP_CLI::log(__('Exporting site meta data...', 'mu-migration'));
 		file_put_contents($meta_data_file, wp_json_encode($site_data));
