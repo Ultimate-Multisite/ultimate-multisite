@@ -1544,17 +1544,28 @@ class Base_Stripe_Gateway extends Base_Gateway {
 				$stripe_customer = $this->get_stripe_client()->customers->retrieve($stripe_customer_id);
 
 				/*
-				 * If the customer was deleted, we
-				 * cannot use it again...
+				 * If the customer was deleted, or the response object lacks a
+				 * usable id, we cannot use it again. Fall through to creating
+				 * a fresh Stripe customer below.
 				 */
-				if ( $stripe_customer && (! isset($stripe_customer->deleted) || ! $stripe_customer->deleted)) {
+				if ($stripe_customer && ! empty($stripe_customer->id) && (! isset($stripe_customer->deleted) || ! $stripe_customer->deleted)) {
 					$customer_exists = true;
 				}
-			} catch (\Exception $e) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
-
-				/**
-				 * Silence is golden.
+			} catch (\Exception $e) {
+				/*
+				 * The stored Stripe customer id could not be retrieved. Common
+				 * causes are a test/live key mismatch, an account swap, or the
+				 * customer being deleted in the Stripe dashboard. Log the cause
+				 * for debugging and self-heal by creating a fresh customer.
 				 */
+				wu_log_add(
+					'stripe',
+					sprintf(
+						'Could not retrieve stored Stripe customer %s — falling back to creating a new one. Reason: %s',
+						$stripe_customer_id,
+						$e->getMessage()
+					)
+				);
 			}
 		}
 
@@ -1597,6 +1608,19 @@ class Base_Stripe_Gateway extends Base_Gateway {
 
 				return new \WP_Error($error_code, $e->getMessage());
 			}
+		}
+
+		/*
+		 * Final defensive check — guarantees the caller receives either a usable
+		 * \Stripe\Customer (with a non-empty id) or a \WP_Error. Without this,
+		 * a malformed retrieve response could leak an object whose ->id is null
+		 * and fatal in downstream typed parameters.
+		 */
+		if (empty($stripe_customer) || empty($stripe_customer->id)) {
+			return new \WP_Error(
+				'wu_stripe_no_customer',
+				__('Could not create or retrieve a Stripe customer record.', 'ultimate-multisite')
+			);
 		}
 
 		return $stripe_customer;
