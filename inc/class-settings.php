@@ -1781,6 +1781,29 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			]
 		);
 
+		// Scope notice — clarify that this page is for plugin settings only,
+		// and that site (subsite) export/import lives in a different tool.
+		$site_export_url = is_multisite()
+			? network_admin_url('sites.php?page=wu-site-export')
+			: admin_url('tools.php?page=wu-site-export');
+
+		$this->add_field(
+			'import-export',
+			'scope_notice',
+			[
+				'type'    => 'note',
+				'desc'    => sprintf(
+					'<strong>%s</strong> %s <a href="%s">%s</a>.',
+					esc_html__('Note:', 'ultimate-multisite'),
+					esc_html__('This page is for exporting and importing Ultimate Multisite plugin settings only. To export or import an individual site (subsite) and its content, use the Site Export tool:', 'ultimate-multisite'),
+					esc_url($site_export_url),
+					esc_html__('Go to Site Export', 'ultimate-multisite')
+				),
+				'classes' => 'wu-bg-blue-50 wu-border-l-4 wu-border-blue-500 wu-p-4',
+			],
+			5
+		);
+
 		// Export Settings Header
 		$this->add_field(
 			'import-export',
