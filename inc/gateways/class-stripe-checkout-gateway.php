@@ -219,9 +219,29 @@ class Stripe_Checkout_Gateway extends Base_Stripe_Gateway {
 		$this->setup_api_keys();
 
 		/*
-		 * Creates or retrieves the Stripe Customer
+		 * Creates or retrieves the Stripe Customer.
 		 */
 		$s_customer = $this->get_or_create_customer($this->customer->get_id());
+
+		/*
+		 * Bail early if customer creation/retrieval failed.
+		 *
+		 * get_or_create_customer() is documented to return \Stripe\Customer|\WP_Error,
+		 * but historically the caller dereferenced ->id without checking — which
+		 * fatals on the typed parameter of sync_billing_address_to_stripe() when
+		 * the Stripe API call throws (mismatched test/live keys, deleted customer,
+		 * network failure, etc.). Surface the error to the checkout flow instead.
+		 */
+		if (is_wp_error($s_customer)) {
+			return $s_customer;
+		}
+
+		if (empty($s_customer) || empty($s_customer->id)) {
+			return new \WP_Error(
+				'wu_stripe_checkout_no_customer',
+				__('We could not create or retrieve your Stripe customer record. Please try again, or contact support if the problem persists.', 'ultimate-multisite')
+			);
+		}
 
 		/*
 		 * Update the Stripe customer with the current billing address.
@@ -552,6 +572,14 @@ class Stripe_Checkout_Gateway extends Base_Stripe_Gateway {
 	 * @return void
 	 */
 	protected function sync_billing_address_to_stripe(string $stripe_customer_id): void {
+		/*
+		 * Defensive guard: an empty customer ID would 400 from Stripe and is
+		 * never a valid call. The primary caller (run_preflight) already
+		 * blocks this case, but keep this here for any future caller.
+		 */
+		if (empty($stripe_customer_id)) {
+			return;
+		}
 
 		$billing_address = $this->customer->get_billing_address();
 

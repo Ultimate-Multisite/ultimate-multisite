@@ -531,6 +531,181 @@ class Stripe_Checkout_Gateway_Run_Preflight_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Verify that run_preflight() returns a WP_Error (rather than fatalling on
+	 * a null customer id) when get_or_create_customer() fails to retrieve or
+	 * create a Stripe customer.
+	 *
+	 * Regression test for the support report:
+	 *   "Stripe Checkout session is returning null customer; please add
+	 *   customer_creation => always or guard null customer in
+	 *   sync_billing_address_to_stripe()"
+	 *
+	 *   TypeError: Stripe_Checkout_Gateway::sync_billing_address_to_stripe():
+	 *   Argument #1 ($stripe_customer_id) must be of type string, null given
+	 *
+	 * The root cause is that get_or_create_customer() can return WP_Error (or
+	 * an object whose id is null), but run_preflight() previously dereferenced
+	 * ->id without checking.
+	 *
+	 * @return void
+	 */
+	public function test_run_preflight_returns_wp_error_when_customer_creation_fails(): void {
+		$context = $this->build_checkout_context(false, false);
+
+		// Build a Stripe client whose customers service throws on both retrieve
+		// and create — simulating, for example, a key/account mismatch.
+		$failing_client = $this->getMockBuilder(StripeClient::class)
+			->disableOriginalConstructor()
+			->getMock();
+
+		$failing_customers = $this->getMockBuilder(\Stripe\Service\CustomerService::class)
+			->disableOriginalConstructor()
+			->getMock();
+
+		$failing_customers->method('retrieve')->will(
+			$this->throwException(new \Stripe\Exception\InvalidRequestException('No such customer', 404))
+		);
+		$failing_customers->method('create')->will(
+			$this->throwException(new \Stripe\Exception\AuthenticationException('Invalid API key provided', 401))
+		);
+
+		$failing_client->method('__get')->willReturnCallback(
+			function ($property) use ($failing_customers) {
+				if ('customers' === $property) {
+					return $failing_customers;
+				}
+				return null;
+			}
+		);
+
+		$this->gateway->set_stripe_client($failing_client);
+
+		$result = $this->gateway->run_preflight();
+
+		// Must return a WP_Error — never fatal on a null customer id.
+		$this->assertInstanceOf(
+			\WP_Error::class,
+			$result,
+			'run_preflight() must return WP_Error when Stripe customer cannot be created'
+		);
+
+		// Cleanup
+		$context['payment']->delete();
+		$context['membership']->delete();
+		$context['product']->delete();
+	}
+
+	/**
+	 * Verify that get_or_create_customer() self-heals when the stored Stripe
+	 * customer id cannot be retrieved (e.g. test/live key mismatch, account
+	 * swap, customer deleted in dashboard) by creating a fresh customer.
+	 *
+	 * @return void
+	 */
+	public function test_get_or_create_customer_self_heals_on_stale_stored_id(): void {
+		$customer = self::$customer;
+
+		// Pre-seed a stale gateway_customer_id on a membership for this customer.
+		$stale_membership = wu_create_membership(
+			[
+				'customer_id'         => $customer->get_id(),
+				'plan_id'             => 0,
+				'status'              => Membership_Status::PENDING,
+				'recurring'           => false,
+				'gateway'             => 'stripe-checkout',
+				'gateway_customer_id' => 'cus_stale_does_not_exist',
+				'currency'            => 'USD',
+			]
+		);
+
+		// Build a client whose retrieve throws (stale id) but create succeeds.
+		$client = $this->getMockBuilder(StripeClient::class)
+			->disableOriginalConstructor()
+			->getMock();
+
+		$customers_mock = $this->getMockBuilder(\Stripe\Service\CustomerService::class)
+			->disableOriginalConstructor()
+			->getMock();
+
+		$customers_mock->method('retrieve')->will(
+			$this->throwException(new \Stripe\Exception\InvalidRequestException('No such customer: cus_stale_does_not_exist', 404))
+		);
+
+		$fresh_customer = \Stripe\Customer::constructFrom(['id' => 'cus_fresh456']);
+		$customers_mock->method('create')->willReturn($fresh_customer);
+
+		$client->method('__get')->willReturnCallback(
+			function ($property) use ($customers_mock) {
+				if ('customers' === $property) {
+					return $customers_mock;
+				}
+				return null;
+			}
+		);
+
+		$this->gateway->set_stripe_client($client);
+		$this->gateway->set_customer($customer);
+
+		$result = $this->gateway->get_or_create_customer($customer->get_id());
+
+		$this->assertNotInstanceOf(
+			\WP_Error::class,
+			$result,
+			'get_or_create_customer() must self-heal when the stored Stripe id is stale'
+		);
+		$this->assertSame(
+			'cus_fresh456',
+			$result->id,
+			'A fresh Stripe customer id must be returned when the stored one is unretrievable'
+		);
+
+		$stale_membership->delete();
+	}
+
+	/**
+	 * Verify that sync_billing_address_to_stripe() returns early without
+	 * making any API call when given an empty customer id (defensive guard).
+	 *
+	 * @return void
+	 */
+	public function test_sync_billing_address_to_stripe_short_circuits_on_empty_id(): void {
+		$customer = self::$customer;
+		$this->gateway->set_customer($customer);
+
+		// A client whose customers->update would fail the test if called.
+		$client = $this->getMockBuilder(StripeClient::class)
+			->disableOriginalConstructor()
+			->getMock();
+
+		$customers_mock = $this->getMockBuilder(\Stripe\Service\CustomerService::class)
+			->disableOriginalConstructor()
+			->getMock();
+
+		$customers_mock->expects($this->never())->method('update');
+
+		$client->method('__get')->willReturnCallback(
+			function ($property) use ($customers_mock) {
+				if ('customers' === $property) {
+					return $customers_mock;
+				}
+				return null;
+			}
+		);
+
+		$this->gateway->set_stripe_client($client);
+
+		// Reflect to call the protected method directly.
+		$reflection = new \ReflectionClass($this->gateway);
+		$method     = $reflection->getMethod('sync_billing_address_to_stripe');
+		$method->setAccessible(true);
+
+		$method->invoke($this->gateway, '');
+
+		// If the early return works, customers->update was never called.
+		$this->addToAssertionCount(1);
+	}
+
+	/**
 	 * Tear down after all tests.
 	 *
 	 * @return void
