@@ -44,6 +44,7 @@ class SSO_Test extends \WP_UnitTestCase {
 		unset($_REQUEST['return_type']);
 		unset($_REQUEST['broker']);
 		unset($_REQUEST['sso_verify']);
+		unset($_REQUEST['wu_sso_token']);
 		unset($_REQUEST['return_url']);
 		unset($_REQUEST['redirect_to']);
 		unset($_COOKIE['wu_sso_denied']);
@@ -165,6 +166,81 @@ class SSO_Test extends \WP_UnitTestCase {
 		$method->setAccessible(true);
 
 		$this->assertSame('', $method->invoke($sso));
+	}
+
+	/**
+	 * Test cookie-less SSO tokens are one-time tokens for the target audience host.
+	 */
+	public function test_cookie_less_sso_token_validates_once_for_target_audience(): void {
+		$user_id = self::factory()->user->create();
+		$sso     = SSO::get_instance();
+
+		$generate = new \ReflectionMethod($sso, 'generate_sso_token');
+		$generate->setAccessible(true);
+
+		$validate = new \ReflectionMethod($sso, 'validate_sso_token');
+		$validate->setAccessible(true);
+
+		$token = $generate->invoke($sso, $user_id, home_url('/wp-admin/'));
+
+		$this->assertSame(['user_id' => $user_id], $validate->invoke($sso, $token));
+
+		$second_result = $validate->invoke($sso, $token);
+
+		$this->assertWPError($second_result);
+		$this->assertSame('invalid_token', $second_result->get_error_code());
+	}
+
+	/**
+	 * Test cookie-less SSO tokens are rejected when replayed on the wrong host.
+	 */
+	public function test_cookie_less_sso_token_rejects_wrong_audience(): void {
+		$user_id = self::factory()->user->create();
+		$sso     = SSO::get_instance();
+
+		$generate = new \ReflectionMethod($sso, 'generate_sso_token');
+		$generate->setAccessible(true);
+
+		$validate = new \ReflectionMethod($sso, 'validate_sso_token');
+		$validate->setAccessible(true);
+
+		$token  = $generate->invoke($sso, $user_id, 'https://customer.example.com/wp-admin/');
+		$result = $validate->invoke($sso, $token);
+
+		$this->assertWPError($result);
+		$this->assertSame('invalid_audience', $result->get_error_code());
+	}
+
+	/**
+	 * Test cross-domain redirect targets survive the token handoff.
+	 */
+	public function test_get_sso_redirect_to_preserves_cross_domain_redirect_to(): void {
+		$sso         = SSO::get_instance();
+		$return_url  = 'https://customer.example.com/';
+		$redirect_to = 'https://customer.example.com/wp-admin/edit.php';
+
+		$_REQUEST['redirect_to'] = $redirect_to;
+
+		$method = new \ReflectionMethod($sso, 'get_sso_redirect_to');
+		$method->setAccessible(true);
+
+		$this->assertSame($redirect_to, $method->invoke($sso, $return_url));
+	}
+
+	/**
+	 * Test cross-domain return URLs default to the customer admin target.
+	 */
+	public function test_get_sso_redirect_to_defaults_cross_domain_return_url_to_admin(): void {
+		$sso        = SSO::get_instance();
+		$return_url = 'https://customer.example.com/';
+
+		$method = new \ReflectionMethod($sso, 'get_sso_redirect_to');
+		$method->setAccessible(true);
+
+		$this->assertSame(
+			'https://customer.example.com/wp/wp-admin/',
+			$method->invoke($sso, $return_url)
+		);
 	}
 
 	// ------------------------------------------------------------------
@@ -761,26 +837,27 @@ class SSO_Test extends \WP_UnitTestCase {
 	 * Verify that all JSONP branches set the
 	 * Content-Type: application/javascript header.
 	 *
-	 * There are three JSONP response paths:
+	 * There are four JSONP response paths:
 	 * 1. handle_server JSONP success/error response
 	 * 2. handle_broker JSONP error for unattached broker
 	 * 3. handle_broker JSONP "nothing to see here" for attached broker
+	 * 4. handle_main_site_logged_in_user JSONP success response
 	 */
 	public function test_handle_broker_source_sets_javascript_content_type_for_jsonp(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
-		// There should be three JSONP blocks with the header.
+		// There should be four JSONP blocks with the header.
 		$count = preg_match_all(
 			"/header\(\s*'Content-Type:\s*application\/javascript;\s*charset=utf-8'\s*\)/",
 			$source
 		);
 
 		$this->assertSame(
-			3,
+			4,
 			$count,
-			'All three JSONP response paths must set the Content-Type header'
+			'All four JSONP response paths must set the Content-Type header'
 		);
 	}
 
