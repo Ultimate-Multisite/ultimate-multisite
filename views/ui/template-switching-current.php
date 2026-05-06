@@ -47,7 +47,28 @@ $has_current_template = $current_template instanceof \WP_Ultimo\Models\Site && $
 				<h3 class="wu-text-lg wu-font-semibold wu-m-0 wu-mb-1 wu-truncate">
 					<?php echo esc_html($current_template->get_title()); ?>
 				</h3>
-				<p class="wu-text-sm wu-text-gray-600 wu-m-0 wu-truncate">
+				<?php
+				/*
+				 * Description wraps to multiple lines when long. We removed
+				 * `wu-truncate` (which was forcing single-line + ellipsis
+				 * via white-space: nowrap; overflow: hidden) so customers
+				 * can read the full description on the current-template
+				 * card. The parent `.wu-flex` row uses `wu-items-center`,
+				 * so the 120px image and "Reset" button stay vertically
+				 * centred against whatever height the wrapped text takes.
+				 *
+				 * `overflow-wrap: anywhere` guards against unbreakable
+				 * strings (long URLs, no-space tokens) blowing out the
+				 * flex column. The compiled framework.css has no
+				 * `wu-break-words`/`wu-words-break` utility, so we use
+				 * the inline style — same pattern as the inline styles
+				 * already used elsewhere in this file.
+				 */
+				?>
+				<p
+					class="wu-text-sm wu-text-gray-600 wu-m-0"
+					style="overflow-wrap: anywhere;"
+				>
 					<?php echo esc_html($current_template->get_description()); ?>
 				</p>
 			</div>
