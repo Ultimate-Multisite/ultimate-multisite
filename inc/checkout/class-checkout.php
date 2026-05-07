@@ -1136,11 +1136,27 @@ class Checkout {
 			/*
 			 * Resolve the password: use the submitted value, or generate one
 			 * when the auto_generate_password flag is present in the session.
+			 *
+			 * When the password is auto-generated (e.g. the simple checkout
+			 * preset), we deliberately leave $password empty in the data
+			 * passed to wu_create_customer() so the user-creation path falls
+			 * through to register_new_user(). That mirrors what WordPress
+			 * does when an admin adds a user without a password from
+			 * wp-admin/user-new.php — the user receives the standard
+			 * "set your password" notification email. Once the user exists
+			 * we apply the auto-generated password via wp_set_password()
+			 * below so the immediate auto-login path still works for the
+			 * rest of this request.
 			 */
-			$password = $this->request_or_session('password');
+			$submitted_password     = $this->request_or_session('password');
+			$auto_generate_password = (bool) $this->request_or_session('auto_generate_password');
+			$generated_password     = '';
 
-			if ($this->request_or_session('auto_generate_password')) {
-				$password = wp_generate_password(16, true, false);
+			if ($auto_generate_password) {
+				$generated_password = wp_generate_password(16, true, false);
+				$password_for_user  = ''; // Triggers register_new_user() path with notification email.
+			} else {
+				$password_for_user = $submitted_password;
 			}
 
 			/*
@@ -1152,7 +1168,7 @@ class Checkout {
 			$customer_data = [
 				'username'           => $username,
 				'email'              => $this->request_or_session('email_address'),
-				'password'           => $password,
+				'password'           => $password_for_user,
 				'email_verification' => $this->get_customer_email_verification_status(),
 				'signup_form'        => $form_slug,
 				'meta'               => [],
@@ -1196,6 +1212,28 @@ class Checkout {
 			 */
 			if (is_wp_error($customer)) {
 				return $customer;
+			}
+
+			/*
+			 * If the password was auto-generated, apply it to the user we
+			 * just created so the same-request auto-login (see
+			 * login_customer_after_checkout()) and any code that needs
+			 * a known credential within this request keeps working.
+			 *
+			 * The "set your password" notification email has already been
+			 * dispatched by register_new_user() inside wu_create_customer().
+			 * The reset-password link in that email remains valid because
+			 * it is keyed on the user_login + a fresh activation key, not
+			 * on the user's stored password hash.
+			 *
+			 * @since 2.6.0
+			 */
+			if ($auto_generate_password && $generated_password && ! is_wp_error($customer)) {
+				$new_user_id = $customer->get_user_id();
+
+				if ($new_user_id) {
+					wp_set_password($generated_password, $new_user_id);
+				}
 			}
 		}
 

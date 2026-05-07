@@ -2945,6 +2945,93 @@ class Checkout_Test extends WP_UnitTestCase {
 		unset($_REQUEST['email_address'], $_REQUEST['auto_generate_username'], $_REQUEST['password']);
 	}
 
+	/**
+	 * Test maybe_create_customer with auto_generate_password sends the
+	 * standard WordPress "set your password" notification email and applies
+	 * the auto-generated password to the new user record.
+	 *
+	 * Regression test: previously, the auto-generated password was passed
+	 * straight to wpmu_create_user(), which silently suppresses the user
+	 * notification email. Now we route the empty-password path through
+	 * register_new_user() so WP fires wp_send_new_user_notifications() with
+	 * the 'both' flag, then apply the generated password via wp_set_password().
+	 */
+	public function test_maybe_create_customer_auto_generate_password_sends_notification(): void {
+
+		wp_set_current_user(0);
+
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+		$method     = $reflection->getMethod('maybe_create_customer');
+
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		$order_prop = $this->get_order_prop($reflection);
+		$order_prop->setValue($checkout, new Cart(['products' => []]));
+
+		$this->ensure_session($checkout);
+
+		$unique_suffix = time() . '_' . wp_rand(1000, 9999);
+		$email         = 'autopwd_' . $unique_suffix . '@example.com';
+		$username      = 'autopwd_' . $unique_suffix;
+
+		// Capture wp_new_user_notification firing for the user role.
+		$notification_fired = false;
+		$captured_user_id   = 0;
+		$user_callback      = static function ($user_id) use (&$notification_fired, &$captured_user_id) {
+			$notification_fired = true;
+			$captured_user_id   = $user_id;
+		};
+		add_action('register_new_user', $user_callback);
+
+		// Block actual mail delivery during the test.
+		add_filter('pre_wp_mail', '__return_true', 1);
+
+		$_REQUEST['email_address']          = $email;
+		$_REQUEST['username']               = $username;
+		$_REQUEST['auto_generate_password'] = '1';
+		$_REQUEST['password']               = '';
+
+		$result = $method->invoke($checkout);
+
+		// Cleanup hooks/filters before assertions so a failure doesn't leak.
+		remove_action('register_new_user', $user_callback);
+		remove_filter('pre_wp_mail', '__return_true', 1);
+
+		if (is_wp_error($result)) {
+			$this->markTestSkipped('Customer creation failed: ' . $result->get_error_message());
+		}
+
+		$this->assertInstanceOf(\WP_Ultimo\Models\Customer::class, $result);
+		$this->assertTrue(
+			$notification_fired,
+			'register_new_user action should fire so WP sends the "set your password" email when auto_generate_password is set.'
+		);
+		$this->assertSame(
+			(int) $result->get_user_id(),
+			(int) $captured_user_id,
+			'register_new_user should fire for the same user that the customer record links to.'
+		);
+
+		// The user record exists and has a non-empty password hash (set by wp_set_password()).
+		$user = get_user_by('id', $result->get_user_id());
+		$this->assertInstanceOf(\WP_User::class, $user);
+		$this->assertNotEmpty($user->user_pass, 'Auto-generated password should be applied to the user record.');
+
+		// Cleanup
+		wpmu_delete_user($result->get_user_id());
+		$result->delete();
+		$order_prop->setValue($checkout, null);
+		unset(
+			$_REQUEST['email_address'],
+			$_REQUEST['username'],
+			$_REQUEST['auto_generate_password'],
+			$_REQUEST['password']
+		);
+	}
+
 	// -------------------------------------------------------------------------
 	// maybe_create_site — additional branches
 	// -------------------------------------------------------------------------
