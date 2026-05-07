@@ -101,15 +101,15 @@ class Credits {
 				'type'        => 'textarea',
 				'allow_html'  => true,
 				'default'     => [$this, 'get_default_custom_credit_html'],
-				'value'       => function () {
-					$html = (string) wu_get_setting('credits_custom_html', $this->get_default_custom_credit_html());
-
-					return '[object Object]' === trim($html) ? $this->get_default_custom_credit_html() : $html;
+				'value'         => function () {
+					return $this->normalize_custom_credit_html(
+						wu_get_setting('credits_custom_html', $this->get_default_custom_credit_html())
+					);
 				},
 				'display_value' => function () {
-					$html = (string) wu_get_setting('credits_custom_html', $this->get_default_custom_credit_html());
-
-					return '[object Object]' === trim($html) ? $this->get_default_custom_credit_html() : $html;
+					return $this->normalize_custom_credit_html(
+						wu_get_setting('credits_custom_html', $this->get_default_custom_credit_html())
+					);
 				},
 				'placeholder' => __('Powered by <a href="https://example.com">Your Company</a>', 'ultimate-multisite'),
 				'require'     => [
@@ -119,6 +119,22 @@ class Credits {
 			],
 			2030
 		);
+	}
+
+	/**
+	 * Normalizes a stored custom credit HTML value.
+	 *
+	 * Returns the default credit HTML when the stored value is the literal
+	 * string '[object Object]', which can appear when a Closure leaked into
+	 * the Vue/settings JSON state before this bug was fixed.
+	 *
+	 * @param mixed $html The raw stored value.
+	 * @return string
+	 */
+	protected function normalize_custom_credit_html($html): string {
+		$html = is_string($html) ? $html : (string) $html;
+
+		return '[object Object]' === trim($html) ? $this->get_default_custom_credit_html() : $html;
 	}
 
 	/**
@@ -154,7 +170,9 @@ class Credits {
 				return $this->build_custom_credit();
 
 			case 'html':
-				$html = (string) wu_get_setting('credits_custom_html', '');
+				$html = $this->normalize_custom_credit_html(
+					wu_get_setting('credits_custom_html', $this->get_default_custom_credit_html())
+				);
 				return wp_kses_post($html);
 
 			default:
