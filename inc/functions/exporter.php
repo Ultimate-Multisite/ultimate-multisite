@@ -60,6 +60,79 @@ function wu_exporter_export(int $site_id, array $options = [], bool $async = fal
 }
 
 /**
+ * Exports the entire network.
+ *
+ * Returns the export filename string on synchronous success, `true` on
+ * asynchronous (background) success, or a WP_Error on failure.
+ *
+ * @since 2.5.0
+ *
+ * @param array $included_blog_ids Array of blog IDs to include.
+ * @param int   $main_site_blog_id The designated main site blog ID (for reassignment).
+ * @param array $options           Export options (include_plugins, include_themes, include_uploads, include_mu_plugins).
+ * @param bool  $async             If we should generate the export file asynchronously.
+ * @return string|true|\WP_Error Filename on sync success, true on async success, WP_Error on failure.
+ */
+function wu_exporter_export_network(array $included_blog_ids, int $main_site_blog_id, array $options = [], bool $async = false) {
+
+	if ($async) {
+		if (! function_exists('wu_enqueue_async_action')) {
+			return new \WP_Error('not-enabled', __('The network exporter requires async action support.', 'ultimate-multisite'));
+		}
+
+		$hash = wu_exporter_add_pending_network($included_blog_ids, $main_site_blog_id, $options);
+
+		wu_enqueue_async_action(
+			'wu_export_network',
+			[
+				'included_blog_ids' => $included_blog_ids,
+				'main_site_blog_id' => $main_site_blog_id,
+				'options'           => $options,
+				'hash'              => $hash,
+			],
+			'site-exporter'
+		);
+
+		return true;
+	}
+
+	/*
+	 * For the synchronous path, call the exporter directly so errors can
+	 * be captured and returned to the caller.
+	 */
+	return \WP_Ultimo\Site_Exporter\Network_Exporter::get_instance()->export($included_blog_ids, $main_site_blog_id, $options);
+}
+
+/**
+ * Add a pending network export to the database.
+ *
+ * @since 2.5.0
+ *
+ * @param array $included_blog_ids Array of blog IDs to include.
+ * @param int   $main_site_blog_id The designated main site blog ID.
+ * @param array $options           Export options.
+ * @return string Hash for tracking.
+ */
+function wu_exporter_add_pending_network(array $included_blog_ids, int $main_site_blog_id, array $options): string {
+
+	global $wpdb;
+
+	$hash = wp_hash(wp_json_encode($included_blog_ids) . $main_site_blog_id . microtime());
+
+	$data = [
+		'hash'              => $hash,
+		'included_blog_ids' => maybe_serialize($included_blog_ids),
+		'main_site_blog_id' => $main_site_blog_id,
+		'options'           => maybe_serialize($options),
+		'created_at'        => current_time('mysql'),
+	];
+
+	$wpdb->insert($wpdb->base_prefix . 'wu_pending_network_exports', $data);
+
+	return $hash;
+}
+
+/**
  * Gets a list of all the exports generated to date.
  *
  * Each export entry includes an authenticated download URL that requires
@@ -252,7 +325,7 @@ function wu_exporter_get_pending(): array {
 	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is built from $wpdb->base_prefix, not user input.
 	$query = $wpdb->prepare("SELECT meta_key, meta_value as options FROM {$table} WHERE meta_key LIKE %s", $like);
 
-	$results = $wpdb->get_results($query); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	$results = $wpdb->get_results($query); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
 
 	return array_map(
 		function ($item) {
