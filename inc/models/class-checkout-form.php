@@ -1030,11 +1030,9 @@ class Checkout_Form extends Base_Model {
 					$templates[] = $site->get_id();
 				}
 
-				$old_template_list = is_array($old_template_list) ? $old_template_list : [];
+			$old_template_list = is_array($old_template_list) ? $old_template_list : [];
 
-				$template_list = array_flip($old_template_list);
-
-				$template_list = ! empty($template_list) ? $template_list : $templates;
+			$template_list = ! empty($old_template_list) ? $old_template_list : $templates;
 
 				$step['fields'] = [
 					'template_selection' => [
