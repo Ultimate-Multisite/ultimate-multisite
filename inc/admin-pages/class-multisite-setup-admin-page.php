@@ -343,18 +343,6 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 			/*
 			 * Build the network-admin URL deterministically.
 			 *
-			 * We cannot rely on wu_network_admin_url() / network_admin_url()
-			 * here because both fall back to admin_url() when is_multisite()
-			 * returns false — which happens on this success view whenever
-			 * OPcache is still serving a stale wp-config.php that hasn't yet
-			 * picked up the freshly-written MULTISITE constant. In that case
-			 * the button would point at /wp-admin/admin.php?page=wp-ultimo-setup
-			 * (single-site) instead of /wp-admin/network/admin.php?page=wp-ultimo-setup.
-			 *
-			 * site_url() returns the install root regardless of multisite
-			 * state, which is exactly the network's main-site URL on a
-			 * just-enabled multisite, so it is safe to compose the network
-			 * admin path against it directly.
 			 */
 			$continue_url = site_url('wp-admin/network/admin.php?page=wp-ultimo-setup');
 			?>
