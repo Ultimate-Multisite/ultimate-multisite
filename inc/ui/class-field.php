@@ -347,6 +347,9 @@ class Field implements \JsonSerializable {
 	/**
 	 * Resolves dynamic attribute values and nested callable entries.
 	 *
+	 * Callable values are first validated by is_resolvable_callable() and,
+	 * when invoked, receive the current Field instance as their first argument.
+	 *
 	 * @param mixed $attr The attribute value.
 	 * @return mixed
 	 */

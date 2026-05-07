@@ -127,13 +127,14 @@ class Credits {
 	protected function get_default_custom_credit_html(): string {
 		$name = (string) get_network_option(null, 'site_name');
 		$name = $name ?: __('this network', 'ultimate-multisite');
-		$url  = function_exists('get_main_site_id') ? get_site_url(get_main_site_id()) : network_home_url('/');
+		$url  = is_multisite() ? get_site_url(get_main_site_id()) : network_home_url('/');
 
 		return sprintf(
-			/* translators: 1: Opening anchor tag with URL to main site. 2: Network name. */
-			__('Powered by %1$s%2$s</a>', 'ultimate-multisite'),
+			/* translators: 1: Opening anchor tag, 2: Network name, 3: Closing anchor tag. */
+			__('Powered by %1$s%2$s%3$s', 'ultimate-multisite'),
 			'<a href="' . esc_url($url) . '" target="_blank">',
-			esc_html($name)
+			esc_html($name),
+			'</a>'
 		);
 	}
 
@@ -186,7 +187,7 @@ class Credits {
 		$logo_html    = $this->get_company_logo_html();
 		$network_name = (string) get_network_option(null, 'site_name');
 		$network_name = $network_name ?: __('this network', 'ultimate-multisite');
-		$network_url  = function_exists('get_main_site_id') ? get_site_url(get_main_site_id()) : network_home_url('/');
+		$network_url  = is_multisite() ? get_site_url(get_main_site_id()) : network_home_url('/');
 
 		$text = sprintf(
 			'<a href="%s" target="_blank">%s</a>',
