@@ -89,3 +89,24 @@ function wu_get_template_contents($view, $args = [], $default_view = false) {
 
 	return ob_get_clean();
 }
+
+/**
+ * Resolves template values to safe strings for rendering.
+ *
+ * @param mixed $value The raw value.
+ * @param mixed $context Optional context passed when invoking callables.
+ * @return string
+ */
+function wu_resolve_template_string($value, $context = null): string {
+
+	if (is_callable($value)) {
+		$value = null !== $context ? call_user_func($value, $context) : call_user_func($value);
+	}
+
+	if (is_scalar($value) || (is_object($value) && method_exists($value, '__toString'))) {
+		return (string) $value;
+	}
+
+	return '';
+}
+

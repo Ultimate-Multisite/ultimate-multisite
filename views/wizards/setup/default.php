@@ -18,65 +18,12 @@ $skip         = $skip ?? false;
 $next         = $next ?? true;
 $disable_next = $disable_next ?? false;
 
-$title_value = '';
-
-if (is_callable($title)) {
-	$title = call_user_func($title);
-}
-
-if (null !== $title && (is_scalar($title) || (is_object($title) && method_exists($title, '__toString')))) {
-	$title_value = (string) $title;
-}
-
-$description_value = '';
-
-if (is_callable($description)) {
-	$description = call_user_func($description);
-}
-
-if (null !== $description && (is_scalar($description) || (is_object($description) && method_exists($description, '__toString')))) {
-	$description_value = (string) $description;
-}
-
-$content_value = '';
-
-if (is_callable($content)) {
-	$content = call_user_func($content);
-}
-
-if (null !== $content && (is_scalar($content) || (is_object($content) && method_exists($content, '__toString')))) {
-	$content_value = (string) $content;
-}
-
-$back_label_value = '';
-
-if (is_callable($back_label)) {
-	$back_label = call_user_func($back_label);
-}
-
-if (null !== $back_label && (is_scalar($back_label) || (is_object($back_label) && method_exists($back_label, '__toString')))) {
-	$back_label_value = (string) $back_label;
-}
-
-$skip_label_value = '';
-
-if (is_callable($skip_label)) {
-	$skip_label = call_user_func($skip_label);
-}
-
-if (null !== $skip_label && (is_scalar($skip_label) || (is_object($skip_label) && method_exists($skip_label, '__toString')))) {
-	$skip_label_value = (string) $skip_label;
-}
-
-$next_label_value = '';
-
-if (is_callable($next_label)) {
-	$next_label = call_user_func($next_label);
-}
-
-if (null !== $next_label && (is_scalar($next_label) || (is_object($next_label) && method_exists($next_label, '__toString')))) {
-	$next_label_value = (string) $next_label;
-}
+$title_value       = wu_resolve_template_string($title);
+$description_value = wu_resolve_template_string($description);
+$content_value     = wu_resolve_template_string($content);
+$back_label_value  = wu_resolve_template_string($back_label);
+$skip_label_value  = wu_resolve_template_string($skip_label);
+$next_label_value  = wu_resolve_template_string($next_label);
 ?>
 <h1>
 	<?php echo esc_html($title_value); ?>
