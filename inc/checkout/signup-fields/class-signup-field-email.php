@@ -211,18 +211,6 @@ class Signup_Field_Email extends Base_Signup_Field {
 				];
 			}
 		} else {
-			if ($attributes['display_notices']) {
-				$checkout_fields['login_note'] = [
-					'type'              => 'note',
-					'title'             => __('Existing customer?', 'ultimate-multisite'),
-					'desc'              => [$this, 'render_existing_customer_message'],
-					'wrapper_classes'   => wu_get_isset($attributes, 'wrapper_element_classes', ''),
-					'wrapper_html_attr' => [
-						'style' => $this->calculate_style_attr(),
-					],
-				];
-			}
-
 			$checkout_fields['email_address'] = [
 				'type'              => 'text',
 				'id'                => 'email_address',
@@ -272,32 +260,6 @@ class Signup_Field_Email extends Base_Signup_Field {
 		}
 
 		return $checkout_fields;
-	}
-
-	/**
-	 * Renders the login message for users that are not logged in.
-	 *
-	 * @since 2.0.0
-	 * @return string
-	 */
-	public function render_existing_customer_message() {
-
-		$login_url = wp_login_url(add_query_arg('logged', '1'));
-
-		ob_start(); ?>
-
-		<div class="wu-p-4 wu-bg-yellow-200">
-
-			<?php
-			// translators: %s is the login URL.
-			printf(wp_kses_post(__('<a href="%s">Log in</a> to renew or change an existing membership.', 'ultimate-multisite')), esc_attr($login_url));
-
-			?>
-
-		</div>
-
-		<?php
-		return ob_get_clean();
 	}
 
 	/**
