@@ -64,7 +64,7 @@ defined('ABSPATH') || exit;
  * @property array suffix_html_attr
  * @since 2.0.0
  */
-class lField implements \JsonSerializable {
+class Field implements \JsonSerializable {
 
 	/**
 	 * Holds the attributes of this field.
