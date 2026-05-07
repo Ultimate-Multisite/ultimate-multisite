@@ -515,9 +515,17 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 				 */
 				$declared_default = $atts['default'] ?? null;
 
+				$get_resolved_default = static function () use ($declared_default) {
+					return is_callable($declared_default) ? call_user_func($declared_default) : $declared_default;
+				};
+
 				if (null === $declared_default) {
 					$type             = $atts['type'] ?? 'text';
 					$declared_default = in_array($type, ['toggle', 'checkbox'], true) ? false : '';
+
+					$get_resolved_default = static function () use ($declared_default) {
+						return $declared_default;
+					};
 				}
 
 				$atts = wp_parse_args(
@@ -532,8 +540,8 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 						'wrapper_html_attr' => [],
 						'require'           => [],
 						'html_attr'         => [],
-						'value'             => fn() => wu_get_setting($field_slug, $declared_default),
-						'display_value'     => fn() => wu_get_setting($field_slug, $declared_default),
+						'value'             => fn() => wu_get_setting($field_slug, $get_resolved_default()),
+						'display_value'     => fn() => wu_get_setting($field_slug, $get_resolved_default()),
 						'img'               => function () use ($field_slug) {
 
 							$img_id = wu_get_setting($field_slug);

@@ -100,16 +100,16 @@ class Credits {
 				'desc'        => __('HTML allowed. Use any text or link you prefer.', 'ultimate-multisite'),
 				'type'        => 'textarea',
 				'allow_html'  => true,
-				'default'     => function () {
-					$name = (string) get_network_option(null, 'site_name');
-					$name = $name ?: __('this network', 'ultimate-multisite');
-					$url  = function_exists('get_main_site_id') ? get_site_url(get_main_site_id()) : network_home_url('/');
-					return sprintf(
-						/* translators: 1: Opening anchor tag with URL to main site. 2: Network name. */
-						__('Powered by %1$s%2$s</a>', 'ultimate-multisite'),
-						'<a href="' . esc_url($url) . '" target="_blank">',
-						esc_html($name)
-					);
+				'default'     => [$this, 'get_default_custom_credit_html'],
+				'value'       => function () {
+					$html = (string) wu_get_setting('credits_custom_html', $this->get_default_custom_credit_html());
+
+					return '[object Object]' === trim($html) ? $this->get_default_custom_credit_html() : $html;
+				},
+				'display_value' => function () {
+					$html = (string) wu_get_setting('credits_custom_html', $this->get_default_custom_credit_html());
+
+					return '[object Object]' === trim($html) ? $this->get_default_custom_credit_html() : $html;
 				},
 				'placeholder' => __('Powered by <a href="https://example.com">Your Company</a>', 'ultimate-multisite'),
 				'require'     => [
@@ -118,6 +118,22 @@ class Credits {
 				],
 			],
 			2030
+		);
+	}
+
+	/**
+	 * Returns the default custom credit HTML.
+	 */
+	protected function get_default_custom_credit_html(): string {
+		$name = (string) get_network_option(null, 'site_name');
+		$name = $name ?: __('this network', 'ultimate-multisite');
+		$url  = function_exists('get_main_site_id') ? get_site_url(get_main_site_id()) : network_home_url('/');
+
+		return sprintf(
+			/* translators: 1: Opening anchor tag with URL to main site. 2: Network name. */
+			__('Powered by %1$s%2$s</a>', 'ultimate-multisite'),
+			'<a href="' . esc_url($url) . '" target="_blank">',
+			esc_html($name)
 		);
 	}
 

@@ -85,7 +85,7 @@ abstract class Wizard_Admin_Page extends Base_Admin_Page {
 		/*
 		 * Sets current section for future reference.
 		 */
-		$this->current_section = $sections[ $this->get_current_section() ];
+		$this->current_section = $this->prepare_section_for_display($sections[ $this->get_current_section() ]);
 
 		/*
 		 * Process save, if necessary
@@ -203,13 +203,110 @@ abstract class Wizard_Admin_Page extends Base_Admin_Page {
 				'page'                 => $this,
 				'logo'                 => $this->get_logo(),
 				'labels'               => $this->get_labels(),
-				'sections'             => $this->get_sections(),
+				'sections'             => $this->prepare_sections_for_display($this->get_sections()),
 				'current_section'      => $this->get_current_section(),
 				'classes'              => $this->get_classes(),
 				'clickable_navigation' => $this->clickable_navigation,
 				'form_id'              => $this->form_id,
 			]
 		);
+	}
+
+	/**
+	 * Resolves a single display value for wizard sections.
+	 *
+	 * @param mixed $value The raw value.
+	 * @param bool  $cast_to_bool Whether the resolved value should be cast to boolean.
+	 * @return mixed
+	 */
+	protected function resolve_section_display_value($value, bool $cast_to_bool = false) {
+
+		if (is_callable($value)) {
+			$value = call_user_func($value);
+		}
+
+		if ($cast_to_bool) {
+			return (bool) $value;
+		}
+
+		if (null === $value) {
+			return '';
+		}
+
+		if (is_scalar($value)) {
+			return (string) $value;
+		}
+
+		if (is_object($value) && method_exists($value, '__toString')) {
+			return (string) $value;
+		}
+
+		return '';
+	}
+
+	/**
+	 * Resolves dynamic section values used for display while preserving callbacks
+	 * responsible for handling the view, save routine, and field generation.
+	 *
+	 * @param array $section The raw section definition.
+	 * @return array
+	 */
+	protected function prepare_section_for_display(array $section): array {
+
+		$display_keys = [
+			'title',
+			'description',
+			'content',
+			'next_label',
+			'back_label',
+			'skip_label',
+		];
+
+		foreach ($display_keys as $display_key) {
+			if (array_key_exists($display_key, $section)) {
+				$section[ $display_key ] = $this->resolve_section_display_value($section[ $display_key ]);
+			}
+		}
+
+		$boolean_keys = [
+			'disable_next',
+			'back',
+			'skip',
+			'next',
+		];
+
+		foreach ($boolean_keys as $boolean_key) {
+			if (array_key_exists($boolean_key, $section)) {
+				$section[ $boolean_key ] = $this->resolve_section_display_value($section[ $boolean_key ], true);
+			}
+		}
+
+		if ( ! empty($section['sub-sections']) && is_array($section['sub-sections'])) {
+			foreach ($section['sub-sections'] as $sub_section_key => $sub_section) {
+				if (is_array($sub_section)) {
+					$section['sub-sections'][ $sub_section_key ] = $this->prepare_section_for_display($sub_section);
+				}
+			}
+		}
+
+		return $section;
+	}
+
+	/**
+	 * Resolves the display values of all wizard sections.
+	 *
+	 * @param array $sections Raw wizard sections.
+	 * @return array
+	 */
+	protected function prepare_sections_for_display(array $sections): array {
+
+		foreach ($sections as $section_key => $section) {
+			if (is_array($section)) {
+				$sections[ $section_key ] = $this->prepare_section_for_display($section);
+			}
+		}
+
+		return $sections;
 	}
 
 	/**
