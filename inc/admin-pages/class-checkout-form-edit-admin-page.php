@@ -1096,9 +1096,172 @@ class Checkout_Form_Edit_Admin_Page extends Edit_Admin_Page {
 		wu_get_template(
 			'base/checkout-forms/steps',
 			[
-				'checkout_form' => $this->get_object()->get_slug(),
+				'checkout_form'                      => $this->get_object()->get_slug(),
+				'price_variation_notice_products'    => $this->get_price_variation_notice_products(),
+				'template_selection_notice_products' => $this->get_template_selection_notice_products(),
 			]
 		);
+	}
+
+	/**
+	 * Returns the names of products that do NOT force a specific site template
+	 * when the checkout form has no template selection field.
+	 *
+	 * Used to render an admin notice in the editor warning that the template
+	 * selection field is required for customers to pick a site template.
+	 *
+	 * @since 2.4.13
+	 * @return array
+	 */
+	protected function get_template_selection_notice_products(): array {
+
+		$form = $this->get_object();
+
+		if ( ! is_a($form, \WP_Ultimo\Models\Checkout_Form::class)) {
+			return [];
+		}
+
+		$template_selection_fields = $form->get_all_fields_by_type('template_selection');
+
+		if ( ! empty($template_selection_fields)) {
+			return [];
+		}
+
+		$product_id_fields = $form->get_all_fields_by_type(['pricing_table', 'products']);
+
+		if (empty($product_id_fields)) {
+			return [];
+		}
+
+		$product_ids = [];
+
+		foreach ($product_id_fields as $field) {
+			$ids_string = '';
+
+			if ('pricing_table' === ($field['type'] ?? '')) {
+				$ids_string = (string) ($field['pricing_table_products'] ?? '');
+			} elseif ('products' === ($field['type'] ?? '')) {
+				$ids_string = (string) ($field['products'] ?? '');
+			}
+
+			if ('' === $ids_string) {
+				continue;
+			}
+
+			foreach (explode(',', $ids_string) as $id) {
+				$id = absint(trim($id));
+
+				if ($id) {
+					$product_ids[ $id ] = $id;
+				}
+			}
+		}
+
+		if (empty($product_ids)) {
+			return [];
+		}
+
+		$names = [];
+
+		foreach ($product_ids as $product_id) {
+			$product = wu_get_product($product_id);
+
+			if ( ! $product) {
+				continue;
+			}
+
+			$limitations = $product->get_limitations();
+
+			if ( ! $limitations || ! isset($limitations->site_templates)) {
+				$names[] = $product->get_name();
+				continue;
+			}
+
+			$mode = $limitations->site_templates->get_mode();
+
+			if (\WP_Ultimo\Limitations\Limit_Site_Templates::MODE_ASSIGN_TEMPLATE !== $mode) {
+				$names[] = $product->get_name();
+			}
+		}
+
+		return $names;
+	}
+
+	/**
+	 * Returns the names of products with price variations that lack a period
+	 * selection field on this checkout form.
+	 *
+	 * Used to render an admin notice in the editor warning that the period
+	 * selection field is required for price variations to be selectable.
+	 *
+	 * @since 2.4.13
+	 * @return array
+	 */
+	protected function get_price_variation_notice_products(): array {
+
+		$form = $this->get_object();
+
+		if ( ! is_a($form, \WP_Ultimo\Models\Checkout_Form::class)) {
+			return [];
+		}
+
+		$period_selection_fields = $form->get_all_fields_by_type('period_selection');
+
+		if ( ! empty($period_selection_fields)) {
+			return [];
+		}
+
+		$product_id_fields = $form->get_all_fields_by_type(['pricing_table', 'products']);
+
+		if (empty($product_id_fields)) {
+			return [];
+		}
+
+		$product_ids = [];
+
+		foreach ($product_id_fields as $field) {
+			$ids_string = '';
+
+			if ('pricing_table' === ($field['type'] ?? '')) {
+				$ids_string = (string) ($field['pricing_table_products'] ?? '');
+			} elseif ('products' === ($field['type'] ?? '')) {
+				$ids_string = (string) ($field['products'] ?? '');
+			}
+
+			if ('' === $ids_string) {
+				continue;
+			}
+
+			foreach (explode(',', $ids_string) as $id) {
+				$id = absint(trim($id));
+
+				if ($id) {
+					$product_ids[ $id ] = $id;
+				}
+			}
+		}
+
+		if (empty($product_ids)) {
+			return [];
+		}
+
+		$names = [];
+
+		foreach ($product_ids as $product_id) {
+			$product = wu_get_product($product_id);
+
+			if ( ! $product) {
+				continue;
+			}
+
+			$variations = $product->get_price_variations();
+
+			if ( ! empty($variations)) {
+				$names[] = $product->get_name();
+			}
+		}
+
+		return $names;
 	}
 
 	/**
