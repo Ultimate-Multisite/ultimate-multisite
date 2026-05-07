@@ -299,8 +299,9 @@ class Field implements \JsonSerializable {
 
 		if ('wrapper_classes' === $att) {
 			$attr = is_string($attr) ? $attr : '';
+			$wrapper_html_attr = $this->resolve_attribute_value($this->atts['wrapper_html_attr'] ?? []);
 
-			if (isset($this->atts['wrapper_html_attr']['v-show']) && ! str_contains($attr, 'wu-requires-other')) {
+			if (is_array($wrapper_html_attr) && isset($wrapper_html_attr['v-show']) && ! str_contains($attr, 'wu-requires-other')) {
 				$attr .= ' wu-requires-other';
 			}
 		}
