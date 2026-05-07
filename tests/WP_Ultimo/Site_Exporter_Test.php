@@ -70,7 +70,7 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	/**
 	 * Regression test for GH#1009 — circular dependency.
 	 *
-	 * maybe_add_schedule() MUST register wu_site_every_minute regardless of
+	 * The maybe_add_schedule() method must register wu_site_every_minute regardless of
 	 * whether there are pending imports. Previously it returned early when no
 	 * imports were pending, causing wp_schedule_event() to fail silently because
 	 * the custom interval was never registered.
@@ -209,7 +209,7 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	 */
 	public function test_cron_schedules_filter_is_registered(): void {
 
-		$priority = has_filter('cron_schedules', [ $this->exporter, 'maybe_add_schedule' ]);
+		$priority = has_filter('cron_schedules', [$this->exporter, 'maybe_add_schedule']);
 
 		$this->assertNotFalse(
 			$priority,
@@ -222,11 +222,45 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	 */
 	public function test_wu_import_site_action_is_registered(): void {
 
-		$priority = has_action('wu_import_site', [ $this->exporter, 'handle_site_import' ]);
+		$priority = has_action('wu_import_site', [$this->exporter, 'handle_site_import']);
 
 		$this->assertNotFalse(
 			$priority,
 			'handle_site_import must be registered as a wu_import_site action callback'
 		);
+	}
+
+	/**
+	 * Test that the wu_export_network action is hooked to handle_network_export.
+	 */
+	public function test_wu_export_network_action_is_registered(): void {
+
+		$priority = has_action('wu_export_network', [$this->exporter, 'handle_network_export']);
+
+		$this->assertNotFalse(
+			$priority,
+			'handle_network_export must be registered as a wu_export_network action callback'
+		);
+	}
+
+	/**
+	 * Test that the network export form is registered.
+	 */
+	public function test_network_export_form_is_registered(): void {
+
+		$forms = \WP_Ultimo\Managers\Form_Manager::get_instance()->get_registered_forms();
+
+		$this->assertArrayHasKey('export_network', $forms, 'export_network form must be registered');
+		$this->assertEquals('manage_network', $forms['export_network']['capability']);
+	}
+
+	/**
+	 * Test that the bulk network export action is added.
+	 */
+	public function test_bulk_network_export_action_is_added(): void {
+
+		$actions = apply_filters('wu_site_bulk_actions', []);
+
+		$this->assertArrayHasKey('network_export', $actions, 'network_export bulk action must be added');
 	}
 }
