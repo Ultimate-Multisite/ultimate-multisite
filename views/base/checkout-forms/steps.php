@@ -9,6 +9,46 @@ defined('ABSPATH') || exit;
 ?>
 <div id="wu-checkout-editor-app">
 
+	<?php if ( ! empty($price_variation_notice_products)) : ?>
+		<div class="wu-py-3 wu-px-4 wu-mb-4 wu-bg-yellow-100 wu-text-yellow-800 wu-border wu-border-solid wu-border-yellow-400 wu-rounded">
+			<strong><?php esc_html_e('Period Selection field missing', 'ultimate-multisite'); ?></strong>
+			<p class="wu-my-1">
+				<?php
+				echo esc_html(
+					sprintf(
+						/* translators: %s: comma-separated list of product names */
+						__('The following products have price variations, but this checkout form has no Period Selection field. Customers will not be able to choose between the variation prices: %s.', 'ultimate-multisite'),
+						implode(', ', $price_variation_notice_products)
+					)
+				);
+				?>
+			</p>
+			<p class="wu-my-1">
+				<?php esc_html_e('Add a Period Selection field to one of the steps to allow customers to switch between the available billing periods.', 'ultimate-multisite'); ?>
+			</p>
+		</div>
+	<?php endif; ?>
+
+	<?php if ( ! empty($template_selection_notice_products)) : ?>
+		<div class="wu-py-3 wu-px-4 wu-mb-4 wu-bg-yellow-100 wu-text-yellow-800 wu-border wu-border-solid wu-border-yellow-400 wu-rounded">
+			<strong><?php esc_html_e('Template Selection field missing', 'ultimate-multisite'); ?></strong>
+			<p class="wu-my-1">
+				<?php
+				echo esc_html(
+					sprintf(
+						/* translators: %s: comma-separated list of product names */
+						__('The following products do not force a specific site template, but this checkout form has no Template Selection field. Customers will not be able to choose a site template: %s.', 'ultimate-multisite'),
+						implode(', ', $template_selection_notice_products)
+					)
+				);
+				?>
+			</p>
+			<p class="wu-my-1">
+				<?php esc_html_e('Add a Template Selection field to one of the steps, or set these products to assign a specific template via their site template limitations.', 'ultimate-multisite'); ?>
+			</p>
+		</div>
+	<?php endif; ?>
+
 	<!-- Add new Step Section -->
 	<div id="wp-ultimo-list-table-add-new-1" class="postbox wu-mb-0" v-cloak>
 
