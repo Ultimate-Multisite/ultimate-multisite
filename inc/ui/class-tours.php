@@ -114,37 +114,38 @@ class Tours {
 
 		if ($this->has_tours()) {
 			/*
-			 * We cannot use wp_localize_script() on a module script (wu-tours), and
-			 * we cannot rely on wu-admin being enqueued on every admin page — since
-			 * PR #433 it is only enqueued on WP Ultimo pages. The network dashboard
-			 * (index.php, hook suffix dashboard-network) is not a WP Ultimo page, so
-			 * wu-admin is absent there and localizing onto it silently does nothing,
-			 * leaving wu_tours undefined when tours.js executes.
+			 * We cannot use wp_localize_script() on a module script (wu-tours).
 			 *
-			 * Fix: use wp_add_inline_script() on 'underscore', which is a WordPress
-			 * core script always present in the admin. This injects wu_tours and
-			 * wu_tours_vars as globals immediately after underscore loads, making them
-			 * available to the wu-tours module regardless of whether wu-admin is
-			 * enqueued. See https://core.trac.wordpress.org/ticket/60234.
+			 * We also cannot use wp_add_inline_script() on 'underscore' here,
+			 * because enqueue_scripts() is hooked to in_admin_footer — by the time
+			 * that hook fires, the <head> scripts (including underscore) have
+			 * already been printed, so wp_add_inline_script() is silently ignored,
+			 * leaving wu_tours undefined when tours.min.js executes.
+			 *
+			 * Fix: call wp_print_inline_script_tag() directly in in_admin_footer.
+			 * That hook fires before admin_footer, which is where WordPress prints
+			 * enqueued script modules, so wu_tours is guaranteed to be defined
+			 * before the wu-tours module runs. wp_print_inline_script_tag() is
+			 * available since WP 5.7; this code path already requires WP 6.5+
+			 * (for wp_enqueue_script_module), so no version guard is needed.
 			 */
-			wp_enqueue_script('underscore');
-
-			$inline_data = sprintf(
-				'var wu_tours = %s; var wu_tours_vars = %s;',
-				wp_json_encode($this->tours),
-				wp_json_encode(
-					[
-						'ajaxurl' => wu_ajax_url(),
-						'nonce'   => wp_create_nonce('wu_tour_finished'),
-						'i18n'    => [
-							'next'   => __('Next', 'ultimate-multisite'),
-							'finish' => __('Close', 'ultimate-multisite'),
-						],
-					]
-				)
+			wp_print_inline_script_tag(
+				sprintf(
+					'var wu_tours = %s; var wu_tours_vars = %s;',
+					wp_json_encode($this->tours),
+					wp_json_encode(
+						[
+							'ajaxurl' => wu_ajax_url(),
+							'nonce'   => wp_create_nonce('wu_tour_finished'),
+							'i18n'    => [
+								'next'   => __('Next', 'ultimate-multisite'),
+								'finish' => __('Close', 'ultimate-multisite'),
+							],
+						]
+					)
+				),
+				['id' => 'wu-tours-data']
 			);
-
-			wp_add_inline_script('underscore', $inline_data, 'after');
 
 			wp_enqueue_script_module('wu-tours');
 			wp_enqueue_style('shepherd');

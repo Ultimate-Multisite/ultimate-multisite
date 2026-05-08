@@ -678,6 +678,39 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 		$this->assertStringNotContainsString('wu-bg-blue-700', $output, 'wu-bg-blue-700 is not in framework.css and must not be used');
 	}
 
+	/**
+	 * section_complete() Continue button must point at the /network/ admin URL.
+	 *
+	 * Regression: previously the button used wu_network_admin_url() which falls back
+	 * to admin_url() when is_multisite() returns false (e.g. when OPcache is still
+	 * serving a stale wp-config.php after the install step writes the MULTISITE
+	 * constant). That caused the success-page button to send users to
+	 * /wp-admin/admin.php?page=wp-ultimo-setup (single-site) instead of
+	 * /wp-admin/network/admin.php?page=wp-ultimo-setup. The fix builds the URL
+	 * deterministically with site_url(), so the path must always contain /network/.
+	 */
+	public function test_section_complete_continue_button_points_at_network_admin(): void {
+
+		$_GET['result'] = 'success';
+
+		ob_start();
+		$this->page->section_complete();
+		$output = ob_get_clean();
+
+		unset($_GET['result']);
+
+		$this->assertMatchesRegularExpression(
+			'#href="[^"]*/wp-admin/network/admin\.php\?page=wp-ultimo-setup[^"]*"#',
+			$output,
+			'Continue button must link to the network admin URL, not the single-site admin URL'
+		);
+		$this->assertDoesNotMatchRegularExpression(
+			'#href="[^"]*/wp-admin/admin\.php\?page=wp-ultimo-setup[^"]*"#',
+			$output,
+			'Continue button must NOT link to the single-site admin URL'
+		);
+	}
+
 	// -------------------------------------------------------------------------
 	// display_manual_instructions() — via reflection
 	// -------------------------------------------------------------------------

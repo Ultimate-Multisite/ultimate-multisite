@@ -340,6 +340,11 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 		$result = wu_request('result', ''); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 		if ('success' === $result || is_multisite()) :
+			/*
+			 * Build the network-admin URL deterministically.
+			 *
+			 */
+			$continue_url = site_url('wp-admin/network/admin.php?page=wp-ultimo-setup');
 			?>
 		<div class="wu-bg-green-100 wu-border wu-border-green-300 wu-rounded-lg wu-p-4 wu-mb-6">
 			<div class="wu-flex">
@@ -358,7 +363,7 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 		</div>
 
 		<div class="wu-flex wu-justify-center">
-			<a href="<?php echo esc_url(wu_network_admin_url('wp-ultimo-setup')); ?>" class="button button-primary button-large">
+			<a href="<?php echo esc_url($continue_url); ?>" class="button button-primary button-large">
 				<?php esc_html_e('Continue to Multisite Ultimate Setup', 'multisite-ultimate'); ?>
 			</a>
 		</div>
