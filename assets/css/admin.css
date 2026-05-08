@@ -1937,11 +1937,21 @@ body.wu-page-wp-ultimo-settings .selectize-control.single .selectize-input::afte
   margin-top: -6px;
 }
 
-@media screen and (max-width: 400px) {
+/* WUBox modal responsive layout. wubox.js sets the modal width inline (default
+   630px, often 600px for the checkout-form-editor field selector) and centers
+   it with negative margins. On phones (<=782px, the WordPress admin mobile
+   breakpoint) that fixed pixel width overflows the viewport — labels get clipped
+   on both edges. Force the modal to use the full viewport, reset the inline
+   negative margins, and let WP-Ultimo's grid layouts re-flow inside.
+   These rules are also injected via wp_add_inline_style() from
+   Checkout_Form_Edit_Admin_Page::register_scripts() so they reach users
+   loading the minified admin.min.css before the next release rebuild. */
+@media screen and (max-width: 782px) {
   /* stylelint-disable */
   #WUB_window,
   #WUB_ajaxContent {
-    max-width: 100%;
+    width: 100vw !important;
+    max-width: 100vw !important;
     height: 100% !important;
     margin-top: 0 !important;
     margin-left: 0 !important;
