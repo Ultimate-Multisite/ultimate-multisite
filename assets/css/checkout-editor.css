@@ -38,7 +38,12 @@
   display: none;
 }
 
-/* Mobile responsive styles for checkout form editor */
+/* Mobile responsive styles for checkout form editor.
+ * These rules are also injected via wp_add_inline_style() from
+ * Checkout_Form_Edit_Admin_Page::register_scripts() so they ship to users
+ * loading the minified stylesheet (production). Keep both copies in sync;
+ * the inline copy is the authoritative one for end users until the next
+ * release rebuilds checkout-editor.min.css. */
 @media screen and (max-width: 782px) {
 
   /* Stack the top header bar vertically */
@@ -70,6 +75,44 @@
     display: none !important;
   }
 
+  /* Fix the expanded-row layout when the user taps "Show more details".
+     WordPress core's responsive list-table CSS positions the `::before` data-colname
+     label absolutely on the left (left: 10px; width: 32%) and reserves padding-left:35%
+     on the cell for the value. Inside the narrow checkout-editor postbox that 32% strip
+     is too thin for "Type"/"Slug" and the label collapses to one character per line
+     ("T..s it e_ ur l" instead of "Type: site_url"), and the value text overlaps the
+     label. Switch to a stacked block layout: label on its own row above the value. */
+  #wu-checkout-editor-app tr.is-expanded td.column-type,
+  #wu-checkout-editor-app tr.is-expanded td.column-slug,
+  #wu-checkout-editor-app tr.is-expanded td.column-move {
+    position: relative !important;
+    display: block !important;
+    width: auto !important;
+    padding: 6px 12px !important;
+    text-align: left !important;
+  }
+  #wu-checkout-editor-app tr.is-expanded td.column-type::before,
+  #wu-checkout-editor-app tr.is-expanded td.column-slug::before,
+  #wu-checkout-editor-app tr.is-expanded td.column-move::before {
+    position: static !important;
+    display: block !important;
+    float: none !important;
+    width: auto !important;
+    padding: 0 0 4px 0 !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    text-overflow: clip !important;
+    font-weight: 600;
+    text-align: left !important;
+  }
+
+  /* The MOVE column is hidden in collapsed view above; also hide it in expanded
+     view because drag handles are not actionable on touch and the empty
+     placeholder just adds noise. */
+  #wu-checkout-editor-app tr.is-expanded td.column-move {
+    display: none !important;
+  }
+
   /* Ensure the step action buttons stack properly on mobile */
   #wu-checkout-editor-app .wu-bg-gray-100 ul {
     flex-direction: column;
@@ -78,5 +121,32 @@
   #wu-checkout-editor-app .wu-bg-gray-100 ul li {
     margin-left: 0 !important;
     margin-bottom: 4px;
+  }
+
+  /* "Add new Field" wubox modal: cap modal width at 100vw and reset the
+     inline negative margins set by wubox.js so the modal fits a phone. The
+     same width override appears in assets/css/admin.css for global wubox
+     coverage; this duplicate keeps the rule local to the checkout editor in
+     case admin.min.css has not been rebuilt with the wider breakpoint yet. */
+  /* stylelint-disable */
+  #WUB_window,
+  #WUB_ajaxContent {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100% !important;
+    margin-top: 0 !important;
+    margin-left: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    border-radius: 0 !important;
+  }
+  /* stylelint-enable */
+
+  /* Field-type selector grid: drop from 4 columns to 2 so each tile has
+     enough room for its label ("PASSWORD", "TEMPLATES", "DOMAIN SELECTION").
+     Without this rule the 4-column wu-w-1/4 grid produces ~24vw tiles and
+     the labels truncate ("PA", "HIDD", "LANGUA", "NETWOR") on phones. */
+  #WUB_ajaxContent ul[data-wu-app="add_checkout_form_field"] .wu-w-1\/4 {
+    width: 50% !important;
   }
 }
