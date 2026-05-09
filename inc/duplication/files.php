@@ -23,6 +23,27 @@ if ( ! class_exists('MUCD_Files') ) {
 		 * @param  int $to_site_id   new site id.
 		 */
 		public static function copy_files($from_site_id, $to_site_id) {
+			/*
+			 * Two switch_to_blog() calls are pushed onto the WordPress blog
+			 * stack to read uploads info from the source and destination sites,
+			 * so two restore_current_blog() calls must follow to fully unwind
+			 * the stack. Previously only one restore was issued, leaving the
+			 * caller's blog context pointing at the template/source site after
+			 * copy_files() returned.
+			 *
+			 * The leak broke downstream code that relies on the network/admin
+			 * context — most visibly the site_published email pipeline. When
+			 * a customer signed up with a template the publish flow ran on the
+			 * template's blog context, so wp_mail() picked up the template
+			 * site's options (and per-site SMTP plugins) instead of the
+			 * network's, causing welcome emails to silently fail. Sending a
+			 * test email from the network admin worked because the admin
+			 * request never went through duplication.
+			 *
+			 * @since 2.7.2
+			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/1163
+			 */
+
 			// Switch to Source site and get uploads info
 			switch_to_blog($from_site_id);
 			$wp_upload_info   = wp_upload_dir();
@@ -34,6 +55,8 @@ if ( ! class_exists('MUCD_Files') ) {
 			$wp_upload_info = wp_upload_dir();
 			$to_dir         = $wp_upload_info['basedir'];
 
+			// Pop both switches: the destination, then the source.
+			restore_current_blog();
 			restore_current_blog();
 
 			$dirs   = [];
