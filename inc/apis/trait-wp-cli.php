@@ -56,12 +56,38 @@ trait WP_CLI {
 	}
 
 	/**
-	 * Registers the routes. Should be called by the entity
-	 * to actually enable the REST API.
+	 * Schedules WP-CLI command registration.
+	 *
+	 * Called synchronously from each manager's `init()` method. The actual
+	 * command registration — which calls `__()` for translatable shortdescs —
+	 * is deferred to the `init` action so WordPress 6.7+ does not emit a
+	 * `_load_textdomain_just_in_time` `_doing_it_wrong` notice. WP-CLI
+	 * registers commands during its own bootstrap phase before `init` fires;
+	 * hooking the registration to `init` priority 0 keeps the commands
+	 * available for every WP-CLI invocation while satisfying WP 6.7's
+	 * "translate after init" rule.
 	 *
 	 * @since 2.0.0
 	 */
 	public function enable_wp_cli(): void {
+
+		if ( ! defined('WP_CLI')) {
+			return;
+		}
+
+		add_action('init', [$this, 'register_wp_cli_commands'], 0);
+	}
+
+	/**
+	 * Registers the WP-CLI commands for this entity.
+	 *
+	 * Hooked to `init` priority 0 by `enable_wp_cli()` so translations are
+	 * loaded before any `__()` call runs (see `enable_wp_cli()` docblock).
+	 *
+	 * @since 2.10.2
+	 * @return void
+	 */
+	public function register_wp_cli_commands(): void {
 
 		if ( ! defined('WP_CLI')) {
 			return;

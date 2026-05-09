@@ -26,21 +26,36 @@ class WPEngine_Integration extends Integration {
 	/**
 	 * Constructor.
 	 *
+	 * Note: Translation calls (`__()`, `_e()`, etc.) are intentionally absent
+	 * from this constructor because integration providers are instantiated on
+	 * `plugins_loaded` priority 9 by the Integration_Registry — before the
+	 * WordPress `init` action fires. WordPress 6.7+ emits a `_doing_it_wrong`
+	 * notice for any translation triggered before `init`. The translatable
+	 * description is returned lazily by `get_description()` so it only runs
+	 * when the wizard or admin UI requests it (always after `init`).
+	 *
 	 * @since 2.5.0
 	 */
 	public function __construct() {
 
 		parent::__construct('wpengine', 'WP Engine');
 
-		$description = __('WP Engine drives your business forward faster with the first and only WordPress Digital Experience Platform. We offer the best WordPress hosting and developer experience on a proven, reliable architecture that delivers unparalleled speed, scalability, and security for your sites.', 'ultimate-multisite');
-
-		$description .= '<br><br><b>' . __('We recommend to enter in contact with WP Engine support to ask for a Wildcard domain if you are using a subdomain install.', 'ultimate-multisite') . '</b>';
-
-		$this->set_description($description);
 		$this->set_logo(function_exists('wu_get_asset') ? wu_get_asset('wpengine.svg', 'img/hosts') : '');
 		$this->set_tutorial_link('https://ultimatemultisite.com/docs/user-guide/host-integrations/wp-engine');
 		$this->set_constants([['WPE_API', 'WPE_APIKEY']]);
 		$this->set_supports(['no-instructions', 'no-config']);
+	}
+
+	/**
+	 * {@inheritdoc}
+	 */
+	public function get_description(): string {
+
+		$description = __('WP Engine drives your business forward faster with the first and only WordPress Digital Experience Platform. We offer the best WordPress hosting and developer experience on a proven, reliable architecture that delivers unparalleled speed, scalability, and security for your sites.', 'ultimate-multisite');
+
+		$description .= '<br><br><b>' . __('We recommend to enter in contact with WP Engine support to ask for a Wildcard domain if you are using a subdomain install.', 'ultimate-multisite') . '</b>';
+
+		return $description;
 	}
 
 	/**
