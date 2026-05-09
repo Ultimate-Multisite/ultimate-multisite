@@ -639,8 +639,14 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->domain_mapping->current_mapping = null;
 
 		$sources = [
-			100 => ['url' => 'http://example.com/image-100.jpg', 'value' => 100],
-			200 => ['url' => 'http://example.com/image-200.jpg', 'value' => 200],
+			100 => [
+				'url'   => 'http://example.com/image-100.jpg',
+				'value' => 100,
+			],
+			200 => [
+				'url'   => 'http://example.com/image-200.jpg',
+				'value' => 200,
+			],
 		];
 
 		$result = $this->domain_mapping->fix_srcset($sources);
@@ -654,7 +660,10 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	public function test_fix_srcset_returns_array(): void {
 
 		$sources = [
-			100 => ['url' => 'http://example.com/image.jpg', 'value' => 100],
+			100 => [
+				'url'   => 'http://example.com/image.jpg',
+				'value' => 100,
+			],
 		];
 
 		$result = $this->domain_mapping->fix_srcset($sources);
@@ -960,7 +969,7 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	 * @param string $domain Domain string.
 	 * @return Domain
 	 */
-	private function create_db_domain( string $domain ): Domain {
+	private function create_db_domain(string $domain): Domain {
 
 		$result = wu_create_domain(
 			[
@@ -974,7 +983,7 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 		);
 
 		if ( is_wp_error( $result ) || ! $result instanceof Domain ) {
-			$this->markTestSkipped( 'Could not create domain record: ' . ( is_wp_error( $result ) ? $result->get_error_message() : 'unknown' ) );
+			$this->markTestSkipped( 'Could not create domain record: ' . (is_wp_error( $result ) ? $result->get_error_message() : 'unknown') );
 		}
 
 		return $result;
@@ -985,7 +994,7 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	 *
 	 * @param string $domain Domain string.
 	 */
-	private function flush_domain_cache( string $domain ): void {
+	private function flush_domain_cache(string $domain): void {
 
 		wp_cache_delete( 'domain:' . $domain, 'domain_mappings' );
 		wp_cache_delete( 'domain:www.' . $domain, 'domain_mappings' );
@@ -1066,6 +1075,94 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->assertTrue(is_callable([$this->domain_mapping, 'verify_dns_mapping']));
 	}
 
+	/**
+	 * Regression: when verify_dns_mapping fires very early in the multisite
+	 * bootstrap (`pre_get_site_by_path` / `ms_site_not_found`), `$wpdb->options`
+	 * is empty because `$wpdb->set_prefix()` runs later in `ms-settings.php`.
+	 *
+	 * Calling `wp_send_json()` at that stage internally calls
+	 * `get_option( 'blog_charset' )`, which produced
+	 *
+	 *   "WordPress database error You have an error in your SQL syntax;
+	 *    check the manual that corresponds to your MariaDB server version
+	 *    for the right syntax to use near 'WHERE option_name = 'blog_charset'
+	 *    LIMIT 1' at line 1 for query SELECT option_value FROM  WHERE
+	 *    option_name = 'blog_charset' LIMIT 1"
+	 *
+	 * The fix emits the JSON response directly via `send_async_dns_response()`
+	 * with a hard-coded UTF-8 charset, bypassing `get_option()` entirely.
+	 *
+	 * This test verifies the response path no longer touches the options
+	 * table, by simulating an empty `$wpdb->options` and asserting the call
+	 * succeeds without producing a `wpdb->last_error`.
+	 */
+	public function test_verify_dns_mapping_does_not_query_options_table_in_early_bootstrap(): void {
+
+		global $wpdb;
+
+		// Capture any wpdb error produced during the call.
+		$wpdb->last_error = '';
+
+		// Persist a real mapping so Domain::get_by_domain() returns it.
+		$mapping_obj = new Domain();
+		$mapping_obj->set_domain('regression-blog-charset.test');
+		$mapping_obj->set_blog_id(1);
+		$mapping_obj->set_active(true);
+		$mapping_obj->set_primary_domain(true);
+		$mapping_obj->set_secure(false);
+		$mapping_obj->save();
+
+		// Hook the short-circuit filter to capture the payload without
+		// emitting headers or calling exit().
+		$captured = (object) [
+			'payload' => null,
+			'called'  => false,
+		];
+
+		$intercept = static function ($short_circuit, $payload) use ($captured) {
+
+			$captured->called  = true;
+			$captured->payload = $payload;
+			// Returning any non-null value prevents the default emit/exit path.
+			return true;
+		};
+
+		add_filter('wu_async_dns_response_short_circuit', $intercept, 10, 2);
+
+		// Simulate the empty $wpdb->options state seen in the real bug:
+		// at `pre_get_site_by_path` time, `set_prefix` has not run yet.
+		$saved_options                     = $wpdb->options;
+		$wpdb->options                     = '';
+		$_REQUEST['async_check_dns_nonce'] = wp_hash('regression-blog-charset.test');
+
+		try {
+			$this->domain_mapping->verify_dns_mapping(null, 'regression-blog-charset.test', '/');
+		} finally {
+			// Restore options table reference and clean up no matter what.
+			$wpdb->options = $saved_options;
+			unset($_REQUEST['async_check_dns_nonce']);
+			remove_filter('wu_async_dns_response_short_circuit', $intercept, 10);
+			$mapping_obj->delete();
+		}
+
+		// The response path was reached.
+		$this->assertTrue(
+			$captured->called,
+			'send_async_dns_response should fire when nonce matches and a mapping exists.'
+		);
+		$this->assertIsArray($captured->payload);
+		$this->assertSame('regression-blog-charset.test', $captured->payload['domain'] ?? null);
+
+		// And critically, no SQL syntax error was produced — the old code path
+		// would have populated wpdb->last_error with the malformed
+		// "SELECT option_value FROM  WHERE option_name = 'blog_charset'" query.
+		$this->assertSame(
+			'',
+			$wpdb->last_error,
+			'verify_dns_mapping must not query the options table during early multisite bootstrap.'
+		);
+	}
+
 	// ----------------------------------------------------------------
 	// register_mapped_filters (with current_blog set)
 	// ----------------------------------------------------------------
@@ -1117,7 +1214,10 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->domain_mapping->current_mapping = $mapping;
 
 		$sources = [
-			100 => ['url' => 'http://example.com/image.jpg', 'value' => 100],
+			100 => [
+				'url'   => 'http://example.com/image.jpg',
+				'value' => 100,
+			],
 		];
 
 		$result = $this->domain_mapping->fix_srcset($sources);
@@ -1325,7 +1425,7 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 		// Verify the domain is gone from the DB.
 		$this->flush_domain_cache( $domain_str );
 
-		$fetched = Domain::get_by_domain( [ $domain_str ] );
+		$fetched = Domain::get_by_domain( [$domain_str] );
 		$this->assertNull( $fetched );
 	}
 
@@ -1349,8 +1449,14 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->domain_mapping->current_mapping = $mapping;
 
 		$sources = [
-			100 => [ 'url' => 'http://example.org/image-100.jpg', 'value' => 100 ],
-			200 => [ 'url' => 'http://example.org/image-200.jpg', 'value' => 200 ],
+			100 => [
+				'url'   => 'http://example.org/image-100.jpg',
+				'value' => 100,
+			],
+			200 => [
+				'url'   => 'http://example.org/image-200.jpg',
+				'value' => 200,
+			],
 		];
 
 		$result = $this->domain_mapping->fix_srcset( $sources );
@@ -1358,7 +1464,7 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->assertIsArray( $result );
 		// At least one URL should be mangled to the mapped domain.
 		$all_urls = array_column( $result, 'url' );
-		$mangled  = array_filter( $all_urls, fn( $u ) => str_contains( $u, 'srcset-mapped.example.com' ) );
+		$mangled  = array_filter( $all_urls, fn($u) => str_contains( $u, 'srcset-mapped.example.com' ) );
 		$this->assertNotEmpty( $mangled );
 
 		$this->domain_mapping->current_mapping = null;
@@ -1396,11 +1502,11 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->domain_mapping->register_mapped_filters();
 
 		// site_url filter should now be registered.
-		$this->assertTrue( has_filter( 'site_url', [ $this->domain_mapping, 'mangle_url' ] ) !== false );
+		$this->assertTrue( has_filter( 'site_url', [$this->domain_mapping, 'mangle_url'] ) !== false );
 
 		// Clean up.
-		remove_filter( 'site_url', [ $this->domain_mapping, 'mangle_url' ], -10 );
-		remove_filter( 'home_url', [ $this->domain_mapping, 'mangle_url' ], -10 );
+		remove_filter( 'site_url', [$this->domain_mapping, 'mangle_url'], -10 );
+		remove_filter( 'home_url', [$this->domain_mapping, 'mangle_url'], -10 );
 		unset( $_SERVER['HTTP_HOST'] );
 		$domain->delete();
 		$this->flush_domain_cache( $domain_str );
@@ -1512,5 +1618,4 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 
 		$this->domain_mapping->current_mapping = null;
 	}
-
 }

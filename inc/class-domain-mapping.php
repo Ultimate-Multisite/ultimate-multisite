@@ -372,10 +372,69 @@ class Domain_Mapping {
 
 				$mapping = Domain::get_by_domain($domains);
 				if ($mapping) {
-					wp_send_json($mapping->to_array());
+					$this->send_async_dns_response($mapping->to_array());
 				}
 			}
 		}
+	}
+
+	/**
+	 * Emits the async DNS-check JSON response and terminates the request.
+	 *
+	 * This is invoked from {@see verify_dns_mapping()}, which fires very early
+	 * in WordPress's multisite bootstrap (`pre_get_site_by_path` /
+	 * `ms_site_not_found`) — before `$wpdb->set_prefix()` runs in
+	 * `wp-includes/ms-settings.php`. At that point `$wpdb->options` is an
+	 * empty string, so calling `wp_send_json()` is unsafe: it would call
+	 * `get_option( 'blog_charset' )`, which executes
+	 * `SELECT option_value FROM {$wpdb->options} WHERE option_name = 'blog_charset' LIMIT 1`
+	 * with an empty table name and triggers a MariaDB syntax error
+	 * ("WordPress database error You have an error in your SQL syntax …
+	 * near 'WHERE option_name = 'blog_charset' LIMIT 1'").
+	 *
+	 * We therefore emit the JSON directly with a hard-coded UTF-8 charset
+	 * (the WordPress default for `blog_charset`) and `exit`, avoiding any
+	 * dependency on `get_option()` or the options table.
+	 *
+	 * Extracted as a protected method so tests (and plugins) can intercept
+	 * the emit-and-terminate step without invoking PHP's `exit` via the
+	 * `wu_async_dns_response_short_circuit` filter.
+	 *
+	 * @since 2.10.2
+	 *
+	 * @param array<string,mixed> $payload Mapping data to encode as JSON.
+	 * @return void
+	 */
+	protected function send_async_dns_response(array $payload): void {
+
+		/**
+		 * Filters the async DNS-check JSON response payload before it is emitted.
+		 *
+		 * Returning a non-null value short-circuits the default `header()` /
+		 * `echo` / `exit` sequence so tests (and plugins) can inspect the
+		 * payload without terminating the request. Any non-null return value
+		 * causes this method to return immediately without sending headers,
+		 * writing output, or exiting.
+		 *
+		 * @since 2.10.2
+		 *
+		 * @param mixed               $short_circuit Default `null`. Return any non-null value to
+		 *                                           short-circuit the default emit/exit behaviour.
+		 * @param array<string,mixed> $payload       The mapping payload that would be JSON-encoded.
+		 */
+		$short_circuit = apply_filters('wu_async_dns_response_short_circuit', null, $payload);
+
+		if (null !== $short_circuit) {
+			return;
+		}
+
+		if ( ! headers_sent()) {
+			header('Content-Type: application/json; charset=UTF-8');
+		}
+
+		echo wp_json_encode($payload);
+
+		exit;
 	}
 
 	/**
@@ -646,8 +705,8 @@ class Domain_Mapping {
 			$domain = rtrim($domain . '/' . preg_quote(ltrim($path, '/'), '#'), '/');
 		}
 
-		$regex       = '#^(\w+://)' . $domain . '#i';
-		$mangled     = preg_replace($regex, '${1}' . $current_mapping->get_domain(), $url);
+		$regex   = '#^(\w+://)' . $domain . '#i';
+		$mangled = preg_replace($regex, '${1}' . $current_mapping->get_domain(), $url);
 
 		/*
 		 * Another try if we don't need to deal with subdirectory.
