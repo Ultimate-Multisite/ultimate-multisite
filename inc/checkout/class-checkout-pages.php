@@ -62,6 +62,16 @@ class Checkout_Pages {
 			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/291
 			 */
 			add_filter('lostpassword_url', [$this, 'filter_lostpassword_url'], 10, 2);
+
+			/*
+			 * Rewrite the reset password link inside the email body on ALL
+			 * sites (main + subsites). On the main site the URL points to
+			 * the custom login page; on subsites it stays on the subsite
+			 * domain so users never leave the site they signed up on.
+			 *
+			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/1168
+			 */
+			add_filter('retrieve_password_message', [$this, 'replace_reset_password_link'], 10, 4);
 		}
 
 		if (is_main_site()) {
@@ -73,8 +83,6 @@ class Checkout_Pages {
 			if ( ! $use_custom_login) {
 				return;
 			}
-
-			add_filter('retrieve_password_message', [$this, 'replace_reset_password_link'], 10, 4);
 
 			add_filter('network_site_url', [$this, 'maybe_change_wp_login_on_urls']);
 
@@ -341,7 +349,16 @@ class Checkout_Pages {
 	/**
 	 * Replace the reset password link, if necessary.
 	 *
+	 * Works on both the main site and subsites:
+	 *
+	 * - On the main site the wp-login.php URL is replaced with the custom
+	 *   login page configured in the network settings.
+	 * - On subsites the URL is rewritten so the reset flow stays on the
+	 *   user's own domain, avoiding cross-domain jumps that confuse end
+	 *   users on mapped domains and break the subsite branding.
+	 *
 	 * @since 2.0.0
+	 * @since 2.10.2 Subsite-aware: keeps the reset URL on the subsite domain.
 	 *
 	 * @param string $message The email message.
 	 * @param string $key The reset key.
@@ -351,23 +368,25 @@ class Checkout_Pages {
 	 */
 	public function replace_reset_password_link($message, $key, $user_login, $user_data) {
 
-		if ( ! is_main_site()) {
-			return $message;
-		}
-
 		$results = [];
 
 		preg_match_all('/.*\/wp-login\.php.*/', $message, $results);
 
-		$switched_locale = false;
+		if (empty($results[0][0])) {
+			return $message;
+		}
 
-		if (isset($results[0][0])) {
+		// Localize password reset message content for user.
+		$locale = get_user_locale($user_data);
 
-			// Localize password reset message content for user.
-			$locale = get_user_locale($user_data);
+		$switched_locale = switch_to_locale($locale);
 
-			$switched_locale = switch_to_locale($locale);
+		if (is_main_site()) {
 
+			/*
+			 * On the main site, point the reset URL at the custom login
+			 * page so users land on the network's branded login screen.
+			 */
 			$new_url = add_query_arg(
 				[
 					'action'  => 'rp',
@@ -380,8 +399,59 @@ class Checkout_Pages {
 
 			$new_url = set_url_scheme($new_url, null);
 
-			$message = str_replace($results[0], $new_url, $message);
+		} else {
+
+			/*
+			 * On a subsite, rewrite the URL so the reset flow stays on the
+			 * subsite's own domain. The default wp-login.php URL points to
+			 * the main network site, which:
+			 *
+			 *   1. Confuses end users who signed up on a mapped domain
+			 *      (e.g. someone who registered on example.com would land
+			 *      on networksite.com to set their password).
+			 *   2. Breaks the subsite owner's branding for their own
+			 *      customers.
+			 *
+			 * We send the user to the subsite home URL with the reset
+			 * parameters so existing handlers (WooCommerce my-account,
+			 * BuddyPress, custom themes, etc.) can pick the request up.
+			 *
+			 * Filter wu_subsite_password_reset_url lets integrations point
+			 * the URL at a specific page on the subsite (e.g. the
+			 * WooCommerce reset-password endpoint).
+			 */
+			$subsite_base = home_url('/');
+
+			$new_url = add_query_arg(
+				[
+					'action'  => 'rp',
+					'key'     => $key,
+					'login'   => rawurlencode($user_login),
+					'wp_lang' => $locale,
+				],
+				$subsite_base
+			);
+
+			/**
+			 * Filter the subsite-aware password reset URL.
+			 *
+			 * Allows integrations (WooCommerce, BuddyPress, custom themes)
+			 * to override the destination URL while keeping it on the
+			 * subsite's own domain.
+			 *
+			 * @since 2.10.2
+			 *
+			 * @param string  $new_url    The default subsite reset URL.
+			 * @param string  $key        The reset key.
+			 * @param string  $user_login The user login.
+			 * @param WP_User $user_data  The user data.
+			 */
+			$new_url = apply_filters('wu_subsite_password_reset_url', $new_url, $key, $user_login, $user_data);
+
+			$new_url = set_url_scheme($new_url, null);
 		}
+
+		$message = str_replace($results[0], $new_url, $message);
 
 		if ($switched_locale) {
 			restore_previous_locale();
