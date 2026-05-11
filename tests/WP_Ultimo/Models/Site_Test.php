@@ -533,12 +533,12 @@ class Site_Test extends \WP_UnitTestCase {
 		// Test lock
 		$lock_result = $this->site->lock();
 		$this->assertTrue($lock_result || is_numeric($lock_result), 'Lock should return true or numeric ID on success.');
-		$this->assertTrue((bool)$this->site->is_locked(), 'Site should be locked.');
+		$this->assertTrue((bool) $this->site->is_locked(), 'Site should be locked.');
 
 		// Test unlock
 		$unlock_result = $this->site->unlock();
 		$this->assertTrue($unlock_result || is_numeric($unlock_result), 'Unlock should return true or numeric ID on success.');
-		$this->assertFalse((bool)$this->site->is_locked(), 'Site should be unlocked.');
+		$this->assertFalse((bool) $this->site->is_locked(), 'Site should be unlocked.');
 	}
 
 	/**
@@ -859,6 +859,40 @@ class Site_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test delete returns WP_Error when wp_delete_site() throws.
+	 */
+	public function test_delete_returns_wp_error_when_wp_delete_site_throws(): void {
+		$blog_id = $this->factory()->blog->create();
+		if (is_wp_error($blog_id)) {
+			$this->markTestSkipped('Could not create blog for this test.');
+		}
+
+		$site = new Site(['blog_id' => $blog_id]);
+
+		$throw_delete_failure = static function () {
+			throw new \RuntimeException('Synthetic delete failure.');
+		};
+
+		add_action(
+			'wp_validate_site_deletion',
+			$throw_delete_failure
+		);
+
+		$result = $site->delete();
+
+		$this->assertInstanceOf(
+			\WP_Error::class,
+			$result,
+			'Site::delete() must convert thrown deletion failures to WP_Error.'
+		);
+		$this->assertSame('wu_site_delete_failed', $result->get_error_code());
+		$this->assertStringContainsString('Synthetic delete failure.', $result->get_error_message());
+
+		remove_action('wp_validate_site_deletion', $throw_delete_failure);
+		wp_delete_site($blog_id);
+	}
+
+	/**
 	 * Test get_type returns main for the main site.
 	 */
 	public function test_get_type_main_site(): void {
@@ -1100,7 +1134,7 @@ class Site_Test extends \WP_UnitTestCase {
 
 		// Create a new Site instance that only has blog_id
 		// to verify it can read customer_id from meta
-		$site = new Site(['blog_id' => $this->site->get_id()]);
+		$site   = new Site(['blog_id' => $this->site->get_id()]);
 		$result = $site->get_customer_id();
 		$this->assertIsInt($result, 'get_customer_id should return an integer.');
 		$this->assertEquals($customer_id, $result, 'get_customer_id should read the value from meta.');
@@ -1279,7 +1313,7 @@ class Site_Test extends \WP_UnitTestCase {
 	 */
 	public function test_get_featured_image_applies_size_filter(): void {
 		$filter_called = false;
-		$filter_fn     = function ($size, $site) use (&$filter_called) {
+		$filter_fn     = function ($size, $site) use (&$filter_called) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 			$filter_called = true;
 			return $size;
 		};
@@ -1300,7 +1334,7 @@ class Site_Test extends \WP_UnitTestCase {
 		$this->site->set_customer_id($customer_id);
 
 		// Use filter to override result
-		$filter_fn = function ($allowed, $cid, $site) {
+		$filter_fn = function ($allowed, $cid, $site) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 			return false;
 		};
 

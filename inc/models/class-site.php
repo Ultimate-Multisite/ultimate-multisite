@@ -1380,7 +1380,6 @@ class Site extends Base_Model implements Limitable, Notable {
 	 * @return string
 	 */
 	public function get_site_url() {
-
 		/*
 		 * For sites already saved to the database, WordPress's get_home_url()
 		 * builds the correct full URL (including scheme and port) from the
@@ -1779,7 +1778,14 @@ class Site extends Base_Model implements Limitable, Notable {
 		} catch (\Throwable $e) {
 			wu_log_add('fatal-error', $e->getMessage(), LogLevel::ERROR);
 
-			return false;
+			return new \WP_Error(
+				"wu_{$this->model}_delete_failed",
+				sprintf(
+					/* translators: %s: Exception message. */
+					__('Failed to delete the site: %s', 'ultimate-multisite'),
+					$e->getMessage()
+				)
+			);
 		}
 
 		/*
