@@ -62,6 +62,43 @@ class Checkout_Pages {
 			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/291
 			 */
 			add_filter('lostpassword_url', [$this, 'filter_lostpassword_url'], 10, 2);
+
+			/*
+			 * Rewrite the reset password link inside the email body on ALL
+			 * sites (main + subsites). On the main site the URL points to
+			 * the custom login page; on subsites it stays on the subsite
+			 * domain so users never leave the site they signed up on.
+			 *
+			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/1168
+			 */
+			add_filter('retrieve_password_message', [$this, 'replace_reset_password_link'], 10, 4);
+
+			/*
+			 * Rewrite the "set your password" link in the new-user
+			 * notification email so users created on a subsite get a link
+			 * to that subsite (not to the main network site).
+			 *
+			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/1168
+			 */
+			add_filter('wp_new_user_notification_email', [$this, 'rewrite_new_user_notification_email'], 10, 3);
+
+			/*
+			 * Rewrite the URL inside the admin notification that fires
+			 * when a user requests a password reset, so subsite admins
+			 * receive links to their own subsite.
+			 *
+			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/1168
+			 */
+			add_filter('retrieve_password_notification_email', [$this, 'rewrite_password_notification_email'], 10, 4);
+
+			/*
+			 * Rewrite the URL inside the email-change confirmation message
+			 * so the confirmation link stays on the subsite the user is
+			 * editing their profile on.
+			 *
+			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/1168
+			 */
+			add_filter('new_user_email_content', [$this, 'rewrite_email_change_content'], 10, 2);
 		}
 
 		if (is_main_site()) {
@@ -73,8 +110,6 @@ class Checkout_Pages {
 			if ( ! $use_custom_login) {
 				return;
 			}
-
-			add_filter('retrieve_password_message', [$this, 'replace_reset_password_link'], 10, 4);
 
 			add_filter('network_site_url', [$this, 'maybe_change_wp_login_on_urls']);
 
@@ -341,7 +376,16 @@ class Checkout_Pages {
 	/**
 	 * Replace the reset password link, if necessary.
 	 *
+	 * Works on both the main site and subsites:
+	 *
+	 * - On the main site the wp-login.php URL is replaced with the custom
+	 *   login page configured in the network settings.
+	 * - On subsites the URL is rewritten so the reset flow stays on the
+	 *   user's own domain, avoiding cross-domain jumps that confuse end
+	 *   users on mapped domains and break the subsite branding.
+	 *
 	 * @since 2.0.0
+	 * @since 2.10.2 Subsite-aware: keeps the reset URL on the subsite domain.
 	 *
 	 * @param string $message The email message.
 	 * @param string $key The reset key.
@@ -351,23 +395,25 @@ class Checkout_Pages {
 	 */
 	public function replace_reset_password_link($message, $key, $user_login, $user_data) {
 
-		if ( ! is_main_site()) {
-			return $message;
-		}
-
 		$results = [];
 
 		preg_match_all('/.*\/wp-login\.php.*/', $message, $results);
 
-		$switched_locale = false;
+		if (empty($results[0][0])) {
+			return $message;
+		}
 
-		if (isset($results[0][0])) {
+		// Localize password reset message content for user.
+		$locale = get_user_locale($user_data);
 
-			// Localize password reset message content for user.
-			$locale = get_user_locale($user_data);
+		$switched_locale = switch_to_locale($locale);
 
-			$switched_locale = switch_to_locale($locale);
+		if (is_main_site()) {
 
+			/*
+			 * On the main site, point the reset URL at the custom login
+			 * page so users land on the network's branded login screen.
+			 */
 			$new_url = add_query_arg(
 				[
 					'action'  => 'rp',
@@ -380,14 +426,204 @@ class Checkout_Pages {
 
 			$new_url = set_url_scheme($new_url, null);
 
-			$message = str_replace($results[0], $new_url, $message);
+		} else {
+
+			/*
+			 * On a subsite, rewrite the URL so the reset flow stays on the
+			 * subsite's own domain. The default wp-login.php URL points to
+			 * the main network site, which:
+			 *
+			 *   1. Confuses end users who signed up on a mapped domain
+			 *      (e.g. someone who registered on example.com would land
+			 *      on networksite.com to set their password).
+			 *   2. Breaks the subsite owner's branding for their own
+			 *      customers.
+			 *
+			 * We send the user to the subsite home URL with the reset
+			 * parameters so existing handlers (WooCommerce my-account,
+			 * BuddyPress, custom themes, etc.) can pick the request up.
+			 *
+			 * Filter wu_subsite_password_reset_url lets integrations point
+			 * the URL at a specific page on the subsite (e.g. the
+			 * WooCommerce reset-password endpoint).
+			 */
+			$subsite_base = home_url('/');
+
+			$new_url = add_query_arg(
+				[
+					'action'  => 'rp',
+					'key'     => $key,
+					'login'   => rawurlencode($user_login),
+					'wp_lang' => $locale,
+				],
+				$subsite_base
+			);
+
+			/**
+			 * Filter the subsite-aware password reset URL.
+			 *
+			 * Allows integrations (WooCommerce, BuddyPress, custom themes)
+			 * to override the destination URL while keeping it on the
+			 * subsite's own domain.
+			 *
+			 * @since 2.10.2
+			 *
+			 * @param string  $new_url    The default subsite reset URL.
+			 * @param string  $key        The reset key.
+			 * @param string  $user_login The user login.
+			 * @param WP_User $user_data  The user data.
+			 */
+			$new_url = apply_filters('wu_subsite_password_reset_url', $new_url, $key, $user_login, $user_data);
+
+			$new_url = set_url_scheme($new_url, null);
 		}
+
+		$message = str_replace($results[0], $new_url, $message);
 
 		if ($switched_locale) {
 			restore_previous_locale();
 		}
 
 		return $message;
+	}
+
+	/**
+	 * Rewrite a URL that points at the main network site's wp-login.php
+	 * so that it stays on the current site instead.
+	 *
+	 * Used by the auth-related email filters to keep URLs on the subsite
+	 * the email was triggered from. On the main site the URL is rewritten
+	 * to the custom login page; on a subsite it is rewritten to the
+	 * subsite's home_url('/').
+	 *
+	 * @since 2.10.2
+	 *
+	 * @param string $url The URL to rewrite.
+	 * @return string
+	 */
+	protected function rewrite_subsite_aware_login_url($url) {
+
+		if ( ! str_contains($url, 'wp-login.php')) {
+			return $url;
+		}
+
+		if (is_main_site()) {
+			$post_id = wu_get_setting('default_login_page', 0);
+			$post    = get_post($post_id);
+
+			if ($post) {
+				return str_replace('wp-login.php', $post->post_name, $url);
+			}
+
+			return $url;
+		}
+
+		/*
+		 * On a subsite, replace the host (and the wp-login.php path) with
+		 * the subsite's own home URL so the request stays on the subsite.
+		 */
+		$parts = wp_parse_url($url);
+
+		if (empty($parts['query'])) {
+			return home_url('/');
+		}
+
+		return home_url('/?' . $parts['query']);
+	}
+
+	/**
+	 * Rewrite the "set your password" link in the new-user notification
+	 * email so users created on a subsite get a link to that subsite.
+	 *
+	 * Without this filter the URL inside the email is built with
+	 * network_site_url('wp-login.php'), which always resolves to the main
+	 * network site. The new user is then taken away from the subsite they
+	 * were just registered on.
+	 *
+	 * @since 2.10.2
+	 *
+	 * @param array   $email   The email arguments (to/subject/message/headers).
+	 * @param WP_User $user    The user that was created.
+	 * @param string  $blogname The site name.
+	 * @return array
+	 */
+	public function rewrite_new_user_notification_email($email, $user, $blogname) {
+
+		if (empty($email['message']) || ! is_array($email)) {
+			return $email;
+		}
+
+		$email['message'] = preg_replace_callback(
+			'#https?://[^\s<>"]+wp-login\.php[^\s<>"]*#i',
+			function ($matches) {
+				return $this->rewrite_subsite_aware_login_url($matches[0]);
+			},
+			$email['message']
+		);
+
+		return $email;
+	}
+
+	/**
+	 * Rewrite the URL inside the admin notification that fires when a
+	 * user requests a password reset.
+	 *
+	 * Subsite admins should receive a link that stays on their own
+	 * subsite, not on the main network site.
+	 *
+	 * @since 2.10.2
+	 *
+	 * @param array   $defaults    The email defaults (to/subject/message/headers).
+	 * @param string  $key         The reset key.
+	 * @param string  $user_login  The username for the user.
+	 * @param WP_User $user_data   WP_User object.
+	 * @return array
+	 */
+	public function rewrite_password_notification_email($defaults, $key, $user_login, $user_data) {
+
+		if (empty($defaults['message']) || ! is_array($defaults)) {
+			return $defaults;
+		}
+
+		$defaults['message'] = preg_replace_callback(
+			'#https?://[^\s<>"]+wp-login\.php[^\s<>"]*#i',
+			function ($matches) {
+				return $this->rewrite_subsite_aware_login_url($matches[0]);
+			},
+			$defaults['message']
+		);
+
+		return $defaults;
+	}
+
+	/**
+	 * Rewrite the URL inside the email-change confirmation message so the
+	 * confirmation link stays on the subsite the user is editing their
+	 * profile on.
+	 *
+	 * Without this filter wp-admin/profile.php URLs in the message body
+	 * point to the main network site even when the user is editing their
+	 * profile on a subsite.
+	 *
+	 * @since 2.10.2
+	 *
+	 * @param string $email_text Email content.
+	 * @param array  $new_user_email Data on the changed email.
+	 * @return string
+	 */
+	public function rewrite_email_change_content($email_text, $new_user_email) {
+
+		if (empty($email_text) || ! is_string($email_text)) {
+			return $email_text;
+		}
+
+		return preg_replace_callback(
+			'#https?://[^\s<>"]+wp-login\.php[^\s<>"]*#i',
+			function ($matches) {
+				return $this->rewrite_subsite_aware_login_url($matches[0]);
+			},
+			$email_text
+		);
 	}
 
 	/**
