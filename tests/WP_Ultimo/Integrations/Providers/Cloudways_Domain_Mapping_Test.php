@@ -114,4 +114,180 @@ class Cloudways_Domain_Mapping_Test extends WP_UnitTestCase {
 
 		$this->assertNotNull($result);
 	}
+
+	// -------------------------------------------------------------------------
+	// Wildcard / SSL split regression tests (GH#1160)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Creates a fresh module+integration pair where get_credential is also
+	 * stubbed so we can inject WU_CLOUDWAYS_EXTRA_DOMAINS without touching PHP
+	 * constants or the database.
+	 *
+	 * @param string $extra_domains Comma-separated extra domains to return.
+	 * @return array{0: Cloudways_Domain_Mapping, 1: Cloudways_Integration}
+	 */
+	private function make_module_with_extra_domains(string $extra_domains): array {
+
+		$integration = $this->getMockBuilder(Cloudways_Integration::class)
+			->onlyMethods(['send_cloudways_request', 'get_credential'])
+			->getMock();
+
+		$integration->method('get_credential')
+			->willReturnCallback(
+				static function ($name) use ($extra_domains) {
+					if ('WU_CLOUDWAYS_EXTRA_DOMAINS' === $name) {
+						return $extra_domains;
+					}
+					return '';
+				}
+			);
+
+		$module = new Cloudways_Domain_Mapping();
+		$module->set_integration($integration);
+
+		return [$module, $integration];
+	}
+
+	/**
+	 * A wildcard entry in WU_CLOUDWAYS_EXTRA_DOMAINS MUST appear in the aliases
+	 * payload sent to /app/manage/aliases.
+	 */
+	public function test_wildcard_extra_domain_is_present_in_aliases_payload(): void {
+
+		[$module, $integration] = $this->make_module_with_extra_domains('*.example.com,plain.example.org');
+
+		$captured_aliases = null;
+
+		$integration->expects($this->once())
+			->method('send_cloudways_request')
+			->with(
+				'/app/manage/aliases',
+				$this->callback(
+					static function ($args) use (&$captured_aliases) {
+						$captured_aliases = $args['aliases'] ?? [];
+						return true;
+					}
+				)
+			)
+			->willReturn((object) ['status' => true]);
+
+		$module->on_add_domain('plain.example.org', 1);
+
+		$this->assertContains('*.example.com', $captured_aliases, 'Wildcard should remain in the aliases payload');
+		$this->assertContains('plain.example.org', $captured_aliases, 'Plain extra domain should remain in the aliases payload');
+	}
+
+	/**
+	 * A wildcard entry in WU_CLOUDWAYS_EXTRA_DOMAINS MUST NOT appear in the
+	 * ssl_domains payload sent to /security/lets_encrypt_install.
+	 */
+	public function test_wildcard_extra_domain_is_absent_from_ssl_payload(): void {
+
+		[$module, $integration] = $this->make_module_with_extra_domains('*.example.com');
+
+		add_filter('wu_get_network_public_ip', static function () {
+			return '1.2.3.4';
+		});
+		add_filter(
+			'pre_http_request',
+			static function ($preempt, $args, $url) {
+				if (str_contains($url, 'dns.google')) {
+					return [
+						'headers'       => [],
+						'body'          => '{"Answer":[{"data":"1.2.3.4"}]}',
+						'response'      => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'cookies'       => [],
+						'http_response' => null,
+					];
+				}
+				return $preempt;
+			},
+			10,
+			3
+		);
+
+		$captured_ssl_domains = null;
+
+		$integration->expects($this->once())
+			->method('send_cloudways_request')
+			->with(
+				'/security/lets_encrypt_install',
+				$this->callback(
+					static function ($args) use (&$captured_ssl_domains) {
+						$captured_ssl_domains = $args['ssl_domains'] ?? [];
+						return true;
+					}
+				)
+			)
+			->willReturn((object) ['status' => true]);
+
+		$module->request_ssl();
+
+		$this->assertNotContains('*.example.com', $captured_ssl_domains, 'Wildcard must not appear in the SSL domains payload');
+
+		remove_all_filters('wu_get_network_public_ip');
+		remove_all_filters('pre_http_request');
+	}
+
+	/**
+	 * A plain (non-wildcard) extra domain MUST appear in BOTH the aliases payload
+	 * and the ssl_domains payload.
+	 */
+	public function test_plain_extra_domain_flows_to_both_aliases_and_ssl(): void {
+
+		[$module, $integration] = $this->make_module_with_extra_domains('plain.example.org');
+
+		add_filter('wu_get_network_public_ip', static function () {
+			return '1.2.3.4';
+		});
+		add_filter(
+			'pre_http_request',
+			static function ($preempt, $args, $url) {
+				if (str_contains($url, 'dns.google')) {
+					return [
+						'headers'       => [],
+						'body'          => '{"Answer":[{"data":"1.2.3.4"}]}',
+						'response'      => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'cookies'       => [],
+						'http_response' => null,
+					];
+				}
+				return $preempt;
+			},
+			10,
+			3
+		);
+
+		$aliases_payload     = null;
+		$ssl_domains_payload = null;
+
+		$integration->expects($this->exactly(2))
+			->method('send_cloudways_request')
+			->willReturnCallback(
+				static function ($endpoint, $args) use (&$aliases_payload, &$ssl_domains_payload) {
+					if ('/app/manage/aliases' === $endpoint) {
+						$aliases_payload = $args['aliases'] ?? [];
+					} elseif ('/security/lets_encrypt_install' === $endpoint) {
+						$ssl_domains_payload = $args['ssl_domains'] ?? [];
+					}
+					return (object) ['status' => true];
+				}
+			);
+
+		$module->on_add_domain('plain.example.org', 1);
+		$module->request_ssl();
+
+		$this->assertContains('plain.example.org', $aliases_payload, 'Plain extra domain should be in the aliases payload');
+		$this->assertContains('plain.example.org', $ssl_domains_payload, 'Plain extra domain should be in the ssl_domains payload');
+
+		remove_all_filters('wu_get_network_public_ip');
+		remove_all_filters('pre_http_request');
+	}
 }
