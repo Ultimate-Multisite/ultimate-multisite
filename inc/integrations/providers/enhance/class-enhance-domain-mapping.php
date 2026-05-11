@@ -174,7 +174,7 @@ class Enhance_Domain_Mapping extends Base_Capability_Module implements Domain_Ma
 		if (isset($domains_list['items']) && is_array($domains_list['items'])) {
 			foreach ($domains_list['items'] as $item) {
 				if (isset($item['domain']) && $item['domain'] === $domain) {
-					$domain_id = $item['id'];
+					$domain_id = $item['domainId'] ?? $item['id'] ?? null;
 
 					break;
 				}
