@@ -35,7 +35,7 @@ $has_current_template = $current_template instanceof \WP_Ultimo\Models\Site && $
 				<img
 					class="wu-rounded wu-border-solid wu-border wu-border-gray-300 wu-bg-white"
 					style="width: 120px; height: 80px; object-fit: cover;"
-					src="<?php echo esc_attr($current_template->get_featured_image('wu-thumb-medium')); ?>"
+					src="<?php echo esc_url($current_template->get_featured_image('wu-thumb-medium')); ?>"
 					alt="<?php echo esc_attr($current_template->get_title()); ?>"
 				/>
 			</div>
