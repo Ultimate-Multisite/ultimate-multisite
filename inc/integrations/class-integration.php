@@ -130,7 +130,7 @@ class Integration {
 	 * @since 2.5.0
 	 * @return string
 	 */
-	public function get_description(): string {
+	public function get_description() {
 
 		return $this->description;
 	}

@@ -51,7 +51,7 @@ class WPEngine_Integration extends Integration {
 	 *
 	 * @return string
 	 */
-	public function get_description(): string {
+	public function get_description() {
 
 		$description = __('WP Engine drives your business forward faster with the first and only WordPress Digital Experience Platform. We offer the best WordPress hosting and developer experience on a proven, reliable architecture that delivers unparalleled speed, scalability, and security for your sites.', 'ultimate-multisite');
 
