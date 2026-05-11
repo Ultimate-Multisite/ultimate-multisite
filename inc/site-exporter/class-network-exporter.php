@@ -117,6 +117,12 @@ class Network_Exporter {
 			// Step 5: Create network.json manifest
 			$this->create_network_manifest();
 
+			// Step 5a: Inject self-boot installer when requested.
+			if (! empty($this->options['include_self_boot'])) {
+				$manifest = $this->get_manifest_array();
+				Self_Boot_Builder::add_to_staging_dir($this->staging_dir, 'network', $manifest);
+			}
+
 			// Step 6: Create the final ZIP
 			$zip_result = $this->create_zip();
 			if (is_wp_error($zip_result)) {
@@ -652,6 +658,34 @@ class Network_Exporter {
 
 		$json_file = $this->staging_dir . 'network.json';
 		file_put_contents($json_file, wp_json_encode($manifest, JSON_PRETTY_PRINT));
+	}
+
+	/**
+	 * Return the manifest array by reading the network.json written to the staging dir.
+	 *
+	 * Called after create_network_manifest() has already written the file.
+	 * Self_Boot_Builder uses this to substitute tokens into the installer template.
+	 *
+	 * @since 2.5.0
+	 * @return array
+	 */
+	protected function get_manifest_array(): array {
+
+		$json_file = $this->staging_dir . 'network.json';
+
+		if (! file_exists($json_file)) {
+			return [];
+		}
+
+		$json = file_get_contents($json_file);
+
+		if (! $json) {
+			return [];
+		}
+
+		$data = json_decode($json, true);
+
+		return is_array($data) ? $data : [];
 	}
 
 	/**

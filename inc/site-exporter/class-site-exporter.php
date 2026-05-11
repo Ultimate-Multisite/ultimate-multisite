@@ -1383,13 +1383,19 @@ final class Site_Exporter {
 				'desc'  => __('Include media files from the uploads folder.', 'ultimate-multisite'),
 				'value' => true,
 			],
-			'background_run'  => [
+			'background_run'   => [
 				'type'  => 'toggle',
 				'title' => __('Run in Background', 'ultimate-multisite'),
 				'desc'  => __('For large sites, run the export as a background process.', 'ultimate-multisite'),
 				'value' => false,
 			],
-			'submit_button'   => [
+			'include_self_boot' => [
+				'type'  => 'toggle',
+				'title' => __('Make ZIP Self-Booting', 'ultimate-multisite'),
+				'desc'  => __('Adds a browser-based installer to the ZIP so it can restore WordPress, this plugin, and all content on a fresh server — no WP pre-install required. Target server needs outbound internet access to wordpress.org unless "bundled core" mode was also selected.', 'ultimate-multisite'),
+				'value' => true,
+			],
+			'submit_button'    => [
 				'type'            => 'submit',
 				'title'           => __('Export Site', 'ultimate-multisite'),
 				'value'           => 'save',
@@ -1435,9 +1441,10 @@ final class Site_Exporter {
 		$export_result = wu_exporter_export(
 			$site_id,
 			[
-				'plugins' => wu_request('include_plugins'),
-				'themes'  => wu_request('include_themes'),
-				'uploads' => wu_request('include_uploads'),
+				'plugins'           => wu_request('include_plugins'),
+				'themes'            => wu_request('include_themes'),
+				'uploads'           => wu_request('include_uploads'),
+				'include_self_boot' => (bool) wu_request('include_self_boot', true),
 			],
 			$background
 		);
@@ -1601,6 +1608,12 @@ final class Site_Exporter {
 				'desc'  => __('For large networks, run the export as a background process.', 'ultimate-multisite'),
 				'value' => true,
 			],
+			'include_self_boot'  => [
+				'type'  => 'toggle',
+				'title' => __('Make ZIP Self-Booting', 'ultimate-multisite'),
+				'desc'  => __('Adds a browser-based installer to the ZIP so it can restore the full multisite network on a fresh server — no WordPress or WP-CLI pre-install required. Target server needs outbound internet access to wordpress.org unless "bundled core" mode was also selected.', 'ultimate-multisite'),
+				'value' => true,
+			],
 			'submit_button'      => [
 				'type'            => 'submit',
 				'title'           => __('Export Network', 'ultimate-multisite'),
@@ -1640,6 +1653,7 @@ final class Site_Exporter {
 			'include_themes'     => (bool) wu_request('include_themes', true),
 			'include_uploads'    => (bool) wu_request('include_uploads', true),
 			'include_mu_plugins' => (bool) wu_request('include_mu_plugins', true),
+			'include_self_boot'  => (bool) wu_request('include_self_boot', true),
 		];
 
 		// Validate: at least one site selected
@@ -2302,6 +2316,12 @@ final class Site_Exporter {
 				'export-failed',
 				__('The export file could not be created. Please check server permissions and available disk space, then try again.', 'ultimate-multisite')
 			);
+		}
+
+		// Inject self-boot installer into the ZIP when requested.
+		if (! empty($options['include_self_boot'])) {
+			$manifest = Self_Boot_Builder::build_single_site_manifest($site_id);
+			Self_Boot_Builder::add_to_zip($base_path . $export_name, 'single-site', $manifest);
 		}
 
 		$time = microtime(true) - $start;
