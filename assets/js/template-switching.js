@@ -161,8 +161,12 @@
 					 * initialised" and bail out — the watcher will fire
 					 * again on the next legitimate template change.
 					 */
-					// eslint-disable-next-line eqeqeq
-					if (this.original_template_id == -1 || this.original_template_id <= 0) {
+					// Only -1 is the "not yet bound" sentinel (the data() default).
+					// 0 is a real, valid state meaning "site has no current template"
+					// — the customer must still be able to pick a template from the
+					// grid in that case. Use < 0 to also cover any future negative
+					// sentinel without re-introducing the 0 foot-gun.
+					if (this.original_template_id < 0) {
 
 						return;
 
