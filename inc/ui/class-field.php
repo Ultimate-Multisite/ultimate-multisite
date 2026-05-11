@@ -277,21 +277,33 @@ class Field implements \JsonSerializable {
 			'require',
 			'validation',
 			'value',
+			'placeholder',
+			'classes',
+			'wrapper_classes',
 			'html_attr',
+			'wrapper_html_attr',
+			'prefix_html_attr',
+			'suffix_html_attr',
+			'prefix',
+			'suffix',
+			'button',
+			'href',
 			'img',
 		];
 
 		$attr = $this->atts[ $att ] ?? false;
 
-		$allow_callable_prefix = is_string($attr) && str_starts_with($attr, 'wu_get_') && is_callable($attr);
-		$allow_callable_method = is_array($attr) && is_callable($attr);
-
-		if (in_array($att, $allowed_callable, true) && ($allow_callable_prefix || $allow_callable_method || is_a($attr, \Closure::class))) {
-			$attr = call_user_func($attr, $this);
+		if (in_array($att, $allowed_callable, true)) {
+			$attr = $this->resolve_attribute_value($attr);
 		}
 
-		if ('wrapper_classes' === $att && isset($this->atts['wrapper_html_attr']['v-show'])) {
-			$this->atts['wrapper_classes'] .= ' wu-requires-other';
+		if ('wrapper_classes' === $att) {
+			$attr = is_string($attr) ? $attr : '';
+			$wrapper_html_attr = $this->resolve_attribute_value($this->atts['wrapper_html_attr'] ?? []);
+
+			if (is_array($wrapper_html_attr) && isset($wrapper_html_attr['v-show']) && ! str_contains($attr, 'wu-requires-other')) {
+				$attr .= ' wu-requires-other';
+			}
 		}
 
 		if ('type' === $att && 'submit' === $this->atts[ $att ]) {
@@ -303,15 +315,61 @@ class Field implements \JsonSerializable {
 		}
 
 		if ('wrapper_classes' === $att && is_a($this->form, '\\WP_Ultimo\\UI\\Form')) {
-			return $this->form->field_wrapper_classes . ' ' . $this->atts['wrapper_classes'];
+			return trim($this->form->field_wrapper_classes . ' ' . $attr);
 		}
 
 		if ('classes' === $att && is_a($this->form, '\\WP_Ultimo\\UI\\Form')) {
-			return $this->form->field_classes . ' ' . $this->atts['classes'];
+			$attr = is_string($attr) ? $attr : '';
+
+			return trim($this->form->field_classes . ' ' . $attr);
 		}
 
 		if ('title' === $att && false === $attr && isset($this->atts['name'])) {
 			$attr = $this->atts['name'];
+		}
+
+		return $attr;
+	}
+
+	/**
+	 * Checks if the given attribute value should be resolved as a callable.
+	 *
+	 * @param mixed $attr The attribute value.
+	 * @return bool
+	 */
+	protected function is_resolvable_callable($attr): bool {
+
+		$allow_callable_prefix = is_string($attr) && str_starts_with($attr, 'wu_get_') && is_callable($attr);
+		$allow_callable_method = is_array($attr) && is_callable($attr);
+
+		return $allow_callable_prefix || $allow_callable_method || is_a($attr, \Closure::class);
+	}
+
+	/**
+	 * Resolves dynamic attribute values and nested callable entries.
+	 *
+	 * Callable values are first validated by is_resolvable_callable() and,
+	 * when invoked, receive the current Field instance as their first argument.
+	 *
+	 * @param mixed $attr The attribute value.
+	 * @return mixed
+	 */
+	protected function resolve_attribute_value($attr) {
+
+		if ($this->is_resolvable_callable($attr)) {
+			$attr = call_user_func($attr, $this);
+		}
+
+		if (is_array($attr)) {
+			foreach ($attr as $key => $value) {
+				$attr[ $key ] = $this->resolve_attribute_value($value);
+			}
+
+			return $attr;
+		}
+
+		if (is_object($attr) && method_exists($attr, '__toString')) {
+			return (string) $attr;
 		}
 
 		return $attr;
@@ -457,9 +515,7 @@ class Field implements \JsonSerializable {
 	 */
 	public function print_html_attributes(): void {
 
-		if (is_callable($this->atts['html_attr'])) {
-			$this->atts['html_attr'] = call_user_func($this->atts['html_attr']);
-		}
+		$this->atts['html_attr'] = $this->resolve_attribute_value($this->atts['html_attr']);
 
 		unset($this->atts['html_attr']['class']);
 		$attributes = $this->atts['html_attr'];
@@ -491,6 +547,8 @@ class Field implements \JsonSerializable {
 	 * @return void
 	 */
 	public function print_wrapper_html_attributes(): void {
+
+		$this->atts['wrapper_html_attr'] = $this->resolve_attribute_value($this->atts['wrapper_html_attr']);
 
 		$attributes = $this->atts['wrapper_html_attr'];
 

@@ -100,15 +100,15 @@ class Credits {
 				'desc'        => __('HTML allowed. Use any text or link you prefer.', 'ultimate-multisite'),
 				'type'        => 'textarea',
 				'allow_html'  => true,
-				'default'     => function () {
-					$name = (string) get_network_option(null, 'site_name');
-					$name = $name ?: __('this network', 'ultimate-multisite');
-					$url  = function_exists('get_main_site_id') ? get_site_url(get_main_site_id()) : network_home_url('/');
-					return sprintf(
-						/* translators: 1: Opening anchor tag with URL to main site. 2: Network name. */
-						__('Powered by %1$s%2$s</a>', 'ultimate-multisite'),
-						'<a href="' . esc_url($url) . '" target="_blank">',
-						esc_html($name)
+				'default'     => [$this, 'get_default_custom_credit_html'],
+				'value'         => function () {
+					return $this->normalize_custom_credit_html(
+						wu_get_setting('credits_custom_html', $this->get_default_custom_credit_html())
+					);
+				},
+				'display_value' => function () {
+					return $this->normalize_custom_credit_html(
+						wu_get_setting('credits_custom_html', $this->get_default_custom_credit_html())
 					);
 				},
 				'placeholder' => __('Powered by <a href="https://example.com">Your Company</a>', 'ultimate-multisite'),
@@ -118,6 +118,39 @@ class Credits {
 				],
 			],
 			2030
+		);
+	}
+
+	/**
+	 * Normalizes a stored custom credit HTML value.
+	 *
+	 * Returns the default credit HTML when the stored value is the literal
+	 * string '[object Object]', which can appear when a Closure leaked into
+	 * the Vue/settings JSON state before this bug was fixed.
+	 *
+	 * @param mixed $html The raw stored value.
+	 * @return string
+	 */
+	protected function normalize_custom_credit_html($html): string {
+		$html = is_string($html) ? $html : (string) $html;
+
+		return '[object Object]' === trim($html) ? $this->get_default_custom_credit_html() : $html;
+	}
+
+	/**
+	 * Returns the default custom credit HTML.
+	 */
+	protected function get_default_custom_credit_html(): string {
+		$name = (string) get_network_option(null, 'site_name');
+		$name = $name ?: __('this network', 'ultimate-multisite');
+		$url  = is_multisite() ? get_site_url(get_main_site_id()) : network_home_url('/');
+
+		return sprintf(
+			/* translators: 1: Opening anchor tag, 2: Network name, 3: Closing anchor tag. */
+			__('Powered by %1$s%2$s%3$s', 'ultimate-multisite'),
+			'<a href="' . esc_url($url) . '" target="_blank">',
+			esc_html($name),
+			'</a>'
 		);
 	}
 
@@ -137,7 +170,9 @@ class Credits {
 				return $this->build_custom_credit();
 
 			case 'html':
-				$html = (string) wu_get_setting('credits_custom_html', '');
+				$html = $this->normalize_custom_credit_html(
+					wu_get_setting('credits_custom_html', $this->get_default_custom_credit_html())
+				);
 				return wp_kses_post($html);
 
 			default:
@@ -170,7 +205,7 @@ class Credits {
 		$logo_html    = $this->get_company_logo_html();
 		$network_name = (string) get_network_option(null, 'site_name');
 		$network_name = $network_name ?: __('this network', 'ultimate-multisite');
-		$network_url  = function_exists('get_main_site_id') ? get_site_url(get_main_site_id()) : network_home_url('/');
+		$network_url  = is_multisite() ? get_site_url(get_main_site_id()) : network_home_url('/');
 
 		$text = sprintf(
 			'<a href="%s" target="_blank">%s</a>',
