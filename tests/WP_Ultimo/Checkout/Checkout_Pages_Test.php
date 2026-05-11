@@ -1047,16 +1047,31 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Test replace_reset_password_link on non-main site.
+	 * Test replace_reset_password_link on the main site rewrites to a URL
+	 * that is NOT wp-login.php when a custom login page is configured.
 	 */
-	public function test_replace_reset_password_link_non_main_site(): void {
+	public function test_replace_reset_password_link_main_site(): void {
 
-		// On main site in test env, this should process normally
-		$message = 'Reset your password at https://example.com/wp-login.php?action=rp&key=abc123';
+		$this->assertTrue(is_main_site());
 
-		$result = $this->pages->replace_reset_password_link($message, 'abc123', 'testuser', ['ID' => 1]);
+		$page_id = self::factory()->post->create([
+			'post_type'   => 'page',
+			'post_name'   => 'custom-login-main',
+			'post_status' => 'publish',
+		]);
+
+		wu_save_setting('default_login_page', $page_id);
+
+		$user_id = self::factory()->user->create(['user_login' => 'mainuser']);
+		$user    = get_userdata($user_id);
+
+		$message = "Reset your password:\nhttps://example.com/wp-login.php?action=rp&key=mainkey&login=mainuser\n";
+
+		$result = $this->pages->replace_reset_password_link($message, 'mainkey', 'mainuser', $user);
 
 		$this->assertIsString($result);
+		$this->assertStringContainsString('action=rp', $result);
+		$this->assertStringContainsString('key=mainkey', $result);
 	}
 
 	/**
@@ -1066,7 +1081,10 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 
 		$message = 'Please visit https://example.com/reset to reset your password.';
 
-		$result = $this->pages->replace_reset_password_link($message, 'key123', 'user', ['ID' => 1]);
+		$user_id = self::factory()->user->create();
+		$user    = get_userdata($user_id);
+
+		$result = $this->pages->replace_reset_password_link($message, 'key123', 'user', $user);
 
 		// No wp-login.php in message — should return unchanged.
 		$this->assertEquals($message, $result);
@@ -1077,9 +1095,12 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 	 */
 	public function test_replace_reset_password_link_replaces_url(): void {
 
+		$user_id = self::factory()->user->create();
+		$user    = get_userdata($user_id);
+
 		$message = "To reset your password, visit the following address:\nhttps://example.com/wp-login.php?action=rp&key=testkey&login=testuser\n";
 
-		$result = $this->pages->replace_reset_password_link($message, 'testkey', 'testuser', ['ID' => 1]);
+		$result = $this->pages->replace_reset_password_link($message, 'testkey', 'testuser', $user);
 
 		$this->assertIsString($result);
 		// The method replaces the matched URL line with a new login_url()-based URL.
@@ -1087,6 +1108,245 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 		// but the replacement URL will include action=rp and the key parameter.
 		$this->assertStringContainsString('action=rp', $result);
 		$this->assertStringContainsString('key=testkey', $result);
+	}
+
+	// -------------------------------------------------------------------------
+	// Regression coverage for GH#1168 / PR#1169 — subsite password reset.
+	//
+	// Before PR#1169 replace_reset_password_link() returned early on subsites,
+	// so the URL in the email pointed to the main network site's wp-login.php
+	// even when the user requested the reset from a subsite (including mapped
+	// custom domains). These tests pin the corrected subsite-aware behaviour
+	// so the bug cannot silently regress again.
+	// -------------------------------------------------------------------------
+
+	/**
+	 * GH#1168 regression — on a subsite the reset URL must stay on the subsite
+	 * host (home_url()), NOT on the main network site's wp-login.php.
+	 */
+	public function test_replace_reset_password_link_on_subsite_keeps_url_on_subsite(): void {
+
+		$blog_id = self::factory()->blog->create();
+
+		switch_to_blog($blog_id);
+
+		$subsite_host = wp_parse_url(home_url('/'), PHP_URL_HOST);
+
+		$user_id = self::factory()->user->create(['user_login' => 'sub_zuletadia']);
+		$user    = get_userdata($user_id);
+
+		// The default email body, as WordPress core builds it with
+		// network_site_url('wp-login.php'), points at the MAIN site host.
+		$main_host = wp_parse_url(network_site_url('/'), PHP_URL_HOST);
+		$message   = "Reset your password:\n" . network_site_url('wp-login.php?action=rp&key=subkey&login=sub_zuletadia', 'login') . "\n";
+
+		$result = $this->pages->replace_reset_password_link($message, 'subkey', 'sub_zuletadia', $user);
+
+		restore_current_blog();
+
+		$this->assertIsString($result);
+		// The rewritten URL must contain the subsite host.
+		$this->assertStringContainsString($subsite_host, $result, 'Reset URL must be on the subsite host');
+		// And must NOT still point at the main site's wp-login.php.
+		$this->assertStringNotContainsString('wp-login.php', $result, 'Reset URL must not contain wp-login.php on a subsite');
+		// Standard query args must be preserved so existing handlers
+		// (WooCommerce, BuddyPress, default wp-login fallback) can pick it up.
+		$this->assertStringContainsString('action=rp', $result);
+		$this->assertStringContainsString('key=subkey', $result);
+		$this->assertStringContainsString('login=sub_zuletadia', $result);
+
+		// Sanity: if the subsite host differs from the main host, prove the
+		// main host no longer appears in the rewritten URL.
+		if ($subsite_host !== $main_host) {
+			$this->assertStringNotContainsString($main_host . '/wp-login.php', $result);
+		}
+	}
+
+	/**
+	 * GH#1168 regression — wu_subsite_password_reset_url filter must be
+	 * applied on subsites so integrations (WooCommerce my-account, BuddyPress)
+	 * can redirect users to a branded endpoint without losing the host.
+	 */
+	public function test_replace_reset_password_link_subsite_filter_runs(): void {
+
+		$blog_id = self::factory()->blog->create();
+
+		switch_to_blog($blog_id);
+
+		$called = false;
+
+		$callback = function ($url, $key, $user_login, $user_data) use (&$called) {
+			$called = true;
+			// Integration overrides the destination but keeps host.
+			return add_query_arg('via', 'integration', $url);
+		};
+
+		add_filter('wu_subsite_password_reset_url', $callback, 10, 4);
+
+		$user_id = self::factory()->user->create();
+		$user    = get_userdata($user_id);
+
+		$message = "Reset:\n" . network_site_url('wp-login.php?action=rp&key=k&login=u', 'login') . "\n";
+
+		$result = $this->pages->replace_reset_password_link($message, 'k', 'u', $user);
+
+		remove_filter('wu_subsite_password_reset_url', $callback, 10);
+
+		restore_current_blog();
+
+		$this->assertTrue($called, 'wu_subsite_password_reset_url filter must run on subsites');
+		$this->assertStringContainsString('via=integration', $result);
+	}
+
+	/**
+	 * GH#1168 regression — replace_reset_password_link filter must be
+	 * registered on subsites when custom login is enabled. Before the fix,
+	 * add_filter() was wrapped in is_main_site() so it never ran on subsites.
+	 */
+	public function test_retrieve_password_message_filter_registered_on_subsites(): void {
+
+		wu_save_setting('enable_custom_login_page', true);
+
+		$blog_id = self::factory()->blog->create();
+
+		switch_to_blog($blog_id);
+
+		// Re-run init() in the subsite context to register the hook.
+		$this->pages->init();
+
+		$has_hook = has_filter('retrieve_password_message', [$this->pages, 'replace_reset_password_link']);
+
+		restore_current_blog();
+
+		wu_save_setting('enable_custom_login_page', false);
+
+		$this->assertNotFalse($has_hook, 'retrieve_password_message filter must be registered on subsites');
+		$this->assertGreaterThan(0, $has_hook);
+	}
+
+	// -------------------------------------------------------------------------
+	// rewrite_new_user_notification_email — GH#1168 / PR#1169
+	// -------------------------------------------------------------------------
+
+	/**
+	 * On a subsite, the "set your password" link in the new-user
+	 * notification email must NOT contain wp-login.php (which would point at
+	 * the main network site).
+	 */
+	public function test_rewrite_new_user_notification_email_on_subsite(): void {
+
+		$blog_id = self::factory()->blog->create();
+
+		switch_to_blog($blog_id);
+
+		$user_id = self::factory()->user->create();
+		$user    = get_userdata($user_id);
+
+		$email = [
+			'to'      => $user->user_email,
+			'subject' => 'Welcome',
+			'message' => "Set your password:\n" . network_site_url('wp-login.php?action=rp&key=k&login=u', 'login') . "\n",
+			'headers' => '',
+		];
+
+		$result = $this->pages->rewrite_new_user_notification_email($email, $user, 'Blogname');
+
+		$subsite_host = wp_parse_url(home_url('/'), PHP_URL_HOST);
+
+		restore_current_blog();
+
+		$this->assertIsArray($result);
+		$this->assertStringNotContainsString('wp-login.php', $result['message']);
+		$this->assertStringContainsString($subsite_host, $result['message']);
+	}
+
+	/**
+	 * The new-user notification filter must safely no-op when message is missing.
+	 */
+	public function test_rewrite_new_user_notification_email_empty_message(): void {
+
+		$user_id = self::factory()->user->create();
+		$user    = get_userdata($user_id);
+
+		$email = [
+			'to'      => 'a@b',
+			'subject' => 's',
+			'message' => '',
+			'headers' => '',
+		];
+
+		$result = $this->pages->rewrite_new_user_notification_email($email, $user, 'B');
+
+		$this->assertEquals($email, $result);
+	}
+
+	// -------------------------------------------------------------------------
+	// rewrite_password_notification_email — GH#1168 / PR#1169
+	// -------------------------------------------------------------------------
+
+	/**
+	 * The admin-notification email that fires alongside a password reset must
+	 * also stay on the subsite host so subsite admins receive actionable links.
+	 */
+	public function test_rewrite_password_notification_email_on_subsite(): void {
+
+		$blog_id = self::factory()->blog->create();
+
+		switch_to_blog($blog_id);
+
+		$user_id = self::factory()->user->create();
+		$user    = get_userdata($user_id);
+
+		$defaults = [
+			'to'      => 'admin@example.com',
+			'subject' => 'Password reset requested',
+			'message' => 'User requested reset: ' . network_site_url('wp-login.php?action=rp&key=k', 'login'),
+			'headers' => '',
+		];
+
+		$result = $this->pages->rewrite_password_notification_email($defaults, 'k', $user->user_login, $user);
+
+		$subsite_host = wp_parse_url(home_url('/'), PHP_URL_HOST);
+
+		restore_current_blog();
+
+		$this->assertIsArray($result);
+		$this->assertStringNotContainsString('wp-login.php', $result['message']);
+		$this->assertStringContainsString($subsite_host, $result['message']);
+	}
+
+	// -------------------------------------------------------------------------
+	// rewrite_email_change_content — GH#1168 / PR#1169
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Email-change confirmation URLs must stay on the subsite host.
+	 */
+	public function test_rewrite_email_change_content_on_subsite(): void {
+
+		$blog_id = self::factory()->blog->create();
+
+		switch_to_blog($blog_id);
+
+		$email_text = 'Confirm email at ' . network_site_url('wp-login.php?action=newuseremail&newuseremail=abc', 'login');
+
+		$result = $this->pages->rewrite_email_change_content($email_text, ['hash' => 'abc']);
+
+		$subsite_host = wp_parse_url(home_url('/'), PHP_URL_HOST);
+
+		restore_current_blog();
+
+		$this->assertIsString($result);
+		$this->assertStringNotContainsString('wp-login.php', $result);
+		$this->assertStringContainsString($subsite_host, $result);
+	}
+
+	/**
+	 * Email-change confirmation handler is a no-op for empty input.
+	 */
+	public function test_rewrite_email_change_content_empty_input(): void {
+
+		$this->assertEquals('', $this->pages->rewrite_email_change_content('', []));
 	}
 
 	// -------------------------------------------------------------------------
@@ -1887,22 +2147,33 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Test replace_reset_password_link returns early on non-main site.
+	 * GH#1168 / PR#1169 — on a subsite the method must rewrite the
+	 * wp-login.php URL to a subsite-local URL (the old behaviour was to
+	 * return the message unchanged, which left the URL on the main
+	 * network site and broke password reset for subsite users).
 	 */
-	public function test_replace_reset_password_link_returns_early_on_subsite(): void {
+	public function test_replace_reset_password_link_rewrites_on_subsite(): void {
 
 		$blog_id = self::factory()->blog->create();
 
 		switch_to_blog($blog_id);
 
-		$message = 'Reset your password at https://example.com/wp-login.php?action=rp&key=abc';
+		$user_id = self::factory()->user->create();
+		$user    = get_userdata($user_id);
 
-		$result = $this->pages->replace_reset_password_link($message, 'abc', 'user', ['ID' => 1]);
+		$message = 'Reset your password at ' . network_site_url('wp-login.php?action=rp&key=abc&login=user', 'login');
+
+		$result = $this->pages->replace_reset_password_link($message, 'abc', 'user', $user);
+
+		$subsite_host = wp_parse_url(home_url('/'), PHP_URL_HOST);
 
 		restore_current_blog();
 
-		// On a subsite, the method returns the message unchanged.
-		$this->assertEquals($message, $result);
+		// On a subsite, the URL must be rewritten away from wp-login.php
+		// and onto the subsite's own host.
+		$this->assertNotEquals($message, $result, 'Subsite URL must be rewritten, not returned unchanged');
+		$this->assertStringNotContainsString('wp-login.php', $result);
+		$this->assertStringContainsString($subsite_host, $result);
 	}
 
 	/**
