@@ -372,7 +372,14 @@ class Domain_Mapping {
 
 				$mapping = Domain::get_by_domain($domains);
 				if ($mapping) {
-					wp_send_json($mapping->to_array());
+					// Not using wp_send_json(): it calls get_option('blog_charset') before $wpdb->set_prefix() has run during early multisite bootstrap, producing a MariaDB syntax error against an empty options table name.
+					if ( ! headers_sent()) {
+						header('Content-Type: application/json; charset=UTF-8');
+					}
+
+					echo wp_json_encode($mapping->to_array());
+
+					exit;
 				}
 			}
 		}
@@ -646,8 +653,8 @@ class Domain_Mapping {
 			$domain = rtrim($domain . '/' . preg_quote(ltrim($path, '/'), '#'), '/');
 		}
 
-		$regex       = '#^(\w+://)' . $domain . '#i';
-		$mangled     = preg_replace($regex, '${1}' . $current_mapping->get_domain(), $url);
+		$regex   = '#^(\w+://)' . $domain . '#i';
+		$mangled = preg_replace($regex, '${1}' . $current_mapping->get_domain(), $url);
 
 		/*
 		 * Another try if we don't need to deal with subdirectory.
