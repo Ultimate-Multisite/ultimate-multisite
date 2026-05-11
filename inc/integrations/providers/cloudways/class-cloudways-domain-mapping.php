@@ -190,23 +190,27 @@ class Cloudways_Domain_Mapping extends Base_Capability_Module implements Domain_
 	/**
 	 * Returns an array of valid SSL domains.
 	 *
+	 * Wildcard entries (starting with `*.`) are intentionally excluded: the
+	 * Cloudways Let's Encrypt endpoint always sends `wild_card => false`, so a
+	 * wildcard stripped to its apex would either silently receive a non-wildcard
+	 * apex cert or fail DNS validation when the apex does not resolve to the
+	 * Cloudways IP. Wildcards must still appear in the aliases list (handled by
+	 * `sync_domains()` / `get_domains()`), which is unaffected by this method.
+	 *
 	 * @since 2.5.0
 	 * @param array $domains List of domains.
 	 * @return array
 	 */
 	private function get_valid_ssl_domains(array $domains): array {
 
-		$ssl_domains = array_unique(
-			array_map(
-				function ($domain) {
-
-					if (str_starts_with($domain, '*.')) {
-						$domain = str_replace('*.', '', $domain);
-					}
-
-					return $domain;
-				},
-				$domains
+		// Drop wildcard entries entirely — Cloudways' Let's Encrypt endpoint never
+		// issues wildcard certs (wild_card => false), so including the apex of a
+		// wildcard in the SSL list is guaranteed to be wrong. Wildcards remain on
+		// the aliases list (sync_domains()), which is unaffected by this method.
+		$ssl_domains = array_values(
+			array_filter(
+				$domains,
+				static fn($domain) => ! str_starts_with((string) $domain, '*.')
 			)
 		);
 
