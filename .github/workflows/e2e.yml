@@ -248,7 +248,18 @@ jobs:
           STRIPE_TEST_SK_KEY: ${{ secrets.STRIPE_TEST_SK_KEY }}
         run: |
           if [ -z "$STRIPE_TEST_SK_KEY" ]; then
-            echo "⏭️  Skipping Stripe tests: STRIPE_TEST_SK_KEY secret not configured"
+            echo "⏭️  Skipping Stripe tests: STRIPE_TEST_SK_KEY not available in this run."
+            echo ""
+            echo "    The repo secrets STRIPE_TEST_PK_KEY and STRIPE_TEST_SK_KEY are configured,"
+            echo "    but GitHub Actions does NOT expose secrets to workflows triggered by"
+            echo "    pull_request events from forked repositories. This is a security feature,"
+            echo "    not a misconfiguration."
+            echo ""
+            echo "    Stripe tests will run automatically when:"
+            echo "      • this branch is merged to main (push event), or"
+            echo "      • the PR is opened from a branch in the upstream Ultimate-Multisite repo."
+            echo ""
+            echo "    To verify locally, run: gh secret list --repo Ultimate-Multisite/ultimate-multisite"
             exit 0
           fi
 
