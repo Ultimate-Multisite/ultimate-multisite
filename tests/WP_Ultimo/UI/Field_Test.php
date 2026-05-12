@@ -15,6 +15,16 @@ use WP_UnitTestCase;
 class Field_Test extends WP_UnitTestCase {
 
 	/**
+	 * Test class keeps the expected name for autoloaded consumers.
+	 */
+	public function test_class_uses_expected_name(): void {
+		$field = new Field('test_field', []);
+
+		$this->assertInstanceOf(Field::class, $field);
+		$this->assertSame(Field::class, get_class($field));
+	}
+
+	/**
 	 * Test constructor creates field with attributes.
 	 */
 	public function test_constructor(): void {
