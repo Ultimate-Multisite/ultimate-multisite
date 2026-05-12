@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 7.4.30
 Tested up to: 6.9
-Stable tag: 2.11.0
+Stable tag: 2.11.1
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -246,6 +246,9 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+Version [2.11.1] - Released on 2026-05-12
+- Fix: SSO no longer fails when $current_blog is unpopulated during early WordPress bootstrap, preventing errors on configurations where WP initialises in an unexpected order
+
 Version [2.11.0] - Released on 2026-05-11
 - New: Site exports now bundle a self-booting index.php so the ZIP can be installed on a fresh host without a separate plugin install
 - New: Network export lets administrators export all subsites in a single archive from the Site Export admin page
