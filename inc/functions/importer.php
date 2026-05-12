@@ -46,6 +46,62 @@ function wu_exporter_import(string $file_name, array $options = [], bool $async 
 }
 
 /**
+ * Imports a network bundle into the current multisite network.
+ *
+ * @since 2.5.0
+ *
+ * @param string $zip_path The network bundle zip file path.
+ * @param array  $options  Import options.
+ * @param bool   $async    If we should run the import asynchronously.
+ * @return \WP_Error|true|array
+ */
+function wu_exporter_import_network(string $zip_path, array $options = [], bool $async = true) {
+
+	$options['network_import'] = true;
+
+	if ($async) {
+		$hash = wu_exporter_add_pending_network_import($zip_path, $options);
+
+		if (is_wp_error($hash)) {
+			return $hash;
+		}
+
+		return true;
+	}
+
+	return \WP_Ultimo\Site_Exporter\Network_Importer::get_instance()->import($zip_path, $options);
+}
+
+/**
+ * Adds a network import as pending.
+ *
+ * @since 2.5.0
+ *
+ * @param string $zip_path The network bundle zip file path.
+ * @param array  $options  Import options.
+ * @return string|\WP_Error
+ */
+function wu_exporter_add_pending_network_import(string $zip_path, array $options = []) {
+
+	if (! file_exists($zip_path) || ! in_array(mime_content_type($zip_path), ['application/zip', 'application/x-gzip'], true)) {
+		return new \WP_Error('invalid-type', __('File does not exists or it has an invalid mime-type.', 'ultimate-multisite'));
+	}
+
+	$base = [
+		$zip_path,
+		$options,
+	];
+
+	$hash = md5(serialize($base)); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize
+
+	$base[] = $hash;
+
+	wu_exporter_set_transient("wu_pending_network_import_{$hash}", $base, 2 * HOUR_IN_SECONDS);
+
+	return $hash;
+}
+
+/**
  * Adds a particular site import as pending.
  *
  * @since 2.5.0
@@ -99,7 +155,46 @@ function wu_exporter_get_pending_imports(): array {
 		$query = $wpdb->prepare("SELECT option_name, option_value as options FROM {$table} WHERE option_name LIKE %s", $like);
 	}
 
-	$results = $wpdb->get_results($query); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	$results = $wpdb->get_results($query); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
+
+	$results = array_map(
+		function ($item) {
+
+			$item->options = maybe_unserialize($item->options);
+
+			return $item;
+		},
+		$results
+	);
+
+	return $results;
+}
+
+/**
+ * Get pending network imports.
+ *
+ * @since 2.5.0
+ * @return array
+ */
+function wu_exporter_get_pending_network_imports(): array {
+
+	global $wpdb;
+
+	if (is_multisite()) {
+		$table = "{$wpdb->base_prefix}sitemeta";
+		$like  = $wpdb->esc_like('_site_transient_wu_pending_network_import_') . '%';
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is built from $wpdb->base_prefix, not user input.
+		$query = $wpdb->prepare("SELECT meta_key, meta_value as options FROM {$table} WHERE meta_key LIKE %s", $like);
+	} else {
+		$table = "{$wpdb->base_prefix}options";
+		$like  = $wpdb->esc_like('_transient_wu_pending_network_import_') . '%';
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is built from $wpdb->base_prefix, not user input.
+		$query = $wpdb->prepare("SELECT option_name, option_value as options FROM {$table} WHERE option_name LIKE %s", $like);
+	}
+
+	$results = $wpdb->get_results($query); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
 
 	$results = array_map(
 		function ($item) {

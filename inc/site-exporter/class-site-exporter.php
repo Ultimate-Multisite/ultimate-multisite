@@ -95,9 +95,11 @@ final class Site_Exporter {
 
 		add_action('wu_import_site', [$this, 'handle_site_import']);
 
+		add_action('wu_import_network', [$this, 'handle_network_import'], 10, 3);
+
 		add_filter('wu_site_exporter_files_to_zip', [$this, 'maybe_exclude_wp_ultimo_plugins']);
 
-		add_filter('cron_schedules', [$this, 'maybe_add_schedule']);
+		add_filter('cron_schedules', [$this, 'maybe_add_schedule']); // phpcs:ignore WordPress.WP.CronInterval.CronSchedulesInterval -- Existing importer/exporter background queue runs once per minute.
 
 		add_action('init', [$this, 'maybe_run_imports']);
 
@@ -120,6 +122,11 @@ final class Site_Exporter {
 		// Network export (GH#1149)
 		add_filter('wu_site_bulk_actions', [$this, 'add_bulk_network_export_action']);
 		add_action('wu_handle_bulk_action_form_network_export', [$this, 'handle_bulk_network_export'], 10, 3);
+
+		if (defined('WP_CLI') && WP_CLI) {
+			\WP_CLI::add_command('wp-ultimo import-network', [$this, 'wp_cli_import_network']);
+			\WP_CLI::add_command('wu import-network', [$this, 'wp_cli_import_network']);
+		}
 
 		// Authenticated file download handler (GH#1010)
 		Export_Download_Handler::get_instance()->init();
@@ -1320,6 +1327,15 @@ final class Site_Exporter {
 		);
 
 		wu_register_form(
+			'import_network',
+			[
+				'render'     => [$this, 'render_import_network_modal'],
+				'handler'    => [$this, 'handle_import_network_modal'],
+				'capability' => 'manage_network',
+			]
+		);
+
+		wu_register_form(
 			'delete_export',
 			[
 				'render'     => [$this, 'render_delete_export_modal'],
@@ -1350,7 +1366,7 @@ final class Site_Exporter {
 		$site    = wu_get_site($site_id);
 
 		$fields = [
-			'exporting_site'  => [
+			'exporting_site'    => [
 				'type'        => 'model',
 				'title'       => __('Site to Export', 'ultimate-multisite'),
 				'placeholder' => __('Search Sites...', 'ultimate-multisite'),
@@ -1365,25 +1381,25 @@ final class Site_Exporter {
 					'data-max-items'    => 1,
 				],
 			],
-			'include_themes'  => [
+			'include_themes'    => [
 				'type'  => 'toggle',
 				'title' => __('Include Themes', 'ultimate-multisite'),
 				'desc'  => __('Include the active theme and parent theme if applicable.', 'ultimate-multisite'),
 				'value' => false,
 			],
-			'include_plugins' => [
+			'include_plugins'   => [
 				'type'  => 'toggle',
 				'title' => __('Include Plugins', 'ultimate-multisite'),
 				'desc'  => __('Include active plugins in the export.', 'ultimate-multisite'),
 				'value' => false,
 			],
-			'include_uploads' => [
+			'include_uploads'   => [
 				'type'  => 'toggle',
 				'title' => __('Include Uploads', 'ultimate-multisite'),
 				'desc'  => __('Include media files from the uploads folder.', 'ultimate-multisite'),
 				'value' => true,
 			],
-			'background_run'   => [
+			'background_run'    => [
 				'type'  => 'toggle',
 				'title' => __('Run in Background', 'ultimate-multisite'),
 				'desc'  => __('For large sites, run the export as a background process.', 'ultimate-multisite'),
@@ -1395,7 +1411,7 @@ final class Site_Exporter {
 				'desc'  => __('Adds a browser-based installer to the ZIP so it can restore WordPress, this plugin, and all content on a fresh server — no WP pre-install required. Target server needs outbound internet access to wordpress.org unless "bundled core" mode was also selected.', 'ultimate-multisite'),
 				'value' => true,
 			],
-			'submit_button'    => [
+			'submit_button'     => [
 				'type'            => 'submit',
 				'title'           => __('Export Site', 'ultimate-multisite'),
 				'value'           => 'save',
@@ -1569,7 +1585,7 @@ final class Site_Exporter {
 				'options'   => $site_options,
 				'value'     => defined('BLOG_ID_CURRENT_SITE') ? BLOG_ID_CURRENT_SITE : 1,
 				'html_attr' => [
-					'data-wu-show-if' => json_encode(
+					'data-wu-show-if' => wp_json_encode(
 						[
 							'condition' => 'NOT',
 							'variable'  => 'included_sites',
@@ -1788,14 +1804,23 @@ final class Site_Exporter {
 			wp_send_json_error(new \WP_Error('no-file', __('Please provide a ZIP file URL.', 'ultimate-multisite')));
 		}
 
-		if (empty($new_url)) {
-			wp_send_json_error(new \WP_Error('no-url', __('Please provide a URL for the new site.', 'ultimate-multisite')));
-		}
-
 		$file_path = $this->url_to_path($zip_url);
 
 		if (! $file_path || ! file_exists($file_path)) {
 			wp_send_json_error(new \WP_Error('file-not-found', __('ZIP file not found.', 'ultimate-multisite')));
+		}
+
+		$bundle_type = Network_Importer::detect_bundle_type($file_path);
+		if (is_wp_error($bundle_type)) {
+			wp_send_json_error($bundle_type);
+		}
+
+		if ('network' === $bundle_type) {
+			wp_send_json_error(new \WP_Error('network-bundle-selected', __('This ZIP is a network bundle. Use Import Network to restore it.', 'ultimate-multisite')));
+		}
+
+		if (empty($new_url)) {
+			wp_send_json_error(new \WP_Error('no-url', __('Please provide a URL for the new site.', 'ultimate-multisite')));
 		}
 
 		$result = wu_exporter_import(
@@ -1817,6 +1842,153 @@ final class Site_Exporter {
 				'redirect_url' => wu_network_admin_url('wp-ultimo-sites', ['message' => 'import_started']),
 			]
 		);
+	}
+
+	/**
+	 * Renders the import network modal.
+	 *
+	 * @since 2.5.0
+	 * @return void
+	 */
+	public function render_import_network_modal(): void {
+
+		$this->reset_upload_limits();
+
+		$zip_url = wu_request('zip_file', '');
+		$fields  = [
+			'zip_file'       => [
+				'type'        => 'text',
+				'title'       => __('Network ZIP File URL', 'ultimate-multisite'),
+				'placeholder' => __('https://example.com/network-export.zip', 'ultimate-multisite'),
+				'desc'        => __('Enter the URL to a network export ZIP file. Network bundles can be large; use WP-CLI for very large imports.', 'ultimate-multisite'),
+				'value'       => $zip_url,
+			],
+			'selected_sites' => [
+				'type'        => 'text',
+				'title'       => __('Sites to Import', 'ultimate-multisite'),
+				'placeholder' => __('Leave empty to import all sites, or enter blog IDs separated by commas.', 'ultimate-multisite'),
+				'desc'        => __('Network bundles are detected by network.json. Selected blog IDs must be listed in network.json.included_blog_ids.', 'ultimate-multisite'),
+			],
+			'url_overrides'  => [
+				'type'        => 'textarea',
+				'title'       => __('URL Overrides', 'ultimate-multisite'),
+				'placeholder' => "1=https://example.com\n2=https://site.example.com",
+				'desc'        => __('Optional. Enter one source blog ID and target URL per line. Use this to map source sites to the target domain.', 'ultimate-multisite'),
+			],
+			'remove_zip'     => [
+				'type'  => 'toggle',
+				'title' => __('Delete ZIP After Import', 'ultimate-multisite'),
+				'desc'  => __('Remove the ZIP file after successful import.', 'ultimate-multisite'),
+				'value' => false,
+			],
+			'background_run' => [
+				'type'  => 'toggle',
+				'title' => __('Run in Background', 'ultimate-multisite'),
+				'desc'  => __('Network imports can take a long time. Background import is recommended.', 'ultimate-multisite'),
+				'value' => true,
+			],
+			'submit_button'  => [
+				'type'            => 'submit',
+				'title'           => __('Import Network', 'ultimate-multisite'),
+				'value'           => 'save',
+				'classes'         => 'button button-primary wu-w-full',
+				'wrapper_classes' => 'wu-items-end wu-text-right',
+			],
+		];
+
+		$form = new \WP_Ultimo\UI\Form(
+			'import_network',
+			$fields,
+			[
+				'views'                 => 'admin-pages/fields',
+				'classes'               => 'wu-modal-form wu-widget-list wu-striped wu-m-0 wu-mt-0',
+				'field_wrapper_classes' => 'wu-w-full wu-box-border wu-items-center wu-flex wu-justify-between wu-p-4 wu-m-0 wu-border-t wu-border-l-0 wu-border-r-0 wu-border-b-0 wu-border-gray-300 wu-border-solid',
+			]
+		);
+
+		$form->render();
+	}
+
+	/**
+	 * Handles the import network modal submission.
+	 *
+	 * @since 2.5.0
+	 * @return void
+	 */
+	public function handle_import_network_modal(): void {
+
+		$zip_url    = wu_request('zip_file', '');
+		$background = (bool) wu_request('background_run', true);
+
+		if (empty($zip_url)) {
+			wp_send_json_error(new \WP_Error('no-file', __('Please provide a ZIP file URL.', 'ultimate-multisite')));
+		}
+
+		$file_path = $this->url_to_path($zip_url);
+		if (! $file_path || ! file_exists($file_path)) {
+			wp_send_json_error(new \WP_Error('file-not-found', __('ZIP file not found.', 'ultimate-multisite')));
+		}
+
+		$bundle_type = Network_Importer::detect_bundle_type($file_path);
+		if (is_wp_error($bundle_type)) {
+			wp_send_json_error($bundle_type);
+		}
+
+		if ('network' !== $bundle_type) {
+			wp_send_json_error(new \WP_Error('site-bundle-selected', __('This ZIP is a single-site bundle. Use Import Site to restore it.', 'ultimate-multisite')));
+		}
+
+		$selected_sites = array_filter(array_map('intval', explode(',', (string) wu_request('selected_sites', ''))));
+		$url_overrides  = $this->parse_network_import_url_overrides((string) wu_request('url_overrides', ''));
+
+		$options = [
+			'delete_file'   => wu_request('remove_zip'),
+			'zip_url'       => $zip_url,
+			'url_overrides' => $url_overrides,
+		];
+
+		if (! empty($selected_sites)) {
+			$options['selected_blog_ids'] = $selected_sites;
+		}
+
+		$result = wu_exporter_import_network($file_path, $options, $background);
+
+		if (is_wp_error($result)) {
+			wp_send_json_error($result);
+		}
+
+		wp_send_json_success(
+			[
+				'redirect_url' => wu_network_admin_url('wp-ultimo-sites', ['message' => 'network_import_started']),
+			]
+		);
+	}
+
+	/**
+	 * Parses URL override lines from the network import form.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param string $raw Raw textarea value.
+	 * @return array
+	 */
+	private function parse_network_import_url_overrides(string $raw): array {
+
+		$overrides = [];
+		foreach (preg_split('/\r\n|\r|\n/', $raw) as $line) {
+			if (false === strpos($line, '=')) {
+				continue;
+			}
+
+			[$blog_id, $url] = array_map('trim', explode('=', $line, 2));
+			$blog_id         = (int) $blog_id;
+
+			if ($blog_id && ! empty($url)) {
+				$overrides[ $blog_id ] = esc_url_raw($url);
+			}
+		}
+
+		return $overrides;
 	}
 
 	/**
@@ -1928,6 +2100,13 @@ final class Site_Exporter {
 			'icon'    => 'wu-import',
 			'classes' => 'wubox',
 			'url'     => wu_get_form_url('import_site'),
+		];
+
+		$links[] = [
+			'label'   => __('Import Network', 'ultimate-multisite'),
+			'icon'    => 'wu-import',
+			'classes' => 'wubox',
+			'url'     => wu_get_form_url('import_network'),
 		];
 
 		return $links;
@@ -2232,6 +2411,10 @@ final class Site_Exporter {
 		if (! wp_next_scheduled('wu_import_site')) {
 			wp_schedule_event(time() + 10, 'wu_site_every_minute', 'wu_import_site');
 		}
+
+		if (! wp_next_scheduled('wu_import_network')) {
+			wp_schedule_event(time() + 10, 'wu_site_every_minute', 'wu_import_network');
+		}
 	}
 
 	/**
@@ -2303,7 +2486,7 @@ final class Site_Exporter {
 			$command->all([$base_path . $export_name], $args);
 		} catch (\Exception $e) {
 			// Log the exception for server admins and return a user-friendly error.
-			error_log('WP Ultimo site export error: ' . $e->getMessage());
+			error_log('WP Ultimo site export error: ' . $e->getMessage()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 			return new \WP_Error(
 				'export-failed',
@@ -2360,7 +2543,7 @@ final class Site_Exporter {
 			);
 		} catch (\Exception $e) {
 			// Log the exception for server admins and return a user-friendly error.
-			error_log('WP Ultimo network export error: ' . $e->getMessage());
+			error_log('WP Ultimo network export error: ' . $e->getMessage()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 			return new \WP_Error(
 				'export-failed',
@@ -2468,6 +2651,86 @@ final class Site_Exporter {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Handles the network import.
+	 *
+	 * @since 2.5.0
+	 * @return bool
+	 */
+	public function handle_network_import(): bool {
+
+		$pending_imports = wu_exporter_get_pending_network_imports();
+
+		if (empty($pending_imports)) {
+			return false;
+		}
+
+		$file_name = '';
+		$options   = [];
+		$hash      = '';
+
+		foreach ($pending_imports as $pending_import) {
+			[$file_name, $options, $hash] = maybe_unserialize($pending_import->options);
+			break;
+		}
+
+		if (! $file_name || ! file_exists($file_name)) {
+			wu_exporter_delete_transient("wu_pending_network_import_{$hash}");
+			return false;
+		}
+
+		$result = Network_Importer::get_instance()->import($file_name, $options);
+
+		wu_exporter_delete_transient("wu_pending_network_import_{$hash}");
+
+		return ! is_wp_error($result);
+	}
+
+	/**
+	 * WP-CLI wrapper for network imports.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <zip>
+	 * : Path to a network export ZIP.
+	 *
+	 * [--sites=<ids>]
+	 * : Optional comma-separated source blog IDs to import.
+	 *
+	 * [--url-overrides=<map>]
+	 * : Optional comma-separated source_id=url mappings.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param array $args       Positional CLI arguments.
+	 * @param array $assoc_args Associative CLI arguments.
+	 * @return void
+	 */
+	public function wp_cli_import_network(array $args, array $assoc_args): void {
+
+		$zip_path = $args[0] ?? '';
+
+		if (empty($zip_path)) {
+			\WP_CLI::error(__('A network export ZIP path is required.', 'ultimate-multisite'));
+		}
+
+		$options = [
+			'url_overrides' => $this->parse_network_import_url_overrides(str_replace(',', "\n", (string) ($assoc_args['url-overrides'] ?? ''))),
+		];
+
+		if (! empty($assoc_args['sites'])) {
+			$options['selected_blog_ids'] = array_map('intval', explode(',', $assoc_args['sites']));
+		}
+
+		$result = wu_exporter_import_network($zip_path, $options, false);
+
+		if (is_wp_error($result)) {
+			\WP_CLI::error($result->get_error_message());
+		}
+
+		\WP_CLI::success(__('Network import completed.', 'ultimate-multisite'));
 	}
 
 	/**
