@@ -89,13 +89,41 @@ final class Site_Exporter {
 			$this->load_dependencies();
 		}
 
-		add_action('wu_export_site', [$this, 'handle_site_export'], 10, 3);
+		add_action(
+			'wu_export_site',
+			function (int $site_id, array $options = [], string $hash = ''): void {
 
-		add_action('wu_export_network', [$this, 'handle_network_export'], 10, 3);
+				$this->handle_site_export($site_id, $options, $hash);
+			},
+			10,
+			3
+		);
 
-		add_action('wu_import_site', [$this, 'handle_site_import']);
+		add_action(
+			'wu_export_network',
+			function (array $included_blog_ids, int $main_site_blog_id, array $options = [], string $hash = ''): void {
 
-		add_action('wu_import_network', [$this, 'handle_network_import'], 10, 3);
+				$this->handle_network_export($included_blog_ids, $main_site_blog_id, $options, $hash);
+			},
+			10,
+			4
+		);
+
+		add_action(
+			'wu_import_site',
+			function (): void {
+
+				$this->handle_site_import();
+			}
+		);
+
+		add_action(
+			'wu_import_network',
+			function (): void {
+
+				$this->handle_network_import();
+			}
+		);
 
 		add_filter('wu_site_exporter_files_to_zip', [$this, 'maybe_exclude_wp_ultimo_plugins']);
 
@@ -121,7 +149,7 @@ final class Site_Exporter {
 
 		// Network export (GH#1149)
 		add_filter('wu_site_bulk_actions', [$this, 'add_bulk_network_export_action']);
-		add_action('wu_handle_bulk_action_form_network_export', [$this, 'handle_bulk_network_export'], 10, 3);
+		add_action('wu_handle_bulk_action_form_network_export', [$this, 'handle_bulk_network_export'], 10, 2);
 
 		if (defined('WP_CLI') && WP_CLI) {
 			\WP_CLI::add_command('wp-ultimo import-network', [$this, 'wp_cli_import_network']);
