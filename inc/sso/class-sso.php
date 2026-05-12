@@ -1063,6 +1063,26 @@ class SSO {
 	 */
 	public function convert_bearer_into_auth_cookies(): void {
 
+		/*
+		 * Bail out early when $current_blog has not been fully populated yet.
+		 *
+		 * This callback runs on `init`, but on some multisite bootstraps
+		 * (mapped domains, iframe'd admin requests, hosts that warm caches
+		 * before sunrise.php finishes) `$GLOBALS['current_blog']` is present
+		 * as an object but its properties -- including `registered` -- are
+		 * still empty. `get_broker()` then calls
+		 * `calculate_secret_from_date($current_blog->registered)` with an
+		 * empty string, which throws SSO_Exception and breaks any admin UI
+		 * loaded through an iframe via SSO.
+		 *
+		 * Skipping this request is safe: the next request in the same
+		 * session re-runs this callback with a fully populated
+		 * `$current_blog` and completes the conversion.
+		 */
+		if (empty($GLOBALS['current_blog']) || empty($GLOBALS['current_blog']->registered)) {
+			return;
+		}
+
 		$broker = $this->get_broker();
 
 		if (is_user_logged_in() && $broker && $broker->isAttached()) {
@@ -1335,6 +1355,27 @@ class SSO {
 	 * @throws SSO_Exception Failure.
 	 */
 	public function calculate_secret_from_date($date) {
+
+		/*
+		 * Fall back to the main site's registration date when $date is
+		 * empty.
+		 *
+		 * This guards against the same multisite bootstrap race that
+		 * `convert_bearer_into_auth_cookies()` skips: a caller can still
+		 * reach this method with an empty $date (for example, custom code
+		 * that builds an SSO secret from `$current_blog->registered` before
+		 * sunrise.php finishes populating it). Throwing SSO_Exception here
+		 * breaks the parent request, which on iframe'd admin pages renders
+		 * the whole panel blank.
+		 *
+		 * Using the main site's registration date as a fallback keeps the
+		 * secret stable across requests for the same network and avoids
+		 * cascading failures during early boot.
+		 */
+		if (empty($date)) {
+			$main_site = function_exists('get_site') ? get_site(function_exists('get_main_site_id') ? get_main_site_id() : 1) : null;
+			$date      = ($main_site && ! empty($main_site->registered)) ? $main_site->registered : '2024-01-01 00:00:00';
+		}
 
 		$tz = new \DateTimeZone('GMT');
 
