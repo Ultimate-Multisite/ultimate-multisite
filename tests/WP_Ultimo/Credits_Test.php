@@ -182,6 +182,31 @@ class Credits_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test build_credit_html normalizes corrupted custom HTML settings.
+	 */
+	public function test_build_credit_html_normalizes_corrupted_custom_html(): void {
+
+		wu_save_setting('credits_enable', 1);
+		wu_save_setting('credits_type', 'html');
+		wu_save_setting('credits_custom_html', '[object Object]');
+
+		$reflection = new \ReflectionClass($this->credits);
+		$method     = $reflection->getMethod('build_credit_html');
+
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		$result = $method->invoke($this->credits);
+
+		$this->assertStringNotContainsString('[object Object]', $result);
+		$this->assertStringContainsString('Powered by', $result);
+
+		// Clean up.
+		wu_save_setting('credits_enable', 0);
+	}
+
+	/**
 	 * Test build_credit_html with custom network type.
 	 */
 	public function test_build_credit_html_custom_network_type(): void {
