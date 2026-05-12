@@ -184,7 +184,23 @@ window.wu_initialize_imagepicker = function() {
 
 				that.find('.wubox').attr('href', mediaObject.url);
 
-				that.find('input').val(mediaObject.id);
+				// Set the hidden input value AND dispatch a NATIVE input
+				// event so any Vue v-model binding on this field updates
+				// its reactive data. We must use the native dispatchEvent
+				// (not jQuery's .trigger()) because Vue 2 v-model registers
+				// a native addEventListener('input', ...) which jQuery's
+				// trigger() does not invoke. Without this, Vue's next
+				// re-render (triggered by a change to any other reactive
+				// field in the same app) overwrites the hidden input's DOM
+				// value back to the empty initial state, causing the
+				// uploaded image ID to be silently lost when the form is
+				// submitted. Affects the setup wizard "Your Company" step
+				// (company_logo) and any other image setting fields.
+				const $hidden = that.find('input').val(mediaObject.id);
+				$hidden.each(function() {
+					this.dispatchEvent(new Event('input', { bubbles: true }));
+					this.dispatchEvent(new Event('change', { bubbles: true }));
+				});
 
 				that.find('.wu-add-image-wrapper').hide();
 
@@ -206,7 +222,14 @@ window.wu_initialize_imagepicker = function() {
 
 			that.find('img').removeAttr('src').addClass('wu-absolute');
 
-			that.find('input').val('');
+			// Clear the hidden input and dispatch native events so Vue
+			// v-model picks up the cleared value (see select handler
+			// above for the full rationale).
+			const $hiddenRemove = that.find('input').val('');
+			$hiddenRemove.each(function() {
+				this.dispatchEvent(new Event('input', { bubbles: true }));
+				this.dispatchEvent(new Event('change', { bubbles: true }));
+			});
 
 			that.find('.wu-wrapper-image-field-upload-actions').hide();
 
