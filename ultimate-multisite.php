@@ -3,7 +3,7 @@
  * Plugin Name: Ultimate Multisite – WordPress Multisite SaaS & WaaS Platform
  * Plugin URI:  https://ultimatemultisite.com
  * Description: Ultimate Multisite is a WordPress Multisite plugin that turns your network into a complete Website-as-a-Service (WaaS) platform with subscriptions, site provisioning, domain mapping, and customer management. Formerly WP Ultimo.
- * Version:     2.10.1
+ * Version:     2.11.0
  * Author:      Ultimate Multisite Community
  * Author URI:  https://ultimatemultisite.com
  * License:     GPLv2 or later

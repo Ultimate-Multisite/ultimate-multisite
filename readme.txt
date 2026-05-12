@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 7.4.30
 Tested up to: 6.9
-Stable tag: 2.10.1
+Stable tag: 2.11.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -246,6 +246,30 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+Version [2.11.0] - Released on 2026-05-11
+- New: Site exports now bundle a self-booting index.php so the ZIP can be installed on a fresh host without a separate plugin install
+- New: Network export lets administrators export all subsites in a single archive from the Site Export admin page
+- New: Allow Site Templates plan toggle is now enforced via a fallback chain, correctly restricting template availability for plan limits
+- New: Checkout form editor warns when a product is added without a required field configured
+- New: Import/Export settings tab now clearly describes its scope and links directly to the Site Export tool
+- Fix: Password reset URL is now correctly rewritten on subsites so customers can reset their password from subsite login pages
+- Fix: Welcome emails now send reliably after site duplication
+- Fix: Auto-generated password signups now correctly send the set-your-password email
+- Fix: Template switching now allows sites with no current template to switch to a new one
+- Fix: Cloudways integration excludes wildcard domains from Let's Encrypt SSL requests, keeping them as domain aliases only
+- Fix: Template switching no longer renders a broken image when the current template has no image URL
+- Fix: Settings page and Setup Wizard no longer fatal on Closure rendering; credits textarea no longer shows [object Object]
+- Fix: Domain mapping no longer calls get_option(blog_charset) during early WordPress bootstrap
+- Fix: Enhance integration uses domainId from GET list response for domain deletion
+- Fix: WPEngine integration method signatures corrected to prevent PHP fatals when addons extend integration classes
+- Fix: Site deletion now returns WP_Error on exception instead of failing silently
+- Fix: Setup wizard now uses a deterministic network URL on multisite setup success
+- Fix: Checkout editor Add Field modal and toolbar are now usable on mobile devices
+- Fix: WU Tours no longer errors with wu_tours is not defined; tour now displays only once as intended
+- Fix: Checkout email field no longer shows a redundant Log in to renew notice
+- Fix: Site exports now include plugins, themes, and uploads; themes are activated on import
+- Fix: Template switching element conversion no longer errors for certain element configurations
+
 Version [2.10.1] - Released on 2026-05-05
 - Fix: Unavailable templates are now hidden from the customer panel template grid
 - Fix: Template switching no longer truncates the current template description text
