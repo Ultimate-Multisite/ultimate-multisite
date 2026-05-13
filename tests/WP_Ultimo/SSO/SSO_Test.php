@@ -48,6 +48,10 @@ class SSO_Test extends \WP_UnitTestCase {
 		unset($_REQUEST['return_url']);
 		unset($_REQUEST['redirect_to']);
 		unset($_COOKIE['wu_sso_denied']);
+		unset($_COOKIE['wu_sso_redirect_attempts']);
+
+		remove_all_filters('wu_sso_redirect_loop_threshold');
+		remove_all_filters('wu_sso_redirect_loop_window');
 
 		parent::tearDown();
 	}
@@ -241,6 +245,70 @@ class SSO_Test extends \WP_UnitTestCase {
 			'https://customer.example.com/wp/wp-admin/',
 			$method->invoke($sso, $return_url)
 		);
+	}
+
+	/**
+	 * Test repeated mapped-domain SSO redirects are capped to avoid loops.
+	 */
+	public function test_sso_redirect_loop_counter_skips_at_threshold(): void {
+		$sso = SSO::get_instance();
+
+		add_filter(
+			'wu_sso_redirect_loop_threshold',
+			function () {
+				return 2;
+			}
+		);
+
+		$method = new \ReflectionMethod($sso, 'should_skip_redirect_due_to_loop');
+		$method->setAccessible(true);
+
+		$this->assertFalse($method->invoke($sso));
+		$this->assertSame(1, $this->get_sso_redirect_attempt_count());
+
+		$this->assertTrue($method->invoke($sso));
+		$this->assertSame(2, $this->get_sso_redirect_attempt_count());
+	}
+
+	/**
+	 * Test the redirect-loop counter restarts after its window expires.
+	 */
+	public function test_sso_redirect_loop_counter_resets_after_window(): void {
+		$sso = SSO::get_instance();
+
+		add_filter(
+			'wu_sso_redirect_loop_threshold',
+			function () {
+				return 2;
+			}
+		);
+
+		add_filter(
+			'wu_sso_redirect_loop_window',
+			function () {
+				return 60;
+			}
+		);
+
+		$_COOKIE['wu_sso_redirect_attempts'] = '1:' . (time() - 120);
+
+		$method = new \ReflectionMethod($sso, 'should_skip_redirect_due_to_loop');
+		$method->setAccessible(true);
+
+		$this->assertFalse($method->invoke($sso));
+		$this->assertSame(1, $this->get_sso_redirect_attempt_count());
+	}
+
+	/**
+	 * Get the redirect-attempt count from the test cookie.
+	 *
+	 * @return int
+	 */
+	private function get_sso_redirect_attempt_count(): int {
+
+		$cookie = isset($_COOKIE['wu_sso_redirect_attempts']) ? sanitize_text_field(wp_unslash($_COOKIE['wu_sso_redirect_attempts'])) : '';
+
+		return absint(strtok($cookie, ':'));
 	}
 
 	// ------------------------------------------------------------------
