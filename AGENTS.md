@@ -472,7 +472,9 @@ Most `bash:other` errors in this codebase fall into one of these categories:
 **Missing Bash tool metadata in OpenCode** — OpenCode requires every Bash tool call to include
 a short `description` field. If a command fails before execution with a schema error like
 `Missing key at ["description"]`, do not change the shell command itself. Retry the same command
-with a concise description, for example: `description="Lists tracked admin asset files"`.
+with a concise description, for example: `description="Lists tracked admin asset files"`. This
+is tool-call metadata, not a shell argument; keep the original command intact and add the
+description alongside it in the Bash tool payload.
 
 **Tool not installed** — run the prerequisite checks above before any lint, test, or analysis command.
 
