@@ -177,10 +177,6 @@ Use `WP_Error` for validation/operation failures — not exceptions.
   immediately after signup. Inspect the checkout, membership, payment gateway, and
   orphaned-site cleanup paths together before changing watchdog or cancellation logic;
   verify both pending membership cancellation and pending site cleanup.
-- Do not reference an `ultimate-multisite-woocommerce` addon release as v2.0.23; the
-  latest known released version is v2.0.10 unless repository or release evidence says
-  otherwise. Verify addon version claims before adding them to docs, issues, or
-  user-facing troubleshooting notes.
 
 ### Tests
 - Extend `WP_UnitTestCase`. Tests run in a WordPress Multisite environment
@@ -468,6 +464,11 @@ For file discovery, use `git ls-files '<pattern>'` rather than `find` or glob pa
 ### Common bash:other Failures
 
 Most `bash:other` errors in this codebase fall into one of these categories:
+
+**Missing Bash tool metadata in OpenCode** — OpenCode requires every Bash tool call to include
+a short `description` field. If a command fails before execution with a schema error like
+`Missing key at ["description"]`, do not change the shell command itself. Retry the same command
+with a concise description, for example: `description="Lists tracked admin asset files"`.
 
 **Tool not installed** — run the prerequisite checks above before any lint, test, or analysis command.
 

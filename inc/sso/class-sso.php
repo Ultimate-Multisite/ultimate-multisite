@@ -298,12 +298,15 @@ class SSO {
 		 * Registration is deferred to plugins_loaded so we can check whether
 		 * GlotPress is actually active before adding the hook.
 		 */
-		add_action('plugins_loaded', function (): void {
+		add_action(
+			'plugins_loaded',
+			function (): void {
 
-			if (defined('GP_VERSION')) {
-				add_action('gp_head', [$this, 'enqueue_script']);
+				if (defined('GP_VERSION')) {
+					add_action('gp_head', [$this, 'enqueue_script']);
+				}
 			}
-		});
+			);
 
 		/**
 		 * Allow plugin developers to add additional hooks, if needed.
@@ -381,6 +384,10 @@ class SSO {
 
 		$should_skip_redirect = $this->get_isset($_COOKIE, 'wu_sso_denied', false);
 
+		if ( ! $should_skip_redirect) {
+			$should_skip_redirect = $this->should_skip_redirect_due_to_loop();
+		}
+
 		/**
 		 * If we are on the wp-admin, we check for three criteria
 		 * to decide if we need to try to perform a SSO redirect
@@ -421,6 +428,51 @@ class SSO {
 			remove_query_arg('sso', 'https://a.com/' . wp_unslash($_SERVER['REQUEST_URI'] ?? '')) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		);
 		return null;
+	}
+
+	/**
+	 * Detect repeated SSO redirects and temporarily fall back to wp-login.php.
+	 *
+	 * Mapped-domain admin requests can get caught in a broker/server redirect
+	 * loop when the target session cannot be attached (for example inside an
+	 * iframe with blocked third-party cookies). Count redirect attempts in a
+	 * short-lived cookie and stop initiating SSO once the threshold is reached;
+	 * WordPress then renders the normal login form instead of looping forever.
+	 *
+	 * @since 2.0.11
+	 * @return bool True when the SSO redirect should be skipped.
+	 */
+	private function should_skip_redirect_due_to_loop(): bool {
+
+		$threshold = (int) apply_filters('wu_sso_redirect_loop_threshold', 3);
+		$window    = (int) apply_filters('wu_sso_redirect_loop_window', 120);
+
+		if ($threshold < 1 || $window < 1) {
+			return false;
+		}
+
+		$now     = time();
+		$raw     = sanitize_text_field(wp_unslash($_COOKIE['wu_sso_redirect_attempts'] ?? ''));
+		$parts   = array_map('absint', explode(':', $raw));
+		$count   = $parts[0] ?? 0;
+		$started = $parts[1] ?? 0;
+
+		if ( ! $started || ($now - $started) > $window) {
+			$count   = 0;
+			$started = $now;
+		}
+
+		++$count;
+
+		$value = sprintf('%d:%d', $count, $started);
+
+		if ( ! headers_sent()) {
+			setcookie('wu_sso_redirect_attempts', $value, $now + $window, COOKIEPATH, COOKIE_DOMAIN);
+		}
+
+		$_COOKIE['wu_sso_redirect_attempts'] = $value;
+
+		return $count >= $threshold;
 	}
 
 	/**
@@ -491,11 +543,13 @@ class SSO {
 
 			printf(
 				'wu.sso(%s, %d);',
-				wp_json_encode([
-					'code'       => 200,
-					'verify'     => 'login-required',
-					'return_url' => $this->input('return_url', ''),
-				]),
+				wp_json_encode(
+					[
+						'code'       => 200,
+						'verify'     => 'login-required',
+						'return_url' => $this->input('return_url', ''),
+					]
+					),
 				200
 			);
 
@@ -529,11 +583,13 @@ class SSO {
 
 			printf(
 				'wu.sso(%s, %d);',
-				wp_json_encode([
-					'code'       => 200,
-					'verify'     => $verification_code,
-					'return_url' => $return_url,
-				]),
+				wp_json_encode(
+					[
+						'code'       => 200,
+						'verify'     => $verification_code,
+						'return_url' => $return_url,
+					]
+					),
 				200
 			);
 
@@ -553,8 +609,8 @@ class SSO {
 	 *
 	 * @since 2.0.11
 	 *
-	 * @param string $redirect_to The default redirect URL.
-	 * @param string $requested_redirect_to The redirect URL requested by user.
+	 * @param string  $redirect_to The default redirect URL.
+	 * @param string  $requested_redirect_to The redirect URL requested by user.
 	 * @param WP_User $user The user who logged in.
 	 * @return string The redirect URL.
 	 */
@@ -593,12 +649,14 @@ class SSO {
 		$expiry = time() + 300;
 		$jti    = wp_generate_uuid4();
 
-		$payload = wp_json_encode([
-			'user_id' => $user_id,
-			'exp'    => $expiry,
-			'aud'    => $audience_host,
-			'jti'    => $jti,
-		]);
+		$payload = wp_json_encode(
+			[
+				'user_id' => $user_id,
+				'exp'     => $expiry,
+				'aud'     => $audience_host,
+				'jti'     => $jti,
+			]
+			);
 
 		set_site_transient('wu_sso_magic_' . $jti, 1, 300);
 
@@ -1062,7 +1120,6 @@ class SSO {
 	 * @return void
 	 */
 	public function convert_bearer_into_auth_cookies(): void {
-
 		/*
 		 * Bail out early when $current_blog has not been fully populated yet.
 		 *
@@ -1355,7 +1412,6 @@ class SSO {
 	 * @throws SSO_Exception Failure.
 	 */
 	public function calculate_secret_from_date($date) {
-
 		/*
 		 * Fall back to the main site's registration date when $date is
 		 * empty.
