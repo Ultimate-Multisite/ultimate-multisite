@@ -177,6 +177,10 @@ Use `WP_Error` for validation/operation failures — not exceptions.
   immediately after signup. Inspect the checkout, membership, payment gateway, and
   orphaned-site cleanup paths together before changing watchdog or cancellation logic;
   verify both pending membership cancellation and pending site cleanup.
+- Ultimate Multisite WooCommerce addon release references: do not cite or assume
+  `ultimate-multisite-woocommerce` version `v2.0.23`; it was never released. The
+  latest released version for that addon is `v2.0.10` unless verified otherwise from
+  an authoritative release source.
 
 ### Tests
 - Extend `WP_UnitTestCase`. Tests run in a WordPress Multisite environment
