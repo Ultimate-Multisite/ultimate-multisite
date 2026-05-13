@@ -161,6 +161,8 @@ jobs:
 
       - name: Install PHP dependencies (both branches)
         run: |
+          unset COMPOSER_AUTH
+          composer config --global --unset github-oauth.github.com || true
           composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --working-dir=current
           composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --working-dir=baseline
 
