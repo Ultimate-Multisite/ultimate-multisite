@@ -471,6 +471,11 @@ For file discovery, use `git ls-files '<pattern>'` rather than `find` or glob pa
 
 Most `bash:other` errors in this codebase fall into one of these categories:
 
+**Missing Bash tool metadata in OpenCode** — OpenCode requires every Bash tool call to include
+a short `description` field. If a command fails before execution with a schema error like
+`Missing key at ["description"]`, do not change the shell command itself. Retry the same command
+with a concise description, for example: `description="Lists tracked admin asset files"`.
+
 **Tool not installed** — run the prerequisite checks above before any lint, test, or analysis command.
 
 **`wp` command not found or fails** — `wp` requires WP-CLI in PATH and the dev WordPress install
