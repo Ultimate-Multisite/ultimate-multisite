@@ -38,6 +38,7 @@ class Integration_Registry_Test extends WP_UnitTestCase {
 		$this->assertNotNull($this->registry->get('rocket'));
 		$this->assertNotNull($this->registry->get('wpengine'));
 		$this->assertNotNull($this->registry->get('wpmudev'));
+		$this->assertNotNull($this->registry->get('hostinger'));
 	}
 
 	public function test_get_returns_null_for_unknown(): void {
