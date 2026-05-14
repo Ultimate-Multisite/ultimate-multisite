@@ -1462,21 +1462,38 @@ class Base_Stripe_Gateway extends Base_Gateway {
 			];
 
 			/*
-			 * Use 'discounts' array instead of deprecated 'coupon' parameter.
-			 * The 'coupon' parameter was removed in newer Stripe API versions.
+			 * Use the 'discounts' array instead of the deprecated top-level
+			 * 'coupon' parameter. The 'coupon' parameter was removed from the
+			 * Stripe subscription update endpoint in newer API versions and
+			 * returns: "Received unknown parameter: coupon. Did you mean to
+			 * use `discounts` instead?".
+			 *
+			 * When there is no credit coupon to apply we explicitly clear any
+			 * existing discounts by passing an empty array. This replaces the
+			 * deprecated `subscriptions->deleteDiscount()` call and folds the
+			 * clear into the same update request.
 			 *
 			 * @since 2.0.12
 			 */
 			if ( ! empty($s_coupon)) {
 				$update_data['discounts'] = [['coupon' => $s_coupon]];
+			} elseif ( ! empty($subscription->discount) || ! empty($subscription->discounts)) {
+				$update_data['discounts'] = [];
 			}
 
 			$subscription = $this->get_stripe_client()->subscriptions->update($gateway_subscription_id, $update_data);
-
-			if (empty($s_coupon) && ! empty($subscription->discount)) {
-				$this->get_stripe_client()->subscriptions->deleteDiscount($gateway_subscription_id);
-			}
 		} catch (\Throwable $e) {
+			wu_log_add(
+				'stripe',
+				sprintf(
+					'Error updating Stripe subscription %s during membership update. Sent keys: %s. Message: %s',
+					$gateway_subscription_id,
+					implode(',', array_keys($update_data ?? [])),
+					$e->getMessage()
+				),
+				LogLevel::ERROR
+			);
+
 			return new \WP_Error('wu_stripe_update_error', $e->getMessage());
 		}
 
@@ -1817,6 +1834,14 @@ class Base_Stripe_Gateway extends Base_Gateway {
 		 * Filters the Stripe subscription arguments.
 		 */
 		$sub_args = apply_filters('wu_stripe_create_subscription_args', $sub_args, $this);
+
+		/*
+		 * Defensive: never pass the top-level 'coupon' parameter to the
+		 * Stripe subscriptions->create endpoint. Newer Stripe API versions
+		 * removed it in favour of the 'discounts' array. A legacy filter or
+		 * addon could re-introduce it; strip it before the API call.
+		 */
+		unset($sub_args['coupon']);
 
 		/*
 		 * If we have a `billing_cycle_anchor` AND a `trial_end`, then we need to unset whichever one
