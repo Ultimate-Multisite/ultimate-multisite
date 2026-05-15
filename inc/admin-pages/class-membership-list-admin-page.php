@@ -258,12 +258,43 @@ class Membership_List_Admin_Page extends List_Admin_Page {
 
 		$data['status'] = wu_request('status');
 
-		$date_expiration = gmdate('Y-m-d 23:59:59', strtotime((string) wu_request('date_expiration')));
-
 		$maybe_lifetime = wu_request('lifetime');
 
 		if ($maybe_lifetime) {
 			$date_expiration = null;
+		} else {
+			$raw_date_expiration = trim((string) wu_request('date_expiration', ''));
+
+			if ('' === $raw_date_expiration) {
+				wp_send_json_error(
+					new \WP_Error(
+						'missing-date-expiration',
+						__('Please provide an expiration date or mark the membership as lifetime.', 'ultimate-multisite')
+					)
+				);
+			}
+
+			$expiration_timestamp = strtotime($raw_date_expiration);
+
+			/*
+			 * Guard against invalid/localized date strings. strtotime() returns
+			 * false for unparseable input, which gmdate() then coerces to 0
+			 * (Unix epoch), silently storing 1970-01-01 as the expiration date.
+			 */
+			if (false === $expiration_timestamp) {
+				wp_send_json_error(
+					new \WP_Error(
+						'invalid-date-expiration',
+						sprintf(
+							/* translators: %s: the rejected date string */
+							__('The expiration date "%s" is not a valid date. Please use the format YYYY-MM-DD HH:MM:SS.', 'ultimate-multisite'),
+							$raw_date_expiration
+						)
+					)
+				);
+			}
+
+			$date_expiration = gmdate('Y-m-d 23:59:59', $expiration_timestamp);
 		}
 
 		$data['date_expiration'] = $date_expiration;

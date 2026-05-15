@@ -908,7 +908,7 @@ class Membership_Edit_Admin_Page extends Edit_Admin_Page {
 				'placeholder'   => '2020-04-04 12:00:00',
 				'html_attr'     => [
 					'wu-datepicker'   => 'true',
-					'data-format'     => 'Y-m-d H:i:S',
+					'data-format'     => 'Y-m-d H:i:s',
 					'data-allow-time' => 'true',
 				],
 			];
