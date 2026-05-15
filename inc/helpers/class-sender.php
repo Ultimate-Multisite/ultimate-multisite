@@ -123,15 +123,15 @@ class Sender {
 			/*
 			 * Decide which strategy to use, BCC or multiple "to"s.
 			 *
-			 * By default, we use multiple tos, but that can be changed to bcc.
-			 * Depending on the SMTP solution being used, that can make a difference on the number of
-			 * emails sent out.
+			 * Default strategy is BCC. All recipients are placed in the Bcc header so
+			 * no individual address is exposed in the To: field (GDPR/privacy compliance).
+			 * The To: header is set to "undisclosed-recipients:;" per RFC 2822 §3.6.3.
+			 *
+			 * Depending on the SMTP solution being used, BCC vs individual sends can
+			 * make a difference in the number of outbound connections made.
 			 */
 			if (apply_filters('wu_sender_recipients_strategy', 'bcc') === 'bcc') {
-				$main_to = $to[0];
-
-				unset($to[0]);
-
+				// Place every recipient in BCC — do not expose $to[0] in the visible To: header.
 				$bcc_array = array_map(
 					function ($item) {
 
@@ -148,7 +148,8 @@ class Sender {
 
 				$headers[] = "Bcc: $bcc";
 
-				$to = $main_to;
+				// RFC 2822 §3.6.3 — privacy-safe placeholder when all recipients are BCC'd.
+				$to = 'undisclosed-recipients:;';
 			}
 		} else {
 			$to = [
