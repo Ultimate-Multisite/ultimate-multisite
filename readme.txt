@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 7.4.30
 Tested up to: 6.9
-Stable tag: 2.11.1
+Stable tag: 2.12.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -246,6 +246,17 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+Version [2.12.0] - Released on 2026-05-15
+- New: Added Hostinger (hPanel) as a supported host provider with domain mapping integration
+- New: Site Exporter now handles network import bundles for streamlined network-wide site restoration
+- Fix: BCC broadcast emails now use an undisclosed-recipients header to prevent exposing recipient addresses
+- Fix: Membership expiration date is no longer corrupted when saving with a non-date value
+- Fix: Stripe membership updates now correctly clear discounts without calling the deprecated deleteDiscount API
+- Fix: SSO redirects on domain-mapped sites are now capped to prevent infinite redirect loops
+- Fix: Setup wizard image picker selection now correctly updates the underlying data model
+- Fix: Site Exporter CLI now preserves the correct default network site selection
+- Improved: Removed bundled wp-cli from the plugin package, reducing plugin size
+
 Version [2.11.1] - Released on 2026-05-12
 - Fix: SSO no longer fails when $current_blog is unpopulated during early WordPress bootstrap, preventing errors on configurations where WP initialises in an unexpected order
 
