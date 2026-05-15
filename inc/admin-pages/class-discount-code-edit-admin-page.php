@@ -167,7 +167,7 @@ class Discount_Code_Edit_Admin_Page extends Edit_Admin_Page {
 						'html_attr'         => [
 							'v-bind:name'     => 'enable_date_start ? "date_start" : ""',
 							'wu-datepicker'   => 'true',
-							'data-format'     => 'Y-m-d H:i:S',
+							'data-format'     => 'Y-m-d H:i:s',
 							'data-allow-time' => 'true',
 						],
 					],
@@ -194,7 +194,7 @@ class Discount_Code_Edit_Admin_Page extends Edit_Admin_Page {
 						'html_attr'         => [
 							'v-bind:name'     => 'enable_date_expiration ? "date_expiration" : ""',
 							'wu-datepicker'   => 'true',
-							'data-format'     => 'Y-m-d H:i:S',
+							'data-format'     => 'Y-m-d H:i:s',
 							'data-allow-time' => 'true',
 						],
 					],
