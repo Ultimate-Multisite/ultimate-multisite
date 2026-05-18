@@ -1031,19 +1031,24 @@
 					this.create_order();
 
 				},
-				block() {
+				block(message) {
 
 					/*
-           * Get the first bg color from a parent.
-           */
+            * Get the first bg color from a parent.
+            */
 					const bg_color = jQuery(this.$el).parents().filter(function () {
 
 						return $(this).css('backgroundColor') !== 'rgba(0, 0, 0, 0)';
 
 					}).first().css('backgroundColor');
 
+					// Default message if none provided
+					if (! message) {
+						message = '<div class="spinner is-active wu-float-none" style="float: none !important;"></div>';
+					}
+
 					jQuery(this.$el).wu_block({
-						message: '<div class="spinner is-active wu-float-none" style="float: none !important;"></div>',
+						message,
 						overlayCSS: {
 							backgroundColor: bg_color ? bg_color : '#ffffff',
 							opacity: 0.6,
@@ -1622,7 +1627,18 @@
 
 					} // end if;
 
-					that.block();
+					// Disable all submit buttons to prevent double-clicks
+					jQuery(this).find('button[type="submit"]').prop('disabled', true);
+
+					// Show loading message with status text
+					const loadingMessage = '<div style="text-align: center;">' +
+					'<div class="spinner is-active wu-float-none" style="float: none !important; margin-bottom: 12px;"></div>' +
+					'<div style="font-size: 14px; line-height: 1.5;">' +
+					(wu_checkout.i18n.provisioning_site || 'Provisioning your site — this can take up to 60 seconds.') +
+					'</div>' +
+					'</div>';
+
+					that.block(loadingMessage);
 
 					try {
 

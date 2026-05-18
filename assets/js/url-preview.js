@@ -1,46 +1,46 @@
 (function($) {
 
-  $(document).ready(function() {
+	$(document).ready(function() {
 
-    /**
-     * Signup change value
-     */
-    $('.login').on('keyup', '#field-site_url', function(event) {
+		/**
+		 * Signup change value
+		 */
+		$('.login').on('keyup', '#field-site_url', function(event) {
 
-      event.preventDefault();
+			event.preventDefault();
 
-      const $selector = $(this);
+			const $selector = $(this);
 
-      const $target = $('#wu-your-site');
+			const $target = $('#wu-your-site');
 
-      $target.text($selector.val());
+			$target.text($selector.val());
 
-    }); // end on.keyUp;
+		}); // end on.keyUp;
 
-    $('.login').on('keyup', '#field-site_url', function(event) {
+		$('.login').on('keyup', '#field-site_url', function(event) {
 
-      event.preventDefault();
+			event.preventDefault();
 
-      const $selector = $(this);
+			const $selector = $(this);
 
-      const $target = $('#wu-your-site');
+			const $target = $('#wu-your-site');
 
-      $target.text($selector.val());
+			$target.text($selector.val());
 
-    }); // end on.keyUp;
+		}); // end on.keyUp;
 
-    $('.login').on('change', '#domain_option', function(event) {
+		$('.login').on('change', '#domain_option', function(event) {
 
-      event.preventDefault();
+			event.preventDefault();
 
-      const $selector = $(this);
+			const $selector = $(this);
 
-      const $target = $('#wu-site-domain');
+			const $target = $('#wu-site-domain');
 
-      $target.text($selector.val());
+			$target.text($selector.val());
 
-    }); // end on.keyUp;
+		}); // end on.keyUp;
 
-  });
+	});
 
 }(jQuery));

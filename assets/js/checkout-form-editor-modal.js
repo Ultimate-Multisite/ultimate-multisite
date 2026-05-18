@@ -1,24 +1,24 @@
 /* global wubox */
 wp.hooks.addAction('wu_add_checkout_form_field_mounted', 'nextpress/wp-ultimo', function(data) {
 
-  if (data.type === '') {
+	if (data.type === '') {
 
-    wubox.width(600);
+		wubox.width(600);
 
-  } // end if;
+	} // end if;
 
 });
 
 wp.hooks.addAction('wu_add_checkout_form_field_changed', 'nextpress/wp-ultimo', function(val, data) {
 
-  if (data.type === '') {
+	if (data.type === '') {
 
-    wubox.width(600);
+		wubox.width(600);
 
-  } else {
+	} else {
 
-    wubox.width(400);
+		wubox.width(400);
 
-  }// end if;
+	}// end if;
 
 });

@@ -6,34 +6,34 @@
 				function (e) {
 					e.preventDefault();
 
-					var $this         = $(this);
-					var default_label = $this.html();
-					var action_url    = $this.data('action-url');
+					const $this = $(this);
+					const default_label = $this.html();
+					const action_url = $this.data('action-url');
 
 					$this.html('...').attr('disabled', 'disabled');
 
-				$.ajax(
-					{
-						url: action_url,
-						dataType: 'json',
-						success: function (response) {
-							$this.html(response.message);
+					$.ajax(
+						{
+							url: action_url,
+							dataType: 'json',
+							success (response) {
+								$this.html(response.message);
 
-							setTimeout(
-								function () {
-									$this.html(default_label).removeAttr('disabled');
-								},
-								4000
-							);
-						},
-						error: function (jqXHR) {
-							$this.html(default_label).removeAttr('disabled');
-							wu_ajax_error(jqXHR);
-						},
-					}
-				);
+								setTimeout(
+									function () {
+										$this.html(default_label).removeAttr('disabled');
+									},
+									4000
+								);
+							},
+							error (jqXHR) {
+								$this.html(default_label).removeAttr('disabled');
+								wu_ajax_error(jqXHR);
+							},
+						}
+					);
 				}
 			);
 		}
 	);
-})(jQuery);
+}(jQuery));

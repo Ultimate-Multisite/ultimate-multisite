@@ -11,7 +11,8 @@
  * Icons use wp.primitives (SVG/Path) when available — the same approach WordPress
  * core uses in @wordpress/core-commands. There is no global wp.icons package.
  *
- * @package WP_Ultimo
+ * @param wp
+ * @package
  * @since 2.1.0
  */
 
@@ -19,30 +20,30 @@
 	'use strict';
 
 	// Bail if the minimum required APIs are not available (WP 6.4+).
-	if (!wp || !wp.commands || !wp.element || !wp.data) {
+	if (! wp || ! wp.commands || ! wp.element || ! wp.data) {
 		return;
 	}
 
-	var createElement = wp.element.createElement;
-	var useState = wp.element.useState;
-	var useEffect = wp.element.useEffect;
-	var useRef = wp.element.useRef;
-	var __ = wp.i18n.__;
-	var apiFetch = wp.apiFetch;
+	const createElement = wp.element.createElement;
+	const useState = wp.element.useState;
+	const useEffect = wp.element.useEffect;
+	const useRef = wp.element.useRef;
+	const __ = wp.i18n.__;
+	const apiFetch = wp.apiFetch;
 
 	// Progressive enhancement: wp.primitives for SVG icons (WP 6.1+).
-	var SVG = wp.primitives ? wp.primitives.SVG : null;
-	var Path = wp.primitives ? wp.primitives.Path : null;
+	const SVG = wp.primitives ? wp.primitives.SVG : null;
+	const Path = wp.primitives ? wp.primitives.Path : null;
 
 	// Progressive enhancement: wp.compose.useDebounce (WP 6.1+).
-	var useDebounce = wp.compose && wp.compose.useDebounce ? wp.compose.useDebounce : null;
+	const useDebounce = wp.compose && wp.compose.useDebounce ? wp.compose.useDebounce : null;
 
 	// Get configuration from localized script.
-	var config = window.wuCommandPalette || {};
-	var entities = config.entities || {};
-	var restUrl = config.restUrl || '';
-	var networkAdminUrl = config.networkAdminUrl || '';
-	var customLinks = config.customLinks || [];
+	const config = window.wuCommandPalette || {};
+	const entities = config.entities || {};
+	const restUrl = config.restUrl || '';
+	const networkAdminUrl = config.networkAdminUrl || '';
+	const customLinks = config.customLinks || [];
 
 	/**
 	 * SVG icon definitions using wp.primitives.
@@ -57,7 +58,7 @@
 	 *
 	 * @type {Object|null}
 	 */
-	var icons = (SVG && Path) ? {
+	const icons = (SVG && Path) ? {
 		'admin-users': createElement(SVG, {
 			xmlns: 'http://www.w3.org/2000/svg',
 			viewBox: '0 0 24 24'
@@ -171,11 +172,11 @@
 	 * @return {Object|undefined} React element or undefined.
 	 */
 	function getIcon(name) {
-		if (!icons) {
+		if (! icons) {
 			return undefined;
 		}
 
-		return icons[name] || undefined;
+		return icons[ name ] || undefined;
 	}
 
 	/**
@@ -189,25 +190,25 @@
 	 * @param {string} value The value to debounce.
 	 * @return {string} The debounced value.
 	 */
-	var useDebouncedValue = useDebounce
+	const useDebouncedValue = useDebounce
 		? function useDebouncedValueCompose(value) {
-			var _state = useState(''),
-				debouncedValue = _state[0],
-				setDebouncedValue = _state[1];
-			var debounced = useDebounce(setDebouncedValue, 250);
+			const _state = useState(''),
+				debouncedValue = _state[ 0 ],
+				setDebouncedValue = _state[ 1 ];
+			const debounced = useDebounce(setDebouncedValue, 250);
 			useEffect(function () {
 				debounced(value);
 				return function () {
 					debounced.cancel();
 				};
-			}, [value, debounced]);
+			}, [ value, debounced ]);
 			return debouncedValue;
 		}
 		: function useDebouncedValueFallback(value) {
-			var _state = useState(''),
-				debouncedValue = _state[0],
-				setDebouncedValue = _state[1];
-			var timeoutRef = useRef(null);
+			const _state = useState(''),
+				debouncedValue = _state[ 0 ],
+				setDebouncedValue = _state[ 1 ];
+			const timeoutRef = useRef(null);
 			useEffect(function () {
 				if (timeoutRef.current) {
 					clearTimeout(timeoutRef.current);
@@ -220,7 +221,7 @@
 						clearTimeout(timeoutRef.current);
 					}
 				};
-			}, [value]);
+			}, [ value ]);
 			return debouncedValue;
 		};
 
@@ -231,48 +232,48 @@
 	 * search input, caches results, and returns commands with proper
 	 * categories and icons when available.
 	 *
-	 * @param {Object} params Parameters object.
+	 * @param {Object} params        Parameters object.
 	 * @param {string} params.search The search term.
 	 * @return {Object} Commands and loading state.
 	 */
 	function useEntitySearch({ search }) {
-		var _useState = useState([]),
-			commands = _useState[0],
-			setCommands = _useState[1];
-		var _useLoading = useState(false),
-			isLoading = _useLoading[0],
-			setIsLoading = _useLoading[1];
-		var cacheRef = useRef({});
+		const _useState = useState([]),
+			commands = _useState[ 0 ],
+			setCommands = _useState[ 1 ];
+		const _useLoading = useState(false),
+			isLoading = _useLoading[ 0 ],
+			setIsLoading = _useLoading[ 1 ];
+		const cacheRef = useRef({});
 
-		var debouncedSearch = useDebouncedValue(search || '');
+		const debouncedSearch = useDebouncedValue(search || '');
 
 		// Fetch results when debounced search changes.
 		useEffect(function () {
-			if (!debouncedSearch || debouncedSearch.length < 2) {
+			if (! debouncedSearch || debouncedSearch.length < 2) {
 				setCommands([]);
 				setIsLoading(false);
 				return;
 			}
 
 			// Check cache.
-			if (cacheRef.current[debouncedSearch]) {
-				setCommands(cacheRef.current[debouncedSearch]);
+			if (cacheRef.current[ debouncedSearch ]) {
+				setCommands(cacheRef.current[ debouncedSearch ]);
 				setIsLoading(false);
 				return;
 			}
 
 			setIsLoading(true);
 
-			var searchUrl = restUrl + '?' + new URLSearchParams({
+			const searchUrl = restUrl + '?' + new URLSearchParams({
 				query: debouncedSearch,
 				limit: 15
 			}).toString();
 
 			apiFetch({ url: searchUrl })
 				.then(function (response) {
-					var results = response.results || [];
+					const results = response.results || [];
 
-					var cmds = results.map(function (result) {
+					const cmds = results.map(function (result) {
 						return {
 							name: 'ultimate-multisite/' + result.type + '-' + result.id,
 							label: result.title,
@@ -281,14 +282,14 @@
 							// WP 7+: category label shown in palette UI.
 							// WP 6.x: ignored safely, defaults to 'action' internally.
 							category: 'action',
-							callback: function ({ close }) {
+							callback ({ close }) {
 								close();
 								window.location.href = result.url;
 							}
 						};
 					});
 
-					cacheRef.current[debouncedSearch] = cmds;
+					cacheRef.current[ debouncedSearch ] = cmds;
 					setCommands(cmds);
 					setIsLoading(false);
 				})
@@ -296,11 +297,11 @@
 					setCommands([]);
 					setIsLoading(false);
 				});
-		}, [debouncedSearch]);
+		}, [ debouncedSearch ]);
 
 		return {
-			commands: commands,
-			isLoading: isLoading
+			commands,
+			isLoading
 		};
 	}
 
@@ -311,11 +312,11 @@
 	 * searches entities via the REST API as the user types.
 	 */
 	function registerEntitySearchLoader() {
-		if (!wp.commands.store) {
+		if (! wp.commands.store) {
 			return;
 		}
 
-		var dispatch = wp.data.dispatch(wp.commands.store);
+		const dispatch = wp.data.dispatch(wp.commands.store);
 
 		dispatch.registerCommandLoader({
 			name: 'ultimate-multisite/entity-search',
@@ -329,11 +330,11 @@
 	 * These are user-defined links configured in Ultimate Multisite settings.
 	 */
 	function registerCustomLinks() {
-		if (!customLinks || customLinks.length === 0 || !wp.commands.store) {
+		if (! customLinks || customLinks.length === 0 || ! wp.commands.store) {
 			return;
 		}
 
-		var dispatch = wp.data.dispatch(wp.commands.store);
+		const dispatch = wp.data.dispatch(wp.commands.store);
 
 		customLinks.forEach(function (link, index) {
 			dispatch.registerCommand({
@@ -342,7 +343,7 @@
 				icon: getIcon('external'),
 				// WP 7+: shows "View" category label. WP 6.x: ignored safely.
 				category: 'view',
-				callback: function ({ close }) {
+				callback ({ close }) {
 					close();
 					window.location.href = link.url;
 				}
@@ -364,11 +365,11 @@
 	 * - keywords: WP 7+ uses these for additional search matching
 	 */
 	function registerStaticCommands() {
-		if (!wp.commands.store) {
+		if (! wp.commands.store) {
 			return;
 		}
 
-		var dispatch = wp.data.dispatch(wp.commands.store);
+		const dispatch = wp.data.dispatch(wp.commands.store);
 
 		// Dashboard command with keywords for discoverability.
 		dispatch.registerCommand({
@@ -376,8 +377,8 @@
 			label: __('Ultimate Multisite Dashboard', 'ultimate-multisite'),
 			icon: getIcon('dashboard'),
 			category: 'view',
-			keywords: ['waas', 'multisite', 'network', 'overview'],
-			callback: function ({ close }) {
+			keywords: [ 'waas', 'multisite', 'network', 'overview' ],
+			callback ({ close }) {
 				close();
 				window.location.href = networkAdminUrl + 'admin.php?page=wp-ultimo';
 			}
@@ -389,8 +390,8 @@
 			label: __('Ultimate Multisite Settings', 'ultimate-multisite'),
 			icon: getIcon('admin-settings'),
 			category: 'view',
-			keywords: ['configuration', 'options', 'setup'],
-			callback: function ({ close }) {
+			keywords: [ 'configuration', 'options', 'setup' ],
+			callback ({ close }) {
 				close();
 				window.location.href = networkAdminUrl + 'admin.php?page=wp-ultimo-settings';
 			}
@@ -402,38 +403,38 @@
 			label: __('System Information', 'ultimate-multisite'),
 			icon: getIcon('info'),
 			category: 'view',
-			keywords: ['debug', 'status', 'health', 'diagnostics'],
-			callback: function ({ close }) {
+			keywords: [ 'debug', 'status', 'health', 'diagnostics' ],
+			callback ({ close }) {
 				close();
 				window.location.href = networkAdminUrl + 'admin.php?page=wp-ultimo-system-info';
 			}
 		});
 
 		// Entity-specific keywords for better search matching (WP 7+).
-		var entityKeywords = {
-			customer: ['users', 'subscribers', 'clients', 'accounts'],
-			site: ['subsites', 'blogs', 'websites', 'domains'],
-			membership: ['subscriptions', 'plans', 'recurring'],
-			payment: ['transactions', 'invoices', 'billing', 'revenue'],
-			product: ['plans', 'pricing', 'packages', 'offers'],
-			domain: ['domains', 'mapping', 'dns', 'urls'],
-			discount_code: ['coupons', 'promotions', 'discounts', 'vouchers'],
-			webhook: ['hooks', 'integrations', 'api', 'notifications'],
-			broadcast: ['emails', 'messages', 'announcements', 'notifications'],
-			checkout_form: ['forms', 'registration', 'signup', 'onboarding']
+		const entityKeywords = {
+			customer: [ 'users', 'subscribers', 'clients', 'accounts' ],
+			site: [ 'subsites', 'blogs', 'websites', 'domains' ],
+			membership: [ 'subscriptions', 'plans', 'recurring' ],
+			payment: [ 'transactions', 'invoices', 'billing', 'revenue' ],
+			product: [ 'plans', 'pricing', 'packages', 'offers' ],
+			domain: [ 'domains', 'mapping', 'dns', 'urls' ],
+			discount_code: [ 'coupons', 'promotions', 'discounts', 'vouchers' ],
+			webhook: [ 'hooks', 'integrations', 'api', 'notifications' ],
+			broadcast: [ 'emails', 'messages', 'announcements', 'notifications' ],
+			checkout_form: [ 'forms', 'registration', 'signup', 'onboarding' ]
 		};
 
 		// Register list pages for each entity type.
 		Object.keys(entities).forEach(function (slug) {
-			var entity = entities[slug];
+			const entity = entities[ slug ];
 
 			dispatch.registerCommand({
 				name: 'ultimate-multisite/list-' + slug,
 				label: entity.label_plural || entity.label + 's',
 				icon: getIcon(entity.icon),
 				category: 'view',
-				keywords: entityKeywords[slug] || [],
-				callback: function ({ close }) {
+				keywords: entityKeywords[ slug ] || [],
+				callback ({ close }) {
 					close();
 					window.location.href = networkAdminUrl + 'admin.php?page=wu-' + slug.replaceAll('_', '-') + 's';
 				}
@@ -457,4 +458,4 @@
 
 	init();
 
-})(window.wp);
+}(window.wp));

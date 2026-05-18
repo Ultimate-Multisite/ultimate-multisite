@@ -7,8 +7,8 @@
 				loading: false,
 				results: wu_integration_test_data.waiting_message,
 			},
-			mounted: function() {
-				var that = this;
+			mounted() {
+				const that = this;
 				this.loading = true;
 
 				setTimeout(() => {
@@ -19,12 +19,12 @@
 							action: 'wu_test_hosting_integration',
 							integration: wu_integration_test_data.integration_id,
 						},
-						success: function(response) {
+						success(response) {
 							that.loading = false;
 							that.success = response.success;
 							that.results = response.data;
 						},
-						error: function() {
+						error() {
 							that.loading = false;
 							that.success = false;
 							that.results = wu_integration_test_data.error_message || 'Connection test failed. Please try again.';
@@ -34,4 +34,4 @@
 			},
 		});
 	});
-})(jQuery);
+}(jQuery));

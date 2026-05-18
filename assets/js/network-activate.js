@@ -5,7 +5,7 @@
  * reloads the page on success or shows an error message with a fallback
  * help link on failure.
  *
- * @package WP_Ultimo
+ * @package
  * @subpackage Assets
  * @since 2.6.0
  */
@@ -15,12 +15,12 @@ jQuery(function($) {
 
 	$(document).on('click', '.wu-network-activate-btn', function() {
 
-		var $btn      = $(this);
-		var $wrapper  = $btn.closest('div');
-		var nonce     = $btn.data('ajax-nonce');
-		var $spinner  = $wrapper.find('.wu-network-activate-spinner');
-		var $message  = $wrapper.find('.wu-network-activate-message');
-		var $fallback = $wrapper.find('.wu-network-activate-fallback');
+		const $btn = $(this);
+		const $wrapper = $btn.closest('div');
+		const nonce = $btn.data('ajax-nonce');
+		const $spinner = $wrapper.find('.wu-network-activate-spinner');
+		const $message = $wrapper.find('.wu-network-activate-message');
+		const $fallback = $wrapper.find('.wu-network-activate-fallback');
 
 		$btn.prop('disabled', true);
 		$spinner.addClass('is-active');
@@ -43,7 +43,7 @@ jQuery(function($) {
 				$btn.hide();
 				$fallback.show();
 
-				var errorMsg = wu_network_activate.error_message;
+				let errorMsg = wu_network_activate.error_message;
 
 				if (response.data) {
 					if (Array.isArray(response.data) && response.data.length > 0 && response.data[ 0 ] && response.data[ 0 ].message) {

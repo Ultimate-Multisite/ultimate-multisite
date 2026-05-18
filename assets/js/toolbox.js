@@ -5,5 +5,5 @@ if (typeof jQuery !== 'undefined') {
 				$(this).parents('#wu-toolbox').toggleClass('wu-toolbox-closed');
 			});
 		});
-	})(jQuery);
+	}(jQuery));
 }

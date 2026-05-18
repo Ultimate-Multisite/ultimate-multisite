@@ -5,23 +5,24 @@
  * Uses the shared WU_PasswordStrength utility to check password strength
  * and enforces minimum strength requirements.
  *
+ * @param $
  * @since 2.3.0
  */
 (function($) {
 	'use strict';
 
-	var passwordStrength;
+	let passwordStrength;
 
 	/**
 	 * Initialize the password strength meter.
 	 */
 	$(document).ready(function() {
-		var $pass1 = $('#field-pass1');
-		var $pass2 = $('#field-pass2');
-		var $submit = $('#wp-submit');
-		var $form = $pass1.closest('form');
+		const $pass1 = $('#field-pass1');
+		const $pass2 = $('#field-pass2');
+		const $submit = $('#wp-submit');
+		const $form = $pass1.closest('form');
 
-		if (!$pass1.length || typeof WU_PasswordStrength === 'undefined') {
+		if (! $pass1.length || typeof WU_PasswordStrength === 'undefined') {
 			return;
 		}
 
@@ -35,7 +36,7 @@
 
 		// Prevent form submission if password is too weak
 		$form.on('submit', function(e) {
-			if (!passwordStrength.isValid()) {
+			if (! passwordStrength.isValid()) {
 				e.preventDefault();
 				return false;
 			}

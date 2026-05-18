@@ -8,28 +8,28 @@
  * Uses SweetAlert2 when available (most admin pages load it), otherwise
  * injects a standard WordPress admin notice at the top of #wpbody-content.
  *
- * @param {Object|string} jqXHR    The jQuery XHR object or a plain error string.
- * @param {string}        context  Optional human-readable context label (e.g. "loading logs").
+ * @param {Object|string} jqXHR   The jQuery XHR object or a plain error string.
+ * @param {string}        context Optional human-readable context label (e.g. "loading logs").
  * @return {void}
  */
 window.wu_ajax_error = function( jqXHR, context ) {
 
-	var i18n = ( typeof wu_ajax_errors !== 'undefined' ) ? wu_ajax_errors : {};
+	const i18n = ( typeof wu_ajax_errors !== 'undefined' ) ? wu_ajax_errors : {};
 
-	var title   = i18n.error_title   || 'Request Failed';
-	var generic = i18n.error_message || 'An unexpected error occurred. Please try again or contact support if the problem persists.';
-	var suffix  = context ? ( ' ' + ( i18n.while_prefix || 'while' ) + ' ' + context + '.' ) : '';
+	const title = i18n.error_title || 'Request Failed';
+	const generic = i18n.error_message || 'An unexpected error occurred. Please try again or contact support if the problem persists.';
+	const suffix = context ? ( ' ' + ( i18n.while_prefix || 'while' ) + ' ' + context + '.' ) : '';
 
-	var message = generic + suffix;
+	let message = generic + suffix;
 
 	// Try to extract a more specific message from the response body.
 	if ( jqXHR && typeof jqXHR === 'object' ) {
 
-		var status = jqXHR.status;
+		const status = jqXHR.status;
 
 		if ( jqXHR.responseJSON ) {
 
-			var rj = jqXHR.responseJSON;
+			const rj = jqXHR.responseJSON;
 
 			if ( rj.data && rj.data[ 0 ] && rj.data[ 0 ].message ) {
 
@@ -65,7 +65,7 @@ window.wu_ajax_error = function( jqXHR, context ) {
 	if ( typeof Swal !== 'undefined' ) {
 
 		Swal.fire({
-			title: title,
+			title,
 			icon: 'error',
 			text: message,
 			showCloseButton: true,
@@ -77,7 +77,7 @@ window.wu_ajax_error = function( jqXHR, context ) {
 	} // end if;
 
 	// Fallback: inject a standard WP admin notice.
-	var $notice = jQuery(
+	const $notice = jQuery(
 		'<div class="notice notice-error is-dismissible wu-ajax-error-notice">' +
 		'<p><strong>' + jQuery( '<span>' ).text( title ).html() + ':</strong> ' + jQuery( '<span>' ).text( message ).html() + '</p>' +
 		'<button type="button" class="notice-dismiss"><span class="screen-reader-text">Dismiss this notice.</span></button>' +
@@ -86,11 +86,13 @@ window.wu_ajax_error = function( jqXHR, context ) {
 
 	$notice.find( '.notice-dismiss' ).on( 'click', function() {
 
-		$notice.fadeOut( 200, function() { $notice.remove(); } );
+		$notice.fadeOut( 200, function() {
+			$notice.remove();
+		} );
 
 	} );
 
-	var $target = jQuery( '#wpbody-content' ).first();
+	let $target = jQuery( '#wpbody-content' ).first();
 
 	if ( ! $target.length ) {
 
@@ -103,7 +105,9 @@ window.wu_ajax_error = function( jqXHR, context ) {
 	// Auto-dismiss after 8 seconds.
 	setTimeout( function() {
 
-		$notice.fadeOut( 400, function() { $notice.remove(); } );
+		$notice.fadeOut( 400, function() {
+			$notice.remove();
+		} );
 
 	}, 8000 );
 

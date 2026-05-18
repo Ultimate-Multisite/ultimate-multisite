@@ -2,22 +2,22 @@
 /* global wu_gutenberg */
 (function($) {
 
-  $(document).ready(function() {
+	$(document).ready(function() {
 
-    /**
-     * Filter that receives the content from the preview markup and make modifications to it.
-     *
-     * @param {*} content
-     */
-    const custom_gutenberg_preview_message = function(content) {
+		/**
+		 * Filter that receives the content from the preview markup and make modifications to it.
+		 *
+		 * @param {*} content
+		 */
+		const custom_gutenberg_preview_message = function(content) {
 
-      content = content.replace(wp.i18n.__('Generating preview…'), wu_gutenberg.replacement_message);
+			content = content.replace(wp.i18n.__('Generating preview…'), wu_gutenberg.replacement_message);
 
-      const img = '<img class="wu-logo" src="' + wu_gutenberg.logo + '"><p>';
+			const img = '<img class="wu-logo" src="' + wu_gutenberg.logo + '"><p>';
 
-      content = content.replace('<p>', img);
+			content = content.replace('<p>', img);
 
-      content += '<style> \
+			content += '<style> \
         svg { \
           display: none !important; \
         } \
@@ -40,22 +40,22 @@
         } \
       </style>';
 
-      return content;
+			return content;
 
-    };
+		};
 
-    /**
-     * Check if the hooks are set to avoid bugs and breaking other scripts.
-     */
-    if (typeof wp === 'object' && typeof wp.hooks === 'object') {
+		/**
+		 * Check if the hooks are set to avoid bugs and breaking other scripts.
+		 */
+		if (typeof wp === 'object' && typeof wp.hooks === 'object') {
 
-      /**
-       * Pass as a wp hook
-       */
-      wp.hooks.addFilter('editor.PostPreview.interstitialMarkup', 'wp-ultimo/custom-preview-message', custom_gutenberg_preview_message);
+			/**
+			 * Pass as a wp hook
+			 */
+			wp.hooks.addFilter('editor.PostPreview.interstitialMarkup', 'wp-ultimo/custom-preview-message', custom_gutenberg_preview_message);
 
-    } // end if;
+		} // end if;
 
-  });
+	});
 
 }(jQuery));

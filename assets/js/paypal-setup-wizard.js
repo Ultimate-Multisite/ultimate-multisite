@@ -11,7 +11,7 @@
 			return;
 		}
 
-		var data = wu_paypal_setup_wizard;
+		const data = wu_paypal_setup_wizard;
 
 		new Vue( {
 			el: '#wu-paypal-setup-wizard-test',
@@ -22,12 +22,12 @@
 				errorMessage: data.error_message,
 				rawResponse: data.waiting_message,
 			},
-			mounted: function () {
+			mounted () {
 				this.runTest();
 			},
 			methods: {
-				runTest: function () {
-					var that = this;
+				runTest () {
+					const that = this;
 					this.loading = true;
 					this.success = false;
 					this.rawResponse = data.waiting_message;
@@ -40,7 +40,7 @@
 							nonce: data.nonce,
 							sandbox_mode: data.sandbox_mode,
 						},
-						success: function ( response ) {
+						success ( response ) {
 							that.loading = false;
 							that.rawResponse = JSON.stringify( response, null, 2 );
 
@@ -54,7 +54,7 @@
 									data.error_message;
 							}
 						},
-						error: function ( xhr ) {
+						error ( xhr ) {
 							that.loading = false;
 							that.success = false;
 							that.errorMessage = data.error_message;
@@ -67,4 +67,4 @@
 			},
 		} );
 	} );
-} )( jQuery );
+}( jQuery ));

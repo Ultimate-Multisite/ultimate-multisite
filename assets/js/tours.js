@@ -41,28 +41,28 @@ import Shepherd from 'shepherd.js';
 				},
 			});
 
-		const markTourFinished = function() {
+			const markTourFinished = function() {
 
-			const data = new URLSearchParams({
-				action: 'wu_mark_tour_as_finished',
-				tour_id,
-				nonce: wu_tours_vars.nonce,
-			});
+				const data = new URLSearchParams({
+					action: 'wu_mark_tour_as_finished',
+					tour_id,
+					nonce: wu_tours_vars.nonce,
+				});
 
-			/*
+				/*
 			 * sendBeacon() queues the request at the OS/browser level and
 			 * survives page navigation — so the setting is saved even if the
 			 * user refreshes immediately after closing the tour (which would
 			 * cancel an in-flight $.ajax() request). Falls back to $.ajax()
 			 * for browsers without sendBeacon support.
 			 */
-			if (navigator.sendBeacon) {
-				navigator.sendBeacon(ajaxurl, data);
-			} else {
-				$.ajax({ url: ajaxurl, data: Object.fromEntries(data) });
-			}
+				if (navigator.sendBeacon) {
+					navigator.sendBeacon(ajaxurl, data);
+				} else {
+					$.ajax({ url: ajaxurl, data: Object.fromEntries(data) });
+				}
 
-		};
+			};
 
 			window[ tour_id ].on('complete', markTourFinished);
 			window[ tour_id ].on('cancel', markTourFinished);
