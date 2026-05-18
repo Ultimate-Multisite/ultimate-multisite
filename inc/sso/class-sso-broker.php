@@ -12,7 +12,7 @@
 
 namespace WP_Ultimo\SSO;
 
-use Jasny\SSO\Broker\Broker;
+use WP_Ultimo\SSO\Jasny\Broker\Broker;
 
 defined('ABSPATH') || exit;
 

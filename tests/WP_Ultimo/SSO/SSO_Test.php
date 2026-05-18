@@ -930,20 +930,6 @@ class SSO_Test extends \WP_UnitTestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// cache() returns PSR-16 cache
-	// ------------------------------------------------------------------
-
-	/**
-	 * Test cache returns a PSR-16 compatible instance.
-	 */
-	public function test_cache_returns_psr16_compatible_instance(): void {
-		$sso   = SSO::get_instance();
-		$cache = $sso->cache();
-
-		$this->assertInstanceOf(\Psr\SimpleCache\CacheInterface::class, $cache);
-	}
-
-	// ------------------------------------------------------------------
 	// build_server_request
 	// ------------------------------------------------------------------
 
@@ -962,13 +948,13 @@ class SSO_Test extends \WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * Test get_server returns a Jasny SSO Server instance.
+	 * Test get_server returns a vendored SSO Server instance.
 	 */
 	public function test_get_server_returns_server_instance(): void {
 		$sso    = SSO::get_instance();
 		$server = $sso->get_server();
 
-		$this->assertInstanceOf(\Jasny\SSO\Server\Server::class, $server);
+		$this->assertInstanceOf(\WP_Ultimo\SSO\Jasny\Server\Server::class, $server);
 	}
 
 	// ------------------------------------------------------------------

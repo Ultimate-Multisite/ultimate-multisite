@@ -47,7 +47,6 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		remove_all_filters('wu_sso_salt');
 		remove_all_filters('wu_sso_get_strategy');
 		remove_all_filters('wu_sso_get_url_path');
-		remove_all_filters('wu_sso_cache');
 		remove_all_filters('wu_sso_logger');
 		remove_all_filters('wu_sso_server_request');
 		remove_all_filters('wu_sso_get_broker');
@@ -940,7 +939,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		$sso    = SSO::get_instance();
 		$server = $sso->get_server();
 
-		$this->assertInstanceOf(\Jasny\SSO\Server\Server::class, $server);
+		$this->assertInstanceOf(\WP_Ultimo\SSO\Jasny\Server\Server::class, $server);
 	}
 
 	/**
@@ -1290,27 +1289,6 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 			has_filter('secure_logged_in_cookie', [$sso, 'force_secure_login_cookie']),
 			'init() must call startup() which registers secure_logged_in_cookie filter'
 		);
-	}
-
-	// ------------------------------------------------------------------
-	// cache — lazy initialization
-	// ------------------------------------------------------------------
-
-	/**
-	 * Test cache initializes WordPress_Simple_Cache on first call.
-	 */
-	public function test_cache_initializes_on_first_call(): void {
-		$sso = SSO::get_instance();
-
-		// Reset cache property via reflection.
-		$ref  = new \ReflectionClass($sso);
-		$prop = $ref->getProperty('cache');
-		$prop->setAccessible(true);
-		$prop->setValue($sso, null);
-
-		$cache = $sso->cache();
-
-		$this->assertInstanceOf(WordPress_Simple_Cache::class, $cache);
 	}
 
 	// ------------------------------------------------------------------
@@ -1808,7 +1786,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		);
 
 		// Mock server to call startBrokerSession and set target user.
-		$mock_server = $this->createMock(\Jasny\SSO\Server\Server::class);
+		$mock_server = $this->createMock(\WP_Ultimo\SSO\Jasny\Server\Server::class);
 		$mock_server->method('startBrokerSession')->willReturnCallback(
 			function () use ($sso, $target_user_id) {
 				$sso->set_target_user_id($target_user_id);
@@ -1908,7 +1886,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 			}
 		);
 
-		$mock_server = $this->createMock(\Jasny\SSO\Server\Server::class);
+		$mock_server = $this->createMock(\WP_Ultimo\SSO\Jasny\Server\Server::class);
 		$mock_server->method('startBrokerSession')->willReturnCallback(
 			function () use ($sso, $target_user_id) {
 				$sso->set_target_user_id($target_user_id);
@@ -2032,7 +2010,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		$sso = SSO::get_instance();
 
 		$attach_called = false;
-		$mock_server   = $this->createMock(\Jasny\SSO\Server\Server::class);
+		$mock_server   = $this->createMock(\WP_Ultimo\SSO\Jasny\Server\Server::class);
 		$mock_server->method('attach')->willReturnCallback(
 			function () use (&$attach_called) {
 				$attach_called = true;
@@ -2077,7 +2055,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	public function test_handle_server_session_exception_non_ssl_executes(): void {
 		$sso = SSO::get_instance();
 
-		$mock_server = $this->createMock(\Jasny\SSO\Server\Server::class);
+		$mock_server = $this->createMock(\WP_Ultimo\SSO\Jasny\Server\Server::class);
 		$mock_server->method('attach')->willThrowException(
 			new \WP_Ultimo\SSO\Exception\SSO_Session_Exception('Session error', 401)
 		);
@@ -2122,7 +2100,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	public function test_handle_server_generic_throwable_executes(): void {
 		$sso = SSO::get_instance();
 
-		$mock_server = $this->createMock(\Jasny\SSO\Server\Server::class);
+		$mock_server = $this->createMock(\WP_Ultimo\SSO\Jasny\Server\Server::class);
 		$mock_server->method('attach')->willThrowException(
 			new \RuntimeException('Generic error', 500)
 		);

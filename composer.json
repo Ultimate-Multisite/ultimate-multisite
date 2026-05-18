@@ -52,7 +52,6 @@
         "ifsnop/mysqldump-php": "^2.12",
         "mpdf/mpdf": "^8.2.0",
         "remotelyliving/php-dns": "^4.3.0",
-        "jasny/sso": "^0.4.2",
         "nyholm/psr7": "^1.8.0",
         "scssphp/scssphp": "^1.11.1",
         "cweagans/composer-patches": "^1.7",
@@ -162,9 +161,6 @@
                 "patches/berlindb-core-src-database-table-php.patch",
                 "patches/berlindb-core-src-database-query-php.patch",
                 "patches/berlindb-core-src-database-column-php.patch"
-            ],
-            "jasny/sso": [
-                "patches/jasny-sso-src-broker-cookies-php.patch"
             ],
             "mpdf/psr-log-aware-trait": [
                 "patches/mpdf-psr-log-aware-trait-void-return.patch",

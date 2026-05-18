@@ -9,6 +9,8 @@
 	<exclude-pattern>/dependencies/</exclude-pattern>
 	<exclude-pattern>/../wordpress/</exclude-pattern>
 	<exclude-pattern>/inc/site-exporter/mu-migration/</exclude-pattern>
+	<!-- In-tree vendored copy of jasny/sso (PascalCase + camelCase preserved for upstream diffability). -->
+	<exclude-pattern>/inc/sso/jasny/</exclude-pattern>
 
 	<!-- Test files use PHPUnit naming conventions (PascalCase), not WordPress file naming. -->
 	<rule ref="WordPress.Files.FileName">
