@@ -69,6 +69,44 @@ class Assets_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test wu_get_asset minifies Vue library paths.
+	 */
+	public function test_wu_get_asset_minifies_vue_libraries(): void {
+
+		// Test Vue library.
+		$result = wu_get_asset('lib/vue.js', 'js');
+		$this->assertStringContainsString('lib/vue.min.js', $result);
+
+		// Test v-money library.
+		$result = wu_get_asset('lib/v-money.js', 'js');
+		$this->assertStringContainsString('lib/v-money.min.js', $result);
+
+		// Test vue-the-mask library.
+		$result = wu_get_asset('lib/vue-the-mask.js', 'js');
+		$this->assertStringContainsString('lib/vue-the-mask.min.js', $result);
+
+		// Test vue-draggable library.
+		$result = wu_get_asset('lib/vue-draggable.js', 'js');
+		$this->assertStringContainsString('lib/vue-draggable.min.js', $result);
+
+		// Test sortablejs library.
+		$result = wu_get_asset('lib/sortablejs.js', 'js');
+		$this->assertStringContainsString('lib/sortablejs.min.js', $result);
+
+		// Test selectize library.
+		$result = wu_get_asset('lib/selectize.js', 'js');
+		$this->assertStringContainsString('lib/selectize.min.js', $result);
+
+		// Test apexcharts library with js/lib directory.
+		$result = wu_get_asset('apexcharts.js', 'js/lib');
+		$this->assertStringContainsString('apexcharts.min.js', $result);
+
+		// Test vue-apexcharts library with js/lib directory.
+		$result = wu_get_asset('vue-apexcharts.js', 'js/lib');
+		$this->assertStringContainsString('vue-apexcharts.min.js', $result);
+	}
+
+	/**
 	 * Core top-level page hook.
 	 */
 	public function test_wu_is_wu_page_matches_core_toplevel(): void {

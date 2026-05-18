@@ -304,6 +304,44 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 		$this->assertTrue(true);
 	}
 
+	/**
+	 * Test that Vue script is registered with minified version when SCRIPT_DEBUG is off.
+	 */
+	public function test_register_scripts_uses_minified_vue(): void {
+		global $wp_scripts;
+
+		$this->page->register_scripts();
+
+		// Verify wu-vue is registered.
+		$this->assertTrue(wp_script_is('wu-vue', 'registered'));
+
+		// Get the registered script object.
+		$script = $wp_scripts->registered['wu-vue'];
+
+		// Verify the script URL contains the minified version.
+		$this->assertStringContainsString('vue.min.js', $script->src);
+		$this->assertStringNotContainsString('vue.js?', $script->src);
+	}
+
+	/**
+	 * Test that Vue library scripts are registered with minified versions.
+	 */
+	public function test_register_scripts_uses_minified_vue_libraries(): void {
+		global $wp_scripts;
+
+		$this->page->register_scripts();
+
+		// Test v-money library.
+		$this->assertTrue(wp_script_is('wu-money-mask', 'registered'));
+		$money_script = $wp_scripts->registered['wu-money-mask'];
+		$this->assertStringContainsString('v-money.min.js', $money_script->src);
+
+		// Test vue-the-mask library.
+		$this->assertTrue(wp_script_is('wu-input-mask', 'registered'));
+		$mask_script = $wp_scripts->registered['wu-input-mask'];
+		$this->assertStringContainsString('vue-the-mask.min.js', $mask_script->src);
+	}
+
 	// -------------------------------------------------------------------------
 	// alert_incomplete_installation()
 	// -------------------------------------------------------------------------
