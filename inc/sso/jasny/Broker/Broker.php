@@ -288,6 +288,10 @@ class Broker {
 	protected function getRequestUrl(string $path, $params = ''): string {
 		$query = is_array($params) ? http_build_query($params) : $params;
 
+		if ('' === $path) {
+			throw new \InvalidArgumentException('Request path cannot be empty');
+		}
+
 		$base = '/' === $path[0]
 			? preg_replace('~^(\w+://[^/]+).*~', '$1', $this->url)
 			: preg_replace('~/[^/]*$~', '', $this->url);
