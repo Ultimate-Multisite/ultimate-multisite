@@ -279,7 +279,7 @@ class Server {
 	): void {
 		$expected = $this->generateChecksum($command . (null !== $code ? ":$code" : ''), $brokerId, $token);
 
-		if ($checksum !== $expected) {
+		if ( ! hash_equals($expected, $checksum)) {
 			$this->logger->warning(
 				"Invalid $command checksum",
 				['expected' => $expected, 'received' => $checksum, 'broker' => $brokerId, 'token' => $token]
