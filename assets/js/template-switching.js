@@ -286,8 +286,8 @@
 
 					} // end if;
 
-					this.template_id     = this.original_template_id;
-					this.confirm_active  = true;
+					this.template_id = this.original_template_id;
+					this.confirm_active = true;
 
 					/*
 					 * Scroll the confirm panel into view. The current-
@@ -321,8 +321,8 @@
 				cancel_switch() {
 
 					this.confirm_active = false;
-					this.template_id    = this.original_template_id;
-					this.error_message  = '';
+					this.template_id = this.original_template_id;
+					this.error_message = '';
 
 				},
 
@@ -341,15 +341,15 @@
 				 * directly inside the panel where the click happened.
 				 *
 				 * @param {string|null} message Human-readable failure
-				 *   reason. Pass null to delegate copy to wu_ajax_error
-				 *   (used for network errors where we do not have a
-				 *   server-supplied string).
+				 *                              reason. Pass null to delegate copy to wu_ajax_error
+				 *                              (used for network errors where we do not have a
+				 *                              server-supplied string).
 				 */
 				show_error(message) {
 
 					this.unblock();
 					this.confirm_switch = false;
-					this.ready          = false;
+					this.ready = false;
 
 					/*
 					 * Keep confirm_active true so the panel — which now
@@ -357,7 +357,7 @@
 					 */
 					this.confirm_active = true;
 
-					this.error_message  = message || 'An error occurred while switching templates.';
+					this.error_message = message || 'An error occurred while switching templates.';
 
 					/*
 					 * Belt-and-braces: also show the global notice in case

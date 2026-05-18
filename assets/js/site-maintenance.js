@@ -1,53 +1,53 @@
 /* global wu_site_maintenance, wu_block_ui, wu_ajax_error */
 (function($) {
 
-  $(document).ready(function() {
+	$(document).ready(function() {
 
-    $('#wu-tg-maintenance_mode').change(function() {
+		$('#wu-tg-maintenance_mode').change(function() {
 
-      const blocked = wu_block_ui('#wp-ultimo-site-maintenance-element .inside');
+			const blocked = wu_block_ui('#wp-ultimo-site-maintenance-element .inside');
 
-      jQuery.ajax({
-        url: wu_site_maintenance.ajaxurl,
-        type: 'post',
-        data: {
-          action: 'toggle_maintenance_mode',
-          maintenance_status: $('#wu-tg-maintenance_mode').is(':checked'),
-          site_hash: $('[name=site_hash]').val(),
-          _wpnonce: wu_site_maintenance.nonce,
-        },
-        success(response) {
+			jQuery.ajax({
+				url: wu_site_maintenance.ajaxurl,
+				type: 'post',
+				data: {
+					action: 'toggle_maintenance_mode',
+					maintenance_status: $('#wu-tg-maintenance_mode').is(':checked'),
+					site_hash: $('[name=site_hash]').val(),
+					_wpnonce: wu_site_maintenance.nonce,
+				},
+				success(response) {
 
-          blocked.unblock();
+					blocked.unblock();
 
-          if (response.success) {
+					if (response.success) {
 
-            if (response.data.value) {
+						if (response.data.value) {
 
-              $('#wp-admin-bar-wu-maintenance-mode').show();
+							$('#wp-admin-bar-wu-maintenance-mode').show();
 
-            } else {
+						} else {
 
-              $('#wp-admin-bar-wu-maintenance-mode').hide();
+							$('#wp-admin-bar-wu-maintenance-mode').hide();
 
-            } // end if;
+						} // end if;
 
-          }
+					}
 
-        }, // end success;
+				}, // end success;
 
-        error(jqXHR) {
+				error(jqXHR) {
 
-          blocked.unblock();
+					blocked.unblock();
 
-          wu_ajax_error(jqXHR);
+					wu_ajax_error(jqXHR);
 
-        }, // end error;
+				}, // end error;
 
-      }); // end ajax;
+			}); // end ajax;
 
-    }); //end checked
+		}); //end checked
 
-  });
+	});
 
 }(jQuery));

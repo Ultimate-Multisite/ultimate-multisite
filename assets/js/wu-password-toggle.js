@@ -11,7 +11,7 @@
 (function() {
 	'use strict';
 
-	var __ = wp.i18n.__;
+	const __ = wp.i18n.__;
 
 	/**
 	 * Toggle password visibility.
@@ -19,19 +19,19 @@
 	 * @param {Event} event Click event.
 	 */
 	function togglePassword(event) {
-		var toggle = event.target.closest('.wu-pwd-toggle');
+		const toggle = event.target.closest('.wu-pwd-toggle');
 
-		if (!toggle) {
+		if (! toggle) {
 			return;
 		}
 
 		event.preventDefault();
 
-		var status = toggle.getAttribute('data-toggle');
-		var input = toggle.parentElement.querySelector('input[type="password"], input[type="text"]');
-		var icon = toggle.querySelector('.dashicons');
+		const status = toggle.getAttribute('data-toggle');
+		const input = toggle.parentElement.querySelector('input[type="password"], input[type="text"]');
+		const icon = toggle.querySelector('.dashicons');
 
-		if (!input || !icon) {
+		if (! input || ! icon) {
 			return;
 		}
 
@@ -54,4 +54,4 @@
 
 	// Use event delegation to handle dynamically added elements (Vue, etc.)
 	document.addEventListener('click', togglePassword);
-})();
+}());

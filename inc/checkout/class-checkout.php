@@ -2084,6 +2084,7 @@ class Checkout {
 			'forgot_password'      => __('Forgot password?', 'ultimate-multisite'),
 			'cancel'               => __('Cancel', 'ultimate-multisite'),
 			'email_exists'         => __('A customer with the same email address or username already exists.', 'ultimate-multisite'),
+			'provisioning_site'    => __('Provisioning your site — this can take up to 60 seconds.', 'ultimate-multisite'),
 			// Client-side validation messages (%s = field label, %d = numeric limit).
 			/* translators: %s: field label */
 			'field_required'       => __('%s is required.', 'ultimate-multisite'),

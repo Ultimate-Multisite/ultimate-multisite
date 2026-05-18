@@ -1,53 +1,53 @@
 /* global ajaxurl, Vue, wu_dns_table_config, wu_ajax_error */
 (function($) {
 
-    wu_dns_table = new Vue({
-        el: '#wu-dns-table',
-        data: {
-            error: null,
-            results: {},
-            loading: true,
-        },
-        updated() {
-            this.$nextTick(function() {
+	wu_dns_table = new Vue({
+		el: '#wu-dns-table',
+		data: {
+			error: null,
+			results: {},
+			loading: true,
+		},
+		updated() {
+			this.$nextTick(function() {
 
-                window.wu_initialize_tooltip();
+				window.wu_initialize_tooltip();
 
-            });
-        }
-    })
+			});
+		}
+	})
 
-    $(document).ready(function() {
+	$(document).ready(function() {
 
-        $.ajax({
-            url: ajaxurl,
-            data: {
-                action: 'wu_get_dns_records',
-                domain: window.wu_dns_table_config.domain,
-            },
-            success: function(data) {
+		$.ajax({
+			url: ajaxurl,
+			data: {
+				action: 'wu_get_dns_records',
+				domain: window.wu_dns_table_config.domain,
+			},
+			success(data) {
 
-                Vue.set(wu_dns_table, 'loading', false);
+				Vue.set(wu_dns_table, 'loading', false);
 
-                if (data.success) {
+				if (data.success) {
 
-                    Vue.set(wu_dns_table, 'results', data.data);
+					Vue.set(wu_dns_table, 'results', data.data);
 
-                } else {
+				} else {
 
-                    Vue.set(wu_dns_table, 'error', data.data);
+					Vue.set(wu_dns_table, 'error', data.data);
 
-                }
+				}
 
-            },
-            error: function(jqXHR) {
+			},
+			error(jqXHR) {
 
-                Vue.set(wu_dns_table, 'loading', false);
+				Vue.set(wu_dns_table, 'loading', false);
 
-                wu_ajax_error(jqXHR);
+				wu_ajax_error(jqXHR);
 
-            },
-        })
+			},
+		})
 
-    });
-})(jQuery);
+	});
+}(jQuery));

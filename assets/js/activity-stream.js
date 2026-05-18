@@ -14,32 +14,32 @@ document.addEventListener('DOMContentLoaded', function() {
 			error: false,
 			errorMessage: "",
 		},
-		mounted: function() {
+		mounted() {
 			this.pullQuery();
 		},
 		watch: {
-			queried: function(value) {},
+			queried(value) {},
 		},
 		methods: {
-			hasMore: function() {
+			hasMore() {
 				return this.queried.count > (this.page * 5)
 			},
-			refresh: function() {
+			refresh() {
 				this.loading = true;
 				this.pullQuery();
 			},
-			navigatePrev: function() {
+			navigatePrev() {
 				this.page = this.page <= 1 ? 1 : this.page - 1;
 				this.loading = true;
 				this.pullQuery();
 			},
-			navigateNext: function() {
+			navigateNext() {
 				this.page = this.page + 1;
 				this.loading = true;
 				this.pullQuery();
 			},
-			pullQuery: function() {
-				var that = this;
+			pullQuery() {
+				const that = this;
 				jQuery.ajax({
 					url: ajaxurl,
 					data: {
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
 						action: 'wu_fetch_activity',
 						page: this.page,
 					},
-					success: function(data) {
+					success(data) {
 						that.loading = false;
 						Vue.set(wuActivityStream, 'loading', false);
 
@@ -55,14 +55,14 @@ document.addEventListener('DOMContentLoaded', function() {
 							Vue.set(wuActivityStream, 'queried', data.data);
 						}
 					},
-					error: function(jqXHR) {
+					error(jqXHR) {
 						that.loading = false;
 						Vue.set(wuActivityStream, 'loading', false);
 						wu_ajax_error(jqXHR);
 					},
 				})
 			},
-			get_color_event: function(type) {},
+			get_color_event(type) {},
 		}
 	});
 });

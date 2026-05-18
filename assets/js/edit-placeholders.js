@@ -2,230 +2,230 @@
 /* global Vue, wu_block_ui, ajaxurl, wu_placeholdersl10n */
 (function($) {
 
-  $(document).ready(function() {
+	$(document).ready(function() {
 
-    /**
-     * Vue
-     */
-    if ($('#wu-template-placeholders').length) {
+		/**
+		 * Vue
+		 */
+		if ($('#wu-template-placeholders').length) {
 
-      window.wu_placeholders = new Vue({
-        el: '#wu-template-placeholders',
-        data: {
-          tax_category: 'default',
-          switching: false,
-          creating: false,
-          create_name: '',
-          toggle: false,
-          loading: true,
-          saving: false,
-          initialLoading: true,
-          error: false,
-          changed: false,
-          data: {
-            placeholders: [],
-          },
-          delete: [],
-          saveMessage: '',
-          errorMessage: '',
-          rate_type: 'standard_rate',
-        },
-        watch: {
-          data: {
-            deep: true,
-            handler() {
+			window.wu_placeholders = new Vue({
+				el: '#wu-template-placeholders',
+				data: {
+					tax_category: 'default',
+					switching: false,
+					creating: false,
+					create_name: '',
+					toggle: false,
+					loading: true,
+					saving: false,
+					initialLoading: true,
+					error: false,
+					changed: false,
+					data: {
+						placeholders: [],
+					},
+					delete: [],
+					saveMessage: '',
+					errorMessage: '',
+					rate_type: 'standard_rate',
+				},
+				watch: {
+					data: {
+						deep: true,
+						handler() {
 
-              if (this.initialLoading) {
+							if (this.initialLoading) {
 
-                this.initialLoading = false;
+								this.initialLoading = false;
 
-                return;
+								return;
 
-              }
+							}
 
-              this.changed = true;
+							this.changed = true;
 
-            },
-          },
-          loading(new_value) {
+						},
+					},
+					loading(new_value) {
 
-            if (new_value === true) {
+						if (new_value === true) {
 
-              window.wu_blocked_table = wu_block_ui('table.wp-list-table');
+							window.wu_blocked_table = wu_block_ui('table.wp-list-table');
 
-            } else {
+						} else {
 
-              if (typeof window.wu_blocked_table !== 'undefined') {
+							if (typeof window.wu_blocked_table !== 'undefined') {
 
-                window.wu_blocked_table.unblock();
+								window.wu_blocked_table.unblock();
 
-              } // end if;
+							} // end if;
 
-            } // end if;
+						} // end if;
 
-          },
-        },
-        mounted() {
+					},
+				},
+				mounted() {
 
-          this.loading = true;
+					this.loading = true;
 
-          this.pull_data(true);
+					this.pull_data(true);
 
-          $('.wu-tooltip-vue').tipTip();
+					$('.wu-tooltip-vue').tipTip();
 
-        },
-        created() {
+				},
+				created() {
 
-          // Create the event.
-          const event = document.createEvent('Event');
+					// Create the event.
+					const event = document.createEvent('Event');
 
-          // Define that the event name is 'build'.
-          event.initEvent('vue_loaded', true, true);
+					// Define that the event name is 'build'.
+					event.initEvent('vue_loaded', true, true);
 
-          event.vue = this;
+					event.vue = this;
 
-          // target can be any Element or other EventTarget.
-          window.dispatchEvent(event);
+					// target can be any Element or other EventTarget.
+					window.dispatchEvent(event);
 
-        },
-        computed: {
-          selected() {
+				},
+				computed: {
+					selected() {
 
-            return $(this.data.placeholders).filter(function(index, item) {
+						return $(this.data.placeholders).filter(function(index, item) {
 
-              return item.selected;
+							return item.selected;
 
-            });
+						});
 
-          },
-        },
-        methods: {
-          refresh(e) {
+					},
+				},
+				methods: {
+					refresh(e) {
 
-            e.preventDefault();
+						e.preventDefault();
 
-            this.loading = true;
+						this.loading = true;
 
-            this.pull_data();
+						this.pull_data();
 
-          },
-          select_all(event) {
+					},
+					select_all(event) {
 
-            const toggle = $(event.target).is(':checked');
+						const toggle = $(event.target).is(':checked');
 
-            this.data.placeholders = $.map(this.data.placeholders, function(item) {
+						this.data.placeholders = $.map(this.data.placeholders, function(item) {
 
-              item.selected = toggle;
+							item.selected = toggle;
 
-              return item;
+							return item;
 
-            });
+						});
 
-          },
-          pull_data() {
+					},
+					pull_data() {
 
-            const that = this;
+						const that = this;
 
-            jQuery.getJSON(ajaxurl + '?action=wu_get_placeholders').done(function(response) {
+						jQuery.getJSON(ajaxurl + '?action=wu_get_placeholders').done(function(response) {
 
-              that.loading = false;
+							that.loading = false;
 
-              that.data = response.data;
+							that.data = response.data;
 
-            })
-              .fail(function(error) {
+						})
+							.fail(function(error) {
 
-                that.loading = false;
+								that.loading = false;
 
-                that.error = true;
+								that.error = true;
 
-                that.errorMessage = error.statusText;
+								that.errorMessage = error.statusText;
 
-              });
+							});
 
-          },
-          add_row() {
+					},
+					add_row() {
 
-            Vue.set(this.data, 'placeholders', this.data.placeholders.concat([
-              {
-                placeholder: '',
-                content: '',
-                selected: false,
-              },
-            ]));
+						Vue.set(this.data, 'placeholders', this.data.placeholders.concat([
+							{
+								placeholder: '',
+								content: '',
+								selected: false,
+							},
+						]));
 
-            this.$forceUpdate();
+						this.$forceUpdate();
 
-          },
-          delete_rows() {
+					},
+					delete_rows() {
 
-            this.delete = this.delete.concat(this.selected.get());
+						this.delete = this.delete.concat(this.selected.get());
 
-            // eslint-disable-next-line no-alert
-            const are_you_sure = confirm(wu_placeholdersl10n.confirm_message);
+						// eslint-disable-next-line no-alert
+						const are_you_sure = confirm(wu_placeholdersl10n.confirm_message);
 
-            if (are_you_sure) {
+						if (are_you_sure) {
 
-              const cleaned_list = $(this.data.placeholders).filter(function(index, item) {
+							const cleaned_list = $(this.data.placeholders).filter(function(index, item) {
 
-                return ! item.selected;
+								return ! item.selected;
 
-              });
+							});
 
-              Vue.set(this.data, 'placeholders', cleaned_list.get());
+							Vue.set(this.data, 'placeholders', cleaned_list.get());
 
-              this.$forceUpdate();
+							this.$forceUpdate();
 
-            } // end if
+						} // end if
 
-          },
-          save() {
+					},
+					save() {
 
-            const that = this;
+						const that = this;
 
-            that.saving = true;
+						that.saving = true;
 
-            $.post({
-              url: ajaxurl + '?action=wu_save_placeholders&' + $('#nonce_form').serialize(),
-              data: JSON.stringify({
-                placeholders: that.data.placeholders,
-              }),
-              dataType: 'json',
-              contentType: 'application/json; charset=utf-8',
-            }).success(function(data) {
+						$.post({
+							url: ajaxurl + '?action=wu_save_placeholders&' + $('#nonce_form').serialize(),
+							data: JSON.stringify({
+								placeholders: that.data.placeholders,
+							}),
+							dataType: 'json',
+							contentType: 'application/json; charset=utf-8',
+						}).success(function(data) {
 
-              that.saving = false;
+							that.saving = false;
 
-              that.changed = false;
+							that.changed = false;
 
-              that.delete = [];
+							that.delete = [];
 
-              that.saveMessage = data.message;
+							that.saveMessage = data.message;
 
-              if (data.code === 'success') {
+							if (data.code === 'success') {
 
-                that.loading = true;
+								that.loading = true;
 
-                that.initialLoading = true;
+								that.initialLoading = true;
 
-                that.pull_data();
+								that.pull_data();
 
-              }
+							}
 
-              setInterval(function() {
+							setInterval(function() {
 
-                that.saveMessage = '';
+								that.saveMessage = '';
 
-              }, 6000);
+							}, 6000);
 
-            });
+						});
 
-          },
-        },
-      });
+					},
+				},
+			});
 
-    } // end if;
+		} // end if;
 
-  });
+	});
 
 }(jQuery));

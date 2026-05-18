@@ -4,6 +4,7 @@
  *
  * Handles DNS record display and management in the Ultimate Multisite UI.
  *
+ * @param $
  * @since 2.3.0
  */
 (function($) {
@@ -22,7 +23,7 @@
 	function initDNSManagement() {
 		const container = document.getElementById('wu-dns-records-table');
 
-		if (!container || typeof Vue === 'undefined') {
+		if (! container || typeof Vue === 'undefined') {
 			return;
 		}
 
@@ -42,22 +43,22 @@
 				domainId: '',
 				canManage: false,
 				provider: '',
-				recordTypes: ['A', 'AAAA', 'CNAME', 'MX', 'TXT'],
+				recordTypes: [ 'A', 'AAAA', 'CNAME', 'MX', 'TXT' ],
 				selectedRecords: [],
 			},
 
 			computed: {
-				hasRecords: function() {
+				hasRecords() {
 					return this.records && this.records.length > 0;
 				},
 
-				sortedRecords: function() {
-					if (!this.records) {
+				sortedRecords() {
+					if (! this.records) {
 						return [];
 					}
 
 					// Sort by type, then by name
-					return [...this.records].sort(function(a, b) {
+					return [ ...this.records ].sort(function(a, b) {
 						if (a.type !== b.type) {
 							return a.type.localeCompare(b.type);
 						}
@@ -66,7 +67,7 @@
 				},
 			},
 
-			mounted: function() {
+			mounted() {
 				const el = this.$el;
 
 				this.domain = el.dataset.domain || '';
@@ -82,7 +83,7 @@
 				/**
 				 * Load DNS records from the server.
 				 */
-				loadRecords: function() {
+				loadRecords() {
 					const self = this;
 
 					this.loading = true;
@@ -96,7 +97,7 @@
 							nonce: wu_dns_config.nonce,
 							domain: this.domain,
 						},
-						success: function(response) {
+						success(response) {
 							self.loading = false;
 
 							if (response.success) {
@@ -115,7 +116,7 @@
 								self.error = (response.data && response.data.message) || 'Failed to load DNS records.';
 							}
 						},
-						error: function(xhr, status, errorMsg) {
+						error(xhr, status, errorMsg) {
 							self.loading = false;
 							self.error = 'Network error: ' + errorMsg;
 						},
@@ -125,7 +126,7 @@
 				/**
 				 * Refresh the records list.
 				 */
-				refresh: function() {
+				refresh() {
 					this.loadRecords();
 				},
 
@@ -135,16 +136,16 @@
 				 * @param {string} type The record type.
 				 * @return {string} CSS classes.
 				 */
-				getTypeClass: function(type) {
+				getTypeClass(type) {
 					const classes = {
-						'A': 'wu-bg-blue-100 wu-text-blue-800',
-						'AAAA': 'wu-bg-purple-100 wu-text-purple-800',
-						'CNAME': 'wu-bg-green-100 wu-text-green-800',
-						'MX': 'wu-bg-orange-100 wu-text-orange-800',
-						'TXT': 'wu-bg-gray-100 wu-text-gray-800',
+						A: 'wu-bg-blue-100 wu-text-blue-800',
+						AAAA: 'wu-bg-purple-100 wu-text-purple-800',
+						CNAME: 'wu-bg-green-100 wu-text-green-800',
+						MX: 'wu-bg-orange-100 wu-text-orange-800',
+						TXT: 'wu-bg-gray-100 wu-text-gray-800',
 					};
 
-					return classes[type] || 'wu-bg-gray-100 wu-text-gray-800';
+					return classes[ type ] || 'wu-bg-gray-100 wu-text-gray-800';
 				},
 
 				/**
@@ -153,7 +154,7 @@
 				 * @param {number} seconds TTL in seconds.
 				 * @return {string} Formatted TTL.
 				 */
-				formatTTL: function(seconds) {
+				formatTTL(seconds) {
 					if (seconds === 1) {
 						return 'Auto';
 					}
@@ -176,14 +177,14 @@
 				/**
 				 * Truncate content for display.
 				 *
-				 * @param {string} content The content to truncate.
+				 * @param {string} content   The content to truncate.
 				 * @param {number} maxLength Maximum length.
 				 * @return {string} Truncated content.
 				 */
-				truncateContent: function(content, maxLength) {
+				truncateContent(content, maxLength) {
 					maxLength = maxLength || 40;
 
-					if (!content || content.length <= maxLength) {
+					if (! content || content.length <= maxLength) {
 						return content;
 					}
 
@@ -196,8 +197,8 @@
 				 * @param {Object} record The record object.
 				 * @return {string} Edit URL.
 				 */
-				getEditUrl: function(record) {
-					if (!wu_dns_config.edit_url) {
+				getEditUrl(record) {
+					if (! wu_dns_config.edit_url) {
 						return '#';
 					}
 
@@ -212,8 +213,8 @@
 				 * @param {Object} record The record object.
 				 * @return {string} Delete URL.
 				 */
-				getDeleteUrl: function(record) {
-					if (!wu_dns_config.delete_url) {
+				getDeleteUrl(record) {
+					if (! wu_dns_config.delete_url) {
 						return '#';
 					}
 
@@ -227,7 +228,7 @@
 				 *
 				 * @param {string} recordId The record ID.
 				 */
-				toggleSelection: function(recordId) {
+				toggleSelection(recordId) {
 					const index = this.selectedRecords.indexOf(recordId);
 
 					if (index > -1) {
@@ -243,14 +244,14 @@
 				 * @param {string} recordId The record ID.
 				 * @return {boolean} True if selected.
 				 */
-				isSelected: function(recordId) {
+				isSelected(recordId) {
 					return this.selectedRecords.indexOf(recordId) > -1;
 				},
 
 				/**
 				 * Select all records.
 				 */
-				selectAll: function() {
+				selectAll() {
 					const self = this;
 
 					this.selectedRecords = this.records.map(function(record) {
@@ -261,19 +262,19 @@
 				/**
 				 * Deselect all records.
 				 */
-				deselectAll: function() {
+				deselectAll() {
 					this.selectedRecords = [];
 				},
 
 				/**
 				 * Delete selected records (admin bulk operation).
 				 */
-				deleteSelected: function() {
-					if (!this.selectedRecords.length) {
+				deleteSelected() {
+					if (! this.selectedRecords.length) {
 						return;
 					}
 
-					if (!confirm('Are you sure you want to delete ' + this.selectedRecords.length + ' selected records?')) {
+					if (! confirm('Are you sure you want to delete ' + this.selectedRecords.length + ' selected records?')) {
 						return;
 					}
 
@@ -289,7 +290,7 @@
 							operation: 'delete',
 							records: this.selectedRecords,
 						},
-						success: function(response) {
+						success(response) {
 							if (response.success) {
 								self.selectedRecords = [];
 								self.loadRecords();
@@ -297,7 +298,7 @@
 								alert('Error: ' + ((response.data && response.data.message) || 'Failed to delete records.'));
 							}
 						},
-						error: function() {
+						error() {
 							alert('Network error occurred.');
 						},
 					});
@@ -309,7 +310,7 @@
 				 * @param {Object} record The record object.
 				 * @return {string} Proxied status HTML.
 				 */
-				getProxiedStatus: function(record) {
+				getProxiedStatus(record) {
 					if (this.provider !== 'cloudflare') {
 						return '';
 					}
@@ -334,4 +335,4 @@
 		}, 100);
 	});
 
-})(jQuery);
+}(jQuery));
