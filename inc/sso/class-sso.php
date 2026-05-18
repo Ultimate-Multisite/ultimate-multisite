@@ -19,14 +19,13 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use WP_Ultimo\Helpers\Hash;
-use Jasny\SSO\Server\Server;
-use Jasny\SSO\Server\ServerException;
-use Jasny\SSO\Server\BrokerException;
-use Jasny\SSO\Broker\NotAttachedException;
+use WP_Ultimo\SSO\Jasny\Server\Server;
+use WP_Ultimo\SSO\Jasny\Server\ServerException;
+use WP_Ultimo\SSO\Jasny\Server\BrokerException;
+use WP_Ultimo\SSO\Jasny\Broker\NotAttachedException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use WP_Ultimo\SSO\Exception\SSO_Exception;
 use WP_Ultimo\SSO\Exception\SSO_Session_Exception;
-use WP_Ultimo\SSO\WordPress_Simple_Cache;
 
 defined('ABSPATH') || exit;
 
@@ -40,14 +39,6 @@ class SSO {
 	use \WP_Ultimo\Traits\Singleton;
 
 	const LOG_FILE_NAME = 'sso';
-
-	/**
-	 * The cache system for sessions.
-	 *
-	 * @since 2.0.11
-	 * @var \Psr\SimpleCache\CacheInterface
-	 */
-	protected $cache;
 
 	/**
 	 * The logger class to be used.
@@ -1356,22 +1347,6 @@ class SSO {
 	}
 
 	/**
-	 * Returns a PSR16-compatible cache implementation.
-	 *
-	 * @since 2.0.11
-	 * @return \Psr\SimpleCache\CacheInterface
-	 */
-	public function cache() {
-
-		if (null === $this->cache) {
-			// Use WordPress transients-based PSR-16 cache implementation
-			$this->cache = new WordPress_Simple_Cache('wu_sso_');
-		}
-
-		return apply_filters('wu_sso_cache', $this->cache, $this);
-	}
-
-	/**
 	 * Creates a PSR7 Server Request object.
 	 *
 	 * @since 2.0.11
@@ -1454,7 +1429,7 @@ class SSO {
 
 		$session_handler = new SSO_Session_Handler($this);
 
-		$server = (new Server([$this, 'get_broker_by_id'], $this->cache()))->withSession($session_handler);
+		$server = (new Server([$this, 'get_broker_by_id']))->withSession($session_handler);
 
 		return apply_filters('wu_sso_get_server', $server, $this);
 	}

@@ -46,7 +46,6 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 		remove_all_filters('wu_sso_salt');
 		remove_all_filters('wu_sso_get_strategy');
 		remove_all_filters('wu_sso_get_url_path');
-		remove_all_filters('wu_sso_cache');
 		remove_all_filters('wu_sso_logger');
 		remove_all_filters('wu_sso_server_request');
 		remove_all_filters('mercator.sso.enabled');
@@ -463,7 +462,7 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 			function () {
 				$mock = $this->createMock(SSO_Broker::class);
 				$mock->method('getBearerToken')->willThrowException(
-					new \Jasny\SSO\Broker\NotAttachedException('Not attached')
+					new \WP_Ultimo\SSO\Jasny\Broker\NotAttachedException('Not attached')
 				);
 				return $mock;
 			}
@@ -751,50 +750,6 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// cache
-	// ------------------------------------------------------------------
-
-	/**
-	 * Test cache returns the same instance on repeated calls (lazy init).
-	 */
-	public function test_cache_returns_same_instance_on_repeated_calls(): void {
-		$sso    = SSO::get_instance();
-		$cache1 = $sso->cache();
-		$cache2 = $sso->cache();
-
-		$this->assertSame($cache1, $cache2, 'cache() should return the same instance (lazy init)');
-	}
-
-	/**
-	 * Test cache returns a WordPress_Simple_Cache instance by default.
-	 */
-	public function test_cache_returns_wordpress_simple_cache_by_default(): void {
-		$sso   = SSO::get_instance();
-		$cache = $sso->cache();
-
-		$this->assertInstanceOf(WordPress_Simple_Cache::class, $cache);
-	}
-
-	/**
-	 * Test cache respects the wu_sso_cache filter.
-	 */
-	public function test_cache_respects_filter(): void {
-		$mock_cache = $this->createMock(\Psr\SimpleCache\CacheInterface::class);
-
-		add_filter(
-			'wu_sso_cache',
-			function () use ($mock_cache) {
-				return $mock_cache;
-			}
-		);
-
-		$sso   = SSO::get_instance();
-		$cache = $sso->cache();
-
-		$this->assertSame($mock_cache, $cache);
-	}
-
-	// ------------------------------------------------------------------
 	// get_isset
 	// ------------------------------------------------------------------
 
@@ -1036,7 +991,7 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 	 * Test get_server respects the wu_sso_get_server filter.
 	 */
 	public function test_get_server_respects_filter(): void {
-		$mock_server = $this->createMock(\Jasny\SSO\Server\Server::class);
+		$mock_server = $this->createMock(\WP_Ultimo\SSO\Jasny\Server\Server::class);
 
 		add_filter(
 			'wu_sso_get_server',

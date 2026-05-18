@@ -14,9 +14,9 @@
 
 namespace WP_Ultimo\SSO;
 
-use Jasny\SSO\Server\BrokerException;
-use Jasny\SSO\Server\SessionInterface;
-use Jasny\SSO\Server\ServerException;
+use WP_Ultimo\SSO\Jasny\Server\BrokerException;
+use WP_Ultimo\SSO\Jasny\Server\SessionInterface;
+use WP_Ultimo\SSO\Jasny\Server\ServerException;
 use WP_Ultimo\SSO\Exception\SSO_Session_Exception;
 
 // Exit if accessed directly
