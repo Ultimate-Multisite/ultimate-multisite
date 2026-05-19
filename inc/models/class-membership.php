@@ -9,6 +9,7 @@
 
 namespace WP_Ultimo\Models;
 
+use Psr\Log\LogLevel;
 use WP_Ultimo\Checkout\Cart;
 use WP_Ultimo\Database\Memberships\Membership_Status;
 use WP_Ultimo\Models\Interfaces\Billable;
@@ -1435,6 +1436,100 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 	}
 
 	/**
+	 * Verify the active gateway has a usable renewal credential before this
+	 * membership is persisted with `auto_renew=1`.
+	 *
+	 * Runs only when the membership claims to auto-renew (recurring + auto_renew
+	 * + a real paid gateway). Gateway integrations answer via the
+	 * `wu_membership_has_renewal_credential` filter:
+	 *
+	 *  - `true`  → credential verified; persist unchanged.
+	 *  - `false` → no credential / known-broken signature; the membership is
+	 *              still saved but `auto_renew` is forced off and a meta flag is
+	 *              recorded so admin/support can recover the buyer before the
+	 *              renewal cron fires (otherwise renewal would silently fail
+	 *              weeks later and cancel the membership with a thin audit trail).
+	 *  - `null`  → no opinion (default); behaviour unchanged.
+	 *
+	 * Free / manual / empty-gateway memberships and non-recurring memberships
+	 * skip the check entirely.
+	 *
+	 * @since 2.5.2
+	 * @return void
+	 */
+	protected function maybe_downgrade_auto_renew_without_credential() {
+
+		if ( ! $this->should_auto_renew() || ! $this->is_recurring()) {
+			return;
+		}
+
+		$gateway = (string) $this->get_gateway();
+
+		if ('' === $gateway || 'free' === $gateway || 'manual' === $gateway) {
+			return;
+		}
+
+		/*
+		 * Already flagged on a prior save — keep auto_renew off but don't re-log
+		 * or fire the event again. Admin/buyer recovery flow clears the meta
+		 * explicitly when re-authorization succeeds.
+		 */
+		if ($this->get_meta('wu_renewal_credential_missing')) {
+			$this->set_auto_renew(false);
+
+			return;
+		}
+
+		/**
+		 * Filters whether the active gateway has a usable renewal credential
+		 * stored for this membership.
+		 *
+		 * Gateways should add a listener that returns `true` when they have
+		 * persisted a renewable token / subscription id / billing agreement,
+		 * and `false` when the checkout completed but the recurring credential
+		 * was NOT saved (e.g. PPCP intent=CAPTURE on a recurring cart with no
+		 * vault reference). Leave the default `null` to opt out.
+		 *
+		 * @since 2.5.2
+		 *
+		 * @param bool|null                    $verified   `true`, `false`, or `null` (unknown).
+		 * @param \WP_Ultimo\Models\Membership $membership The membership being saved.
+		 */
+		$verified = apply_filters('wu_membership_has_renewal_credential', null, $this);
+
+		if (false !== $verified) {
+			return;
+		}
+
+		$id                      = $this->get_id();
+		$gateway_subscription_id = (string) $this->get_gateway_subscription_id();
+
+		wu_log_add(
+			"membership-{$id}",
+			sprintf(
+				'Membership #%1$d: gateway "%2$s" reported no renewal credential at save time (gateway_subscription_id=%3$s). Forcing auto_renew=0; admin notification queued so the buyer can re-authorize before the renewal cron fires.',
+				$id,
+				$gateway,
+				'' !== $gateway_subscription_id ? $gateway_subscription_id : '(empty)'
+			),
+			LogLevel::WARNING
+		);
+
+		$this->set_auto_renew(false);
+		$this->update_meta('wu_renewal_credential_missing', gmdate('Y-m-d H:i:s'));
+
+		/**
+		 * Fires when a membership save was about to claim auto-renewal but the
+		 * gateway integration could not confirm a renewal credential.
+		 *
+		 * @since 2.5.2
+		 *
+		 * @param \WP_Ultimo\Models\Membership $membership The membership.
+		 */
+		do_action('wu_membership_renewal_credential_missing', $this);
+	}
+
+	/**
 	 * Get the discount code applied if exist.
 	 *
 	 * @since 2.0.20
@@ -2762,6 +2857,8 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 				}
 			}
 		}
+
+		$this->maybe_downgrade_auto_renew_without_credential();
 
 		return parent::save();
 	}

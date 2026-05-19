@@ -1523,4 +1523,242 @@ class Membership_Test extends \WP_UnitTestCase {
 		$address = $this->membership->get_default_billing_address();
 		$this->assertInstanceOf(\WP_Ultimo\Objects\Billing_Address::class, $address);
 	}
+
+	// ---------------------------------------------------------------
+	// Renewal credential guard
+	// ---------------------------------------------------------------
+
+	/**
+	 * Create a freshly-saved recurring auto-renewing membership on a paid
+	 * gateway — the state space where the guard is supposed to engage.
+	 *
+	 * Uses wu_create_membership so we get a real persisted row (with a real
+	 * ID) the guard can attach meta to.
+	 *
+	 * @return Membership
+	 */
+	protected function make_recurring_paid_membership(string $gateway = 'woocommerce', string $sub_id = 'wc-sub-1'): Membership {
+		$user_id = self::factory()->user->create([
+			'user_login' => 'guard_' . wp_generate_password(6, false),
+			'user_email' => 'guard_' . wp_generate_password(6, false) . '@example.test',
+		]);
+
+		$customer = new Customer([
+			'user_id'            => $user_id,
+			'email_verification' => 'none',
+			'type'               => 'customer',
+		]);
+		$customer->set_skip_validation(true);
+		$customer->save();
+
+		$product = new Product([
+			'name'          => 'Guard Plan',
+			'slug'          => 'guard-plan-' . wp_generate_password(6, false),
+			'pricing_type'  => 'paid',
+			'amount'        => 29.99,
+			'currency'      => 'USD',
+			'duration'      => 1,
+			'duration_unit' => 'month',
+			'type'          => 'plan',
+			'recurring'     => true,
+			'active'        => true,
+		]);
+		$product->set_skip_validation(true);
+		$product->save();
+
+		$membership = wu_create_membership([
+			'customer_id'             => $customer->get_id(),
+			'user_id'                 => $user_id,
+			'plan_id'                 => $product->get_id(),
+			'status'                  => Membership_Status::ACTIVE,
+			'amount'                  => 29.99,
+			'initial_amount'          => 29.99,
+			'duration'                => 1,
+			'duration_unit'           => 'month',
+			'recurring'               => true,
+			'auto_renew'              => true,
+			'currency'                => 'USD',
+			'gateway'                 => $gateway,
+			'gateway_subscription_id' => $sub_id,
+			'skip_validation'         => true,
+			'date_expiration'         => gmdate('Y-m-d H:i:s', strtotime('+30 days')),
+		]);
+
+		if (is_wp_error($membership)) {
+			$this->fail('Failed to create membership: ' . $membership->get_error_message());
+		}
+
+		// wu_create_membership runs save() once already. Drop any flag the
+		// initial save may have introduced so each test starts clean.
+		$membership->delete_meta('wu_renewal_credential_missing');
+		$membership->set_auto_renew(true);
+
+		return $membership;
+	}
+
+	/**
+	 * No filter listener → guard treats verification as "unknown", auto_renew preserved.
+	 */
+	public function test_save_preserves_auto_renew_when_no_filter_listener(): void {
+		$m = $this->make_recurring_paid_membership();
+
+		$m->save();
+
+		$this->assertTrue($m->should_auto_renew(), 'auto_renew should remain on when no gateway expresses an opinion');
+		$this->assertEmpty($m->get_meta('wu_renewal_credential_missing'), 'no flag should be set without a false verdict');
+	}
+
+	/**
+	 * Filter returns true (credential verified) → auto_renew preserved, no flag.
+	 */
+	public function test_save_preserves_auto_renew_when_filter_returns_true(): void {
+		$m = $this->make_recurring_paid_membership();
+
+		add_filter('wu_membership_has_renewal_credential', '__return_true', 10, 2);
+
+		try {
+			$m->save();
+		} finally {
+			remove_filter('wu_membership_has_renewal_credential', '__return_true', 10);
+		}
+
+		$this->assertTrue($m->should_auto_renew());
+		$this->assertEmpty($m->get_meta('wu_renewal_credential_missing'));
+	}
+
+	/**
+	 * Filter returns false → auto_renew is forced off, meta flag is set,
+	 * and the dedicated action fires exactly once.
+	 */
+	public function test_save_downgrades_auto_renew_when_filter_returns_false(): void {
+		$m = $this->make_recurring_paid_membership();
+
+		add_filter('wu_membership_has_renewal_credential', '__return_false', 10, 2);
+
+		$event_count    = 0;
+		$received_arg   = null;
+		$event_listener = function ($membership) use (&$event_count, &$received_arg) {
+			++$event_count;
+			$received_arg = $membership;
+		};
+		add_action('wu_membership_renewal_credential_missing', $event_listener, 10, 1);
+
+		try {
+			$m->save();
+		} finally {
+			remove_filter('wu_membership_has_renewal_credential', '__return_false', 10);
+			remove_action('wu_membership_renewal_credential_missing', $event_listener, 10);
+		}
+
+		$this->assertFalse($m->should_auto_renew(), 'auto_renew should be forced off');
+
+		$flag = $m->get_meta('wu_renewal_credential_missing');
+		$this->assertNotEmpty($flag, 'meta flag should record the timestamp of the downgrade');
+		$this->assertSame(1, preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $flag), 'flag should be a MySQL datetime');
+		$this->assertSame(1, $event_count, 'event should fire exactly once for a fresh downgrade');
+		$this->assertSame($m->get_id(), $received_arg->get_id());
+	}
+
+	/**
+	 * Once the flag is set, subsequent saves must keep auto_renew off without
+	 * re-logging or re-firing the event, even if the filter is no longer wired.
+	 */
+	public function test_save_keeps_auto_renew_off_when_flag_already_set(): void {
+		$m = $this->make_recurring_paid_membership();
+		$m->update_meta('wu_renewal_credential_missing', '2026-01-01 00:00:00');
+
+		// Re-enable auto_renew at the model level (simulating an admin toggle)
+		// and confirm the guard still drops it because the flag is set.
+		$m->set_auto_renew(true);
+
+		$event_count    = 0;
+		$event_listener = function () use (&$event_count) {
+			++$event_count;
+		};
+		add_action('wu_membership_renewal_credential_missing', $event_listener, 10, 1);
+
+		try {
+			$m->save();
+		} finally {
+			remove_action('wu_membership_renewal_credential_missing', $event_listener, 10);
+		}
+
+		$this->assertFalse($m->should_auto_renew());
+		$this->assertSame(0, $event_count, 'event should not re-fire when the flag is already set');
+		$this->assertSame('2026-01-01 00:00:00', $m->get_meta('wu_renewal_credential_missing'), 'existing flag should be preserved as-is');
+	}
+
+	/**
+	 * Non-recurring memberships skip the guard entirely.
+	 */
+	public function test_save_skips_guard_for_non_recurring(): void {
+		$m = $this->make_recurring_paid_membership();
+		$m->set_recurring(false);
+
+		add_filter('wu_membership_has_renewal_credential', '__return_false', 10, 2);
+
+		try {
+			$m->save();
+		} finally {
+			remove_filter('wu_membership_has_renewal_credential', '__return_false', 10);
+		}
+
+		// auto_renew stays whatever the model holds — the guard didn't intervene.
+		$this->assertTrue($m->should_auto_renew());
+		$this->assertEmpty($m->get_meta('wu_renewal_credential_missing'));
+	}
+
+	/**
+	 * Free / manual / empty gateway memberships skip the guard.
+	 *
+	 * @dataProvider provider_exempt_gateways
+	 */
+	public function test_save_skips_guard_for_exempt_gateways(string $gateway): void {
+		$m = $this->make_recurring_paid_membership($gateway, '');
+
+		add_filter('wu_membership_has_renewal_credential', '__return_false', 10, 2);
+
+		try {
+			$m->save();
+		} finally {
+			remove_filter('wu_membership_has_renewal_credential', '__return_false', 10);
+		}
+
+		$this->assertTrue($m->should_auto_renew(), "guard should not downgrade for gateway '$gateway'");
+		$this->assertEmpty($m->get_meta('wu_renewal_credential_missing'));
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public function provider_exempt_gateways(): array {
+		return [
+			'empty gateway'  => [''],
+			'free gateway'   => ['free'],
+			'manual gateway' => ['manual'],
+		];
+	}
+
+	/**
+	 * The filter receives the membership instance as the second argument.
+	 */
+	public function test_filter_receives_membership_argument(): void {
+		$m = $this->make_recurring_paid_membership();
+
+		$captured = null;
+		$listener = function ($verified, $membership) use (&$captured) {
+			$captured = $membership;
+			return $verified;
+		};
+		add_filter('wu_membership_has_renewal_credential', $listener, 10, 2);
+
+		try {
+			$m->save();
+		} finally {
+			remove_filter('wu_membership_has_renewal_credential', $listener, 10);
+		}
+
+		$this->assertInstanceOf(Membership::class, $captured);
+		$this->assertSame($m->get_id(), $captured->get_id());
+	}
 }
