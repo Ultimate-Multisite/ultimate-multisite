@@ -1,6 +1,6 @@
 (function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('apexcharts')) :
-  typeof define === 'function' && define.amd ? define(['apexcharts'], factory) :
+  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('apexcharts/dist/apexcharts.min')) :
+  typeof define === 'function' && define.amd ? define(['apexcharts/dist/apexcharts.min'], factory) :
   (global.VueApexCharts = factory(global.ApexCharts));
 }(this, (function (ApexCharts) { 'use strict';
 
@@ -219,8 +219,8 @@
       addShape: function addShape(options) {
         this.chart.addShape(options);
       },
-      dataURI: function dataURI() {
-        return this.chart.dataURI();
+      dataURI: function dataURI(options) {
+        return this.chart.dataURI(options);
       },
       setLocale: function setLocale(localeName) {
         return this.chart.setLocale(localeName);
