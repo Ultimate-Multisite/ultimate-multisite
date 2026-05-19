@@ -36,25 +36,35 @@ function wu_validate_date($date, $format = 'Y-m-d H:i:s') {
 }
 
 /**
- * Returns a Carbon object to deal with dates in a more compelling way.
+ * Returns a DateTime object to deal with dates in a more compelling way.
  *
- * Note: this function uses the wu_validate function to check
- * if the string passed is a valid date string. If the string
- * is not valid, now is used.
+ * Note: this function uses the wu_validate_date function to check
+ * if the string passed is a valid date string. If the string is
+ * not valid (including null, empty, or the MySQL zero-date), now
+ * is used as a safe fallback so callers can always chain ->format().
  *
  * @since 2.0.0
  * @see https://carbon.nesbot.com/docs/
  *
- * @param string|false $date Parsable date string.
+ * @param string|false|null $date Parsable date string.
  * @return \DateTime
  */
 function wu_date($date = false) {
 
-	if ( ! wu_validate_date($date)) {
+	if (empty($date) || '0000-00-00 00:00:00' === $date || ! wu_validate_date($date)) {
 		$date = date_i18n('Y-m-d H:i:s');
 	}
 
-	return \DateTime::createFromFormat('Y-m-d H:i:s', $date);
+	$datetime = \DateTime::createFromFormat('Y-m-d H:i:s', $date);
+
+	if (false === $datetime) {
+		// Defensive last-resort fallback: createFromFormat can still fail on
+		// edge-case locale/timezone inputs. Returning a valid DateTime keeps
+		// chained ->format() / ->getTimestamp() calls safe.
+		$datetime = new \DateTime(date_i18n('Y-m-d H:i:s'));
+	}
+
+	return $datetime;
 }
 
 /**

@@ -1033,8 +1033,12 @@ abstract class Base_Model implements \JsonSerializable {
 	/**
 	 * Helper method to return formatted dates.
 	 *
-	 * Deals with:
-	 * - dates
+	 * Returns an empty string when the underlying value is null, empty, or
+	 * the MySQL zero-date '0000-00-00 00:00:00'. This protects callers (for
+	 * example the customer dashboard membership widget rendering
+	 * `date_expiration` on a lifetime/null-expiry membership) from a fatal
+	 * "Call to a member function format() on false" when the value can't be
+	 * parsed into a DateTime.
 	 *
 	 * @since 2.0.0
 	 *
@@ -1044,6 +1048,10 @@ abstract class Base_Model implements \JsonSerializable {
 	public function get_formatted_date($key = 'date_created') {
 
 		$value = $this->{"get_{$key}"}();
+
+		if (empty($value) || '0000-00-00 00:00:00' === $value) {
+			return '';
+		}
 
 		if (wu_validate_date($value)) {
 			return date_i18n(get_option('date_format'), wu_date($value)->format('U'));
