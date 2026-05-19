@@ -504,6 +504,62 @@ class Base_Model_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Regression: get_formatted_date('date_expiration') must not fatal when
+	 * the underlying value is null.
+	 *
+	 * This reproduces the customer-dashboard fatal seen in production on
+	 * lifetime memberships where Membership::is_lifetime() returned false
+	 * (because recurring=true was preserved on the row) and the dashboard
+	 * widget fell through to formatting a null date_expiration, causing
+	 * "Call to a member function format() on false" via wu_date(null).
+	 *
+	 * @see \WP_Ultimo\Models\Membership::is_lifetime()
+	 * @see views/dashboard-widgets/current-membership.php
+	 */
+	public function test_get_formatted_date_returns_empty_string_for_null_value(): void {
+
+		$membership = new Membership(['date_expiration' => null]);
+
+		$this->assertSame('', $membership->get_formatted_date('date_expiration'));
+	}
+
+	/**
+	 * Regression: get_formatted_date must short-circuit for empty string.
+	 */
+	public function test_get_formatted_date_returns_empty_string_for_empty_value(): void {
+
+		$membership = new Membership(['date_expiration' => '']);
+
+		$this->assertSame('', $membership->get_formatted_date('date_expiration'));
+	}
+
+	/**
+	 * Regression: get_formatted_date must short-circuit for MySQL zero-date.
+	 */
+	public function test_get_formatted_date_returns_empty_string_for_zero_date(): void {
+
+		$membership = new Membership(['date_expiration' => '0000-00-00 00:00:00']);
+
+		$this->assertSame('', $membership->get_formatted_date('date_expiration'));
+	}
+
+	/**
+	 * Get_formatted_date must still format a valid date through date_i18n.
+	 */
+	public function test_get_formatted_date_formats_valid_date(): void {
+
+		$membership = new Membership(['date_expiration' => '2030-06-15 10:30:00']);
+
+		$result = $membership->get_formatted_date('date_expiration');
+
+		$this->assertNotSame('', $result);
+		$this->assertIsString($result);
+		// date_i18n applied the WP date_format option, so we expect a non-raw
+		// representation different from the input timestamp string.
+		$this->assertNotSame('2030-06-15 10:30:00', $result);
+	}
+
+	/**
 	 * Tear down test environment.
 	 */
 	public function tearDown(): void {

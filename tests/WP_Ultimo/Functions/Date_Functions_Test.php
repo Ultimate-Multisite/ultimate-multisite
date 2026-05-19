@@ -89,6 +89,48 @@ class Date_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Regression: wu_date(null) must not crash and must return a usable DateTime.
+	 *
+	 * Before the fix, wu_validate_date(null) returned true, so wu_date()
+	 * skipped its "now" fallback and \DateTime::createFromFormat(null) returned
+	 * false, causing a fatal "Call to a member function format() on false" in
+	 * Base_Model::get_formatted_date() when a membership had no expiration date.
+	 *
+	 * @see \WP_Ultimo\Models\Base_Model::get_formatted_date()
+	 */
+	public function test_wu_date_null_returns_datetime(): void {
+		$date = wu_date(null);
+
+		$this->assertInstanceOf(\DateTime::class, $date);
+		$this->assertIsString($date->format('U'));
+	}
+
+	/**
+	 * Regression: wu_date('') must not crash.
+	 */
+	public function test_wu_date_empty_string_returns_datetime(): void {
+		$date = wu_date('');
+
+		$this->assertInstanceOf(\DateTime::class, $date);
+		$this->assertIsString($date->format('U'));
+	}
+
+	/**
+	 * Regression: wu_date('0000-00-00 00:00:00') (MySQL zero-date) must not
+	 * crash and must fall back to "now" rather than yielding a year-0 date
+	 * that downstream formatters reject.
+	 */
+	public function test_wu_date_zero_date_uses_now(): void {
+		$date = wu_date('0000-00-00 00:00:00');
+
+		$this->assertInstanceOf(\DateTime::class, $date);
+
+		// Year 0 must not leak through; the fallback should land us at "now".
+		$year = (int) $date->format('Y');
+		$this->assertGreaterThan(2000, $year);
+	}
+
+	/**
 	 * Test wu_get_days_ago returns correct value.
 	 */
 	public function test_get_days_ago(): void {
