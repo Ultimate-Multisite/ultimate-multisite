@@ -27,7 +27,12 @@
     "npm-run-all": "^4.1.5",
     "stylelint": "^16.26.1",
     "stylelint-config-standard": "^39.0.1",
-    "uglify-js": "^3.19.3"
+    "uglify-js": "^3.19.3",
+    "v-money": "0.8.1",
+    "vue": "2.7.16",
+    "vue-apexcharts": "1.7.0",
+    "vue-the-mask": "0.11.1",
+    "vuedraggable": "2.24.3"
   },
   "config": {
     "translate": true
@@ -36,11 +41,12 @@
     "prebuild": "npm run makepot && composer install -o --no-dev",
     "prebuild:dev": "composer install",
     "copylibs": "node scripts/copy-libs.js",
-    "build": "npm-run-all --parallel copylibs uglify cleancss generate:hooks",
+    "build:vue": "node scripts/build-vue.js",
+    "build": "npm-run-all --parallel copylibs build:vue uglify cleancss generate:hooks",
     "postbuild": "npm run archive",
     "generate:hooks": "php inc/documentation/generate-berlindb-hooks.php",
-    "build:dev": "npm run copylibs && npm run uglify && npm run cleancss && npm run makepot && npm run generate:hooks",
-    "build:translate": "npm run copylibs && npm run uglify && npm run cleancss && npm run makepot && npm run translate",
+    "build:dev": "npm run copylibs && npm run build:vue && npm run uglify && npm run cleancss && npm run makepot && npm run generate:hooks",
+    "build:translate": "npm run copylibs && npm run build:vue && npm run uglify && npm run cleancss && npm run makepot && npm run translate",
     "prearchive": "php encrypt-secrets.php",
     "archive": "node scripts/archive.js",
     "preuglify": "node scripts/clean-js.js",
