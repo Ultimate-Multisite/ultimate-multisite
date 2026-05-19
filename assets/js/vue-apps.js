@@ -228,7 +228,13 @@
 		});
 		document.body.addEventListener("wubox:unload", function() {
 			const modal = document.getElementById("WUB_window");
+			if (!modal) {
+				return;
+			}
 			const app = modal.querySelector("ul[data-wu-app]");
+			if (!app) {
+				return;
+			}
 			const app_name = "wu_" + app.dataset.wuApp;
 			delete window[ app_name ];
 			delete window[ app_name + "_errors" ];

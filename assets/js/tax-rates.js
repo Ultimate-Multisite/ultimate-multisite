@@ -368,7 +368,7 @@
 
 							}
 
-							setInterval(function() {
+							setTimeout(function() {
 
 								that.saveMessage = '';
 

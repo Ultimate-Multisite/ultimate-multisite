@@ -75,7 +75,7 @@
 				loadingIndicator.style.display = "none";
 			}
 			if (isIOS()) {
-				const body = (_a2 = document.getElementById("iframe")) == null ? void 0 : _a2.getElementsByTagName("body")[ 0 ];
+				const body = (_a2 = iframe == null ? void 0 : iframe.contentDocument) == null ? void 0 : _a2.getElementsByTagName("body")[ 0 ];
 				body == null ? void 0 : body.classList.add("wu-fix-safari-preview");
 				(body == null ? void 0 : body.style) && Object.assign(body.style, {
 					position: "fixed",

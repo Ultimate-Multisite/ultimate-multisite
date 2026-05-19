@@ -190,9 +190,13 @@
 	const createInlineBox = (boxWindow, boxOverlay, loaded, caption, params) => {
 		const ajaxContent = baseAjaxElement(boxWindow, boxOverlay, caption, params);
 		const element = document.getElementById(params.inlineId);
-		ajaxContent.insertAdjacentElement("beforeend", element == null ? void 0 : element.children[ 0 ]);
+		if (element && element.children && element.children[ 0 ]) {
+			ajaxContent.insertAdjacentElement("beforeend", element.children[ 0 ]);
+		}
 		const unloadAction = () => {
-			element == null ? void 0 : element.insertAdjacentElement("afterbegin", ajaxContent.children[ 0 ]);
+			if (element && ajaxContent.children && ajaxContent.children[ 0 ]) {
+				element.insertAdjacentElement("afterbegin", ajaxContent.children[ 0 ]);
+			}
 			document.body.removeEventListener("wubox:unload", unloadAction);
 		};
 		document.body.addEventListener("wubox:unload", unloadAction);
