@@ -4,9 +4,9 @@
 	/**
 	 * If we detect the preview changed, we add a loader.
 	 */
-	window.addEventListener('message', function(message) {
+	let block;
 
-		let block;
+	window.addEventListener('message', function(message) {
 
 		if (message.data === 'wu_preview_changed') {
 
@@ -14,20 +14,20 @@
 
 		} // end if;
 
-		/**
-		 * Unblocks when the loading is finished.
-		 */
-		$('#preview-stage-iframe').on('load', function() {
-
-			if (block) {
-
-				block.unblock();
-
-			} // end if;
-
-		});
-
 	}, false);
+
+	/**
+	 * Unblocks when the loading is finished.
+	 */
+	$('#preview-stage-iframe').on('load', function() {
+
+		if (block) {
+
+			block.unblock();
+
+		} // end if;
+
+	});
 
 	$(document).ready(function() {
 

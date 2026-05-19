@@ -160,6 +160,10 @@
 			],
 			onClose(selectedDates) {
 
+				if (! selectedDates || selectedDates.length < 2) {
+					return;
+				}
+
 				const redirect = new URL(window.location.href);
 
 				redirect.searchParams.set('start_date', moment(selectedDates[ 0 ]).format('YYYY-MM-DD'));
