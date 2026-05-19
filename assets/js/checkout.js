@@ -1073,6 +1073,9 @@
 
 					jQuery(this.$el).wu_unblock();
 
+					// Re-enable submit buttons when unblocking (e.g., on validation errors or API failures)
+					jQuery(this.$el).find('button[type="submit"]').prop('disabled', false);
+
 				},
 				request(action, data, success_handler, error_handler) {
 
