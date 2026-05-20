@@ -4,7 +4,7 @@ Donate link: https://github.com/sponsors/superdav42/
 Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 7.4.30
-Tested up to: 6.9
+Tested up to: 7.0
 Stable tag: 2.12.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
