@@ -1133,6 +1133,242 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 	}
 
 	// ----------------------------------------------------------------
+	// NEW: wu_add_domain / wu_add_subdomain are skipped when no host
+	// provider integration is listening. Regression for the "no callbacks
+	// are registered" Action Scheduler warning logged on every site
+	// creation when no host integration is enabled.
+	// ----------------------------------------------------------------
+
+	/**
+	 * Test send_domain_to_host does not enqueue wu_add_domain when no listener is hooked.
+	 */
+	public function test_send_domain_to_host_skips_enqueue_without_listener(): void {
+		$unique_domain = 'no-listener-' . uniqid('', true) . '.example.com';
+
+		// Stash any pre-existing listeners so this test can deterministically
+		// assert "nothing got enqueued" — the production guard must skip the
+		// async enqueue when no host-provider integration is listening.
+		$prior_callbacks = $GLOBALS['wp_filter']['wu_add_domain'] ?? null;
+		unset($GLOBALS['wp_filter']['wu_add_domain']);
+
+		try {
+			$domain = wu_create_domain([
+				'blog_id' => $this->get_blog_id(),
+				'domain'  => $unique_domain,
+				'stage'   => Domain_Stage::DONE,
+			]);
+
+			$this->assertNotWPError($domain);
+
+			$this->assertFalse(
+				has_action('wu_add_domain'),
+				'precondition: wu_add_domain must have no listeners'
+			);
+
+			$this->domain_manager->send_domain_to_host(
+				'old-' . $unique_domain,
+				$unique_domain,
+				$domain->get_id()
+			);
+
+			$enqueued_args = [
+				'domain'  => $unique_domain,
+				'site_id' => $domain->get_site_id(),
+			];
+
+			$matching_actions = wu_get_scheduled_actions(
+				[
+					'hook'     => 'wu_add_domain',
+					'status'   => \ActionScheduler_Store::STATUS_PENDING,
+					'args'     => $enqueued_args,
+					'per_page' => 5,
+				],
+				'ids'
+			);
+
+			$this->assertEmpty(
+				$matching_actions,
+				sprintf(
+					'wu_add_domain must not be enqueued for args %s; found action ids: %s',
+					var_export($enqueued_args, true),
+					var_export($matching_actions, true)
+				)
+			);
+		} finally {
+			if (null !== $prior_callbacks) {
+				$GLOBALS['wp_filter']['wu_add_domain'] = $prior_callbacks;
+			}
+		}
+	}
+
+	/**
+	 * Test send_domain_to_host enqueues wu_add_domain when a listener is hooked.
+	 */
+	public function test_send_domain_to_host_enqueues_when_listener_registered(): void {
+		$callback = function () {
+			// no-op listener — its presence is what we are testing
+		};
+
+		$prior_callbacks = $GLOBALS['wp_filter']['wu_add_domain'] ?? null;
+		unset($GLOBALS['wp_filter']['wu_add_domain']);
+
+		try {
+			$domain = wu_create_domain([
+				'blog_id' => $this->get_blog_id(),
+				'domain'  => 'with-listener-host.example.com',
+				'stage'   => Domain_Stage::DONE,
+			]);
+
+			$this->assertNotWPError($domain);
+
+			wu_unschedule_all_actions('wu_add_domain');
+
+			add_action('wu_add_domain', $callback);
+
+			$this->domain_manager->send_domain_to_host(
+				'old-with-listener.example.com',
+				'with-listener-host.example.com',
+				$domain->get_id()
+			);
+
+			$enqueued_args = [
+				'domain'  => 'with-listener-host.example.com',
+				'site_id' => $domain->get_site_id(),
+			];
+
+			$matching_actions = wu_get_scheduled_actions(
+				[
+					'hook'     => 'wu_add_domain',
+					'status'   => \ActionScheduler_Store::STATUS_PENDING,
+					'args'     => $enqueued_args,
+					'per_page' => 5,
+				],
+				'ids'
+			);
+
+			$this->assertNotEmpty(
+				$matching_actions,
+				'wu_add_domain must be enqueued when a host-provider integration is listening.'
+			);
+		} finally {
+			remove_action('wu_add_domain', $callback);
+			if (null !== $prior_callbacks) {
+				$GLOBALS['wp_filter']['wu_add_domain'] = $prior_callbacks;
+			}
+			wu_unschedule_all_actions('wu_add_domain');
+		}
+	}
+
+	/**
+	 * Test handle_site_created does not enqueue wu_add_subdomain when no listener is hooked.
+	 */
+	public function test_handle_site_created_skips_subdomain_enqueue_without_listener(): void {
+		global $current_site;
+
+		$unique_sub = 'no-listener-' . uniqid('', false) . '.' . $current_site->domain;
+
+		$prior_callbacks = $GLOBALS['wp_filter']['wu_add_subdomain'] ?? null;
+		unset($GLOBALS['wp_filter']['wu_add_subdomain']);
+
+		try {
+			$blog_id = $this->create_test_blog([
+				'domain' => $unique_sub,
+			]);
+
+			$site = get_blog_details($blog_id);
+
+			$this->assertFalse(
+				has_action('wu_add_subdomain'),
+				'precondition: wu_add_subdomain must have no listeners'
+			);
+
+			$this->domain_manager->handle_site_created($site);
+
+			$enqueued_args = [
+				'subdomain' => $site->domain,
+				'site_id'   => $site->blog_id,
+			];
+
+			$matching_actions = wu_get_scheduled_actions(
+				[
+					'hook'     => 'wu_add_subdomain',
+					'status'   => \ActionScheduler_Store::STATUS_PENDING,
+					'args'     => $enqueued_args,
+					'per_page' => 5,
+				],
+				'ids'
+			);
+
+			$this->assertEmpty(
+				$matching_actions,
+				sprintf(
+					'wu_add_subdomain must not be enqueued for args %s; found action ids: %s',
+					var_export($enqueued_args, true),
+					var_export($matching_actions, true)
+				)
+			);
+		} finally {
+			if (null !== $prior_callbacks) {
+				$GLOBALS['wp_filter']['wu_add_subdomain'] = $prior_callbacks;
+			}
+		}
+	}
+
+	/**
+	 * Test handle_site_created enqueues wu_add_subdomain when a listener is hooked.
+	 */
+	public function test_handle_site_created_enqueues_subdomain_when_listener_registered(): void {
+		global $current_site;
+
+		$callback = function () {
+			// no-op listener — its presence is what we are testing
+		};
+
+		$prior_callbacks = $GLOBALS['wp_filter']['wu_add_subdomain'] ?? null;
+		unset($GLOBALS['wp_filter']['wu_add_subdomain']);
+
+		try {
+			$blog_id = $this->create_test_blog([
+				'domain' => 'with-listener-sub.' . $current_site->domain,
+			]);
+
+			$site = get_blog_details($blog_id);
+
+			wu_unschedule_all_actions('wu_add_subdomain');
+
+			add_action('wu_add_subdomain', $callback);
+
+			$this->domain_manager->handle_site_created($site);
+
+			$enqueued_args = [
+				'subdomain' => $site->domain,
+				'site_id'   => $site->blog_id,
+			];
+
+			$matching_actions = wu_get_scheduled_actions(
+				[
+					'hook'     => 'wu_add_subdomain',
+					'status'   => \ActionScheduler_Store::STATUS_PENDING,
+					'args'     => $enqueued_args,
+					'per_page' => 5,
+				],
+				'ids'
+			);
+
+			$this->assertNotEmpty(
+				$matching_actions,
+				'wu_add_subdomain must be enqueued when a host-provider integration is listening.'
+			);
+		} finally {
+			remove_action('wu_add_subdomain', $callback);
+			if (null !== $prior_callbacks) {
+				$GLOBALS['wp_filter']['wu_add_subdomain'] = $prior_callbacks;
+			}
+			wu_unschedule_all_actions('wu_add_subdomain');
+		}
+	}
+
+	// ----------------------------------------------------------------
 	// NEW: Domain set_domain normalizes to lowercase
 	// ----------------------------------------------------------------
 

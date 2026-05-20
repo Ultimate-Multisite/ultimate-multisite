@@ -336,7 +336,16 @@ class Domain_Manager extends Base_Manager {
 			'site_id'   => $site->blog_id,
 		];
 
-		wu_enqueue_async_action('wu_add_subdomain', $args, 'domain');
+		/*
+		 * Only enqueue the async action when at least one host-provider integration
+		 * has hooked into wu_add_subdomain. Otherwise Action Scheduler runs the job
+		 * with zero callbacks and logs "no callbacks are registered" on every site
+		 * creation, which is noise — the wu_async_process_domain_stage chain handles
+		 * DNS/SSL progression independently.
+		 */
+		if (has_action('wu_add_subdomain')) {
+			wu_enqueue_async_action('wu_add_subdomain', $args, 'domain');
+		}
 
 		// Create a domain record for the site
 		$this->create_domain_record_for_site($site);
@@ -764,7 +773,16 @@ class Domain_Manager extends Base_Manager {
 				'site_id' => $site_id,
 			];
 
-			wu_enqueue_async_action('wu_add_domain', $args, 'domain');
+			/*
+			 * Only enqueue the async action when at least one host-provider
+			 * integration has hooked into wu_add_domain. Otherwise Action Scheduler
+			 * runs the job with zero callbacks and logs "no callbacks are
+			 * registered" on every domain change — see handle_site_created() for
+			 * the equivalent wu_add_subdomain guard.
+			 */
+			if (has_action('wu_add_domain')) {
+				wu_enqueue_async_action('wu_add_domain', $args, 'domain');
+			}
 
 			/**
 			 * Fires when a custom domain is added to the network.
