@@ -196,23 +196,25 @@
 
 					});
 
-				},
-				scroll_to(element_id) {
+			},
+			scroll_to(element_id) {
 
-					this.$nextTick(function() {
+				this.$nextTick(function() {
 
-						setTimeout(() => {
+					setTimeout(() => {
 
-							const element = document.getElementById(element_id);
+						const element = document.getElementById(element_id);
 
+						if (element) {
 							element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+						}
 
-						}, 500);
+					}, 500);
 
-					});
+				});
 
-				},
-				find_step(step_name) {
+			},
+			find_step(step_name) {
 
 					return _.findWhere(this.steps, {
 						id: step_name,
