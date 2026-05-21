@@ -126,7 +126,7 @@ class Membership_Manager extends Base_Manager {
 
 			// Verify HMAC.
 			$expected_token = hash_hmac('sha256', $membership_id . '|' . $expires, wp_salt('auth'));
-			if (!hash_equals($expected_token, $wu_token)) {
+			if (! hash_equals($expected_token, $wu_token)) {
 				wp_die('0', 400);
 			}
 		} else {

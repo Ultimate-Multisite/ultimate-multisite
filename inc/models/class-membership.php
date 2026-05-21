@@ -2148,6 +2148,7 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			if ($code < 200 || $code >= 300) {
 				wu_log_add(
 					"membership-{$this->get_id()}",
+					// translators: %d HTTP status code.
 					sprintf(__('Loopback fast-path returned HTTP %d — falling back to Action Scheduler.', 'ultimate-multisite'), $code)
 				);
 			}
