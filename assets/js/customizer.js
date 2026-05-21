@@ -19,7 +19,7 @@
 	/**
 	 * Unblocks when the loading is finished.
 	 */
-	$('#preview-stage-iframe').on('load', function() {
+	$('#preview-stage-iframe').off('load').one('load', function() {
 
 		if (block) {
 
