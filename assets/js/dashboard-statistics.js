@@ -9,8 +9,7 @@
 
 	} // end if;
 
-	// eslint-disable-next-line no-undef
-	mrr_graph = new Vue({
+	const mrr_graph = new Vue({
 		el: '#wp-ultimo-mrr-growth',
 		components: {
 			apexchart: window.VueApexCharts,
