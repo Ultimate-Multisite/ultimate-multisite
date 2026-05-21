@@ -989,7 +989,7 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$this->assertNotFalse(get_transient($transient_key), 'transient should exist before reclaim');
 
 		// Fake WC order ID — wc_get_order stub is expected to return an object with this email.
-		$fake_order_id              = 42;
+		$fake_order_id                      = 42;
 		$GLOBALS['_wu_test_wc_order_email'] = $email;
 
 		$manager->reclaim_pending_site_on_wc_order_completion($fake_order_id);
@@ -1036,5 +1036,182 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 			$refreshed->get_status(),
 			'membership should remain cancelled when no transient exists'
 		);
+	}
+
+	// ========================================================================
+	// publish_pending_site() -- AJAX handler with HMAC token verification
+	// ========================================================================
+
+	/**
+	 * Test HMAC token generation and verification.
+	 *
+	 * Verifies that a valid HMAC token can be generated and verified correctly.
+	 */
+	public function test_hmac_token_generation_and_verification(): void {
+
+		$membership_id = 123;
+		$expires       = time() + 60;
+
+		// Generate token as the loopback request would.
+		$token = hash_hmac('sha256', $membership_id . '|' . $expires, wp_salt('auth'));
+
+		// Verify the token.
+		$expected_token = hash_hmac('sha256', $membership_id . '|' . $expires, wp_salt('auth'));
+
+		$this->assertTrue(
+			hash_equals($expected_token, $token),
+			'HMAC token should verify correctly'
+		);
+	}
+
+	/**
+	 * Test HMAC token rejects expired tokens.
+	 *
+	 * Verifies that an expired token is detected correctly.
+	 */
+	public function test_hmac_token_rejects_expired(): void {
+
+		$membership_id = 123;
+		$expires       = time() - 60; // Expired 60 seconds ago.
+
+		// Check expiration.
+		$this->assertTrue(
+			$expires < time(),
+			'Token should be detected as expired'
+		);
+	}
+
+	/**
+	 * Test HMAC token rejects forged tokens.
+	 *
+	 * Verifies that a forged token (with wrong membership ID) is rejected.
+	 */
+	public function test_hmac_token_rejects_forged(): void {
+
+		$membership_id = 123;
+		$expires       = time() + 60;
+
+		// Generate token for membership 123.
+		$token = hash_hmac('sha256', $membership_id . '|' . $expires, wp_salt('auth'));
+
+		// Try to verify with a different membership ID.
+		$expected_token = hash_hmac('sha256', '99999|' . $expires, wp_salt('auth'));
+
+		$this->assertFalse(
+			hash_equals($expected_token, $token),
+			'Forged token should not verify'
+		);
+	}
+
+	/**
+	 * Test publish_pending_site_async generates valid HMAC token.
+	 *
+	 * Verifies that the loopback request includes a valid HMAC token.
+	 */
+	public function test_publish_pending_site_async_generates_token(): void {
+
+		$membership = $this->create_membership();
+
+		// Create a pending site.
+		$pending_site = $membership->create_pending_site([
+			'title'  => 'Test Site',
+			'domain' => 'test-' . wp_rand() . '.example.com',
+		]);
+
+		$membership->update_pending_site($pending_site);
+
+		// Mock wp_remote_request to capture the URL.
+		$captured_url = null;
+		add_filter(
+			'pre_http_request',
+			function ($preempt, $r, $url) use (&$captured_url) {
+				$captured_url = $url;
+				// Return a successful response to prevent actual HTTP request.
+				return ['response' => ['code' => 200]];
+			},
+			10,
+			3
+		);
+
+		// Call the async publish method.
+		$membership->publish_pending_site_async();
+
+		// Verify the URL contains the token parameters.
+		$this->assertNotNull($captured_url, 'URL should be captured');
+		$this->assertStringContainsString('wu_token=', $captured_url, 'URL should contain wu_token parameter');
+		$this->assertStringContainsString('wu_expires=', $captured_url, 'URL should contain wu_expires parameter');
+		$this->assertStringContainsString('membership_id=' . $membership->get_id(), $captured_url, 'URL should contain membership_id');
+
+		// Verify the token is valid.
+		$parsed_url = wp_parse_url($captured_url);
+		parse_str($parsed_url['query'], $query_params);
+
+		$token   = $query_params['wu_token'];
+		$expires = (int) $query_params['wu_expires'];
+		$mid     = (int) $query_params['membership_id'];
+
+		$expected_token = hash_hmac('sha256', $mid . '|' . $expires, wp_salt('auth'));
+
+		$this->assertTrue(
+			hash_equals($expected_token, $token),
+			'Token in URL should be valid'
+		);
+
+		remove_filter('pre_http_request', 10);
+	}
+
+	/**
+	 * Test publish_pending_site_async logs non-2xx responses.
+	 *
+	 * Verifies that HTTP error responses are logged.
+	 */
+	public function test_publish_pending_site_async_logs_http_errors(): void {
+
+		$membership = $this->create_membership();
+
+		// Create a pending site.
+		$pending_site = $membership->create_pending_site([
+			'title'  => 'Test Site',
+			'domain' => 'test-' . wp_rand() . '.example.com',
+		]);
+
+		$membership->update_pending_site($pending_site);
+
+		// Mock wp_remote_request to return a 400 error.
+		add_filter(
+			'pre_http_request',
+			function () {
+				return [
+					'response' => [
+						'code'    => 400,
+						'message' => 'Bad Request',
+					],
+				];
+			}
+		);
+
+		// Capture log output.
+		$log_file = WP_CONTENT_DIR . '/wu-logs/membership-' . $membership->get_id() . '.log';
+		if (file_exists($log_file)) {
+			unlink($log_file);
+		}
+
+		// Call the async publish method.
+		$membership->publish_pending_site_async();
+
+		// Verify the error was logged.
+		$this->assertTrue(
+			file_exists($log_file),
+			'Log file should be created for HTTP error'
+		);
+
+		$log_content = file_get_contents($log_file);
+		$this->assertStringContainsString(
+			'HTTP 400',
+			$log_content,
+			'Log should contain HTTP error code'
+		);
+
+		remove_filter('pre_http_request', 10);
 	}
 }

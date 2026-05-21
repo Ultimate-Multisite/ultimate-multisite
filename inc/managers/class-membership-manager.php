@@ -110,7 +110,30 @@ class Membership_Manager extends Base_Manager {
 	 */
 	public function publish_pending_site(): void {
 
-		check_ajax_referer('wu_publish_pending_site');
+		// Check for HMAC token (loopback fast-path) or nonce (admin modal).
+		$wu_token   = wu_request('wu_token');
+		$wu_expires = wu_request('wu_expires');
+
+		if ($wu_token && $wu_expires) {
+			// Verify HMAC token for loopback requests.
+			$membership_id = wu_request('membership_id');
+			$expires       = (int) $wu_expires;
+
+			// Token must not be expired.
+			if ($expires < time()) {
+				wp_die('0', 400);
+			}
+
+			// Verify HMAC.
+			$expected_token = hash_hmac('sha256', $membership_id . '|' . $expires, wp_salt('auth'));
+			if (! hash_equals($expected_token, $wu_token)) {
+				wp_die('0', 400);
+			}
+		} else {
+			// Fall back to nonce check for admin modal / manual flow.
+			check_ajax_referer('wu_publish_pending_site');
+			$membership_id = wu_request('membership_id');
+		}
 
 		ignore_user_abort(true);
 
@@ -126,8 +149,6 @@ class Membership_Manager extends Base_Manager {
 		}
 		// Note: When fastcgi_finish_request is unavailable, the client will wait
 		// for the operation to complete but still receives the JSON response.
-
-		$membership_id = wu_request('membership_id');
 
 		$this->async_publish_pending_site($membership_id);
 
