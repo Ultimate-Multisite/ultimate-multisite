@@ -1,3 +1,5 @@
+/* global wu_thank_you */
+/* eslint-disable no-console */
 (() => {
 	"use strict";
 	const TransitionText = (element, has_icon = false) => {
@@ -65,24 +67,29 @@
 		document.querySelectorAll(".wu-resend-verification-email").forEach((element) => element.addEventListener("click", async (event) => {
 			event.preventDefault();
 			const transitional_text = TransitionText(element, true).text(wu_thank_you.i18n.resending_verification_email, [ "wu-text-gray-400" ]);
-			const request = await fetch(
-				wu_thank_you.ajaxurl,
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/x-www-form-urlencoded",
-					},
-					body: new URLSearchParams({
-						action: "wu_resend_verification_email",
-						_ajax_nonce: wu_thank_you.resend_verification_email_nonce
-					}),
+			try {
+				const request = await fetch(
+					wu_thank_you.ajaxurl,
+					{
+						method: "POST",
+						headers: {
+							"Content-Type": "application/x-www-form-urlencoded",
+						},
+						body: new URLSearchParams({
+							action: "wu_resend_verification_email",
+							_ajax_nonce: wu_thank_you.resend_verification_email_nonce
+						}),
+					}
+				);
+				const response = await request.json();
+				if (response.success) {
+					transitional_text.text(wu_thank_you.i18n.email_sent, [ "wu-text-green-700" ], true).done();
+				} else {
+					transitional_text.text(response?.data?.[ 0 ]?.message || wu_thank_you.i18n.request_failed, [ "wu-text-red-600" ], true).done();
 				}
-			);
-			const response = await request.json();
-			if (response.success) {
-				transitional_text.text(wu_thank_you.i18n.email_sent, [ "wu-text-green-700" ], true).done();
-			} else {
-				transitional_text.text(response.data[ 0 ].message, [ "wu-text-red-600" ], true).done();
+			} catch (e) {
+				console.error("Resend verification email failed:", e);
+				transitional_text.text(wu_thank_you.i18n.request_failed, [ "wu-text-red-600" ], true).done();
 			}
 		}));
 		if (! document.getElementById("wu-sites")) {
@@ -120,16 +127,16 @@
 			},
 			mounted() {
 				/*
-       * Kick wp-cron immediately to start the async site creation ASAP.
-       *
-       * Always start polling regardless of has_pending_site. The page may
-       * load before the pending site is created (during Stripe webhook
-       * delay). Without polling, the user stares at "Creating" forever
-       * even after the site is ready.
-       *
-       * @since 2.4.13
-       */
-				fetch("/wp-cron.php?doing_wp_cron");
+        * Kick wp-cron immediately to start the async site creation ASAP.
+        *
+        * Always start polling regardless of has_pending_site. The page may
+        * load before the pending site is created (during Stripe webhook
+        * delay). Without polling, the user stares at "Creating" forever
+        * even after the site is ready.
+        *
+        * @since 2.4.13
+        */
+				fetch(wu_thank_you.wp_cron_url);
 				this.check_site_created();
 			},
 			methods: {
@@ -169,10 +176,10 @@
 						this.running_count++;
 						// Kick cron every 3 polls to keep Action Scheduler active during site creation.
 						if (this.running_count % 3 === 0) {
-							fetch("/wp-cron.php?doing_wp_cron");
+							fetch(wu_thank_you.wp_cron_url);
 						}
 						if (this.running_count > 60) {
-							fetch("/wp-cron.php?doing_wp_cron");
+							fetch(wu_thank_you.wp_cron_url);
 							if (! this.is_post_redirect) {
 								// Use the _t cache-bust redirect (not location.reload) so the next
 								// page load sets is_post_redirect = true, preventing a second redirect

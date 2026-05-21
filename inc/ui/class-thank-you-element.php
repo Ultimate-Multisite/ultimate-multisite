@@ -132,11 +132,13 @@ class Thank_You_Element extends Base_Element {
 				'has_pending_site'                => $has_pending_site,
 				'next_queue'                      => wu_get_next_queue_run(),
 				'ajaxurl'                         => admin_url('admin-ajax.php'),
+				'wp_cron_url'                     => admin_url('admin-ajax.php?action=wu_wp_cron'),
 				'resend_verification_email_nonce' => wp_create_nonce('wu_resend_verification_email_nonce'),
 				'membership_hash'                 => $this->membership ? $this->membership->get_hash() : false,
 				'i18n'                            => [
 					'resending_verification_email' => __('Resending verification email...', 'ultimate-multisite'),
 					'email_sent'                   => __('Verification email sent!', 'ultimate-multisite'),
+					'request_failed'               => __('Request failed. Please try again.', 'ultimate-multisite'),
 				],
 			]
 		);
