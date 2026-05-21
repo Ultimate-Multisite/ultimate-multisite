@@ -2108,11 +2108,15 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		}
 
 		// We first try to generate the site through request to start earlier as possible.
+		// Generate a short-lived HMAC token for the loopback request.
+		$expires   = time() + 60;
+		$token     = hash_hmac('sha256', $this->get_id() . '|' . $expires, wp_salt('auth'));
 		$rest_path = add_query_arg(
 			[
 				'action'        => 'wu_publish_pending_site',
-				'_ajax_nonce'   => wp_create_nonce('wu_publish_pending_site'),
 				'membership_id' => $this->get_id(),
+				'wu_token'      => $token,
+				'wu_expires'    => $expires,
 			],
 			admin_url('admin-ajax.php')
 		);
@@ -2120,12 +2124,7 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			'Cache-Control' => 'no-cache',
 		);
 
-		// Include Basic auth in loopback requests.
-		if ( isset($_SERVER['PHP_AUTH_USER']) && isset($_SERVER['PHP_AUTH_PW']) ) {
-			$headers['Authorization'] = 'Basic ' . base64_encode(sanitize_text_field(wp_unslash($_SERVER['PHP_AUTH_USER'])) . ':' . sanitize_text_field(wp_unslash($_SERVER['PHP_AUTH_PW']))); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
-		}
 		$request_args = [
-			'cookies'   => wp_unslash($_COOKIE), // Cookies are needed for nonce check to work.
 			'timeout'   => 10,
 			/** This filter is documented in wp-includes/class-wp-http-streams.php */
 			'sslverify' => apply_filters('https_local_ssl_verify', false),
@@ -2144,6 +2143,14 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		if (is_wp_error($result)) {
 			// translators: %s full error message.
 			wu_log_add("membership-{$this->get_id()}", sprintf(__('Failed to trigger async site creation. The site will not be created until the next cron run which is much slower: %s', 'ultimate-multisite'), $result->get_error_message()));
+		} else {
+			$code = (int) wp_remote_retrieve_response_code($result);
+			if ($code < 200 || $code >= 300) {
+				wu_log_add(
+					"membership-{$this->get_id()}",
+					sprintf(__('Loopback fast-path returned HTTP %d — falling back to Action Scheduler.', 'ultimate-multisite'), $code)
+				);
+			}
 		}
 
 		wu_enqueue_async_action('wu_async_publish_pending_site', ['membership_id' => $this->get_id()], 'membership');
