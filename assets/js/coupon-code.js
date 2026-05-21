@@ -167,6 +167,7 @@
 							}
 
 							if (applies_to_setup_fee) {
+								let setupfee_off_with_symbol = '';
 
 								if (setup_fee_discount_type != '"absolute"') {
 									setupfee_off_with_symbol = ''.concat(setup_fee_discount_value, '%');
