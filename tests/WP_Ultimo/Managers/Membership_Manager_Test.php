@@ -989,7 +989,7 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$this->assertNotFalse(get_transient($transient_key), 'transient should exist before reclaim');
 
 		// Fake WC order ID — wc_get_order stub is expected to return an object with this email.
-		$fake_order_id              = 42;
+		$fake_order_id                      = 42;
 		$GLOBALS['_wu_test_wc_order_email'] = $email;
 
 		$manager->reclaim_pending_site_on_wc_order_completion($fake_order_id);
@@ -1181,7 +1181,12 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		add_filter(
 			'pre_http_request',
 			function () {
-				return ['response' => ['code' => 400, 'message' => 'Bad Request']];
+				return [
+					'response' => [
+						'code'    => 400,
+						'message' => 'Bad Request',
+					],
+				];
 			}
 		);
 

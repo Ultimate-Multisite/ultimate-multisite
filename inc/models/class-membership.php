@@ -2731,7 +2731,7 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		$keys_to_compare = ['gateway', 'gateway_subscription_id'];
 
 		foreach ($keys_to_compare as $key) {
-			$current_value  = $key === 'gateway' ? $this->get_gateway() : $this->get_gateway_subscription_id();
+			$current_value  = 'gateway' === $key ? $this->get_gateway() : $this->get_gateway_subscription_id();
 			$snapshot_value = $this->gateway_info[ $key ] ?? null;
 
 			if ($current_value !== $snapshot_value) {
