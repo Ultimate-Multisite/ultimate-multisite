@@ -430,6 +430,17 @@ class Template_Switching_Element extends Base_Element {
 	 */
 	public function output($atts, $content = null) {
 
+		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+			echo wu_get_template_contents(
+				'elements/sovereign-redirect',
+				[
+					'main_site_account_url' => wu_mt_main_site_account_url(),
+					'element_label'         => __('Template switching', 'ultimate-multisite'),
+				]
+			);
+			return;
+		}
+
 		if ( ! $this->site || self::STATE_NOT_ALLOWED === $this->permission_state) {
 			$this->render_not_allowed_notice();
 

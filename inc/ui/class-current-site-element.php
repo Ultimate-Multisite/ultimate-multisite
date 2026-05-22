@@ -352,6 +352,17 @@ class Current_Site_Element extends Base_Element {
 	 */
 	public function output($atts, $content = null) {
 
+		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+			echo wu_get_template_contents(
+				'elements/sovereign-redirect',
+				[
+					'main_site_account_url' => wu_mt_main_site_account_url(),
+					'element_label'         => __('Site actions', 'ultimate-multisite'),
+				]
+			);
+			return;
+		}
+
 		$this->ensure_setup();
 
 		// Return empty if no site available (e.g., during SEO processing)
