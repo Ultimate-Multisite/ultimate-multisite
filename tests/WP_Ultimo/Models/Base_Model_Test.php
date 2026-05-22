@@ -560,6 +560,198 @@ class Base_Model_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test wu_pre_get_by_id filter returns null by default (no-callback case).
+	 */
+	public function test_wu_pre_get_by_id_filter_returns_null_by_default(): void {
+
+		$user_id  = self::factory()->user->create();
+		$customer = wu_create_customer([
+			'user_id'         => $user_id,
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($customer);
+		$customer_id = $customer->get_id();
+
+		// No callback registered — filter returns null, normal query proceeds.
+		$result = Customer::get_by_id($customer_id);
+
+		$this->assertNotFalse($result);
+		$this->assertSame($customer_id, $result->get_id());
+	}
+
+	/**
+	 * Test wu_pre_get_by_id filter returns instance when callback returns instance.
+	 */
+	public function test_wu_pre_get_by_id_filter_returns_instance_when_callback_returns_instance(): void {
+
+		$user_id  = self::factory()->user->create();
+		$customer = wu_create_customer([
+			'user_id'         => $user_id,
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($customer);
+		$customer_id = $customer->get_id();
+
+		// Create a stub customer to return from the filter.
+		$stub = new Customer(['id' => 9999]);
+
+		// Register callback that returns the stub.
+		add_filter('wu_pre_get_by_id_customer', function() use ($stub) {
+			return $stub;
+		});
+
+		$result = Customer::get_by_id($customer_id);
+
+		// Should return the stub, not the real customer.
+		$this->assertSame(9999, $result->get_id());
+
+		remove_filter('wu_pre_get_by_id_customer', function() use ($stub) {
+			return $stub;
+		});
+	}
+
+	/**
+	 * Test wu_pre_get_by filter returns null by default (no-callback case).
+	 */
+	public function test_wu_pre_get_by_filter_returns_null_by_default(): void {
+
+		$user_id  = self::factory()->user->create();
+		$customer = wu_create_customer([
+			'user_id'         => $user_id,
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($customer);
+
+		// No callback registered — filter returns null, normal query proceeds.
+		$result = Customer::get_by('user_id', $user_id);
+
+		$this->assertNotFalse($result);
+		$this->assertSame($user_id, $result->get_user_id());
+	}
+
+	/**
+	 * Test wu_pre_get_by filter returns instance when callback returns instance.
+	 */
+	public function test_wu_pre_get_by_filter_returns_instance_when_callback_returns_instance(): void {
+
+		$user_id  = self::factory()->user->create();
+		$customer = wu_create_customer([
+			'user_id'         => $user_id,
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($customer);
+
+		// Create a stub customer to return from the filter.
+		$stub = new Customer(['id' => 8888]);
+
+		// Register callback that returns the stub.
+		add_filter('wu_pre_get_by_customer', function() use ($stub) {
+			return $stub;
+		});
+
+		$result = Customer::get_by('user_id', $user_id);
+
+		// Should return the stub, not the real customer.
+		$this->assertSame(8888, $result->get_id());
+
+		remove_filter('wu_pre_get_by_customer', function() use ($stub) {
+			return $stub;
+		});
+	}
+
+	/**
+	 * Test wu_pre_get_by_hash filter returns null by default (no-callback case).
+	 */
+	public function test_wu_pre_get_by_hash_filter_returns_null_by_default(): void {
+
+		$user_id  = self::factory()->user->create();
+		$customer = wu_create_customer([
+			'user_id'         => $user_id,
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($customer);
+
+		$hash = $customer->get_hash('id');
+
+		// No callback registered — filter returns null, normal query proceeds.
+		$result = Customer::get_by_hash($hash);
+
+		$this->assertNotFalse($result);
+		$this->assertSame($customer->get_id(), $result->get_id());
+	}
+
+	/**
+	 * Test wu_pre_get_by_hash filter returns instance when callback returns instance.
+	 */
+	public function test_wu_pre_get_by_hash_filter_returns_instance_when_callback_returns_instance(): void {
+
+		$user_id  = self::factory()->user->create();
+		$customer = wu_create_customer([
+			'user_id'         => $user_id,
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($customer);
+
+		$hash = $customer->get_hash('id');
+
+		// Create a stub customer to return from the filter.
+		$stub = new Customer(['id' => 7777]);
+
+		// Register callback that returns the stub.
+		add_filter('wu_pre_get_by_hash_customer', function() use ($stub) {
+			return $stub;
+		});
+
+		$result = Customer::get_by_hash($hash);
+
+		// Should return the stub, not the real customer.
+		$this->assertSame(7777, $result->get_id());
+
+		remove_filter('wu_pre_get_by_hash_customer', function() use ($stub) {
+			return $stub;
+		});
+	}
+
+	/**
+	 * Test wu_pre_get_by_id filter discriminates by model name.
+	 */
+	public function test_wu_pre_get_by_id_filter_discriminates_by_model(): void {
+
+		$user_id  = self::factory()->user->create();
+		$customer = wu_create_customer([
+			'user_id'         => $user_id,
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($customer);
+		$customer_id = $customer->get_id();
+
+		// Create a stub to return from the filter.
+		$stub = new Customer(['id' => 6666]);
+
+		// Register callback for 'membership' model (not 'customer').
+		add_filter('wu_pre_get_by_id_membership', function() use ($stub) {
+			return $stub;
+		});
+
+		// Customer::get_by_id should NOT be affected by the 'membership' filter.
+		$result = Customer::get_by_id($customer_id);
+
+		$this->assertNotFalse($result);
+		$this->assertSame($customer_id, $result->get_id());
+
+		remove_filter('wu_pre_get_by_id_membership', function() use ($stub) {
+			return $stub;
+		});
+	}
+
+	/**
 	 * Tear down test environment.
 	 */
 	public function tearDown(): void {
