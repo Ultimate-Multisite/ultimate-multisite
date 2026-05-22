@@ -35,6 +35,11 @@ class Auto_Delete_Users_Compat {
 	 * @since 2.4.5
 	 */
 	public function init(): void {
+
+		if ( defined( 'WU_MT_SOVEREIGN_TENANT' ) && WU_MT_SOVEREIGN_TENANT ) {
+			return;
+		}
+
 		// Add the settings to enable or disable this feature.
 		add_action('wu_settings_login', [$this, 'add_settings'], 10);
 
