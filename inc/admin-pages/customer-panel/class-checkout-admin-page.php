@@ -80,6 +80,14 @@ class Checkout_Admin_Page extends \WP_Ultimo\Admin_Pages\Base_Customer_Facing_Ad
 	protected $fold_menu = true;
 
 	/**
+	 * The return_to URL for sovereign-tenant context.
+	 *
+	 * @since 2.0.0
+	 * @var string|null
+	 */
+	protected $return_to_url;
+
+	/**
 	 * Returns the title of the page.
 	 *
 	 * @since 2.0.0
@@ -121,6 +129,8 @@ class Checkout_Admin_Page extends \WP_Ultimo\Admin_Pages\Base_Customer_Facing_Ad
 	public function page_loaded(): void {
 
 		do_action('wu_setup_checkout', null);
+
+		$this->return_to_url = $this->get_validated_return_to_url();
 
 		parent::page_loaded();
 	}
@@ -174,5 +184,111 @@ class Checkout_Admin_Page extends \WP_Ultimo\Admin_Pages\Base_Customer_Facing_Ad
 		\WP_Ultimo\UI\Current_Membership_Element::get_instance()->as_metabox(get_current_screen()->id);
 
 		\WP_Ultimo\UI\Simple_Text_Element::get_instance()->as_inline_content(get_current_screen()->id, 'wu_centered_right');
+	}
+
+	/**
+	 * Gets and validates the return_to URL from query parameters.
+	 *
+	 * @since 2.0.0
+	 * @return string|null The validated return_to URL or null if invalid.
+	 */
+	protected function get_validated_return_to_url() {
+
+		$return_to = wu_request('return_to');
+
+		if (empty($return_to)) {
+			return null;
+		}
+
+		// Decode the URL
+		$return_to = urldecode($return_to);
+
+		// Validate that it's a valid URL
+		if ( ! filter_var($return_to, FILTER_VALIDATE_URL)) {
+			return null;
+		}
+
+		// Get the host from the return_to URL
+		$return_host = wp_parse_url($return_to, PHP_URL_HOST);
+
+		if (empty($return_host)) {
+			return null;
+		}
+
+		// Get the current customer
+		$customer = wu_get_current_customer();
+
+		if ( ! $customer) {
+			return null;
+		}
+
+		// Get all sites for the current customer
+		$customer_sites = wu_get_sites(
+			[
+				'customer_id' => $customer->get_id(),
+			]
+			);
+
+		// Check if the return_to host matches any of the customer's sites
+		foreach ($customer_sites as $site) {
+			$site_domain = $site->get_domain();
+
+			if ($site_domain === $return_host) {
+				return $return_to;
+			}
+		}
+
+		// Host not found in customer's sites - invalid
+		return null;
+	}
+
+	/**
+	 * Gets the return_to URL for display in the page header.
+	 *
+	 * @since 2.0.0
+	 * @return string|null The return_to URL or null.
+	 */
+	public function get_return_to_url() {
+
+		return $this->return_to_url;
+	}
+
+	/**
+	 * Gets the site name for the return_to link.
+	 *
+	 * @since 2.0.0
+	 * @return string|null The site name or null.
+	 */
+	public function get_return_to_site_name() {
+
+		if (empty($this->return_to_url)) {
+			return null;
+		}
+
+		$return_host = wp_parse_url($this->return_to_url, PHP_URL_HOST);
+
+		if (empty($return_host)) {
+			return null;
+		}
+
+		$customer = wu_get_current_customer();
+
+		if ( ! $customer) {
+			return null;
+		}
+
+		$customer_sites = wu_get_sites(
+			[
+				'customer_id' => $customer->get_id(),
+			]
+			);
+
+		foreach ($customer_sites as $site) {
+			if ($site->get_domain() === $return_host) {
+				return $site->get_title();
+			}
+		}
+
+		return null;
 	}
 }
