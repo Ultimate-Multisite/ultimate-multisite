@@ -300,6 +300,17 @@ class Current_Membership_Element extends Base_Element {
 	 */
 	public function output($atts, $content = null) {
 
+		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+			echo wu_get_template_contents(
+				'elements/sovereign-redirect',
+				[
+					'main_site_account_url' => wu_mt_main_site_account_url(),
+					'element_label'         => __('Subscription', 'ultimate-multisite'),
+				]
+			);
+			return;
+		}
+
 		$atts['membership'] = $this->membership;
 		$atts['plan']       = $this->plan;
 		$atts['element']    = $this;
