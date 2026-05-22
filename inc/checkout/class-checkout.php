@@ -233,6 +233,25 @@ class Checkout {
 	}
 
 	/**
+	 * Gets the main site checkout URL.
+	 *
+	 * Used to redirect sovereign tenants to the main site for checkout.
+	 *
+	 * @since 2.5.2
+	 * @return string The main site checkout URL.
+	 */
+	public function get_main_site_checkout_url(): string {
+
+		$main_site = get_blog_details(get_network()->site_id);
+
+		if (! $main_site) {
+			return network_site_url('/register/');
+		}
+
+		return trailingslashit($main_site->siteurl) . 'register/';
+	}
+
+	/**
 	 * Add checkout rewrite rules.
 	 *
 	 * Adds the following URL structures.
@@ -563,6 +582,19 @@ class Checkout {
 	 */
 	public function maybe_handle_order_submission(): void {
 
+		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+			wp_send_json_error(
+				[
+					'code'          => 'sovereign_checkout_disabled',
+					'message'       => __('Checkout runs on the main site.', 'ultimate-multisite'),
+					'main_site_url' => $this->get_main_site_checkout_url(),
+				],
+				400
+			);
+
+			return;
+		}
+
 		$this->setup_checkout();
 
 		check_ajax_referer('wu_checkout');
@@ -750,15 +782,17 @@ class Checkout {
 			$existing_customer = wu_get_current_customer();
 
 			if ($existing_customer) {
-				$active_memberships = wu_get_memberships([
-					'customer_id' => $existing_customer->get_id(),
-					'status__in'  => [
-						Membership_Status::ACTIVE,
-						Membership_Status::TRIALING,
-						Membership_Status::ON_HOLD,
-					],
-					'number'      => 1,
-				]);
+				$active_memberships = wu_get_memberships(
+					[
+						'customer_id' => $existing_customer->get_id(),
+						'status__in'  => [
+							Membership_Status::ACTIVE,
+							Membership_Status::TRIALING,
+							Membership_Status::ON_HOLD,
+						],
+						'number'      => 1,
+					]
+					);
 
 				if ( ! empty($active_memberships)) {
 					$existing_membership = reset($active_memberships);
@@ -1838,6 +1872,19 @@ class Checkout {
 	 */
 	public function create_order(): void {
 
+		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+			wp_send_json_error(
+				[
+					'code'          => 'sovereign_checkout_disabled',
+					'message'       => __('Checkout runs on the main site.', 'ultimate-multisite'),
+					'main_site_url' => $this->get_main_site_checkout_url(),
+				],
+				400
+			);
+
+			return;
+		}
+
 		$this->setup_checkout();
 
 		// Set billing address to be used on the order
@@ -1898,6 +1945,19 @@ class Checkout {
 	 */
 	public function check_user_exists(): void {
 
+		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+			wp_send_json_error(
+				[
+					'code'          => 'sovereign_checkout_disabled',
+					'message'       => __('Checkout runs on the main site.', 'ultimate-multisite'),
+					'main_site_url' => $this->get_main_site_checkout_url(),
+				],
+				400
+			);
+
+			return;
+		}
+
 		check_ajax_referer('wu_checkout');
 
 		$field_type = wu_request('field_type');
@@ -1949,6 +2009,19 @@ class Checkout {
 	 * @return void
 	 */
 	public function handle_inline_login(): void {
+
+		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+			wp_send_json_error(
+				[
+					'code'          => 'sovereign_checkout_disabled',
+					'message'       => __('Checkout runs on the main site.', 'ultimate-multisite'),
+					'main_site_url' => $this->get_main_site_checkout_url(),
+				],
+				400
+			);
+
+			return;
+		}
 
 		check_ajax_referer('wu_checkout');
 
@@ -2091,15 +2164,15 @@ class Checkout {
 			/* translators: %s: field label */
 			'field_invalid_email'  => __('%s must be a valid email address.', 'ultimate-multisite'),
 			/* translators: 1: field label, 2: minimum character count */
-			'field_min_length'     => __('%s must be at least %d characters.', 'ultimate-multisite'),
+			'field_min_length'     => __('%1$s must be at least %2$d characters.', 'ultimate-multisite'),
 			/* translators: 1: field label, 2: maximum character count */
-			'field_max_length'     => __('%s must not exceed %d characters.', 'ultimate-multisite'),
+			'field_max_length'     => __('%1$s must not exceed %2$d characters.', 'ultimate-multisite'),
 			/* translators: %s: field label */
 			'field_alpha_dash'     => __('%s may only contain letters, numbers, dashes, and underscores.', 'ultimate-multisite'),
 			/* translators: %s: field label */
 			'field_lowercase'      => __('%s must be lowercase.', 'ultimate-multisite'),
 			/* translators: 1: field label, 2: other field label */
-			'field_same'           => __('%s must match %s.', 'ultimate-multisite'),
+			'field_same'           => __('%1$s must match %2$s.', 'ultimate-multisite'),
 			/* translators: %s: field label */
 			'field_integer'        => __('%s must be a whole number.', 'ultimate-multisite'),
 			/* translators: %s: field label */

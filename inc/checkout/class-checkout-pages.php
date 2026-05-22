@@ -130,6 +130,58 @@ class Checkout_Pages {
 
 			add_action('save_post', [$this, 'handle_compat_mode_setting']);
 		}
+
+		/*
+		 * In sovereign tenant context, redirect checkout URLs to the main site.
+		 */
+		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+			add_filter('post_type_link', [$this, 'redirect_checkout_urls_in_sovereign_context'], 10, 2);
+			add_filter('page_link', [$this, 'redirect_checkout_urls_in_sovereign_context'], 10, 2);
+		}
+	}
+
+	/**
+	 * Gets the main site checkout URL.
+	 *
+	 * Used to redirect sovereign tenants to the main site for checkout.
+	 *
+	 * @since 2.5.2
+	 * @return string The main site checkout URL.
+	 */
+	public function get_main_site_checkout_url(): string {
+
+		$main_site = get_blog_details(get_network()->site_id);
+
+		if (! $main_site) {
+			return network_site_url('/register/');
+		}
+
+		return trailingslashit($main_site->siteurl) . 'register/';
+	}
+
+	/**
+	 * Redirects checkout URLs to the main site in sovereign tenant context.
+	 *
+	 * @since 2.5.2
+	 *
+	 * @param string   $permalink The post permalink.
+	 * @param \WP_Post $post      The post object.
+	 * @return string The modified permalink.
+	 */
+	public function redirect_checkout_urls_in_sovereign_context($permalink, $post) {
+
+		if (! is_a($post, '\WP_Post')) {
+			return $permalink;
+		}
+
+		$signup_pages = $this->get_signup_pages();
+
+		// Check if this post is a checkout-related page
+		if (in_array($post->ID, array_filter($signup_pages), true)) {
+			return $this->get_main_site_checkout_url();
+		}
+
+		return $permalink;
 	}
 
 	/**
@@ -425,7 +477,6 @@ class Checkout_Pages {
 			);
 
 			$new_url = set_url_scheme($new_url, null);
-
 		} else {
 
 			/*

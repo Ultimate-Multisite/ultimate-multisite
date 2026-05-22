@@ -5341,6 +5341,150 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	// -------------------------------------------------------------------------
+	// Sovereign Tenant Checkout Guards
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Test that create_order returns error in sovereign tenant context.
+	 */
+	public function test_create_order_returns_error_in_sovereign_context(): void {
+
+		// Define the sovereign tenant constant
+		if (!defined('WU_MT_SOVEREIGN_TENANT')) {
+			define('WU_MT_SOVEREIGN_TENANT', true);
+		}
+
+		$checkout = Checkout::get_instance();
+
+		// Mock the AJAX request
+		$_POST['wu_nonce'] = wp_create_nonce('wu_checkout');
+
+		// Capture the JSON response
+		ob_start();
+		$checkout->create_order();
+		$response = ob_get_clean();
+
+		$data = json_decode($response, true);
+
+		$this->assertFalse($data['success']);
+		$this->assertEquals('sovereign_checkout_disabled', $data['data']['code']);
+		$this->assertStringContainsString('main site', $data['data']['message']);
+		$this->assertNotEmpty($data['data']['main_site_url']);
+	}
+
+	/**
+	 * Test that maybe_handle_order_submission returns error in sovereign tenant context.
+	 */
+	public function test_maybe_handle_order_submission_returns_error_in_sovereign_context(): void {
+
+		// Define the sovereign tenant constant
+		if (!defined('WU_MT_SOVEREIGN_TENANT')) {
+			define('WU_MT_SOVEREIGN_TENANT', true);
+		}
+
+		$checkout = Checkout::get_instance();
+
+		// Mock the AJAX request
+		$_POST['wu_nonce'] = wp_create_nonce('wu_checkout');
+
+		// Capture the JSON response
+		ob_start();
+		$checkout->maybe_handle_order_submission();
+		$response = ob_get_clean();
+
+		$data = json_decode($response, true);
+
+		$this->assertFalse($data['success']);
+		$this->assertEquals('sovereign_checkout_disabled', $data['data']['code']);
+	}
+
+	/**
+	 * Test that check_user_exists returns error in sovereign tenant context.
+	 */
+	public function test_check_user_exists_returns_error_in_sovereign_context(): void {
+
+		// Define the sovereign tenant constant
+		if (!defined('WU_MT_SOVEREIGN_TENANT')) {
+			define('WU_MT_SOVEREIGN_TENANT', true);
+		}
+
+		$checkout = Checkout::get_instance();
+
+		// Mock the AJAX request
+		$_POST['wu_nonce'] = wp_create_nonce('wu_checkout');
+		$_POST['field_type'] = 'email';
+		$_POST['value'] = 'test@example.com';
+
+		// Capture the JSON response
+		ob_start();
+		$checkout->check_user_exists();
+		$response = ob_get_clean();
+
+		$data = json_decode($response, true);
+
+		$this->assertFalse($data['success']);
+		$this->assertEquals('sovereign_checkout_disabled', $data['data']['code']);
+	}
+
+	/**
+	 * Test that handle_inline_login returns error in sovereign tenant context.
+	 */
+	public function test_handle_inline_login_returns_error_in_sovereign_context(): void {
+
+		// Define the sovereign tenant constant
+		if (!defined('WU_MT_SOVEREIGN_TENANT')) {
+			define('WU_MT_SOVEREIGN_TENANT', true);
+		}
+
+		$checkout = Checkout::get_instance();
+
+		// Mock the AJAX request
+		$_POST['wu_nonce'] = wp_create_nonce('wu_checkout');
+		$_POST['username_or_email'] = 'test@example.com';
+		$_POST['password'] = 'password123';
+
+		// Capture the JSON response
+		ob_start();
+		$checkout->handle_inline_login();
+		$response = ob_get_clean();
+
+		$data = json_decode($response, true);
+
+		$this->assertFalse($data['success']);
+		$this->assertEquals('sovereign_checkout_disabled', $data['data']['code']);
+	}
+
+	/**
+	 * Test that Cart constructor sets error in sovereign tenant context.
+	 */
+	public function test_cart_constructor_sets_error_in_sovereign_context(): void {
+
+		// Define the sovereign tenant constant
+		if (!defined('WU_MT_SOVEREIGN_TENANT')) {
+			define('WU_MT_SOVEREIGN_TENANT', true);
+		}
+
+		$cart = new Cart([
+			'products' => [],
+		]);
+
+		$this->assertTrue(is_wp_error($cart->errors));
+		$this->assertEquals('sovereign_checkout_disabled', $cart->errors->get_error_code());
+	}
+
+	/**
+	 * Test that get_main_site_checkout_url returns valid URL.
+	 */
+	public function test_get_main_site_checkout_url_returns_valid_url(): void {
+
+		$checkout = Checkout::get_instance();
+		$url = $checkout->get_main_site_checkout_url();
+
+		$this->assertNotEmpty($url);
+		$this->assertStringContainsString('register', $url);
+	}
+
+	// -------------------------------------------------------------------------
 	// Teardown
 	// -------------------------------------------------------------------------
 
