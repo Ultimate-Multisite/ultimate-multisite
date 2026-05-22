@@ -1158,12 +1158,6 @@ class Site extends Base_Model implements Limitable, Notable {
 			return $this->membership;
 		}
 
-		$pre = apply_filters( 'wu_pre_site_get_membership', null, $this );
-
-		if ( null !== $pre ) {
-			return $pre;
-		}
-
 		global $wpdb;
 
 		$table_name = "{$wpdb->base_prefix}wu_memberships";
@@ -2232,12 +2226,6 @@ class Site extends Base_Model implements Limitable, Notable {
 	 */
 	public static function get_all_by_type($type = 'customer_owned', $query_args = []) {
 
-		$pre = apply_filters( 'wu_pre_site_get_all_by_type', null, $type, $query_args );
-
-		if ( null !== $pre ) {
-			return $pre;
-		}
-
 		global $wpdb;
 
 		if ('pending' === $type) {
@@ -2329,12 +2317,6 @@ class Site extends Base_Model implements Limitable, Notable {
 	 * @return array
 	 */
 	public static function get_all_categories($sites = []) {
-
-		$pre = apply_filters( 'wu_pre_site_get_all_categories', null, $sites );
-
-		if ( null !== $pre ) {
-			return $pre;
-		}
 
 		global $wpdb;
 
