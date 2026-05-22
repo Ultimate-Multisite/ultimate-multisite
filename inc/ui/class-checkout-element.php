@@ -698,6 +698,18 @@ class Checkout_Element extends Base_Element {
 	 */
 	public function output($atts, $content = null) {
 
+		// In sovereign tenant context, render a link to the main site checkout instead
+		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+			$checkout_pages = \WP_Ultimo\Checkout\Checkout_Pages::get_instance();
+			$main_site_url  = $checkout_pages->get_main_site_checkout_url();
+			?>
+			<a href="<?php echo esc_url($main_site_url); ?>" class="wu-sovereign-checkout-link">
+				<?php esc_html_e('Upgrade your plan on the main site', 'ultimate-multisite'); ?>
+			</a>
+			<?php
+			return;
+		}
+
 		if (wu_is_update_page()) {
 			$atts = [
 				'slug'          => apply_filters('wu_membership_update_form', 'wu-checkout'),

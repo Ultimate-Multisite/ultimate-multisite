@@ -262,6 +262,18 @@ class Cart implements \JsonSerializable {
 	 */
 	public function __construct($args) {
 		/*
+		 * Guard against instantiation in sovereign tenant context.
+		 * Checkout should only run on the main site.
+		 */
+		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+			$this->errors = new \WP_Error(
+				'sovereign_checkout_disabled',
+				__('Checkout is disabled in sovereign tenant context.', 'ultimate-multisite')
+			);
+			return;
+		}
+
+		/*
 		 * Why are we using shortcode atts, you might ask?
 		 *
 		 * Well, shortcode atts cleans the array, allowing only
@@ -854,7 +866,6 @@ class Cart implements \JsonSerializable {
 		];
 
 		if (in_array($membership->get_status(), $inactive_statuses, true)) {
-
 			$this->cart_type = 'reactivation';
 
 			/*
