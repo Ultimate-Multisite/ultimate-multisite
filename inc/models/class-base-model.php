@@ -340,12 +340,6 @@ abstract class Base_Model implements \JsonSerializable {
 
 		$instance = new static();
 
-		$pre = apply_filters( "wu_pre_get_by_id_{$instance->model}", null, $item_id );
-
-		if ( null !== $pre ) {
-			return $pre;
-		}
-
 		$query_class = new $instance->query_class();
 
 		return $query_class->get_item($item_id);
@@ -363,12 +357,6 @@ abstract class Base_Model implements \JsonSerializable {
 	public static function get_by_hash($item_hash) {
 
 		$instance = new static();
-
-		$pre = apply_filters( "wu_pre_get_by_hash_{$instance->model}", null, $item_hash );
-
-		if ( null !== $pre ) {
-			return $pre;
-		}
 
 		$item_id = Hash::decode($item_hash, sanitize_key((new \ReflectionClass(static::class))->getShortName()));
 
@@ -389,12 +377,6 @@ abstract class Base_Model implements \JsonSerializable {
 	public static function get_by($column, $value) {
 
 		$instance = new static();
-
-		$pre = apply_filters( "wu_pre_get_by_{$instance->model}", null, $column, $value );
-
-		if ( null !== $pre ) {
-			return $pre;
-		}
 
 		$query_class = new $instance->query_class();
 
