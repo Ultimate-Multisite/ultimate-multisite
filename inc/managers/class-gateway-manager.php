@@ -280,6 +280,11 @@ class Gateway_Manager extends Base_Manager {
 	 * @return void
 	 */
 	public function process_gateway_confirmations(): void {
+
+		if ( defined( 'WU_MT_SOVEREIGN_TENANT' ) && WU_MT_SOVEREIGN_TENANT ) {
+			return;
+		}
+
 		/*
 		 * First we check for the confirmation parameter.
 		 */
@@ -613,6 +618,10 @@ class Gateway_Manager extends Base_Manager {
 	 * @return void
 	 */
 	public function ajax_check_payment_status(): void {
+
+		if ( defined( 'WU_MT_SOVEREIGN_TENANT' ) && WU_MT_SOVEREIGN_TENANT ) {
+			return;
+		}
 
 		check_ajax_referer('wu_payment_status_poll', 'nonce');
 
