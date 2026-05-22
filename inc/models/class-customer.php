@@ -813,12 +813,6 @@ class Customer extends Base_Model implements Billable, Notable {
 	 */
 	public function get_total_grossed() {
 
-		$pre = apply_filters( 'wu_pre_customer_get_total_grossed', null, $this );
-
-		if ( null !== $pre ) {
-			return $pre;
-		}
-
 		global $wpdb;
 
 		static $sum;
