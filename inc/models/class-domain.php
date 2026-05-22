@@ -610,6 +610,12 @@ class Domain extends Base_Model {
 	 */
 	public static function get_by_site($site) {
 
+		$pre = apply_filters( 'wu_pre_domain_get_by_site', null, $site );
+
+		if ( null !== $pre ) {
+			return $pre;
+		}
+
 		global $wpdb;
 
 		// Allow passing a site object in
