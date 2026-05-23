@@ -2178,7 +2178,41 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		$is_publishing = $pending_site->is_publishing();
 
 		if ($is_publishing) {
-			return true;
+			/*
+			 * If is_publishing has been true for longer than the stale
+			 * timeout (default 5 minutes), the PHP process that set the
+			 * flag is presumed dead (OOM, max_execution_time, fatal,
+			 * server restart). The poller resets the flag in that case,
+			 * but if a competing call (e.g. a duplicate checkout order)
+			 * lands here while the flag is still set we would otherwise
+			 * silently bail and the "Creating your site" overlay would
+			 * hang until the next Action Scheduler retry — which often
+			 * never fires because the duplicate caller never reschedules.
+			 *
+			 * Detect the stale flag here and fall through to the publish
+			 * path so the second caller can finish the job the first
+			 * caller never completed. Site::is_publishing_stale() was
+			 * added in 2.5.3; method_exists() keeps this safe for any
+			 * pre-2.5.3 serialized Site objects deserialized from meta.
+			 *
+			 * @since 2.5.4
+			 */
+			$is_stale = method_exists($pending_site, 'is_publishing_stale')
+				? $pending_site->is_publishing_stale()
+				: false;
+
+			if ( ! $is_stale) {
+				return true;
+			}
+
+			wu_log_add(
+				"membership-{$this->get_id()}",
+				sprintf(
+					// translators: %d: membership ID.
+					__('Detected stale is_publishing flag on pending site for membership %d during publish_pending_site(); the previous publish attempt appears to have been killed before completing. Proceeding with retry.', 'ultimate-multisite'),
+					$this->get_id()
+				)
+			);
 		}
 
 		$pending_site->set_publishing(true);
