@@ -1761,4 +1761,168 @@ class Membership_Test extends \WP_UnitTestCase {
 		$this->assertInstanceOf(Membership::class, $captured);
 		$this->assertSame($m->get_id(), $captured->get_id());
 	}
+
+	// ---------------------------------------------------------------
+	// publish_pending_site() — stale is_publishing flag handling
+	//
+	// Regression coverage for the "Creating your site" overlay hang
+	// caused by a duplicate caller bailing on a stuck is_publishing
+	// flag. See inc/models/class-membership.php::publish_pending_site().
+	// ---------------------------------------------------------------
+
+	/**
+	 * Build a persisted membership via the wu_create_* helpers (which
+	 * write through BerlinDB and return a model with a real ID) so that
+	 * update_meta/get_meta operate against a real DB row.
+	 *
+	 * The class-level $this->membership built in setUp() uses raw Model
+	 * constructors with skip_validation; in some environments the save()
+	 * path leaves the in-memory ID at 0, which makes meta calls silently
+	 * no-op (is_meta_available() returns false). Using the helper
+	 * guarantees a real ID.
+	 *
+	 * @return Membership
+	 */
+	private function make_membership_with_pending_meta(): Membership {
+		$user_id = self::factory()->user->create(
+			[
+				'user_email' => 'pending_' . wp_generate_password(6, false) . '@example.com',
+			]
+		);
+
+		$customer = wu_create_customer(
+			[
+				'user_id'         => $user_id,
+				'skip_validation' => true,
+			]
+		);
+
+		$product = wu_create_product(
+			[
+				'name'            => 'Plan ' . wp_generate_password(6, false),
+				'slug'            => 'plan-pending-' . wp_generate_password(6, false),
+				'type'            => 'plan',
+				'amount'          => 9.99,
+				'currency'        => 'USD',
+				'duration'        => 1,
+				'duration_unit'   => 'month',
+				'recurring'       => true,
+				'skip_validation' => true,
+			]
+		);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id'     => $customer->get_id(),
+				'plan_id'         => $product->get_id(),
+				'status'          => 'active',
+				'amount'          => 9.99,
+				'currency'        => 'USD',
+				'skip_validation' => true,
+			]
+		);
+
+		$this->assertNotWPError($membership, 'Helper failed to build a persisted membership for the pending-site fixture.');
+		$this->assertGreaterThan(0, $membership->get_id(), 'Helper produced a membership without an ID — meta will silently no-op.');
+
+		return $membership;
+	}
+
+	/**
+	 * Attach a pending site to the given membership and stamp the
+	 * is_publishing flag and timestamp to simulate a stuck publish.
+	 *
+	 * @param Membership $membership          Persisted membership.
+	 * @param bool       $is_publishing       Initial publishing flag value.
+	 * @param int        $started_seconds_ago Seconds ago the publish was started.
+	 * @return Site
+	 */
+	private function attach_pending_site_with_publishing(Membership $membership, bool $is_publishing, int $started_seconds_ago = 0): Site {
+		$slug = 'pending' . substr((string) (microtime(true) * 1000), -8);
+
+		$pending = $membership->create_pending_site(
+			[
+				'title'         => 'Pending ' . $slug,
+				'path'          => '/' . $slug . '/',
+				'is_publishing' => false,
+			]
+		);
+
+		if ($is_publishing) {
+			$pending->set_publishing(true);
+
+			$reflection = new \ReflectionObject($pending);
+			$prop       = $reflection->getProperty('publishing_started_at');
+			$prop->setAccessible(true);
+			$prop->setValue($pending, time() - $started_seconds_ago);
+		}
+
+		$membership->update_pending_site($pending);
+
+		return $pending;
+	}
+
+	/**
+	 * Fresh is_publishing flag (set seconds ago, not stale) must cause
+	 * publish_pending_site() to bail without touching the pending site.
+	 *
+	 * Guards against accidentally regressing to "always publish" if the
+	 * stale-check is ever rewritten.
+	 */
+	public function test_publish_pending_site_bails_when_flag_is_fresh(): void {
+		$membership = $this->make_membership_with_pending_meta();
+		$pending    = $this->attach_pending_site_with_publishing($membership, true, 60);
+
+		$path = $pending->get_path();
+
+		// Pre-condition: the pending site fixture is actually persisted.
+		$this->assertNotFalse($membership->get_pending_site(), 'Pending site meta should round-trip from BerlinDB.');
+
+		$result = $membership->publish_pending_site();
+
+		$this->assertTrue($result, 'publish_pending_site() should return true to short-circuit duplicate callers.');
+
+		$after = $membership->get_pending_site();
+		$this->assertNotFalse($after, 'Pending site should still exist after fresh-flag short-circuit.');
+		$this->assertTrue((bool) $after->is_publishing(), 'is_publishing should remain true on a fresh-flag short-circuit.');
+
+		global $wpdb;
+		$blog_count = (int) $wpdb->get_var(
+			$wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->blogs} WHERE path = %s", $path)
+		);
+		$this->assertSame(0, $blog_count, 'No blog should be created when the flag is fresh.');
+	}
+
+	/**
+	 * Stale is_publishing flag (started more than 5 minutes ago) must
+	 * cause publish_pending_site() to fall through and complete the
+	 * publish on behalf of the dead caller — the previous behaviour
+	 * was to silently bail, leaving the "Creating your site" overlay
+	 * stuck forever.
+	 *
+	 * This is the core regression test for the BUG 2 fix.
+	 */
+	public function test_publish_pending_site_proceeds_when_flag_is_stale(): void {
+		$membership = $this->make_membership_with_pending_meta();
+		$pending    = $this->attach_pending_site_with_publishing($membership, true, 360);
+
+		// Sanity check: the fixture is in the expected stale state.
+		$this->assertTrue($pending->is_publishing_stale(), 'Pre-condition: pending site must be stale (>300s).');
+		$this->assertNotFalse($membership->get_pending_site(), 'Pre-condition: pending site meta should round-trip.');
+
+		$path = $pending->get_path();
+
+		$result = $membership->publish_pending_site();
+
+		$this->assertTrue($result, 'publish_pending_site() should return true after successful stale recovery.');
+
+		$after = $membership->get_pending_site();
+		$this->assertFalse($after, 'Pending site should have been deleted after successful publish.');
+
+		global $wpdb;
+		$blog_count = (int) $wpdb->get_var(
+			$wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->blogs} WHERE path = %s", $path)
+		);
+		$this->assertSame(1, $blog_count, 'The pending site should have been published to a real blog.');
+	}
 }
