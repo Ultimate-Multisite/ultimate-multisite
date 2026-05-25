@@ -67,6 +67,60 @@ class Tours {
 	}
 
 	/**
+	 * Returns the user meta key used to record a finished tour.
+	 *
+	 * We persist the finished flag in user meta (not just the WordPress
+	 * `wp-settings-*` cookie) because `set_user_setting()` / `wp_set_all_user_settings()`
+	 * only update the user-settings cookie on regular admin page requests via
+	 * `wp_user_settings()` — they do NOT set the cookie during AJAX. When the
+	 * tour dismissal arrives as an AJAX `wu_mark_tour_as_finished` call, the
+	 * browser is never sent a `Set-Cookie` header, so the next page request
+	 * sees a stale or missing `wp-settings-{uid}` cookie and `get_user_setting()`
+	 * returns `false`, re-showing the tour. Storing the flag in user meta gives
+	 * us a cookie-independent source of truth that AJAX writes can persist
+	 * immediately and any subsequent request can read.
+	 *
+	 * @since 2.5.2
+	 *
+	 * @param string $id The tour ID.
+	 * @return string The user meta key.
+	 */
+	protected function get_meta_key($id) {
+
+		return 'wu_tour_finished_' . str_replace('-', '_', $id);
+	}
+
+	/**
+	 * Whether the tour has been finished for the current user.
+	 *
+	 * Checks user meta first (the authoritative cookie-independent flag) and
+	 * falls back to the legacy `get_user_setting()` lookup for users who
+	 * dismissed a tour before the meta-based persistence was introduced.
+	 *
+	 * @since 2.5.2
+	 *
+	 * @param string $id The tour ID.
+	 * @param int    $user_id Optional. Defaults to the current user.
+	 * @return bool
+	 */
+	protected function is_tour_finished($id, $user_id = 0) {
+
+		$user_id = $user_id ? (int) $user_id : get_current_user_id();
+
+		if ( ! $user_id) {
+			return false;
+		}
+
+		$meta_value = get_user_meta($user_id, $this->get_meta_key($id), true);
+
+		if ($meta_value) {
+			return true;
+		}
+
+		return (bool) get_user_setting($this->get_setting_key($id), false);
+	}
+
+	/**
 	 * Mark the tour as finished for a particular user.
 	 *
 	 * @since 2.0.0
@@ -79,6 +133,22 @@ class Tours {
 		$id = wu_request('tour_id');
 
 		if ($id) {
+			$user_id = get_current_user_id();
+
+			if ($user_id) {
+				/*
+				 * Persist the flag in user meta so the next request can read it
+				 * regardless of the wp-settings-* cookie state. AJAX requests do
+				 * not pass through wp_user_settings() (which is what normally
+				 * syncs the cookie from user meta), so writing only to
+				 * set_user_setting() / wp_set_all_user_settings() would leave the
+				 * browser cookie stale and the tour would re-appear on the next
+				 * page load.
+				 */
+				update_user_meta($user_id, $this->get_meta_key($id), 1);
+			}
+
+			// Keep the legacy user-settings write for backward compatibility.
 			set_user_setting($this->get_setting_key($id), true);
 			if (\function_exists('save_user_settings')) {
 				\save_user_settings();
@@ -191,7 +261,7 @@ class Tours {
 					return;
 				}
 
-				$finished = (bool) get_user_setting($this->get_setting_key($id), false);
+				$finished = $this->is_tour_finished($id);
 
 				$finished = apply_filters('wu_tour_finished', $finished, $id, get_current_user_id());
 
