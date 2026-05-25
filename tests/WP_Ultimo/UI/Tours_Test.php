@@ -87,7 +87,14 @@ class Tours_Test extends WP_UnitTestCase {
 		$reflection = new \ReflectionClass($instance);
 		$prop       = $reflection->getProperty('tours');
 		$prop->setAccessible(true);
-		$prop->setValue($instance, ['test-tour' => [['id' => 'step1', 'text' => 'Hello']]]);
+		$prop->setValue($instance, [
+			'test-tour' => [
+				[
+					'id'   => 'step1',
+					'text' => 'Hello',
+				],
+			],
+		]);
 
 		$this->assertTrue($instance->has_tours());
 
@@ -209,6 +216,112 @@ class Tours_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test get_meta_key normalises hyphens to underscores and uses the wu_tour_finished_ prefix.
+	 *
+	 * Regression test: the tour-finished flag is stored in user meta so that
+	 * the AJAX dismissal handler can persist it without depending on the
+	 * wp-settings-* cookie sync (which is skipped during AJAX requests by
+	 * wp_user_settings(), leaving the browser cookie stale and causing the
+	 * tour to re-show on the next page load — observed on the checkout form
+	 * editor page in particular).
+	 */
+	public function test_get_meta_key_uses_wu_tour_finished_prefix(): void {
+
+		$instance = $this->get_instance();
+
+		$reflection = new \ReflectionClass($instance);
+		$method     = $reflection->getMethod('get_meta_key');
+		$method->setAccessible(true);
+
+		$this->assertSame('wu_tour_finished_checkout_form_editor', $method->invoke($instance, 'checkout-form-editor'));
+		$this->assertSame('wu_tour_finished_wp_ultimo_dashboard', $method->invoke($instance, 'wp-ultimo-dashboard'));
+		$this->assertSame('wu_tour_finished_dashboard', $method->invoke($instance, 'dashboard'));
+	}
+
+	/**
+	 * Test is_tour_finished returns true once the user meta flag is set.
+	 *
+	 * Regression test for the checkout-form-editor tour re-showing every
+	 * visit: the AJAX `wu_mark_tour_as_finished` handler writes to user meta,
+	 * so subsequent requests must see the flag without depending on the
+	 * wp-settings-* cookie (which is not updated during AJAX requests).
+	 */
+	public function test_is_tour_finished_reads_user_meta(): void {
+
+		$instance = $this->get_instance();
+
+		$user_id = self::factory()->user->create(['role' => 'administrator']);
+		wp_set_current_user($user_id);
+
+		$reflection  = new \ReflectionClass($instance);
+		$is_finished = $reflection->getMethod('is_tour_finished');
+		$is_finished->setAccessible(true);
+		$get_meta_key = $reflection->getMethod('get_meta_key');
+		$get_meta_key->setAccessible(true);
+
+		// Not finished initially.
+		$this->assertFalse($is_finished->invoke($instance, 'checkout-form-editor'));
+
+		// Mark as finished via the same meta key the AJAX handler writes.
+		update_user_meta($user_id, $get_meta_key->invoke($instance, 'checkout-form-editor'), 1);
+
+		$this->assertTrue($is_finished->invoke($instance, 'checkout-form-editor'));
+
+		// Different tour ID still false.
+		$this->assertFalse($is_finished->invoke($instance, 'dashboard'));
+	}
+
+	/**
+	 * Test is_tour_finished falls back to legacy get_user_setting().
+	 *
+	 * Users who dismissed a tour before this release have their flag stored
+	 * only in the WordPress user-settings cookie (`wp-settings-{uid}`), not in
+	 * the new wu_tour_finished_* meta key. The legacy fallback prevents those
+	 * users from seeing tours they already dismissed.
+	 *
+	 * get_user_setting() reads from $_COOKIE (or its in-memory cache), so the
+	 * test populates $_COOKIE directly to emulate a returning browser whose
+	 * cookie still carries the pre-upgrade dismissal flag.
+	 */
+	public function test_is_tour_finished_falls_back_to_legacy_user_setting(): void {
+
+		$instance = $this->get_instance();
+
+		$user_id = self::factory()->user->create(['role' => 'administrator']);
+		wp_set_current_user($user_id);
+
+		$reflection  = new \ReflectionClass($instance);
+		$is_finished = $reflection->getMethod('is_tour_finished');
+		$is_finished->setAccessible(true);
+		$get_setting = $reflection->getMethod('get_setting_key');
+		$get_setting->setAccessible(true);
+
+		$cookie_name                       = 'wp-settings-' . $user_id;
+		$setting_key                       = $get_setting->invoke($instance, 'legacy-tour');
+		$prior_cookie                      = $_COOKIE[ $cookie_name ] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- test stash, no user input.
+		$prior_updated_settings            = $GLOBALS['_updated_user_settings'] ?? null;
+		$GLOBALS['_updated_user_settings'] = null;
+		unset($_COOKIE[ $cookie_name ]);
+
+		try {
+			$this->assertFalse($is_finished->invoke($instance, 'legacy-tour'));
+
+			// Simulate the legacy user-settings cookie value that get_user_setting() reads.
+			$_COOKIE[ $cookie_name ]           = $setting_key . '=1';
+			$GLOBALS['_updated_user_settings'] = null;
+
+			$this->assertTrue($is_finished->invoke($instance, 'legacy-tour'));
+		} finally {
+			if (null === $prior_cookie) {
+				unset($_COOKIE[ $cookie_name ]);
+			} else {
+				$_COOKIE[ $cookie_name ] = $prior_cookie;
+			}
+			$GLOBALS['_updated_user_settings'] = $prior_updated_settings;
+		}
+	}
+
+	/**
 	 * Test enqueue_scripts uses wp_add_inline_script on 'underscore', not wu-admin.
 	 *
 	 * Regression test for GH#707: wu_tours was localized onto wu-admin which is
@@ -230,7 +343,14 @@ class Tours_Test extends WP_UnitTestCase {
 		$reflection = new \ReflectionClass($instance);
 		$prop       = $reflection->getProperty('tours');
 		$prop->setAccessible(true);
-		$prop->setValue($instance, ['test-tour' => [['id' => 'step1', 'text' => 'Hello']]]);
+		$prop->setValue($instance, [
+			'test-tour' => [
+				[
+					'id'   => 'step1',
+					'text' => 'Hello',
+				],
+			],
+		]);
 
 		$instance->enqueue_scripts();
 
