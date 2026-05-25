@@ -41,7 +41,17 @@ defined('ABSPATH') || exit;
 
 	<div class="wu-flex wu-flex-wrap wu--mx-2 wu-mt-2">
 
-		<?php foreach ($field->options as $option_value => $option) : ?>
+		<?php
+		$field_attributes = $field->get_attributes();
+
+		$options = wu_get_isset($field_attributes, 'options', []);
+
+		if (is_callable($options)) {
+			$options = call_user_func($options, $field);
+		}
+
+		foreach ($options as $option_value => $option) :
+			?>
 
 			<?php
 			/*

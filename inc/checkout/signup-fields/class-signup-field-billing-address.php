@@ -69,7 +69,7 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 	 */
 	public function get_title() {
 
-		return __('Address', 'ultimate-multisite');
+		return __('Billing Address', 'ultimate-multisite');
 	}
 
 	/**
