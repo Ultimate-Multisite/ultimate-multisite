@@ -41,6 +41,21 @@ abstract class Country {
 	protected $state_type = 'unknown';
 
 	/**
+	 * Whether this country uses postal/ZIP codes as part of its addressing system.
+	 *
+	 * Most countries do, but a notable list (Universal Postal Union "no postcode
+	 * in use" countries) do not. When this is false, the checkout form hides
+	 * the ZIP / Postal Code field and skips its validation.
+	 *
+	 * Subclasses for countries without postal codes (or the Country_Default
+	 * fallback list) should override this to false.
+	 *
+	 * @since 2.5.3
+	 * @var bool
+	 */
+	protected $uses_postal_code = true;
+
+	/**
 	 * Return the country name.
 	 *
 	 * @since 2.0.11
@@ -59,6 +74,36 @@ abstract class Country {
 	public function __get($attribute) {
 
 		return wu_get_isset($this->attributes, $attribute, null);
+	}
+
+	/**
+	 * Whether this country uses postal/ZIP codes as part of its addressing system.
+	 *
+	 * Filterable via `wu_country_uses_postal_code` so site owners and add-ons can
+	 * tailor the list (for example to re-enable ZIP for territories that have
+	 * since adopted postal codes).
+	 *
+	 * @since 2.5.3
+	 * @return bool
+	 */
+	public function get_uses_postal_code() {
+
+		/**
+		 * Filters whether a country uses postal/ZIP codes.
+		 *
+		 * @since 2.5.3
+		 *
+		 * @param bool                       $uses_postal_code Whether the country uses postal codes.
+		 * @param string                     $country_code     Two-letter ISO code for the country.
+		 * @param \WP_Ultimo\Country\Country $current_country  Instance of the current class.
+		 * @return bool
+		 */
+		return (bool) apply_filters(
+			'wu_country_uses_postal_code',
+			(bool) $this->uses_postal_code,
+			$this->country_code ?? '',
+			$this
+		);
 	}
 
 	/**

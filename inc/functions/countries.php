@@ -17,7 +17,7 @@ defined('ABSPATH') || exit;
  */
 function wu_get_countries() {
 
-	return apply_filters(
+	$countries = apply_filters(
 		'wu_get_countries',
 		[
 			'AF' => __('Afghanistan', 'ultimate-multisite'),
@@ -270,6 +270,68 @@ function wu_get_countries() {
 			'ZM' => __('Zambia', 'ultimate-multisite'),
 			'ZW' => __('Zimbabwe', 'ultimate-multisite'),
 		]
+	);
+
+	wu_sort_countries_by_translated_name($countries);
+
+	return $countries;
+}
+
+/**
+ * Sorts a country code => name map by the translated/localized name in place.
+ *
+ * Uses the PHP intl Collator when available so non-Latin scripts (Persian,
+ * Arabic, Chinese, Japanese, Cyrillic, etc.) sort correctly for the active
+ * locale. Falls back to `strnatcasecmp` so the result is still meaningful on
+ * installations without the `intl` extension.
+ *
+ * The function intentionally accepts the array by reference and returns void
+ * so it can be applied to results of other country filters by callers without
+ * an intermediate assignment.
+ *
+ * @since 2.5.3
+ *
+ * @param array<string, string> $countries Country code => translated name.
+ * @return void
+ */
+function wu_sort_countries_by_translated_name(array &$countries) {
+
+	if (count($countries) < 2) {
+		return;
+	}
+
+	$locale = function_exists('determine_locale') ? determine_locale() : get_locale();
+
+	if (class_exists('Collator')) {
+		$collator = new \Collator($locale);
+
+		if ($collator) {
+			// Decode HTML entities so accented names (e.g. "&Aring;land Islands")
+			// sort by their natural letter rather than by the ampersand.
+			$decoded = array_map(
+				static fn($name) => html_entity_decode((string) $name, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+				$countries
+			);
+
+			uksort(
+				$countries,
+				static function ($key_a, $key_b) use ($decoded, $collator) {
+					return $collator->compare($decoded[ $key_a ], $decoded[ $key_b ]);
+				}
+			);
+
+			return;
+		}
+	}
+
+	uasort(
+		$countries,
+		static function ($name_a, $name_b) {
+			$a = html_entity_decode((string) $name_a, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+			$b = html_entity_decode((string) $name_b, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+			return strnatcasecmp($a, $b);
+		}
 	);
 }
 

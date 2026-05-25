@@ -124,6 +124,7 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 
 		return [
 			'zip_and_country' => true,
+			'required'        => true,
 		];
 	}
 
@@ -143,14 +144,17 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 	/**
 	 * If you want to force a particular attribute to a value, declare it here.
 	 *
+	 * The `required` attribute is intentionally not forced here so site owners
+	 * can mark the billing address as optional via the "Address fields are
+	 * required?" toggle in the element editor.
+	 *
 	 * @since 2.0.0
 	 * @return array
 	 */
 	public function force_attributes() {
 
 		return [
-			'id'       => 'billing_address',
-			'required' => true,
+			'id' => 'billing_address',
 		];
 	}
 
@@ -169,6 +173,12 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 				'desc'  => __('Checking this option will only add the ZIP and country fields, instead of all the normal billing address fields.', 'ultimate-multisite'),
 				'value' => true,
 			],
+			'required'        => [
+				'type'  => 'toggle',
+				'title' => __('Address fields are required?', 'ultimate-multisite'),
+				'desc'  => __('When enabled, the visible billing address fields must be filled in to complete checkout. Turn this off to make the billing address optional — useful for free plans, donations, or stores that only need a country for tax purposes. Stripe and PayPal still collect whatever billing data their own checkout surface requires (Stripe Payment Element: name, country, postal code; Stripe Checkout & PayPal: full address from their hosted page or the payer\'s PayPal account).', 'ultimate-multisite'),
+				'value' => true,
+			],
 		];
 	}
 
@@ -180,9 +190,10 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 	 * @param array  $base_field The base field.
 	 * @param string $data_key_name The data key name.
 	 * @param string $label_key_field The field label name.
+	 * @param bool   $required Whether the alternative select must be marked required.
 	 * @return array
 	 */
-	public function build_select_alternative(&$base_field, $data_key_name, $label_key_field) {
+	public function build_select_alternative(&$base_field, $data_key_name, $label_key_field, $required = true) {
 
 		$base_field['wrapper_html_attr']['v-if'] = "!{$data_key_name}.length";
 
@@ -198,11 +209,16 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 		$field['type']                      = 'select';
 		$field['options_template']          = $option_template;
 		$field['options']                   = [];
-		$field['required']                  = true;
+		$field['required']                  = (bool) $required;
 		$field['wrapper_html_attr']['v-if'] = "{$data_key_name}.length";
-		$field['html_attr']['required']     = 'required';
 		$field['html_attr']['v-bind:name']  = "'billing_" . str_replace('_list', '', $data_key_name) . "'";
 		$field['title']                     = sprintf('<span v-html="%s">%s</span>', "labels.$label_key_field", $field['title']);
+
+		if ($required) {
+			$field['html_attr']['required'] = 'required';
+		} else {
+			unset($field['html_attr']['required']);
+		}
 
 		return $field;
 	}
@@ -219,6 +235,15 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 
 		$zip_only = wu_string_to_bool($attributes['zip_and_country']);
 
+		/*
+		 * Per-form "address is required" toggle. Defaults to true so existing
+		 * checkout forms keep their current behaviour after upgrade. When set
+		 * to false on the editor, the per-field `required` markers are removed
+		 * so customers can complete the form without filling in the address.
+		 */
+		$address_required = ! array_key_exists('required', $attributes)
+			|| wu_string_to_bool($attributes['required']);
+
 		$customer = wu_get_current_customer();
 
 		/*
@@ -230,6 +255,18 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 			$checkout_form = \WP_Ultimo\Checkout\Checkout::get_instance()->checkout_form;
 
 			$fields = \WP_Ultimo\Objects\Billing_Address::fields($zip_only, $checkout_form);
+		}
+
+		if ( ! $address_required) {
+			foreach ($fields as $field_key => &$field_def) {
+				unset($field_def['required']);
+
+				if (isset($field_def['html_attr']['required'])) {
+					unset($field_def['html_attr']['required']);
+				}
+			}
+
+			unset($field_def);
 		}
 
 		if (isset($fields['billing_country'])) {
@@ -249,7 +286,7 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 				 *
 				 * @since 2.0.11
 				 */
-				$fields['billing_state_select'] = $this->build_select_alternative($fields['billing_state'], 'state_list', 'state_field');
+				$fields['billing_state_select'] = $this->build_select_alternative($fields['billing_state'], 'state_list', 'state_field', $address_required);
 			}
 
 			if (isset($fields['billing_city'])) {
@@ -262,18 +299,38 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 				 *
 				 * @since 2.0.11
 				 */
-				$fields['billing_city_select'] = $this->build_select_alternative($fields['billing_city'], 'city_list', 'city_field');
+				$fields['billing_city_select'] = $this->build_select_alternative($fields['billing_city'], 'city_list', 'city_field', $address_required);
 			}
 		}
 
 		/*
-		 * Gateways that collect billing address (country, zip) natively on their
-		 * own checkout surface, so we do not need to ask for it here.
+		 * Gateways that collect billing address on their own checkout surface,
+		 * so the plugin can hide its own billing fields when those gateways
+		 * are selected.
 		 *
-		 * - Stripe / Stripe Checkout  – Payment Element collects address.
-		 * - PayPal (legacy + REST)    – PayPal collects address on its own page.
+		 * Caveat (worth knowing before relying on this): each of these
+		 * gateways collects a different subset, and the plugin currently does
+		 * not read the resulting address back into the customer record.
+		 *
+		 * - stripe / stripe-checkout (hosted) – Stripe collects the full
+		 *   address on its hosted page (`billing_address_collection: required`).
+		 * - stripe (embedded Payment Element) – Stripe collects only name,
+		 *   country and postal code by default; street, city and state are
+		 *   NOT collected unless the Payment Element is configured with a
+		 *   custom `fields.billingDetails.address` config.
+		 * - paypal / paypal-rest – PayPal uses the payer's account address;
+		 *   the country is still needed up-front for tax calculation.
+		 *
+		 * Site owners that want full address data for embedded Stripe should
+		 * filter `wu_billing_address_self_billing_gateways` to drop 'stripe'
+		 * from the JS expression (e.g. return a string that only matches
+		 * 'stripe-checkout', 'paypal', 'paypal-rest').
 		 */
-		$self_billing_gateways = "gateway && (gateway.startsWith('stripe') || gateway === 'paypal' || gateway === 'paypal-rest')";
+		$self_billing_gateways = (string) apply_filters(
+			'wu_billing_address_self_billing_gateways',
+			"gateway && (gateway.startsWith('stripe') || gateway === 'paypal' || gateway === 'paypal-rest')",
+			$attributes
+		);
 
 		foreach ($fields as $field_key => &$field) {
 			$field['wrapper_classes']              = trim(wu_get_isset($field, 'wrapper_classes', '') . ' ' . $attributes['element_classes']);
@@ -288,9 +345,15 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 			 * For gateways that handle their own address collection (Stripe,
 			 * PayPal) we also remove the field from the DOM so that it is never
 			 * submitted and server-side validation cannot fire.
+			 *
+			 * billing_zip_code adds an extra `uses_postal_code` gate so the
+			 * ZIP field is hidden for countries that don't use postal codes
+			 * (Hong Kong, UAE, Angola, etc. — see Country_Default's list).
 			 */
-			if ('billing_country' === $field_key || 'billing_zip_code' === $field_key) {
+			if ('billing_country' === $field_key) {
 				$field['wrapper_html_attr']['v-if'] = "(order === false || order.should_collect_payment) && !($self_billing_gateways)";
+			} elseif ('billing_zip_code' === $field_key) {
+				$field['wrapper_html_attr']['v-if'] = "(order === false || order.should_collect_payment) && !($self_billing_gateways) && uses_postal_code";
 			} elseif ($zip_only) {
 				// Other fields in zip_only mode share the same gateway exclusion.
 				$field['wrapper_html_attr']['v-if'] = "!($self_billing_gateways)";

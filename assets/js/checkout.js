@@ -167,6 +167,7 @@
 			stored_templates: {},
 			state_list: [],
 			city_list: [],
+			uses_postal_code: true,
 			labels: {},
 			show_login_prompt: false,
 			login_prompt_field: '',
@@ -481,6 +482,7 @@
 					delete data.stored_templates;
 					delete data.state_list;
 					delete data.city_list;
+					delete data.uses_postal_code;
 					delete data.labels;
 
 					_request('wu_create_order', this.filter_for_request(data, 'wu_create_order'), function (results) {
@@ -490,6 +492,18 @@
 						that.state_list = results.data.states;
 
 						that.city_list = results.data.cities;
+
+						/*
+						 * Whether the currently selected country uses postal codes.
+						 * Drives the v-if on the billing_zip_code field so the ZIP
+						 * input is hidden for countries that don't issue postcodes
+						 * (UPU "no postcode in use" list — Angola, Hong Kong, UAE,
+						 * etc.). Falls back to true when the server omits the flag
+						 * (older addon, custom AJAX handler).
+						 */
+						that.uses_postal_code = typeof results.data.uses_postal_code === 'undefined'
+							? true
+							: !! results.data.uses_postal_code;
 
 						that.labels = results.data.labels;
 

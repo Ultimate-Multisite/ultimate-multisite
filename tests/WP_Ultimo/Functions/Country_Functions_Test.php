@@ -172,4 +172,83 @@ class Country_Functions_Test extends WP_UnitTestCase {
 
 		$this->assertIsArray($states);
 	}
+
+	/**
+	 * Country names should be sorted using the active locale's collation rules,
+	 * so a Persian translation lands in Persian alphabetical order rather than
+	 * the English ordering of the source array.
+	 */
+	public function test_get_countries_sorted_by_translated_name(): void {
+		$filter = static function ($countries) {
+			return [
+				'BR' => 'برزیل',     // Brazil.
+				'US' => 'ایالات متحده', // United States.
+				'IR' => 'ایران',     // Iran.
+				'AF' => 'افغانستان', // Afghanistan.
+			];
+		};
+
+		add_filter('wu_get_countries', $filter, PHP_INT_MAX);
+
+		$keys_in_order = array_keys(wu_get_countries());
+
+		remove_filter('wu_get_countries', $filter, PHP_INT_MAX);
+
+		$this->assertSame(['AF', 'US', 'IR', 'BR'], $keys_in_order, 'Persian country names should sort in Persian alphabetical order.');
+	}
+
+	/**
+	 * Sorting should leverage the intl Collator when available so accented
+	 * Latin names sort by their natural letter, ignoring HTML entities.
+	 */
+	public function test_get_countries_sort_handles_html_entities(): void {
+		$filter = static function ($countries) {
+			return [
+				'AX' => '&Aring;land Islands',
+				'AL' => 'Albania',
+				'AF' => 'Afghanistan',
+			];
+		};
+
+		add_filter('wu_get_countries', $filter, PHP_INT_MAX);
+
+		$keys_in_order = array_keys(wu_get_countries());
+
+		remove_filter('wu_get_countries', $filter, PHP_INT_MAX);
+
+		// Afghanistan first, then Albania (Al < Ål in en-US collation), then Åland.
+		$this->assertSame('AF', $keys_in_order[0]);
+		$this->assertContains('AL', $keys_in_order);
+		$this->assertContains('AX', $keys_in_order);
+	}
+
+	/**
+	 * `wu_get_country()` should report `uses_postal_code = false` for countries
+	 * in the UPU "no postcode in use" list (e.g. Hong Kong) and true for the
+	 * default majority case (e.g. United Kingdom).
+	 */
+	public function test_country_default_postal_code_flag(): void {
+		$this->assertFalse(wu_get_country('HK')->get_uses_postal_code());
+		$this->assertFalse(wu_get_country('AO')->get_uses_postal_code());
+		$this->assertFalse(wu_get_country('AE')->get_uses_postal_code());
+		$this->assertTrue(wu_get_country('GB')->get_uses_postal_code());
+		$this->assertTrue(wu_get_country('FR')->get_uses_postal_code());
+	}
+
+	/**
+	 * The `wu_country_uses_postal_code` filter should be able to override the
+	 * default flag for individual countries.
+	 */
+	public function test_country_uses_postal_code_filter(): void {
+		$filter = static function ($uses_postal_code, $country_code) {
+			return 'GB' === $country_code ? false : $uses_postal_code;
+		};
+
+		add_filter('wu_country_uses_postal_code', $filter, 10, 2);
+
+		$this->assertFalse(wu_get_country('GB')->get_uses_postal_code());
+		$this->assertTrue(wu_get_country('FR')->get_uses_postal_code(), 'Filter must only affect the targeted country.');
+
+		remove_filter('wu_country_uses_postal_code', $filter, 10);
+	}
 }

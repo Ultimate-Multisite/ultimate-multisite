@@ -1923,10 +1923,11 @@ class Checkout {
 
 		wp_send_json_success(
 			[
-				'order'  => $cart->done(),
-				'states' => wu_key_map_to_array($country_data->get_states_as_options(), 'code', 'name'),
-				'cities' => wu_key_map_to_array($country_data->get_cities_as_options($state), 'code', 'name'),
-				'labels' => [
+				'order'            => $cart->done(),
+				'states'           => wu_key_map_to_array($country_data->get_states_as_options(), 'code', 'name'),
+				'cities'           => wu_key_map_to_array($country_data->get_cities_as_options($state), 'code', 'name'),
+				'uses_postal_code' => $country_data->get_uses_postal_code(),
+				'labels'           => [
 					'state_field' => $country_data->get_administrative_division_name(null, true),
 					'city_field'  => $country_data->get_municipality_name(null, true),
 				],
@@ -2780,6 +2781,23 @@ class Checkout {
 			$validation_rules['billing_zip_code'] = '';
 			$validation_rules['billing_state']    = '';
 			$validation_rules['billing_city']     = '';
+		}
+
+		/*
+		 * Skip the billing_zip_code rule when the selected country does not
+		 * use postal codes. The Vue layer already removes the field from
+		 * the DOM in that case, but a defensive server-side check protects
+		 * against clients (REST, custom forms, automated tests) that bypass
+		 * the v-if hiding.
+		 */
+		$submitted_country = wu_request('billing_country');
+
+		if ($submitted_country && isset($validation_rules['billing_zip_code'])) {
+			$resolved_country = wu_get_country($submitted_country);
+
+			if ($resolved_country && ! $resolved_country->get_uses_postal_code()) {
+				$validation_rules['billing_zip_code'] = '';
+			}
 		}
 
 		/**
