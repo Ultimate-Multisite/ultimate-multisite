@@ -1847,6 +1847,38 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Required billing address fields must stay required for free checkouts.
+	 */
+	public function test_get_validation_rules_keeps_required_billing_for_free(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->step      = [
+			'fields' => [
+				[
+					'id'       => 'billing_address',
+					'required' => true,
+				],
+			],
+		];
+		$checkout->steps     = [['id' => 'step-1']];
+		$checkout->step_name = 'step-1';
+
+		unset($_REQUEST['pre-flight'], $_REQUEST['checkout_form']);
+
+		$reflection = new \ReflectionClass($checkout);
+		$order_prop = $this->get_order_prop($reflection);
+
+		$order_prop->setValue($checkout, new Cart(['products' => []]));
+
+		$rules = $checkout->get_validation_rules();
+
+		$this->assertStringContainsString('required', $rules['billing_country']);
+		$this->assertStringContainsString('required', $rules['billing_zip_code']);
+
+		$order_prop->setValue($checkout, null);
+	}
+
+	/**
 	 * Test get_validation_rules returns array.
 	 */
 	public function test_get_validation_rules_returns_array(): void {
@@ -4736,6 +4768,21 @@ class Checkout_Test extends WP_UnitTestCase {
 		$vars = $checkout->get_checkout_variables();
 
 		$this->assertArrayHasKey('country', $vars);
+	}
+
+	/**
+	 * Test get_checkout_variables contains uses_postal_code key.
+	 */
+	public function test_get_checkout_variables_contains_uses_postal_code(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->step      = ['fields' => []];
+		$checkout->steps     = [];
+		$checkout->step_name = null;
+
+		$vars = $checkout->get_checkout_variables();
+
+		$this->assertArrayHasKey('uses_postal_code', $vars);
 	}
 
 	/**

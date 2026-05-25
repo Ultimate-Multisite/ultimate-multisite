@@ -223,6 +223,7 @@ class Signup_Field_Billing_Address_Test extends WP_UnitTestCase {
 
 		$this->assertArrayHasKey( 'billing_country', $fields );
 		$this->assertTrue( ! empty( $fields['billing_country']['required'] ), 'Legacy forms must keep billing_country required.' );
+		$this->assertStringContainsString( 'true && !', $fields['billing_country']['wrapper_html_attr']['v-if'] );
 		$this->assertArrayHasKey( 'billing_zip_code', $fields );
 		$this->assertTrue( ! empty( $fields['billing_zip_code']['required'] ), 'Legacy forms must keep billing_zip_code required.' );
 	}
@@ -244,6 +245,7 @@ class Signup_Field_Billing_Address_Test extends WP_UnitTestCase {
 
 		$this->assertArrayHasKey( 'billing_country', $fields );
 		$this->assertEmpty( $fields['billing_country']['required'] ?? false );
+		$this->assertStringContainsString( 'order.should_collect_payment', $fields['billing_country']['wrapper_html_attr']['v-if'] );
 		$this->assertArrayHasKey( 'billing_zip_code', $fields );
 		$this->assertEmpty( $fields['billing_zip_code']['required'] ?? false );
 		if ( isset( $fields['billing_country']['html_attr'] ) ) {

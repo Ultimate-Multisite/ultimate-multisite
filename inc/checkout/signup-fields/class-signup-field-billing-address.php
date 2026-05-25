@@ -332,6 +332,10 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 			$attributes
 		);
 
+		$payment_required_expression = $address_required ? 'true' : '(order === false || order.should_collect_payment)';
+
+		$self_billing_gateways_expression = $address_required ? 'false' : $self_billing_gateways;
+
 		foreach ($fields as $field_key => &$field) {
 			$field['wrapper_classes']              = trim(wu_get_isset($field, 'wrapper_classes', '') . ' ' . $attributes['element_classes']);
 			$field['wrapper_html_attr']['v-cloak'] = 1;
@@ -354,14 +358,14 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 			 * instead of throwing a ReferenceError.
 			 */
 			if ('billing_country' === $field_key) {
-				$field['wrapper_html_attr']['v-if'] = "(order === false || order.should_collect_payment) && !($self_billing_gateways)";
+				$field['wrapper_html_attr']['v-if'] = "$payment_required_expression && !($self_billing_gateways_expression)";
 			} elseif ('billing_zip_code' === $field_key) {
-				$field['wrapper_html_attr']['v-if'] = "(order === false || order.should_collect_payment) && !($self_billing_gateways) && (typeof uses_postal_code === 'undefined' || uses_postal_code)";
+				$field['wrapper_html_attr']['v-if'] = "$payment_required_expression && !($self_billing_gateways_expression) && (typeof uses_postal_code === 'undefined' || uses_postal_code)";
 			} elseif ($zip_only) {
 				// Other fields in zip_only mode share the same gateway exclusion.
-				$field['wrapper_html_attr']['v-if'] = "!($self_billing_gateways)";
+				$field['wrapper_html_attr']['v-if'] = "$payment_required_expression && !($self_billing_gateways_expression)";
 			} else {
-				$field['wrapper_html_attr']['v-show'] = 'order === false || order.should_collect_payment';
+				$field['wrapper_html_attr']['v-show'] = $payment_required_expression;
 			}
 		}
 
