@@ -194,6 +194,107 @@ jobs:
           echo "=== PHP error log ==="
           npx wp-env run tests-cli cat /var/www/html/wp-content/debug.log 2>&1 | tail -100 || echo "No debug.log found"
 
+      - name: Run Sanity Tests (login, mail)
+        id: sanity-tests
+        run: |
+          set +e
+          echo "=== Starting Sanity Tests ==="
+
+          # Smoke tests that don't depend on Ultimate Multisite plugin state —
+          # verify the WordPress test environment, admin login, and Mailpit
+          # service are all functional before exercising plugin features.
+          SANITY_TESTS=(
+            "tests/e2e/cypress/integration/login.spec.js"
+            "tests/e2e/cypress/integration/mail.spec.js"
+          )
+
+          TOTAL_FAILURES=0
+
+          for TEST_SPEC in "${SANITY_TESTS[@]}"; do
+            echo "Running: $TEST_SPEC"
+
+            npx cypress run \
+              --config-file cypress.config.test.js \
+              --spec "$TEST_SPEC" \
+              --browser ${{ matrix.browser }}
+
+            CYPRESS_EXIT_CODE=$?
+
+            if [ $CYPRESS_EXIT_CODE -eq 0 ]; then
+              echo "✅ $TEST_SPEC passed"
+            else
+              echo "❌ $TEST_SPEC failed with exit code $CYPRESS_EXIT_CODE"
+              TOTAL_FAILURES=$((TOTAL_FAILURES + 1))
+            fi
+          done
+
+          if [ $TOTAL_FAILURES -gt 0 ]; then
+            echo "❌ $TOTAL_FAILURES sanity test(s) failed"
+            exit 1
+          fi
+
+          echo "✅ All sanity tests passed!"
+
+      - name: Run Wizard Test (Setup Wizard UI)
+        id: wizard-test
+        run: |
+          echo "=== Starting Setup Wizard UI Test ==="
+
+          # wizard.spec.js drives the actual Setup Wizard form submission path
+          # (handle_save_settings -> Settings::save_settings -> Field::set_value),
+          # which 000-setup.spec.js bypasses by calling the installer directly.
+          # The wizard spec clears NETWORK_OPTION_SETUP_FINISHED itself before
+          # running, then re-marks setup complete at the end — safe to run after
+          # 000-setup. This regression-guards the addslashes/TypeError class of
+          # bugs that only surface when the wizard form actually POSTs.
+          npx cypress run \
+            --config-file cypress.config.test.js \
+            --spec "tests/e2e/cypress/integration/wizard.spec.js" \
+            --browser ${{ matrix.browser }}
+
+      - name: Run Regression & UI Tests (After Setup)
+        id: regression-tests
+        run: |
+          set +e
+          echo "=== Starting Regression & UI Tests ==="
+
+          # High-value regression guards for previously-fixed bugs and UI
+          # error-handling. All are self-contained (WP-CLI fixtures or pure
+          # browser interaction) and need no external credentials.
+          REGRESSION_TESTS=(
+            "tests/e2e/cypress/integration/011-password-reset-subsite-domain.spec.js"
+            "tests/e2e/cypress/integration/030-modal-form-error-handling.spec.js"
+            "tests/e2e/cypress/integration/050-password-strength-enforcement.spec.js"
+            "tests/e2e/cypress/integration/066-sso-bootstrap-race.spec.js"
+          )
+
+          TOTAL_FAILURES=0
+
+          for TEST_SPEC in "${REGRESSION_TESTS[@]}"; do
+            echo "Running: $TEST_SPEC"
+
+            npx cypress run \
+              --config-file cypress.config.test.js \
+              --spec "$TEST_SPEC" \
+              --browser ${{ matrix.browser }}
+
+            CYPRESS_EXIT_CODE=$?
+
+            if [ $CYPRESS_EXIT_CODE -eq 0 ]; then
+              echo "✅ $TEST_SPEC passed"
+            else
+              echo "❌ $TEST_SPEC failed with exit code $CYPRESS_EXIT_CODE"
+              TOTAL_FAILURES=$((TOTAL_FAILURES + 1))
+            fi
+          done
+
+          if [ $TOTAL_FAILURES -gt 0 ]; then
+            echo "❌ $TOTAL_FAILURES regression test(s) failed"
+            exit 1
+          fi
+
+          echo "✅ All regression tests passed!"
+
       - name: Run Checkout Tests (After Setup)
         id: checkout-tests
         run: |
@@ -232,14 +333,43 @@ jobs:
 
           echo "✅ All checkout tests passed!"
 
-      - name: Run SSO Redirect Loop Tests (After Setup)
+      - name: Run SSO Tests (After Setup)
         id: sso-tests
         run: |
-          echo "=== Starting SSO Redirect Loop Tests ==="
-          npx cypress run \
-            --config-file cypress.config.test.js \
-            --spec "tests/e2e/cypress/integration/065-sso-redirect-loop.spec.js" \
-            --browser ${{ matrix.browser }}
+          set +e
+          echo "=== Starting SSO Tests ==="
+
+          SSO_TESTS=(
+            "tests/e2e/cypress/integration/060-sso-cross-domain.spec.js"
+            "tests/e2e/cypress/integration/065-sso-redirect-loop.spec.js"
+          )
+
+          TOTAL_FAILURES=0
+
+          for TEST_SPEC in "${SSO_TESTS[@]}"; do
+            echo "Running: $TEST_SPEC"
+
+            npx cypress run \
+              --config-file cypress.config.test.js \
+              --spec "$TEST_SPEC" \
+              --browser ${{ matrix.browser }}
+
+            CYPRESS_EXIT_CODE=$?
+
+            if [ $CYPRESS_EXIT_CODE -eq 0 ]; then
+              echo "✅ $TEST_SPEC passed"
+            else
+              echo "❌ $TEST_SPEC failed with exit code $CYPRESS_EXIT_CODE"
+              TOTAL_FAILURES=$((TOTAL_FAILURES + 1))
+            fi
+          done
+
+          if [ $TOTAL_FAILURES -gt 0 ]; then
+            echo "❌ $TOTAL_FAILURES SSO test(s) failed"
+            exit 1
+          fi
+
+          echo "✅ All SSO tests passed!"
 
       - name: Run Stripe Tests (After Setup)
         id: stripe-tests
@@ -297,6 +427,64 @@ jobs:
           fi
 
           echo "✅ All Stripe tests passed!"
+
+      - name: Run PayPal Tests (After Setup)
+        id: paypal-tests
+        env:
+          PAYPAL_SANDBOX_CLIENT_ID: ${{ secrets.PAYPAL_SANDBOX_CLIENT_ID }}
+          PAYPAL_SANDBOX_CLIENT_SECRET: ${{ secrets.PAYPAL_SANDBOX_CLIENT_SECRET }}
+        run: |
+          if [ -z "$PAYPAL_SANDBOX_CLIENT_SECRET" ]; then
+            echo "⏭️  Skipping PayPal tests: PAYPAL_SANDBOX_CLIENT_SECRET not available in this run."
+            echo ""
+            echo "    The repo secrets PAYPAL_SANDBOX_CLIENT_ID and PAYPAL_SANDBOX_CLIENT_SECRET"
+            echo "    must be configured for these tests to run. GitHub Actions does NOT expose"
+            echo "    secrets to workflows triggered by pull_request events from forked"
+            echo "    repositories — this is a security feature, not a misconfiguration."
+            echo ""
+            echo "    PayPal tests will run automatically when:"
+            echo "      • this branch is merged to main (push event), or"
+            echo "      • the PR is opened from a branch in the upstream Ultimate-Multisite repo"
+            echo "        AND the PAYPAL_SANDBOX_* secrets have been configured at the repo level."
+            echo ""
+            echo "    To verify locally, run: gh secret list --repo Ultimate-Multisite/ultimate-multisite"
+            exit 0
+          fi
+
+          set +e
+          echo "=== Starting PayPal Tests ==="
+
+          PAYPAL_TESTS=(
+            "tests/e2e/cypress/integration/035-paypal-checkout-flow.spec.js"
+          )
+
+          TOTAL_FAILURES=0
+
+          for TEST_SPEC in "${PAYPAL_TESTS[@]}"; do
+            echo "Running: $TEST_SPEC"
+
+            npx cypress run \
+              --config-file cypress.config.test.js \
+              --spec "$TEST_SPEC" \
+              --browser ${{ matrix.browser }} \
+              --env PAYPAL_SANDBOX_CLIENT_ID="$PAYPAL_SANDBOX_CLIENT_ID",PAYPAL_SANDBOX_CLIENT_SECRET="$PAYPAL_SANDBOX_CLIENT_SECRET"
+
+            CYPRESS_EXIT_CODE=$?
+
+            if [ $CYPRESS_EXIT_CODE -eq 0 ]; then
+              echo "✅ $TEST_SPEC passed"
+            else
+              echo "❌ $TEST_SPEC failed with exit code $CYPRESS_EXIT_CODE"
+              TOTAL_FAILURES=$((TOTAL_FAILURES + 1))
+            fi
+          done
+
+          if [ $TOTAL_FAILURES -gt 0 ]; then
+            echo "❌ $TOTAL_FAILURES PayPal test(s) failed"
+            exit 1
+          fi
+
+          echo "✅ All PayPal tests passed!"
 
       - name: Fix permissions for Cypress output
         if: always()
