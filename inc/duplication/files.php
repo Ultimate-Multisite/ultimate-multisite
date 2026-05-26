@@ -5,6 +5,22 @@
 
 defined('ABSPATH') || exit;
 
+/*
+ * MUCD_Files::copy_files() references MUCD_PRIMARY_SITE_ID at runtime (see
+ * copy_files() below). That constant is otherwise only defined in
+ * inc/helpers/class-site-duplicator.php, which is not guaranteed to have loaded
+ * when copy_files() is invoked through every code path (e.g. async actions or a
+ * direct programmatic call). Under PHP 8.x an undefined constant is a fatal
+ * Error, so copy_files() dies mid-loop and the destination site ends up with an
+ * EMPTY uploads/ directory — every template image on the cloned site 404s.
+ *
+ * Define it here, idempotently, so the constant is always available wherever
+ * this class is loaded. Mirrors the definition in class-site-duplicator.php.
+ */
+if ( ! defined('MUCD_PRIMARY_SITE_ID') ) {
+	define('MUCD_PRIMARY_SITE_ID', function_exists('get_current_network_id') ? (int) get_current_network_id() : 1); // phpcs:ignore
+}
+
 if ( ! class_exists('MUCD_Files') ) {
 
 	/**
