@@ -7908,11 +7908,11 @@ msgid "Signup Credit for %s"
 msgstr ""
 
 #: inc/checkout/class-checkout-pages.php:167
-msgid "Ultimate Multisite Compatibility Mode"
+msgid "Force loading Ultimate Multisite frontend assets"
 msgstr ""
 
 #: inc/checkout/class-checkout-pages.php:168
-msgid "Toggle this option on if Ultimate Multisite elements are not loading correctly or at all."
+msgid "If Ultimate Multisite elements are not loading correctly on this page enable this option to always inject the javascripts and css assets on this page."
 msgstr ""
 
 #: inc/checkout/class-checkout-pages.php:292
