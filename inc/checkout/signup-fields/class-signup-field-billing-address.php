@@ -167,16 +167,21 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 	public function get_fields() {
 
 		return [
-			'zip_and_country' => [
+			'_billing_address_notice' => [
+				'type'  => 'note',
+				'desc'  => __('Payment gateways may collect billing details on their own checkout screens. Use these fields when Ultimate Multisite should collect an address directly, especially for free products.', 'ultimate-multisite'),
+				'order' => 0,
+			],
+			'zip_and_country'         => [
 				'type'  => 'toggle',
 				'title' => __('Display only ZIP and Country?', 'ultimate-multisite'),
 				'desc'  => __('Checking this option will only add the ZIP and country fields, instead of all the normal billing address fields.', 'ultimate-multisite'),
 				'value' => true,
 			],
-			'required'        => [
+			'required'                => [
 				'type'  => 'toggle',
 				'title' => __('Address fields are required?', 'ultimate-multisite'),
-				'desc'  => __('When enabled, the visible billing address fields must be filled in to complete checkout. Turn this off to make the billing address optional — useful for free plans, donations, or stores that only need a country for tax purposes. Stripe and PayPal still collect whatever billing data their own checkout surface requires (Stripe Payment Element: name, country, postal code; Stripe Checkout & PayPal: full address from their hosted page or the payer\'s PayPal account).', 'ultimate-multisite'),
+				'desc'  => __('Require customers to enter their address information.', 'ultimate-multisite'),
 				'value' => true,
 			],
 		];
