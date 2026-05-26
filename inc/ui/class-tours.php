@@ -331,9 +331,9 @@ class Tours {
 					return;
 				}
 
-				$finished = $this->is_tour_finished($id);
+				$pre_filter_finished = $this->is_tour_finished($id);
 
-				$finished = apply_filters('wu_tour_finished', $finished, $id, get_current_user_id());
+				$finished = apply_filters('wu_tour_finished', $pre_filter_finished, $id, get_current_user_id());
 
 				if ( ! $finished || ! $once) {
 					foreach ($steps as &$step) {
@@ -356,7 +356,7 @@ class Tours {
 					 * fire markTourFinished for completeness (the operation is
 					 * idempotent).
 					 */
-					if ($once) {
+					if ($once && ! $pre_filter_finished && ! $finished) {
 						$user_id = get_current_user_id();
 
 						if ($user_id) {

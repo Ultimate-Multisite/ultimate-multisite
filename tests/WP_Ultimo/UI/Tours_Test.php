@@ -27,6 +27,24 @@ class Tours_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Reset the admin header action marker for tests that queue tours.
+	 */
+	protected function reset_admin_header_action(): void {
+
+		remove_all_actions('in_admin_header');
+		unset($GLOBALS['wp_actions']['in_admin_header']);
+	}
+
+	/**
+	 * Reset WordPress's in-memory user-settings cache for tour tests.
+	 */
+	protected function reset_user_settings_cache($user_id): void {
+
+		delete_user_option($user_id, 'user-settings');
+		unset($_COOKIE[ 'wp-settings-' . $user_id ], $GLOBALS['_updated_user_settings'][ $user_id ], $GLOBALS['user_settings']);
+	}
+
+	/**
 	 * Test singleton returns correct instance.
 	 */
 	public function test_singleton_returns_correct_instance(): void {
@@ -470,16 +488,22 @@ class Tours_Test extends WP_UnitTestCase {
 
 		$get_meta_key = $reflection->getMethod('get_meta_key');
 		$get_meta_key->setAccessible(true);
+		$is_finished = $reflection->getMethod('is_tour_finished');
+		$is_finished->setAccessible(true);
 
 		$user_id = self::factory()->user->create(['role' => 'administrator']);
 		wp_set_current_user($user_id);
 
-		$meta_key = $get_meta_key->invoke($instance, 'wp-ultimo-dashboard');
+		$meta_key = $get_meta_key->invoke($instance, 'rendered-tour');
 
 		delete_user_meta($user_id, $meta_key);
+		$this->reset_user_settings_cache($user_id);
+		$this->assertFalse($is_finished->invoke($instance, 'rendered-tour', $user_id));
+
+		$this->reset_admin_header_action();
 
 		$instance->create_tour(
-			'wp-ultimo-dashboard',
+			'rendered-tour',
 			[
 				[
 					'id'   => 'step1',
@@ -488,10 +512,11 @@ class Tours_Test extends WP_UnitTestCase {
 			]
 		);
 
+		wp_set_current_user($user_id);
 		do_action('in_admin_header');
 
 		$registered = $tours_prop->getValue($instance);
-		$this->assertArrayHasKey('wp-ultimo-dashboard', $registered, 'tour should be queued for display');
+		$this->assertArrayHasKey('rendered-tour', $registered, 'tour should be queued for display');
 
 		$this->assertSame(
 			'1',
@@ -529,6 +554,8 @@ class Tours_Test extends WP_UnitTestCase {
 
 		delete_user_meta($user_id, $meta_key);
 
+		$this->reset_admin_header_action();
+
 		$instance->create_tour(
 			'always-show-tour',
 			[
@@ -549,6 +576,73 @@ class Tours_Test extends WP_UnitTestCase {
 			'',
 			(string) get_user_meta($user_id, $meta_key, true),
 			'finished flag must NOT be written when $once is false'
+		);
+
+		$tours_prop->setValue($instance, []);
+	}
+
+	/**
+	 * Test create_tour does NOT persist the finished flag when a filter forces visibility.
+	 *
+	 * Integrations can force a completed tour to render again via the
+	 * wu_tour_finished filter. That override should not rewrite the finished
+	 * flag; the on-render persistence only applies to a genuine first render.
+	 */
+	public function test_create_tour_does_not_mark_finished_when_filter_forces_visibility(): void {
+
+		$instance = $this->get_instance();
+
+		$reflection = new \ReflectionClass($instance);
+		$tours_prop = $reflection->getProperty('tours');
+		$tours_prop->setAccessible(true);
+		$tours_prop->setValue($instance, []);
+
+		$get_meta_key = $reflection->getMethod('get_meta_key');
+		$get_meta_key->setAccessible(true);
+
+		$user_id = self::factory()->user->create(['role' => 'administrator']);
+		wp_set_current_user($user_id);
+
+		$meta_key = $get_meta_key->invoke($instance, 'forced-tour');
+
+		update_user_meta($user_id, $meta_key, 'already-finished');
+
+		$this->reset_admin_header_action();
+
+		$force_visibility = static function ($finished, $tour_id) {
+
+			if ('forced-tour' === $tour_id) {
+				return false;
+			}
+
+			return $finished;
+		};
+
+		add_filter('wu_tour_finished', $force_visibility, 10, 2);
+
+		try {
+			$instance->create_tour(
+				'forced-tour',
+				[
+					[
+						'id'   => 'step1',
+						'text' => 'Forced',
+					],
+				]
+			);
+
+			do_action('in_admin_header');
+		} finally {
+			remove_filter('wu_tour_finished', $force_visibility, 10);
+		}
+
+		$registered = $tours_prop->getValue($instance);
+		$this->assertArrayHasKey('forced-tour', $registered, 'filter-forced tour should be queued for display');
+
+		$this->assertSame(
+			'already-finished',
+			get_user_meta($user_id, $meta_key, true),
+			'finished flag should remain unchanged when a filter forces visibility'
 		);
 
 		$tours_prop->setValue($instance, []);
