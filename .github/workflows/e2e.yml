@@ -252,6 +252,22 @@ jobs:
             --spec "tests/e2e/cypress/integration/wizard.spec.js" \
             --browser ${{ matrix.browser }}
 
+      - name: Reset custom login page (post-wizard cleanup)
+        id: reset-custom-login
+        run: |
+          echo "=== Disabling custom login page after wizard ==="
+          # The wizard's "Default Content" step creates a Login page and points
+          # Ultimate Multisite's custom-login feature at it, which redirects
+          # /wp-login.php -> /login/. The custom page has no #rememberme
+          # checkbox, so subsequent specs that use cy.loginByForm() fail in
+          # their session-setup hook. 000-setup.spec.js calls this same
+          # fixture defensively in its before() hook for the same reason.
+          PLUGIN_SLUG=$(basename "$PWD")
+          npx wp-env run tests-cli wp eval-file \
+            "/var/www/html/wp-content/plugins/$PLUGIN_SLUG/tests/e2e/cypress/fixtures/setup-disable-custom-login.php" || \
+            npx wp-env run tests-cli wp eval-file \
+              "/var/www/html/wp-content/plugins/ultimate-multisite/tests/e2e/cypress/fixtures/setup-disable-custom-login.php"
+
       - name: Run Regression & UI Tests (After Setup)
         id: regression-tests
         run: |
