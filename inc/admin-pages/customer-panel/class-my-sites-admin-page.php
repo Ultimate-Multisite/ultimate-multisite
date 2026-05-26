@@ -98,7 +98,7 @@ class My_Sites_Admin_Page extends Base_Customer_Facing_Admin_Page {
 	public $current_membership;
 
 	/**
-	 * The return_to URL for sovereign-tenant context.
+	 * The return_to URL for external redirects.
 	 *
 	 * @since 2.0.0
 	 * @var string|null

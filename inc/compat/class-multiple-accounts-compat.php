@@ -51,7 +51,7 @@ class Multiple_Accounts_Compat {
 	 */
 	public function init(): void {
 
-		if ( wu_is_sovereign_tenant() ) {
+		if ( apply_filters('wu_multiple_accounts_skip_compat', false, $this) ) {
 			return;
 		}
 

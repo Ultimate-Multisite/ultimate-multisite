@@ -98,7 +98,7 @@ class Account_Admin_Page extends Base_Customer_Facing_Admin_Page {
 	protected $current_customer;
 
 	/**
-	 * The return_to URL for sovereign-tenant context.
+	 * The return_to URL for external redirects.
 	 *
 	 * @since 2.0.0
 	 * @var string|null

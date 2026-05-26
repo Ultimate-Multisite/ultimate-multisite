@@ -233,25 +233,6 @@ class Checkout {
 	}
 
 	/**
-	 * Gets the main site checkout URL.
-	 *
-	 * Used to redirect sovereign tenants to the main site for checkout.
-	 *
-	 * @since 2.5.2
-	 * @return string The main site checkout URL.
-	 */
-	public function get_main_site_checkout_url(): string {
-
-		$main_site = get_blog_details(get_network()->site_id);
-
-		if (! $main_site) {
-			return network_site_url('/register/');
-		}
-
-		return trailingslashit($main_site->siteurl) . 'register/';
-	}
-
-	/**
 	 * Add checkout rewrite rules.
 	 *
 	 * Adds the following URL structures.
@@ -582,16 +563,7 @@ class Checkout {
 	 */
 	public function maybe_handle_order_submission(): void {
 
-		if (wu_is_sovereign_tenant()) {
-			wp_send_json_error(
-				[
-					'code'          => 'sovereign_checkout_disabled',
-					'message'       => __('Checkout runs on the main site.', 'ultimate-multisite'),
-					'main_site_url' => $this->get_main_site_checkout_url(),
-				],
-				400
-			);
-
+		if (apply_filters('wu_checkout_skip_order_submission', false, $this)) {
 			return;
 		}
 
@@ -1876,16 +1848,7 @@ class Checkout {
 	 */
 	public function create_order(): void {
 
-		if (wu_is_sovereign_tenant()) {
-			wp_send_json_error(
-				[
-					'code'          => 'sovereign_checkout_disabled',
-					'message'       => __('Checkout runs on the main site.', 'ultimate-multisite'),
-					'main_site_url' => $this->get_main_site_checkout_url(),
-				],
-				400
-			);
-
+		if (apply_filters('wu_checkout_skip_create_order', false, $this)) {
 			return;
 		}
 
@@ -1950,16 +1913,7 @@ class Checkout {
 	 */
 	public function check_user_exists(): void {
 
-		if (wu_is_sovereign_tenant()) {
-			wp_send_json_error(
-				[
-					'code'          => 'sovereign_checkout_disabled',
-					'message'       => __('Checkout runs on the main site.', 'ultimate-multisite'),
-					'main_site_url' => $this->get_main_site_checkout_url(),
-				],
-				400
-			);
-
+		if (apply_filters('wu_checkout_skip_user_exists_check', false, $this)) {
 			return;
 		}
 
@@ -2015,16 +1969,7 @@ class Checkout {
 	 */
 	public function handle_inline_login(): void {
 
-		if (wu_is_sovereign_tenant()) {
-			wp_send_json_error(
-				[
-					'code'          => 'sovereign_checkout_disabled',
-					'message'       => __('Checkout runs on the main site.', 'ultimate-multisite'),
-					'main_site_url' => $this->get_main_site_checkout_url(),
-				],
-				400
-			);
-
+		if (apply_filters('wu_checkout_skip_inline_login', false, $this)) {
 			return;
 		}
 

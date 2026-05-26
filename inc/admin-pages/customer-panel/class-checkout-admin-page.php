@@ -80,7 +80,7 @@ class Checkout_Admin_Page extends \WP_Ultimo\Admin_Pages\Base_Customer_Facing_Ad
 	protected $fold_menu = true;
 
 	/**
-	 * The return_to URL for sovereign-tenant context.
+	 * The return_to URL for external redirects.
 	 *
 	 * @since 2.0.0
 	 * @var string|null

@@ -82,33 +82,48 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Enable the sovereign tenant checkout guards for the current test.
+	 * Tear down test fixtures.
 	 */
-	private function enable_sovereign_tenant_context(): void {
-		add_filter('wu_is_sovereign_tenant', [$this, 'return_true']);
+	protected function tearDown(): void {
+		remove_filter('wu_checkout_skip_create_order', [$this, 'skip_checkout']);
+		remove_filter('wu_checkout_skip_order_submission', [$this, 'skip_checkout']);
+		remove_filter('wu_checkout_skip_user_exists_check', [$this, 'skip_checkout']);
+		remove_filter('wu_checkout_skip_inline_login', [$this, 'skip_checkout']);
+		remove_filter('wu_cart_skip_initialization', [$this, 'set_cart_error']);
+
+		parent::tearDown();
 	}
 
 	/**
-	 * Disable the sovereign tenant checkout guards for the current test.
+	 * Skip a checkout handler via filter.
+	 *
+	 * @param bool     $skip     Whether the handler should be skipped.
+	 * @param Checkout $checkout Checkout instance.
+	 * @return bool
 	 */
-	private function disable_sovereign_tenant_context(): void {
-		remove_filter('wu_is_sovereign_tenant', [$this, 'return_true']);
-	}
+	public function skip_checkout($skip, $checkout) {
+		unset($skip, $checkout);
 
-	/**
-	 * Return true for filter callbacks.
-	 */
-	public function return_true(): bool {
 		return true;
 	}
 
 	/**
-	 * Tear down test fixtures.
+	 * Set a cart error for skip filters.
+	 *
+	 * @param bool  $skip Whether initialization should be skipped.
+	 * @param array $args Cart arguments.
+	 * @param Cart  $cart Cart instance.
+	 * @return bool
 	 */
-	protected function tearDown(): void {
-		$this->disable_sovereign_tenant_context();
+	public function set_cart_error($skip, $args, $cart) {
+		unset($skip, $args);
 
-		parent::tearDown();
+		$cart->errors = new \WP_Error(
+			'checkout_disabled',
+			__('Checkout is disabled by a skip-initialization filter.', 'ultimate-multisite')
+		);
+
+		return true;
 	}
 
 	// -------------------------------------------------------------------------
@@ -5371,134 +5386,102 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	// -------------------------------------------------------------------------
-	// Sovereign Tenant Checkout Guards
+	// Checkout Skip Filters
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Test that create_order returns error in sovereign tenant context.
+	 * Test that create_order honours the skip filter.
 	 */
-	public function test_create_order_returns_error_in_sovereign_context(): void {
+	public function test_create_order_returns_early_when_skip_filter_is_enabled(): void {
 
-		$this->enable_sovereign_tenant_context();
+		add_filter('wu_checkout_skip_create_order', [$this, 'skip_checkout'], 10, 2);
 
 		$checkout = Checkout::get_instance();
 
 		// Mock the AJAX request
 		$_POST['wu_nonce'] = wp_create_nonce('wu_checkout');
 
-		// Capture the JSON response
 		ob_start();
 		$checkout->create_order();
 		$response = ob_get_clean();
 
-		$data = json_decode($response, true);
-
-		$this->assertFalse($data['success']);
-		$this->assertEquals('sovereign_checkout_disabled', $data['data']['code']);
-		$this->assertStringContainsString('main site', $data['data']['message']);
-		$this->assertNotEmpty($data['data']['main_site_url']);
+		$this->assertSame('', $response);
 	}
 
 	/**
-	 * Test that maybe_handle_order_submission returns error in sovereign tenant context.
+	 * Test that maybe_handle_order_submission honours the skip filter.
 	 */
-	public function test_maybe_handle_order_submission_returns_error_in_sovereign_context(): void {
+	public function test_maybe_handle_order_submission_returns_early_when_skip_filter_is_enabled(): void {
 
-		$this->enable_sovereign_tenant_context();
+		add_filter('wu_checkout_skip_order_submission', [$this, 'skip_checkout'], 10, 2);
 
 		$checkout = Checkout::get_instance();
 
 		// Mock the AJAX request
 		$_POST['wu_nonce'] = wp_create_nonce('wu_checkout');
 
-		// Capture the JSON response
 		ob_start();
 		$checkout->maybe_handle_order_submission();
 		$response = ob_get_clean();
 
-		$data = json_decode($response, true);
-
-		$this->assertFalse($data['success']);
-		$this->assertEquals('sovereign_checkout_disabled', $data['data']['code']);
+		$this->assertSame('', $response);
 	}
 
 	/**
-	 * Test that check_user_exists returns error in sovereign tenant context.
+	 * Test that check_user_exists honours the skip filter.
 	 */
-	public function test_check_user_exists_returns_error_in_sovereign_context(): void {
+	public function test_check_user_exists_returns_early_when_skip_filter_is_enabled(): void {
 
-		$this->enable_sovereign_tenant_context();
+		add_filter('wu_checkout_skip_user_exists_check', [$this, 'skip_checkout'], 10, 2);
 
 		$checkout = Checkout::get_instance();
 
 		// Mock the AJAX request
-		$_POST['wu_nonce'] = wp_create_nonce('wu_checkout');
+		$_POST['wu_nonce']   = wp_create_nonce('wu_checkout');
 		$_POST['field_type'] = 'email';
-		$_POST['value'] = 'test@example.com';
+		$_POST['value']      = 'test@example.com';
 
-		// Capture the JSON response
 		ob_start();
 		$checkout->check_user_exists();
 		$response = ob_get_clean();
 
-		$data = json_decode($response, true);
-
-		$this->assertFalse($data['success']);
-		$this->assertEquals('sovereign_checkout_disabled', $data['data']['code']);
+		$this->assertSame('', $response);
 	}
 
 	/**
-	 * Test that handle_inline_login returns error in sovereign tenant context.
+	 * Test that handle_inline_login honours the skip filter.
 	 */
-	public function test_handle_inline_login_returns_error_in_sovereign_context(): void {
+	public function test_handle_inline_login_returns_early_when_skip_filter_is_enabled(): void {
 
-		$this->enable_sovereign_tenant_context();
+		add_filter('wu_checkout_skip_inline_login', [$this, 'skip_checkout'], 10, 2);
 
 		$checkout = Checkout::get_instance();
 
 		// Mock the AJAX request
-		$_POST['wu_nonce'] = wp_create_nonce('wu_checkout');
+		$_POST['wu_nonce']          = wp_create_nonce('wu_checkout');
 		$_POST['username_or_email'] = 'test@example.com';
-		$_POST['password'] = 'password123';
+		$_POST['password']          = 'password123';
 
-		// Capture the JSON response
 		ob_start();
 		$checkout->handle_inline_login();
 		$response = ob_get_clean();
 
-		$data = json_decode($response, true);
-
-		$this->assertFalse($data['success']);
-		$this->assertEquals('sovereign_checkout_disabled', $data['data']['code']);
+		$this->assertSame('', $response);
 	}
 
 	/**
-	 * Test that Cart constructor sets error in sovereign tenant context.
+	 * Test that Cart constructor honours the skip filter response.
 	 */
-	public function test_cart_constructor_sets_error_in_sovereign_context(): void {
+	public function test_cart_constructor_sets_error_when_skip_filter_responds(): void {
 
-		$this->enable_sovereign_tenant_context();
-
-		$this->assertTrue(\wu_is_sovereign_tenant());
+		add_filter('wu_cart_skip_initialization', [$this, 'set_cart_error'], 10, 3);
 
 		$cart = new Cart([
 			'products' => [],
 		]);
 
 		$this->assertTrue(is_wp_error($cart->errors));
-		$this->assertEquals('sovereign_checkout_disabled', $cart->errors->get_error_code());
-	}
-
-	/**
-	 * Test that get_main_site_checkout_url returns valid URL.
-	 */
-	public function test_get_main_site_checkout_url_returns_valid_url(): void {
-
-		$checkout = Checkout::get_instance();
-		$url = $checkout->get_main_site_checkout_url();
-
-		$this->assertNotEmpty($url);
-		$this->assertStringContainsString('register', $url);
+		$this->assertEquals('checkout_disabled', $cart->errors->get_error_code());
 	}
 
 	// -------------------------------------------------------------------------
