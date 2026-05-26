@@ -492,18 +492,60 @@ class Field implements \JsonSerializable {
 	/**
 	 * Cleans the value submitted via a textarea or wp_editor field for database insertion.
 	 *
+	 * Defensive against non-string inputs: arrays, objects (including Closures and
+	 * stdClass), and other scalar types can reach this validator when:
+	 *   - A form posts `name="field[]"` syntax that PHP parses into an array.
+	 *   - A previously-stored corrupted value (array / "[object Object]" / Closure)
+	 *     is read back from the database as the existing fallback in
+	 *     Settings::save_settings() for fields not in the current form step.
+	 *   - A filter on `wu_settings_fields_sanitization_rules` routes a non-textarea
+	 *     field type here.
+	 *
+	 * Without this guard, `addslashes()` / `stripslashes()` raise a TypeError on
+	 * PHP 8+ ("Argument #1 ($string) must be of type string, array given"),
+	 * which fatals the Settings save / Setup Wizard step.
+	 *
 	 * @since 2.0.0
 	 *
-	 * @param string $value Value of the settings being represented by this field.
+	 * @param mixed $value Value of the settings being represented by this field.
 	 * @return string
 	 */
 	protected function validate_textarea_field($value) {
+
+		$value = $this->coerce_textarea_value($value);
 
 		if ($this->allow_html) {
 			return stripslashes(wp_filter_post_kses(addslashes($value)));
 		}
 
 		return wp_strip_all_tags(stripslashes($value));
+	}
+
+	/**
+	 * Coerces a textarea field value to a safe string.
+	 *
+	 * Returns an empty string for arrays/objects/null and casts scalars
+	 * to string. This prevents TypeError fatals downstream in
+	 * addslashes()/stripslashes() and matches the historical behaviour of
+	 * silently dropping malformed values rather than propagating corruption.
+	 *
+	 * @since 2.5.2
+	 *
+	 * @param mixed $value Raw value to coerce.
+	 * @return string
+	 */
+	private function coerce_textarea_value($value): string {
+
+		if (is_string($value)) {
+			return $value;
+		}
+
+		if (is_null($value) || is_array($value) || is_object($value)) {
+			return '';
+		}
+
+		// Booleans, ints, floats — cast to their string form.
+		return (string) $value;
 	}
 
 	/**
