@@ -909,7 +909,11 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 		$this->assertIsString($output);
 		$this->assertStringContainsString('wu-compat-mode', $output);
 		$this->assertStringContainsString('_wu_force_elements_loading', $output);
-		$this->assertStringContainsString('Compatibility Mode', $output);
+		$this->assertStringContainsString('Force loading Ultimate Multisite frontend assets', $output);
+		$this->assertStringContainsString(
+			'If Ultimate Multisite elements are not loading correctly on this page enable this option to always inject the javascripts and css assets on this page.',
+			$output
+		);
 	}
 
 	/**

@@ -216,8 +216,8 @@ class Checkout_Pages {
 
 	<div class="misc-pub-section misc-pub-section-last" style="margin-top: 12px; margin-bottom: 6px; display: flex; align-items: center;">
 		<label for="wu-compat-mode">
-				<span style="display: block; font-weight: 600; margin-bottom: 3px;"><?php esc_html_e('Ultimate Multisite Compatibility Mode', 'ultimate-multisite'); ?></span>
-				<small style="display: block; line-height: 1.8em;"><?php esc_html_e('Toggle this option on if Ultimate Multisite elements are not loading correctly or at all.', 'ultimate-multisite'); ?></small>
+				<span style="display: block; font-weight: 600; margin-bottom: 3px;"><?php esc_html_e('Force loading Ultimate Multisite frontend assets', 'ultimate-multisite'); ?></span>
+				<small style="display: block; line-height: 1.8em;"><?php esc_html_e('If Ultimate Multisite elements are not loading correctly on this page enable this option to always inject the javascripts and css assets on this page.', 'ultimate-multisite'); ?></small>
 		</label>
 		<div style="margin-left: 6px;">
 			<input id="wu-compat-mode" type="checkbox" value="1" <?php checked($value, true, true); ?> name="_wu_force_elements_loading" />
@@ -461,7 +461,6 @@ class Checkout_Pages {
 		$switched_locale = switch_to_locale($locale);
 
 		if (is_main_site()) {
-
 			/*
 			 * On the main site, point the reset URL at the custom login
 			 * page so users land on the network's branded login screen.
@@ -478,7 +477,6 @@ class Checkout_Pages {
 
 			$new_url = set_url_scheme($new_url, null);
 		} else {
-
 			/*
 			 * On a subsite, rewrite the URL so the reset flow stays on the
 			 * subsite's own domain. The default wp-login.php URL points to
@@ -522,7 +520,7 @@ class Checkout_Pages {
 			 * @param string  $new_url    The default subsite reset URL.
 			 * @param string  $key        The reset key.
 			 * @param string  $user_login The user login.
-			 * @param WP_User $user_data  The user data.
+			 * @param array   $user_data  The user data.
 			 */
 			$new_url = apply_filters('wu_subsite_password_reset_url', $new_url, $key, $user_login, $user_data);
 
@@ -600,6 +598,8 @@ class Checkout_Pages {
 	 */
 	public function rewrite_new_user_notification_email($email, $user, $blogname) {
 
+		unset($user, $blogname);
+
 		if (empty($email['message']) || ! is_array($email)) {
 			return $email;
 		}
@@ -632,6 +632,8 @@ class Checkout_Pages {
 	 */
 	public function rewrite_password_notification_email($defaults, $key, $user_login, $user_data) {
 
+		unset($key, $user_login, $user_data);
+
 		if (empty($defaults['message']) || ! is_array($defaults)) {
 			return $defaults;
 		}
@@ -663,6 +665,8 @@ class Checkout_Pages {
 	 * @return string
 	 */
 	public function rewrite_email_change_content($email_text, $new_user_email) {
+
+		unset($new_user_email);
 
 		if (empty($email_text) || ! is_string($email_text)) {
 			return $email_text;
