@@ -277,7 +277,7 @@ defined('ABSPATH') || exit;
 
 		</div>
 
-		<div class="sm:wu-col-span-8 sm:wu-col-start-5 lg:wu-col-span-4 lg:wu-col-start-9 metabox-holder wu-min-w-0">
+		<div class="sm:wu-col-span-8 sm:wu-col-start-5 lg:wu-col-span-3 lg:wu-col-start-10 metabox-holder wu-min-w-0">
 
 		<?php
 		/**
