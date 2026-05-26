@@ -262,19 +262,6 @@ class Cart implements \JsonSerializable {
 	 */
 	public function __construct($args) {
 		/*
-		 * Guard against instantiation in sovereign tenant context.
-		 * Checkout should only run on the main site.
-		 */
-		if (wu_is_sovereign_tenant()) {
-			$this->attributes = (object) [];
-			$this->errors     = new \WP_Error(
-				'sovereign_checkout_disabled',
-				__('Checkout is disabled in sovereign tenant context.', 'ultimate-multisite')
-			);
-			return;
-		}
-
-		/*
 		 * Why are we using shortcode atts, you might ask?
 		 *
 		 * Well, shortcode atts cleans the array, allowing only
@@ -363,6 +350,10 @@ class Cart implements \JsonSerializable {
 		 * Save arguments in memory
 		 */
 		$this->attributes = (object) $args;
+
+		if (apply_filters('wu_cart_skip_initialization', false, $args, $this)) {
+			return;
+		}
 
 		/**
 		 * Allow developers to make additional changes to

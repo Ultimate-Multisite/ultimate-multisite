@@ -36,7 +36,7 @@ class Edit_Users_Compat {
 	 */
 	public function init(): void {
 
-		if ( wu_is_sovereign_tenant() ) {
+		if ( apply_filters('wu_edit_users_skip_compat', false, $this) ) {
 			return;
 		}
 

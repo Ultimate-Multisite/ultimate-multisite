@@ -281,7 +281,7 @@ class Gateway_Manager extends Base_Manager {
 	 */
 	public function process_gateway_confirmations(): void {
 
-		if ( wu_is_sovereign_tenant() ) {
+		if ( apply_filters('wu_gateway_skip_confirmations', false, $this) ) {
 			return;
 		}
 
@@ -619,7 +619,7 @@ class Gateway_Manager extends Base_Manager {
 	 */
 	public function ajax_check_payment_status(): void {
 
-		if ( wu_is_sovereign_tenant() ) {
+		if ( apply_filters('wu_gateway_skip_payment_status_poll', false, $this) ) {
 			return;
 		}
 

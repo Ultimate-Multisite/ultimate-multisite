@@ -272,14 +272,7 @@ class Invoices_Element extends Base_Element {
 	 */
 	public function output($atts, $content = null) {
 
-		if (wu_is_sovereign_tenant()) {
-			echo wu_get_template_contents( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-				'elements/sovereign-redirect',
-				[
-					'main_site_account_url' => wu_mt_main_site_account_url(),
-					'element_label'         => __('Invoices', 'ultimate-multisite'),
-				]
-			);
+		if (apply_filters('wu_invoices_skip_output', false, $atts, $content, $this)) {
 			return;
 		}
 

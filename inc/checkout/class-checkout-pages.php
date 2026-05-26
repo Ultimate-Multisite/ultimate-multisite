@@ -131,36 +131,12 @@ class Checkout_Pages {
 			add_action('save_post', [$this, 'handle_compat_mode_setting']);
 		}
 
-		/*
-		 * In sovereign tenant context, redirect checkout URLs to the main site.
-		 */
-		if (wu_is_sovereign_tenant()) {
-			add_filter('post_type_link', [$this, 'redirect_checkout_urls_in_sovereign_context'], 10, 2);
-			add_filter('page_link', [$this, 'redirect_checkout_urls_in_sovereign_context'], 10, 2);
-		}
+		add_filter('post_type_link', [$this, 'filter_checkout_urls'], 10, 2);
+		add_filter('page_link', [$this, 'filter_checkout_urls'], 10, 2);
 	}
 
 	/**
-	 * Gets the main site checkout URL.
-	 *
-	 * Used to redirect sovereign tenants to the main site for checkout.
-	 *
-	 * @since 2.5.2
-	 * @return string The main site checkout URL.
-	 */
-	public function get_main_site_checkout_url(): string {
-
-		$main_site = get_blog_details(get_network()->site_id);
-
-		if (! $main_site) {
-			return network_site_url('/register/');
-		}
-
-		return trailingslashit($main_site->siteurl) . 'register/';
-	}
-
-	/**
-	 * Redirects checkout URLs to the main site in sovereign tenant context.
+	 * Filters checkout URLs.
 	 *
 	 * @since 2.5.2
 	 *
@@ -168,7 +144,7 @@ class Checkout_Pages {
 	 * @param \WP_Post $post      The post object.
 	 * @return string The modified permalink.
 	 */
-	public function redirect_checkout_urls_in_sovereign_context($permalink, $post) {
+	public function filter_checkout_urls($permalink, $post) {
 
 		if (! is_a($post, '\WP_Post')) {
 			return $permalink;
@@ -178,7 +154,7 @@ class Checkout_Pages {
 
 		// Check if this post is a checkout-related page
 		if (in_array($post->ID, array_filter($signup_pages), true)) {
-			return $this->get_main_site_checkout_url();
+			return apply_filters('wu_checkout_pages_checkout_url', $permalink, $post, $this);
 		}
 
 		return $permalink;
@@ -599,8 +575,6 @@ class Checkout_Pages {
 	public function rewrite_new_user_notification_email($email, $user, $blogname) {
 		unset($user, $blogname);
 
-		unset($user, $blogname);
-
 		if (empty($email['message']) || ! is_array($email)) {
 			return $email;
 		}
@@ -634,8 +608,6 @@ class Checkout_Pages {
 	public function rewrite_password_notification_email($defaults, $key, $user_login, $user_data) {
 		unset($key, $user_login, $user_data);
 
-		unset($key, $user_login, $user_data);
-
 		if (empty($defaults['message']) || ! is_array($defaults)) {
 			return $defaults;
 		}
@@ -667,8 +639,6 @@ class Checkout_Pages {
 	 * @return string
 	 */
 	public function rewrite_email_change_content($email_text, $new_user_email) {
-		unset($new_user_email);
-
 		unset($new_user_email);
 
 		if (empty($email_text) || ! is_string($email_text)) {

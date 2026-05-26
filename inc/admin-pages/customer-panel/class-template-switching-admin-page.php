@@ -88,7 +88,7 @@ class Template_Switching_Admin_Page extends \WP_Ultimo\Admin_Pages\Base_Customer
 	protected $menu_settings = false;
 
 	/**
-	 * The return_to URL for sovereign-tenant context.
+	 * The return_to URL for external redirects.
 	 *
 	 * @since 2.0.0
 	 * @var string|null
@@ -166,7 +166,7 @@ class Template_Switching_Admin_Page extends \WP_Ultimo\Admin_Pages\Base_Customer
 		 *
 		 * phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display flag, no state change.
 		 */
-		$action  = isset($_GET['wu_template_action']) ? sanitize_key(wp_unslash($_GET['wu_template_action'])) : '';
+		$action  = isset($_GET['wu_template_action']) ? sanitize_key(wp_unslash($_GET['wu_template_action'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display flag, no state change.
 		$message = 'reset' === $action
 			? __('Template reset successfully!', 'ultimate-multisite')
 			: __('Template switched successfully!', 'ultimate-multisite');
