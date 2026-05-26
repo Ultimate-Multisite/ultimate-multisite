@@ -81,6 +81,36 @@ class Checkout_Test extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * Enable the sovereign tenant checkout guards for the current test.
+	 */
+	private function enable_sovereign_tenant_context(): void {
+		add_filter('wu_is_sovereign_tenant', [$this, 'return_true']);
+	}
+
+	/**
+	 * Disable the sovereign tenant checkout guards for the current test.
+	 */
+	private function disable_sovereign_tenant_context(): void {
+		remove_filter('wu_is_sovereign_tenant', [$this, 'return_true']);
+	}
+
+	/**
+	 * Return true for filter callbacks.
+	 */
+	public function return_true(): bool {
+		return true;
+	}
+
+	/**
+	 * Tear down test fixtures.
+	 */
+	protected function tearDown(): void {
+		$this->disable_sovereign_tenant_context();
+
+		parent::tearDown();
+	}
+
 	// -------------------------------------------------------------------------
 	// Singleton
 	// -------------------------------------------------------------------------
@@ -5349,10 +5379,7 @@ class Checkout_Test extends WP_UnitTestCase {
 	 */
 	public function test_create_order_returns_error_in_sovereign_context(): void {
 
-		// Define the sovereign tenant constant
-		if (!defined('WU_MT_SOVEREIGN_TENANT')) {
-			define('WU_MT_SOVEREIGN_TENANT', true);
-		}
+		$this->enable_sovereign_tenant_context();
 
 		$checkout = Checkout::get_instance();
 
@@ -5377,10 +5404,7 @@ class Checkout_Test extends WP_UnitTestCase {
 	 */
 	public function test_maybe_handle_order_submission_returns_error_in_sovereign_context(): void {
 
-		// Define the sovereign tenant constant
-		if (!defined('WU_MT_SOVEREIGN_TENANT')) {
-			define('WU_MT_SOVEREIGN_TENANT', true);
-		}
+		$this->enable_sovereign_tenant_context();
 
 		$checkout = Checkout::get_instance();
 
@@ -5403,10 +5427,7 @@ class Checkout_Test extends WP_UnitTestCase {
 	 */
 	public function test_check_user_exists_returns_error_in_sovereign_context(): void {
 
-		// Define the sovereign tenant constant
-		if (!defined('WU_MT_SOVEREIGN_TENANT')) {
-			define('WU_MT_SOVEREIGN_TENANT', true);
-		}
+		$this->enable_sovereign_tenant_context();
 
 		$checkout = Checkout::get_instance();
 
@@ -5431,10 +5452,7 @@ class Checkout_Test extends WP_UnitTestCase {
 	 */
 	public function test_handle_inline_login_returns_error_in_sovereign_context(): void {
 
-		// Define the sovereign tenant constant
-		if (!defined('WU_MT_SOVEREIGN_TENANT')) {
-			define('WU_MT_SOVEREIGN_TENANT', true);
-		}
+		$this->enable_sovereign_tenant_context();
 
 		$checkout = Checkout::get_instance();
 
@@ -5459,10 +5477,9 @@ class Checkout_Test extends WP_UnitTestCase {
 	 */
 	public function test_cart_constructor_sets_error_in_sovereign_context(): void {
 
-		// Define the sovereign tenant constant
-		if (!defined('WU_MT_SOVEREIGN_TENANT')) {
-			define('WU_MT_SOVEREIGN_TENANT', true);
-		}
+		$this->enable_sovereign_tenant_context();
+
+		$this->assertTrue(\wu_is_sovereign_tenant());
 
 		$cart = new Cart([
 			'products' => [],

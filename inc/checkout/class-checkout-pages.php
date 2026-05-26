@@ -134,7 +134,7 @@ class Checkout_Pages {
 		/*
 		 * In sovereign tenant context, redirect checkout URLs to the main site.
 		 */
-		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+		if (wu_is_sovereign_tenant()) {
 			add_filter('post_type_link', [$this, 'redirect_checkout_urls_in_sovereign_context'], 10, 2);
 			add_filter('page_link', [$this, 'redirect_checkout_urls_in_sovereign_context'], 10, 2);
 		}
@@ -597,6 +597,7 @@ class Checkout_Pages {
 	 * @return array
 	 */
 	public function rewrite_new_user_notification_email($email, $user, $blogname) {
+		unset($user, $blogname);
 
 		unset($user, $blogname);
 
@@ -631,6 +632,7 @@ class Checkout_Pages {
 	 * @return array
 	 */
 	public function rewrite_password_notification_email($defaults, $key, $user_login, $user_data) {
+		unset($key, $user_login, $user_data);
 
 		unset($key, $user_login, $user_data);
 
@@ -665,6 +667,7 @@ class Checkout_Pages {
 	 * @return string
 	 */
 	public function rewrite_email_change_content($email_text, $new_user_email) {
+		unset($new_user_email);
 
 		unset($new_user_email);
 

@@ -115,7 +115,6 @@ final class WP_Ultimo {
 	 * @return void
 	 */
 	public function init(): void {
-
 		/*
 		 * Ensure wu_dmtable is registered on $wpdb early in the plugin load.
 		 * Domain_Mapping::startup() only runs during the sunrise/mu-plugins phase
@@ -127,7 +126,7 @@ final class WP_Ultimo {
 		global $wpdb;
 
 		if (empty($wpdb->wu_dmtable)) {
-			$wpdb->wu_dmtable        = $wpdb->base_prefix . 'wu_domain_mappings';
+			$wpdb->wu_dmtable         = $wpdb->base_prefix . 'wu_domain_mappings';
 			$wpdb->ms_global_tables[] = 'wu_domain_mappings';
 		}
 
@@ -354,6 +353,7 @@ final class WP_Ultimo {
 		require_once wu_path('inc/functions/reflection.php');
 		require_once wu_path('inc/functions/scheduler.php');
 		require_once wu_path('inc/functions/session.php');
+		require_once wu_path('inc/functions/sovereign.php');
 		require_once wu_path('inc/functions/documentation.php');
 
 		/**
