@@ -322,6 +322,41 @@ class Tours_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test is_tour_finished reads legacy stripped keys from user settings meta.
+	 *
+	 * Regression test for users who dismissed hyphenated tours before the tour ID
+	 * normalisation fix. WordPress could persist keys with hyphens stripped (for
+	 * example, wu_tour_checkoutformlist), while newer code looks for the
+	 * underscore-normalised key (wu_tour_checkout_form_list). The meta fallback
+	 * must recognise the stripped legacy shape and backfill the new user meta flag.
+	 */
+	public function test_is_tour_finished_reads_stripped_legacy_user_settings_meta(): void {
+
+		$instance = $this->get_instance();
+
+		$user_id = self::factory()->user->create(['role' => 'administrator']);
+		wp_set_current_user($user_id);
+
+		$reflection  = new \ReflectionClass($instance);
+		$is_finished = $reflection->getMethod('is_tour_finished');
+		$is_finished->setAccessible(true);
+		$get_meta_key = $reflection->getMethod('get_meta_key');
+		$get_meta_key->setAccessible(true);
+		$get_legacy_keys = $reflection->getMethod('get_legacy_setting_keys');
+		$get_legacy_keys->setAccessible(true);
+
+		$meta_key = $get_meta_key->invoke($instance, 'checkout-form-list');
+
+		update_user_option($user_id, 'user-settings', 'wu_tour_checkoutformlist=1', false);
+
+		$this->assertSame('wu_tour_checkoutformlist=1', get_user_option('user-settings', $user_id));
+		$this->assertContains('wu_tour_checkoutformlist', $get_legacy_keys->invoke($instance, 'checkout-form-list'));
+
+		$this->assertTrue($is_finished->invoke($instance, 'checkout-form-list', $user_id));
+		$this->assertSame('1', get_user_meta($user_id, $meta_key, true));
+	}
+
+	/**
 	 * Test enqueue_scripts uses wp_add_inline_script on 'underscore', not wu-admin.
 	 *
 	 * Regression test for GH#707: wu_tours was localized onto wu-admin which is
