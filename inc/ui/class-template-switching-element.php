@@ -265,7 +265,7 @@ class Template_Switching_Element extends Base_Element {
 			return;
 		}
 
-		$this->membership = $this->site->get_membership();
+		$this->membership       = $this->site->get_membership();
 		$this->permission_state = $this->membership ? self::STATE_OK : self::STATE_NO_MEMBERSHIP;
 
 		$this->products = [];
@@ -406,8 +406,8 @@ class Template_Switching_Element extends Base_Element {
 			[
 				'redirect_url' => add_query_arg(
 					[
-						'updated'              => 1,
-						'wu_template_action'   => $action_label,
+						'updated'            => 1,
+						'wu_template_action' => $action_label,
 					],
 					$referer
 				),
@@ -430,8 +430,8 @@ class Template_Switching_Element extends Base_Element {
 	 */
 	public function output($atts, $content = null) {
 
-		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
-			echo wu_get_template_contents(
+		if (wu_is_sovereign_tenant()) {
+			echo wu_get_template_contents( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				'elements/sovereign-redirect',
 				[
 					'main_site_account_url' => wu_mt_main_site_account_url(),
@@ -714,6 +714,7 @@ class Template_Switching_Element extends Base_Element {
 			 * (1024px) lines up with the rest of the customer panel content
 			 * areas; wu-mx-auto centres it.
 			 */
+
 			/*
 			 * Scoped CSS adjustments for the switching page only. Each rule
 			 * is scoped to .wu-template-switching-wrap so signup/checkout

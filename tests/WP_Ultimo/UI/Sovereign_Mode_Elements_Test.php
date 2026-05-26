@@ -20,13 +20,26 @@ class Sovereign_Mode_Elements_Test extends WP_UnitTestCase {
 	protected function setUp(): void {
 		parent::setUp();
 
-		// Define sovereign mode constant if not already defined
-		if ( ! defined('WU_MT_SOVEREIGN_TENANT') ) {
-			define('WU_MT_SOVEREIGN_TENANT', true);
-		}
-
-		// Load the sovereign helper function
+		// Load the sovereign helper function.
 		require_once dirname(__DIR__, 3) . '/inc/functions/sovereign.php';
+
+		add_filter('wu_is_sovereign_tenant', [$this, 'return_true']);
+	}
+
+	/**
+	 * Tear down test fixtures.
+	 */
+	protected function tearDown(): void {
+		remove_filter('wu_is_sovereign_tenant', [$this, 'return_true']);
+
+		parent::tearDown();
+	}
+
+	/**
+	 * Return true for filter callbacks.
+	 */
+	public function return_true(): bool {
+		return true;
 	}
 
 	/**

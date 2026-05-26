@@ -699,7 +699,7 @@ class Checkout_Element extends Base_Element {
 	public function output($atts, $content = null) {
 
 		// In sovereign tenant context, render a link to the main site checkout instead
-		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+		if (wu_is_sovereign_tenant()) {
 			$checkout_pages = \WP_Ultimo\Checkout\Checkout_Pages::get_instance();
 			$main_site_url  = $checkout_pages->get_main_site_checkout_url();
 			?>

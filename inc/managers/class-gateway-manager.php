@@ -281,7 +281,7 @@ class Gateway_Manager extends Base_Manager {
 	 */
 	public function process_gateway_confirmations(): void {
 
-		if ( defined( 'WU_MT_SOVEREIGN_TENANT' ) && WU_MT_SOVEREIGN_TENANT ) {
+		if ( wu_is_sovereign_tenant() ) {
 			return;
 		}
 
@@ -619,7 +619,7 @@ class Gateway_Manager extends Base_Manager {
 	 */
 	public function ajax_check_payment_status(): void {
 
-		if ( defined( 'WU_MT_SOVEREIGN_TENANT' ) && WU_MT_SOVEREIGN_TENANT ) {
+		if ( wu_is_sovereign_tenant() ) {
 			return;
 		}
 

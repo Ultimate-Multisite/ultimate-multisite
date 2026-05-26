@@ -292,8 +292,8 @@ class Account_Summary_Element extends Base_Element {
 	 */
 	public function output($atts, $content = null) {
 
-		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
-			echo wu_get_template_contents(
+		if (wu_is_sovereign_tenant()) {
+			echo wu_get_template_contents( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				'elements/sovereign-redirect',
 				[
 					'main_site_account_url' => wu_mt_main_site_account_url(),

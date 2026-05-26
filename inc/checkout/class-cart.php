@@ -265,8 +265,9 @@ class Cart implements \JsonSerializable {
 		 * Guard against instantiation in sovereign tenant context.
 		 * Checkout should only run on the main site.
 		 */
-		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
-			$this->errors = new \WP_Error(
+		if (wu_is_sovereign_tenant()) {
+			$this->attributes = (object) [];
+			$this->errors     = new \WP_Error(
 				'sovereign_checkout_disabled',
 				__('Checkout is disabled in sovereign tenant context.', 'ultimate-multisite')
 			);
@@ -2252,7 +2253,6 @@ class Cart implements \JsonSerializable {
 	 * @return bool
 	 */
 	public function has_trial() {
-
 		/*
 		 * Reactivation carts never get a trial period.
 		 *

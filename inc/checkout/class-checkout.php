@@ -582,7 +582,7 @@ class Checkout {
 	 */
 	public function maybe_handle_order_submission(): void {
 
-		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+		if (wu_is_sovereign_tenant()) {
 			wp_send_json_error(
 				[
 					'code'          => 'sovereign_checkout_disabled',
@@ -1876,7 +1876,7 @@ class Checkout {
 	 */
 	public function create_order(): void {
 
-		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+		if (wu_is_sovereign_tenant()) {
 			wp_send_json_error(
 				[
 					'code'          => 'sovereign_checkout_disabled',
@@ -1950,7 +1950,7 @@ class Checkout {
 	 */
 	public function check_user_exists(): void {
 
-		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+		if (wu_is_sovereign_tenant()) {
 			wp_send_json_error(
 				[
 					'code'          => 'sovereign_checkout_disabled',
@@ -2015,7 +2015,7 @@ class Checkout {
 	 */
 	public function handle_inline_login(): void {
 
-		if (defined('WU_MT_SOVEREIGN_TENANT') && WU_MT_SOVEREIGN_TENANT) {
+		if (wu_is_sovereign_tenant()) {
 			wp_send_json_error(
 				[
 					'code'          => 'sovereign_checkout_disabled',

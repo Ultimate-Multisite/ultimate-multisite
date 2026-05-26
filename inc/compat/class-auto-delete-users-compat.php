@@ -36,7 +36,7 @@ class Auto_Delete_Users_Compat {
 	 */
 	public function init(): void {
 
-		if ( defined( 'WU_MT_SOVEREIGN_TENANT' ) && WU_MT_SOVEREIGN_TENANT ) {
+		if ( wu_is_sovereign_tenant() ) {
 			return;
 		}
 
