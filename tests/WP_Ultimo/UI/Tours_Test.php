@@ -322,6 +322,46 @@ class Tours_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test is_tour_finished ignores the current user's legacy cookie for other users.
+	 */
+	public function test_is_tour_finished_uses_legacy_settings_for_passed_user(): void {
+
+		$instance = $this->get_instance();
+
+		$current_user_id = self::factory()->user->create(['role' => 'administrator']);
+		$target_user_id  = self::factory()->user->create(['role' => 'administrator']);
+		wp_set_current_user($current_user_id);
+
+		$reflection  = new \ReflectionClass($instance);
+		$is_finished = $reflection->getMethod('is_tour_finished');
+		$is_finished->setAccessible(true);
+		$get_setting = $reflection->getMethod('get_setting_key');
+		$get_setting->setAccessible(true);
+
+		$current_cookie_name               = 'wp-settings-' . $current_user_id;
+		$setting_key                       = $get_setting->invoke($instance, 'legacy-tour');
+		$prior_cookie                      = $_COOKIE[ $current_cookie_name ] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- test stash, no user input.
+		$prior_updated_settings            = $GLOBALS['_updated_user_settings'] ?? null;
+		$_COOKIE[ $current_cookie_name ]   = $setting_key . '=1';
+		$GLOBALS['_updated_user_settings'] = null;
+
+		try {
+			$this->assertFalse($is_finished->invoke($instance, 'legacy-tour', $target_user_id));
+
+			update_user_option($target_user_id, 'user-settings', $setting_key . '=1', false);
+
+			$this->assertTrue($is_finished->invoke($instance, 'legacy-tour', $target_user_id));
+		} finally {
+			if (null === $prior_cookie) {
+				unset($_COOKIE[ $current_cookie_name ]);
+			} else {
+				$_COOKIE[ $current_cookie_name ] = $prior_cookie;
+			}
+			$GLOBALS['_updated_user_settings'] = $prior_updated_settings;
+		}
+	}
+
+	/**
 	 * Test is_tour_finished reads legacy stripped keys from user settings meta.
 	 *
 	 * Regression test for users who dismissed hyphenated tours before the tour ID
@@ -348,6 +388,7 @@ class Tours_Test extends WP_UnitTestCase {
 		$meta_key = $get_meta_key->invoke($instance, 'checkout-form-list');
 
 		update_user_option($user_id, 'user-settings', 'wu_tour_checkoutformlist=1', false);
+		unset($_COOKIE[ 'wp-settings-' . $user_id ], $GLOBALS['_updated_user_settings'][ $user_id ]);
 
 		$this->assertSame('wu_tour_checkoutformlist=1', get_user_option('user-settings', $user_id));
 		$this->assertContains('wu_tour_checkoutformlist', $get_legacy_keys->invoke($instance, 'checkout-form-list'));
@@ -371,7 +412,7 @@ class Tours_Test extends WP_UnitTestCase {
 
 		// Register 'underscore' if not already registered (test environment may not have it).
 		if ( ! wp_script_is('underscore', 'registered')) {
-			wp_register_script('underscore', false, [], false, false);
+			wp_register_script('underscore', false, [], '1.0.0', false);
 		}
 
 		// Inject a tour so enqueue_scripts() proceeds.
