@@ -298,7 +298,7 @@ class Field implements \JsonSerializable {
 		}
 
 		if ('wrapper_classes' === $att) {
-			$attr = is_string($attr) ? $attr : '';
+			$attr              = is_string($attr) ? $attr : '';
 			$wrapper_html_attr = $this->resolve_attribute_value($this->atts['wrapper_html_attr'] ?? []);
 
 			if (is_array($wrapper_html_attr) && isset($wrapper_html_attr['v-show']) && ! str_contains($attr, 'wu-requires-other')) {
@@ -463,7 +463,6 @@ class Field implements \JsonSerializable {
 	 * @return int|float
 	 */
 	protected function validate_number_field($value) {
-
 		/*
 		 * An empty string means the field was submitted without a value
 		 * (e.g. the browser sends an empty <input type="number">).
