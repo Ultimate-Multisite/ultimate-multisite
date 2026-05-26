@@ -127,9 +127,11 @@ class Tours {
 	 */
 	protected function is_legacy_tour_finished($id, $user_id) {
 
-		foreach ($this->get_legacy_setting_keys($id) as $setting_key) {
-			if (get_user_setting($setting_key, false)) {
-				return true;
+		if (get_current_user_id() === (int) $user_id) {
+			foreach ($this->get_legacy_setting_keys($id) as $setting_key) {
+				if (get_user_setting($setting_key, false)) {
+					return true;
+				}
 			}
 		}
 
