@@ -448,4 +448,109 @@ class Tours_Test extends WP_UnitTestCase {
 		// Reset.
 		$prop->setValue($instance, []);
 	}
+
+	/**
+	 * Test create_tour persists the finished flag as soon as the tour is queued.
+	 *
+	 * Regression test for the "tour repeats on every page load" symptom: prior
+	 * to this fix the finished flag was only written via the AJAX dismissal
+	 * triggered by Shepherd's complete / cancel events. Users who navigated
+	 * away or refreshed the page before clicking through to the last step
+	 * never persisted the dismissal and kept seeing the same tour. Marking
+	 * the tour finished at queue time guarantees one-shot semantics.
+	 */
+	public function test_create_tour_marks_finished_on_render(): void {
+
+		$instance = $this->get_instance();
+
+		$reflection = new \ReflectionClass($instance);
+		$tours_prop = $reflection->getProperty('tours');
+		$tours_prop->setAccessible(true);
+		$tours_prop->setValue($instance, []);
+
+		$get_meta_key = $reflection->getMethod('get_meta_key');
+		$get_meta_key->setAccessible(true);
+
+		$user_id = self::factory()->user->create(['role' => 'administrator']);
+		wp_set_current_user($user_id);
+
+		$meta_key = $get_meta_key->invoke($instance, 'wp-ultimo-dashboard');
+
+		delete_user_meta($user_id, $meta_key);
+
+		$instance->create_tour(
+			'wp-ultimo-dashboard',
+			[
+				[
+					'id'   => 'step1',
+					'text' => 'Welcome',
+				],
+			]
+		);
+
+		do_action('in_admin_header');
+
+		$registered = $tours_prop->getValue($instance);
+		$this->assertArrayHasKey('wp-ultimo-dashboard', $registered, 'tour should be queued for display');
+
+		$this->assertSame(
+			'1',
+			get_user_meta($user_id, $meta_key, true),
+			'finished flag should be persisted as soon as the tour is rendered'
+		);
+
+		$tours_prop->setValue($instance, []);
+	}
+
+	/**
+	 * Test create_tour does NOT persist the finished flag when $once is false.
+	 *
+	 * Some tours are intentionally configured to be shown on every page load
+	 * (e.g. troubleshooting walkthroughs). Those callers pass $once = false to
+	 * opt out of one-shot semantics, and the on-render persistence must
+	 * respect that contract.
+	 */
+	public function test_create_tour_does_not_mark_finished_when_once_is_false(): void {
+
+		$instance = $this->get_instance();
+
+		$reflection = new \ReflectionClass($instance);
+		$tours_prop = $reflection->getProperty('tours');
+		$tours_prop->setAccessible(true);
+		$tours_prop->setValue($instance, []);
+
+		$get_meta_key = $reflection->getMethod('get_meta_key');
+		$get_meta_key->setAccessible(true);
+
+		$user_id = self::factory()->user->create(['role' => 'administrator']);
+		wp_set_current_user($user_id);
+
+		$meta_key = $get_meta_key->invoke($instance, 'always-show-tour');
+
+		delete_user_meta($user_id, $meta_key);
+
+		$instance->create_tour(
+			'always-show-tour',
+			[
+				[
+					'id'   => 'step1',
+					'text' => 'Always',
+				],
+			],
+			false
+		);
+
+		do_action('in_admin_header');
+
+		$registered = $tours_prop->getValue($instance);
+		$this->assertArrayHasKey('always-show-tour', $registered, 'non-once tour should be queued for display');
+
+		$this->assertSame(
+			'',
+			(string) get_user_meta($user_id, $meta_key, true),
+			'finished flag must NOT be written when $once is false'
+		);
+
+		$tours_prop->setValue($instance, []);
+	}
 }

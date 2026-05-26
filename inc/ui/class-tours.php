@@ -343,6 +343,26 @@ class Tours {
 					}
 
 					$this->tours[ $id ] = $steps;
+
+					/*
+					 * Persist the finished flag as soon as the tour is queued for
+					 * display. Previously the flag was only written when the user
+					 * clicked through to the last step (Shepherd's complete / cancel
+					 * events). Users who simply navigate away — or refresh the page —
+					 * before completing the walkthrough would see the same tour on
+					 * every page load. Marking the tour finished here ensures the
+					 * one-shot semantics hold even when the user does not explicitly
+					 * close the modal. The Shepherd event handlers in tours.js still
+					 * fire markTourFinished for completeness (the operation is
+					 * idempotent).
+					 */
+					if ($once) {
+						$user_id = get_current_user_id();
+
+						if ($user_id) {
+							update_user_meta($user_id, $this->get_meta_key($id), 1);
+						}
+					}
 				}
 			}
 		);
