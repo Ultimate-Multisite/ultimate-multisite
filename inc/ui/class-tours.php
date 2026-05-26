@@ -91,6 +91,68 @@ class Tours {
 	}
 
 	/**
+	 * Returns legacy user-settings keys that may hold a finished tour flag.
+	 *
+	 * Older tour persistence used WordPress user settings directly. Depending
+	 * on the WordPress version and whether the value travelled through the
+	 * wp-settings-* cookie sanitizer, hyphenated tour IDs may have been stored
+	 * either with underscores or with hyphens stripped entirely. Check both
+	 * shapes so users who already dismissed those tours do not see them again.
+	 *
+	 * @since 2.5.2
+	 *
+	 * @param string $id The tour ID.
+	 * @return array
+	 */
+	protected function get_legacy_setting_keys($id) {
+
+		return array_values(
+			array_unique(
+				[
+					$this->get_setting_key($id),
+					'wu_tour_' . preg_replace('/[^A-Za-z0-9_]/', '', $id),
+				]
+			)
+		);
+	}
+
+	/**
+	 * Whether a legacy user-settings value marks the tour as finished.
+	 *
+	 * @since 2.5.2
+	 *
+	 * @param string $id      The tour ID.
+	 * @param int    $user_id User ID.
+	 * @return bool
+	 */
+	protected function is_legacy_tour_finished($id, $user_id) {
+
+		foreach ($this->get_legacy_setting_keys($id) as $setting_key) {
+			if (get_user_setting($setting_key, false)) {
+				return true;
+			}
+		}
+
+		$stored_settings = get_user_option('user-settings', $user_id);
+
+		if ( ! is_string($stored_settings) || '' === $stored_settings) {
+			return false;
+		}
+
+		$parsed_settings = [];
+
+		parse_str($stored_settings, $parsed_settings);
+
+		foreach ($this->get_legacy_setting_keys($id) as $setting_key) {
+			if ( ! empty($parsed_settings[ $setting_key ])) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Whether the tour has been finished for the current user.
 	 *
 	 * Checks user meta first (the authoritative cookie-independent flag) and
@@ -117,7 +179,13 @@ class Tours {
 			return true;
 		}
 
-		return (bool) get_user_setting($this->get_setting_key($id), false);
+		$legacy_finished = $this->is_legacy_tour_finished($id, $user_id);
+
+		if ($legacy_finished) {
+			update_user_meta($user_id, $this->get_meta_key($id), 1);
+		}
+
+		return $legacy_finished;
 	}
 
 	/**
