@@ -96,11 +96,11 @@ class Credits {
 			'general',
 			'credits_custom_html',
 			[
-				'title'       => __('Custom Footer HTML', 'ultimate-multisite'),
-				'desc'        => __('HTML allowed. Use any text or link you prefer.', 'ultimate-multisite'),
-				'type'        => 'textarea',
-				'allow_html'  => true,
-				'default'     => [$this, 'get_default_custom_credit_html'],
+				'title'         => __('Custom Footer HTML', 'ultimate-multisite'),
+				'desc'          => __('HTML allowed. Use any text or link you prefer.', 'ultimate-multisite'),
+				'type'          => 'textarea',
+				'allow_html'    => true,
+				'default'       => [$this, 'get_default_custom_credit_html'],
 				'value'         => function () {
 					return $this->normalize_custom_credit_html(
 						wu_get_setting('credits_custom_html', $this->get_default_custom_credit_html())
@@ -111,8 +111,8 @@ class Credits {
 						wu_get_setting('credits_custom_html', $this->get_default_custom_credit_html())
 					);
 				},
-				'placeholder' => __('Powered by <a href="https://example.com">Your Company</a>', 'ultimate-multisite'),
-				'require'     => [
+				'placeholder'   => __('Powered by <a href="https://example.com">Your Company</a>', 'ultimate-multisite'),
+				'require'       => [
 					'credits_enable' => 1,
 					'credits_type'   => 'html',
 				],
@@ -139,8 +139,28 @@ class Credits {
 
 	/**
 	 * Returns the default custom credit HTML.
+	 *
+	 * Public so the array callable `[$this, 'get_default_custom_credit_html']`
+	 * registered as a field default (see register_settings() above) resolves
+	 * via `is_callable()` when checked from outside this class — for example
+	 * in `WP_Ultimo\Settings::save_settings()`, which lives in a different
+	 * class scope.
+	 *
+	 * `is_callable([$instance, 'protected_method'])` returns `false` outside
+	 * the declaring class scope. When that happens, `Settings::save_settings()`
+	 * never invokes the callable, the literal array `[$instance, 'method-name']`
+	 * survives as the field default, and it is later persisted/used as the
+	 * field value. For a textarea field this leaks into
+	 * `Field::validate_textarea_field()` → `addslashes()`, fatally:
+	 *   "Uncaught TypeError: addslashes(): Argument #1 ($string) must be of
+	 *   type string, array given".
+	 *
+	 * The Setup Wizard symptom is twofold: the data-state JSON the Vue form
+	 * is initialised from contains the unresolved callable array, so the form
+	 * renders with no settings fields; clicking Continue still POSTs and
+	 * triggers the fatal on save.
 	 */
-	protected function get_default_custom_credit_html(): string {
+	public function get_default_custom_credit_html(): string {
 		$name = (string) get_network_option(null, 'site_name');
 		$name = $name ?: __('this network', 'ultimate-multisite');
 		$url  = is_multisite() ? get_site_url(get_main_site_id()) : network_home_url('/');

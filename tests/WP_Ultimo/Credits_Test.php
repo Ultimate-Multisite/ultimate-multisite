@@ -276,4 +276,47 @@ class Credits_Test extends WP_UnitTestCase {
 		$this->assertNotFalse(has_action('wp_footer', [$this->credits, 'render_frontend_footer']));
 		$this->assertNotFalse(has_action('login_footer', [$this->credits, 'render_frontend_footer']));
 	}
+
+	/**
+	 * Regression: the method registered as the `credits_custom_html` field default
+	 * callable MUST be publicly callable from outside the Credits class.
+	 *
+	 * `WP_Ultimo\Settings::save_settings()` checks `is_callable($field_default)`
+	 * from a different class scope. If this method becomes protected/private the
+	 * check returns `false`, the unresolved array `[$instance, 'method-name']`
+	 * survives as the field default, breaks the Setup Wizard data-state JSON,
+	 * and produces a `TypeError: addslashes(): Argument #1 must be of type string,
+	 * array given` fatal in `Field::validate_textarea_field()`.
+	 */
+	public function test_get_default_custom_credit_html_is_callable_externally(): void {
+
+		$callable = [$this->credits, 'get_default_custom_credit_html'];
+
+		$this->assertTrue(
+			is_callable($callable),
+			'Credits::get_default_custom_credit_html must be publicly callable so the field-default array callable resolves in Settings::save_settings().'
+		);
+
+		// Reflection confirms the visibility contract.
+		$reflection = new \ReflectionMethod($this->credits, 'get_default_custom_credit_html');
+		$this->assertTrue(
+			$reflection->isPublic(),
+			'Credits::get_default_custom_credit_html must be declared public.'
+		);
+	}
+
+	/**
+	 * Regression: invoking the field-default callable returns a non-empty string.
+	 *
+	 * Mirrors the call path in `Settings::save_settings()` and confirms the value
+	 * that lands in the field is a string suitable for textarea validation.
+	 */
+	public function test_get_default_custom_credit_html_returns_non_empty_string(): void {
+
+		$result = call_user_func([$this->credits, 'get_default_custom_credit_html']);
+
+		$this->assertIsString($result);
+		$this->assertNotEmpty($result);
+		$this->assertStringContainsString('Powered by', $result);
+	}
 }
