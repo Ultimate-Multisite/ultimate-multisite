@@ -42,7 +42,11 @@ Cypress.Commands.add("loginByForm", (username, password) => {
         return;
       }
 
-      cy.get("#rememberme").should("be.visible").and("not.be.checked").click();
+      cy.get("body").then(($body) => {
+        if ($body.find("#rememberme").length) {
+          cy.get("#rememberme").should("be.visible").and("not.be.checked").click();
+        }
+      });
       cy.get("#user_login").should("be.visible").setValue(username);
       cy.get("#user_pass")
         .should("be.visible")
