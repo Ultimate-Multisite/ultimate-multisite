@@ -450,8 +450,8 @@ jobs:
           PAYPAL_SANDBOX_CLIENT_ID: ${{ secrets.PAYPAL_SANDBOX_CLIENT_ID }}
           PAYPAL_SANDBOX_CLIENT_SECRET: ${{ secrets.PAYPAL_SANDBOX_CLIENT_SECRET }}
         run: |
-          if [ -z "$PAYPAL_SANDBOX_CLIENT_SECRET" ]; then
-            echo "⏭️  Skipping PayPal tests: PAYPAL_SANDBOX_CLIENT_SECRET not available in this run."
+          if [ -z "$PAYPAL_SANDBOX_CLIENT_ID" ] || [ -z "$PAYPAL_SANDBOX_CLIENT_SECRET" ]; then
+            echo "⏭️  Skipping PayPal tests: PAYPAL_SANDBOX_CLIENT_ID or PAYPAL_SANDBOX_CLIENT_SECRET not available in this run."
             echo ""
             echo "    The repo secrets PAYPAL_SANDBOX_CLIENT_ID and PAYPAL_SANDBOX_CLIENT_SECRET"
             echo "    must be configured for these tests to run. GitHub Actions does NOT expose"
