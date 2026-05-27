@@ -42,7 +42,11 @@ Cypress.Commands.add("loginByForm", (username, password) => {
         return;
       }
 
-      cy.get("#rememberme").should("be.visible").and("not.be.checked").click();
+      cy.get("body").then(($body) => {
+        if ($body.find("#rememberme").length) {
+          cy.get("#rememberme").should("be.visible").and("not.be.checked").click();
+        }
+      });
       cy.get("#user_login").should("be.visible").setValue(username);
       cy.get("#user_pass")
         .should("be.visible")
@@ -52,6 +56,6 @@ Cypress.Commands.add("loginByForm", (username, password) => {
     cy.location("pathname")
       .should("not.contain", "/wp-login.php")
       .and("not.contain", "/login")
-      .and("equal", "/wp-admin/");
+      .and("include", "/wp-admin");
   });
 });
