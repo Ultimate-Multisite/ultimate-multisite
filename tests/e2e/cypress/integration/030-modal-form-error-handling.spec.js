@@ -1,13 +1,13 @@
 describe("Modal Form Error Handling", () => {
 	before(() => {
-		cy.loginByForm(
+		cy.loginByApi(
 			Cypress.env("admin").username,
 			Cypress.env("admin").password
 		);
 	});
 
 	beforeEach(() => {
-		cy.loginByForm(
+		cy.loginByApi(
 			Cypress.env("admin").username,
 			Cypress.env("admin").password
 		);
