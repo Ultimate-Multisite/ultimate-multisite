@@ -31,14 +31,24 @@ Cypress.Commands.add("loginByForm", (username, password) => {
     cy.visit("/wp-login.php");
     // Handle both default wp-login.php and custom login page (/login/)
     cy.location("pathname").should("satisfy", (path) => {
-      return path.includes("/wp-login.php") || path.includes("/login");
+      return (
+        path.includes("/wp-login.php") ||
+        path.includes("/login") ||
+        path.includes("/wp-admin")
+      );
     });
-    cy.get("#rememberme").should("be.visible").and("not.be.checked").click();
-    cy.get("#user_login").should("be.visible").setValue(username);
-    cy.get("#user_pass")
-      .should("be.visible")
-      .setValue(password)
-      .type("{enter}");
+    cy.location("pathname").then((path) => {
+      if (path.includes("/wp-admin")) {
+        return;
+      }
+
+      cy.get("#rememberme").should("be.visible").and("not.be.checked").click();
+      cy.get("#user_login").should("be.visible").setValue(username);
+      cy.get("#user_pass")
+        .should("be.visible")
+        .setValue(password)
+        .type("{enter}");
+    });
     cy.location("pathname")
       .should("not.contain", "/wp-login.php")
       .and("not.contain", "/login")
