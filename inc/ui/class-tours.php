@@ -356,7 +356,7 @@ class Tours {
 					 * fire markTourFinished for completeness (the operation is
 					 * idempotent).
 					 */
-					if ($once && ! $pre_filter_finished && ! $finished) {
+					if (true === $once && false === $pre_filter_finished && false === $finished) {
 						$user_id = get_current_user_id();
 
 						if ($user_id) {
