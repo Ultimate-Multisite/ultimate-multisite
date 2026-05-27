@@ -860,9 +860,7 @@ class Customer extends Base_Model implements Billable, Notable {
 	 */
 	public function generate_verification_key() {
 
-		$seed = time();
-
-		$hash = \WP_Ultimo\Helpers\Hash::encode($seed, 'verification-key');
+		$hash = wp_generate_password(32, false, false);
 
 		return $this->update_meta(self::META_VERIFICATION_KEY, $hash);
 	}
@@ -894,9 +892,9 @@ class Customer extends Base_Model implements Billable, Notable {
 	 *
 	 * When the customer checked out on a domain other than the main site
 	 * (e.g. a checkout form hosted on a mapped domain), the verification
-	 * URL must point back to that same domain so the auth cookie set
-	 * during checkout is valid. Falls back to the main site when no
-	 * checkout blog ID is stored.
+	 * URL must point back to that same domain so the verification
+	 * experience is anchored to the site the customer used to sign up.
+	 * Falls back to the main site when no checkout blog ID is stored.
 	 *
 	 * @since 2.0.0
 	 * @return string|bool
