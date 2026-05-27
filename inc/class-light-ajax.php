@@ -66,6 +66,25 @@ class Light_Ajax {
 				'wu_check_user_exists',
 				'wu_inline_login',
 
+				/**
+				 * Template Switching Action
+				 *
+				 * The customer-panel "switch template" JS
+				 * (assets/js/template-switching.js) builds its
+				 * request as `ajaxurl + '&action=' + action` and
+				 * does NOT send the `r` nonce. After the referer
+				 * check was added to process_light_ajax(), this
+				 * action started failing the nonce verification on
+				 * every request, surfacing in the customer panel as
+				 * "A network error occurred. Please check your
+				 * connection and try again." The handler
+				 * Template_Switching_Element::switch_template()
+				 * already enforces ownership via
+				 * $this->site->is_customer_allowed(), so the nonce
+				 * adds no extra protection here.
+				 */
+				'wu_switch_template',
+
 			]
 		);
 
