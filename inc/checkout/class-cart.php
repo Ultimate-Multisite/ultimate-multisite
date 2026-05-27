@@ -351,7 +351,15 @@ class Cart implements \JsonSerializable {
 		 */
 		$this->attributes = (object) $args;
 
-		if (apply_filters('wu_cart_skip_initialization', false, $args, $this)) {
+		$skip_initialization = apply_filters('wu_cart_skip_initialization', false, $args, $this);
+
+		if ($skip_initialization) {
+			if ($skip_initialization instanceof \WP_Error) {
+				$this->errors->merge_from($skip_initialization);
+			} elseif ( ! $this->errors->has_errors()) {
+				$this->errors->add('cart_initialization_skipped', __('This checkout is not available.', 'ultimate-multisite'));
+			}
+
 			return;
 		}
 
