@@ -90,6 +90,7 @@ class Checkout_Test extends WP_UnitTestCase {
 		remove_filter('wu_checkout_skip_user_exists_check', [$this, 'skip_checkout']);
 		remove_filter('wu_checkout_skip_inline_login', [$this, 'skip_checkout']);
 		remove_filter('wu_cart_skip_initialization', [$this, 'set_cart_error']);
+		remove_filter('wu_cart_skip_initialization', '__return_true');
 
 		parent::tearDown();
 	}
@@ -5482,6 +5483,21 @@ class Checkout_Test extends WP_UnitTestCase {
 
 		$this->assertTrue(is_wp_error($cart->errors));
 		$this->assertEquals('checkout_disabled', $cart->errors->get_error_code());
+	}
+
+	/**
+	 * Test that Cart constructor marks skipped initialization as invalid.
+	 */
+	public function test_cart_constructor_sets_default_error_when_skip_filter_returns_true(): void {
+
+		add_filter('wu_cart_skip_initialization', '__return_true');
+
+		$cart = new Cart([
+			'products' => [],
+		]);
+
+		$this->assertFalse($cart->is_valid());
+		$this->assertEquals('cart_initialization_skipped', $cart->errors->get_error_code());
 	}
 
 	// -------------------------------------------------------------------------
