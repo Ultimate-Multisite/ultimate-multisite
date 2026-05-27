@@ -945,13 +945,87 @@ class SSO {
 
 		// Attach through redirect if the client isn't attached yet.
 		if ( ! $broker->isAttached()) {
+			$sso_path = $this->get_url_path();
+
 			/*
-			 * For JSONP requests (initiated by a <script> tag), we must NOT
-			 * redirect — the browser follows 302s transparently for script
-			 * tags, but the final response from the server will be a redirect
-			 * (not JavaScript), so the wu.sso() callback never fires.
-			 * Instead, return a JSONP error so the JS can handle it gracefully
-			 * and set the wu_sso_denied cookie to prevent further attempts.
+			 * Determine the page we ultimately want the user to land on
+			 * after the magic-link round-trip.
+			 *
+			 * The JSONP must-redirect fallback navigates the top-level
+			 * browser to `<broker>/sso?return_url=<original_page>`, so on
+			 * that second hit `get_current_url()` is the /sso URL itself
+			 * — using it would feed `/sso?...` back into return_url and
+			 * the main site would echo a longer `/sso?return_url=/sso?...`
+			 * URL on each iteration, producing a `ERR_TOO_MANY_REDIRECTS`
+			 * (the URL grows on every hop, never converges).
+			 *
+			 * Prefer the explicit `return_url` query param when present
+			 * (set by sso.js on the must-redirect branch); only fall back
+			 * to `get_current_url()` on a direct first hit. Guard the
+			 * value against pointing at the /sso path itself so a
+			 * stray/legacy URL can't restart the same loop.
+			 */
+			$requested_return = (string) $this->input('return_url', '');
+
+			if ( '' === $requested_return ) {
+				$return_url = $this->get_current_url();
+			} else {
+				$return_url = $requested_return;
+			}
+
+			$return_path = (string) wp_parse_url($return_url, PHP_URL_PATH);
+
+			if ( '' === $return_path || preg_match("#/{$sso_path}(-grant)?/?$#", $return_path) ) {
+				// Refuses to round-trip the /sso endpoint itself; fall back to subsite home.
+				$return_url = home_url('/');
+			}
+
+			/*
+			 * Front-end auto-SSO target: send the user to the main site's
+			 * /sso endpoint with a return_url + redirect_to. handle_server()
+			 * on the main site checks the main-site auth cookie (first-party
+			 * at that point — no third-party cookie restrictions apply) and,
+			 * if logged in, issues an HMAC-signed `wu_sso_token` magic-link
+			 * back to this subsite. handle_cookie_less_sso_token() consumes
+			 * it on init and sets the broker-side auth cookie.
+			 *
+			 * The legacy `$broker->getAttachUrl()` returned a /sso-grant URL
+			 * whose handler (`wu_sso_handle_sso_grant_grant`) is unreachable
+			 * under the cookie-less rework introduced in #1084, so the old
+			 * attach handshake silently fell through to a WordPress 404 and
+			 * SSO never completed. Using /sso directly hits the cookie-less
+			 * server path and works in any browser that allows the main-site
+			 * first-party auth cookie.
+			 *
+			 * Pass `redirect_to` explicitly so main's `get_sso_redirect_to()`
+			 * does not append `/wp/wp-admin/` (its fallback when only a
+			 * cross-domain return_url is supplied), which would land the
+			 * user on the subsite admin instead of the page they were
+			 * actually viewing.
+			 */
+			$main_sso_url = add_query_arg(
+				[
+					$sso_path     => 'login',
+					'return_url'  => $return_url,
+					'redirect_to' => $return_url,
+				],
+				get_home_url(wu_get_main_site_id(), $sso_path)
+			);
+
+			/*
+			 * For JSONP requests (initiated by a <script> tag) we cannot
+			 * 302 to HTML — the browser follows it transparently but the
+			 * final response is HTML, not JavaScript, so the wu.sso()
+			 * callback never fires. Return `verify: must-redirect` so the
+			 * already-existing sso.js branch performs a top-level
+			 * navigation (which re-enters handle_broker via the non-JSONP
+			 * path below and lands on $main_sso_url).
+			 *
+			 * If the user is already logged out everywhere, the resulting
+			 * /sso request on the main site falls through to a plain login
+			 * page render. handle_login_redirect + login_form_defaults then
+			 * carry the return_url through the login form so they end back
+			 * on this subsite when they sign in.
 			 */
 			if ('jsonp' === $response_type) {
 				header('Content-Type: application/javascript; charset=utf-8');
@@ -960,8 +1034,9 @@ class SSO {
 					'wu.sso(%s, %d);',
 					wp_json_encode(
 						[
-							'code'    => 0,
-							'message' => 'Broker not attached',
+							'code'       => 200,
+							'verify'     => 'must-redirect',
+							'return_url' => $return_url,
 						]
 					),
 					200
@@ -972,15 +1047,7 @@ class SSO {
 				exit;
 			}
 
-			$return_url = $this->get_current_url();
-
-			$attach_url = $broker->getAttachUrl(
-				[
-					'return_url' => $return_url,
-				]
-			);
-
-			wp_safe_redirect($attach_url, 302, 'WP-Ultimo-SSO');
+			wp_safe_redirect($main_sso_url, 302, 'WP-Ultimo-SSO');
 
 			exit();
 		}
