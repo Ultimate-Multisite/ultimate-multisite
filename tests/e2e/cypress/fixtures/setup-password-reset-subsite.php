@@ -57,10 +57,17 @@ if (function_exists('wu_save_setting')) {
 	wu_save_setting('enable_custom_login_page', true);
 }
 
+if (class_exists('WP_Ultimo\\Checkout\\Checkout_Pages')) {
+	$checkout_pages = WP_Ultimo\Checkout\Checkout_Pages::get_instance();
+
+	remove_filter('retrieve_password_message', [$checkout_pages, 'replace_reset_password_link'], 10);
+	add_filter('retrieve_password_message', [$checkout_pages, 'replace_reset_password_link'], 10, 4);
+}
+
 // --------------------------------------------------------------------------
 // 2. Create or reuse the test subsite.
 // --------------------------------------------------------------------------
-$network_domain = $current_site->domain;
+$network_domain      = $current_site->domain;
 $result['main_host'] = $network_domain;
 
 $existing = get_blog_id_from_url($network_domain, '/pwreset-subsite/');
@@ -94,7 +101,10 @@ $user  = get_user_by('login', $login);
 if (! $user) {
 	$user_id = wpmu_create_user($login, wp_generate_password(20), 'pwresetuser@example.test');
 	if (! $user_id) {
-		echo wp_json_encode(['error' => 'User create failed', 'site_id' => $site_id]);
+		echo wp_json_encode([
+			'error'   => 'User create failed',
+			'site_id' => $site_id,
+		]);
 		exit(1);
 	}
 	$user = get_user_by('id', $user_id);
@@ -104,19 +114,21 @@ add_user_to_blog($site_id, $user->ID, 'subscriber');
 
 // --------------------------------------------------------------------------
 // 4. Switch context to the subsite and invoke the UM filter directly.
-//    `replace_reset_password_link()` is registered on `retrieve_password_message`
-//    in Checkout_Pages::__construct(). We reach it via apply_filters().
+// `replace_reset_password_link()` is registered on `retrieve_password_message`
+// in Checkout_Pages::__construct(). We reach it via apply_filters().
 // --------------------------------------------------------------------------
 switch_to_blog($site_id);
 
 // `home_url('/')` after switch_to_blog is the subsite's own URL.
 // We extract just the host portion so we can compare it later.
-$subsite_home = home_url('/');
-$subsite_host = wp_parse_url($subsite_home, PHP_URL_HOST);
+$subsite_home           = home_url('/');
+$subsite_host           = wp_parse_url($subsite_home, PHP_URL_HOST);
 $result['subsite_host'] = $subsite_host;
 
 // Hook the new filter introduced by PR #1169 so we can prove it ran.
 $filter_marker = function ($url, $key, $user_login, $user_data) use (&$result) {
+	unset($key, $user_login, $user_data);
+
 	$result['filter_ran'] = true;
 
 	return $url;
@@ -127,8 +139,8 @@ add_filter('wu_subsite_password_reset_url', $filter_marker, 10, 4);
 // Build a synthetic raw message that mimics what core's retrieve_password()
 // would produce on a subsite BEFORE the UM filter runs: a URL pointing at
 // the main network site's wp-login.php.
-$key      = 'fixturetestkey1234567890';
-$raw_url  = network_site_url(
+$key     = 'fixturetestkey1234567890';
+$raw_url = network_site_url(
 	"wp-login.php?action=rp&key={$key}&login=" . rawurlencode($login),
 	'login'
 );
@@ -157,7 +169,7 @@ restore_current_blog();
 // 5. Extract the URL line from the filtered message.
 // --------------------------------------------------------------------------
 if (preg_match('#https?://\S+#', $filtered, $m)) {
-	$rewritten = $m[0];
+	$rewritten                = $m[0];
 	$result['rewritten_url']  = $rewritten;
 	$result['rewritten_host'] = wp_parse_url($rewritten, PHP_URL_HOST);
 
@@ -165,9 +177,9 @@ if (preg_match('#https?://\S+#', $filtered, $m)) {
 	parse_str($query_str, $parsed_q);
 
 	$result['rewritten_query'] = [
-		'action'  => $parsed_q['action']  ?? null,
-		'key'     => $parsed_q['key']     ?? null,
-		'login'   => $parsed_q['login']   ?? null,
+		'action'  => $parsed_q['action'] ?? null,
+		'key'     => $parsed_q['key'] ?? null,
+		'login'   => $parsed_q['login'] ?? null,
 		'wp_lang' => $parsed_q['wp_lang'] ?? null,
 	];
 }
