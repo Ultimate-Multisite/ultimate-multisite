@@ -225,37 +225,8 @@ class Customer_Manager extends Base_Manager {
 
 		$customer_to_verify = wu_get_customer_by_hash($customer_hash);
 
-		if ( ! is_user_logged_in()) {
-			wp_die(
-				sprintf(
-					/* translators: the placeholder is the login URL */
-					wp_kses_post(__('You must be authenticated in order to verify your email address. <a href=%s>Click here</a> to access your account.', 'ultimate-multisite')),
-					esc_attr(
-						wp_login_url(
-							add_query_arg(
-								[
-									'email-verification-key' => $email_verify_key,
-									'customer' => $customer_hash,
-								]
-							)
-						)
-					)
-				)
-			);
-		}
-
 		if ( ! $customer_to_verify) {
 			wp_die(wp_kses_post(__('<strong>ERROR:</strong> Invalid verification key.', 'ultimate-multisite')));
-		}
-
-		$current_customer = wu_get_current_customer();
-
-		if ( ! $current_customer) {
-			wp_die(wp_kses_post(__('<strong>Error:</strong> Invalid verification key.', 'ultimate-multisite')));
-		}
-
-		if ($current_customer->get_id() !== $customer_to_verify->get_id()) {
-			wp_die(esc_html__('Invalid verification key.', 'ultimate-multisite'));
 		}
 
 		if ($customer_to_verify->get_email_verification() !== 'pending') {
@@ -268,7 +239,7 @@ class Customer_Manager extends Base_Manager {
 			wp_die(wp_kses_post(__('<strong>Error:</strong> Invalid verification key.', 'ultimate-multisite')));
 		}
 
-		if ($key !== $email_verify_key) {
+		if ( ! hash_equals((string) $key, (string) $email_verify_key)) {
 			wp_die(esc_html__('Invalid verification key.', 'ultimate-multisite'));
 		}
 
