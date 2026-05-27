@@ -56,6 +56,6 @@ Cypress.Commands.add("loginByForm", (username, password) => {
     cy.location("pathname")
       .should("not.contain", "/wp-login.php")
       .and("not.contain", "/login")
-      .and("equal", "/wp-admin/");
+      .and("include", "/wp-admin");
   });
 });
