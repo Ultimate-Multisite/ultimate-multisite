@@ -317,17 +317,22 @@ class Domain_Manager extends Base_Manager {
 	 * Triggers subdomain mapping events on site creation.
 	 *
 	 * @since 2.0.0
+	 * @since 2.12.1 Skips auto-creation of a mapped-domain record when the new
+	 *               site's domain is a network-base domain (the network primary
+	 *               or any operator-configured `available_domains` value from
+	 *               checkout `site_url` fields). Without this guard, subdirectory
+	 *               multisites that expose an alternate base domain via the
+	 *               checkout form (e.g. `example.com` alongside the network
+	 *               primary `wp.example.test`) would have every newly registered
+	 *               subsite produce a `primary_domain = true` mapping record for
+	 *               the shared base, breaking sibling subsites.
 	 *
 	 * @param \WP_Site $site The site being added.
 	 * @return void
 	 */
 	public function handle_site_created($site): void {
 
-		global $current_site;
-
-		$has_subdomain = str_replace($current_site->domain, '', $site->domain);
-
-		if ( ! $has_subdomain) {
+		if ($this->is_network_base_domain((string) $site->domain)) {
 			return;
 		}
 
@@ -347,8 +352,208 @@ class Domain_Manager extends Base_Manager {
 			wu_enqueue_async_action('wu_add_subdomain', $args, 'domain');
 		}
 
-		// Create a domain record for the site
-		$this->create_domain_record_for_site($site);
+		/**
+		 * Allow integrations and addons to suppress the automatic creation of
+		 * a per-site mapped-domain record. Returning false short-circuits the
+		 * `create_domain_record_for_site()` call.
+		 *
+		 * @since 2.12.1
+		 *
+		 * @param bool     $create Whether to create a Domain record. Default true.
+		 * @param \WP_Site $site   The site being added.
+		 */
+		if (apply_filters('wu_should_create_domain_record_for_site', true, $site)) {
+			$this->create_domain_record_for_site($site);
+		}
+	}
+
+	/**
+	 * Checks if the given domain is one of the network's "base" domains.
+	 *
+	 * A base domain is one of:
+	 *
+	 *  - The network primary domain (`$current_site->domain`), or
+	 *  - Any value listed in `available_domains` / `available_domains_multi`
+	 *    on a `site_url` field of any published checkout form.
+	 *
+	 * In both cases the host is shared across many subdirectory subsites and
+	 * must NOT be auto-promoted to a per-site mapped-domain record (which
+	 * would route all `<base>/*` requests through Mercator/sunrise to the
+	 * single subsite owning that mapping and 404 every sibling).
+	 *
+	 * Results are memoised per request to avoid re-querying checkout forms
+	 * on every `wp_insert_site` / `wp_delete_site` callback.
+	 *
+	 * @since 2.12.1
+	 *
+	 * @param string $domain The domain to test.
+	 * @return bool
+	 */
+	public function is_network_base_domain(string $domain): bool {
+
+		global $current_site;
+
+		$normalized = $this->normalize_base_domain($domain);
+
+		if ('' === $normalized) {
+			return false;
+		}
+
+		$network_domain = isset($current_site->domain)
+			? $this->normalize_base_domain((string) $current_site->domain)
+			: '';
+
+		if ('' !== $network_domain && $normalized === $network_domain) {
+			return true;
+		}
+
+		$bases = $this->get_checkout_form_base_domains();
+
+		return in_array($normalized, $bases, true);
+	}
+
+	/**
+	 * Returns the list of operator-configured base domains drawn from active
+	 * checkout forms' `site_url` field settings (both `available_domains` and
+	 * `available_domains_multi`).
+	 *
+	 * The list is memoised for the duration of the request. Use the
+	 * `wu_checkout_form_base_domains` filter to inject extra hosts (for
+	 * example from a hosting integration that provisions multiple network
+	 * base domains).
+	 *
+	 * @since 2.12.1
+	 *
+	 * @return string[] Normalised lowercase hosts without `www.` or port.
+	 */
+	public function get_checkout_form_base_domains(): array {
+
+		// Memoise the (expensive) checkout-form scan per request, but keep the
+		// `wu_checkout_form_base_domains` filter responsive on every call so
+		// addons (and tests) can override the list without restarting the
+		// request.
+		static $form_domains = null;
+
+		if (null === $form_domains) {
+			$form_domains = $this->collect_checkout_form_base_domains();
+		}
+
+		/**
+		 * Filter the list of network-base domains used to suppress automatic
+		 * per-site mapped-domain records.
+		 *
+		 * Hosts should be normalised (lowercase, no scheme, no port, no
+		 * leading `www.`). Anything not in this list (and not equal to the
+		 * network primary) is treated as a per-subsite custom mapping and
+		 * gets a Domain record auto-created on `wp_insert_site`.
+		 *
+		 * @since 2.12.1
+		 *
+		 * @param string[] $domains Normalised lowercase hosts.
+		 */
+		$domains = (array) apply_filters('wu_checkout_form_base_domains', $form_domains);
+
+		$normalized = [];
+
+		foreach ($domains as $domain) {
+			$host = $this->normalize_base_domain((string) $domain);
+
+			if ('' !== $host) {
+				$normalized[ $host ] = true;
+			}
+		}
+
+		return array_keys($normalized);
+	}
+
+	/**
+	 * Scans every checkout form's `site_url` field settings and returns the
+	 * union of `available_domains` and `available_domains_multi` values as
+	 * a list of normalised hostnames.
+	 *
+	 * Extracted from `get_checkout_form_base_domains()` so the (potentially
+	 * expensive) DB scan can be memoised independently from the always-fresh
+	 * filter pass.
+	 *
+	 * @since 2.12.1
+	 *
+	 * @return string[] Normalised lowercase hosts.
+	 */
+	protected function collect_checkout_form_base_domains(): array {
+
+		$domains = [];
+
+		if ( ! function_exists('wu_get_checkout_forms')) {
+			return $domains;
+		}
+
+		$forms = wu_get_checkout_forms(['number' => -1]);
+
+		foreach ((array) $forms as $form) {
+			if ( ! is_object($form) || ! method_exists($form, 'get_all_fields_by_type')) {
+				continue;
+			}
+
+			$site_url_fields = $form->get_all_fields_by_type('site_url');
+
+			foreach ((array) $site_url_fields as $field) {
+				foreach (['available_domains', 'available_domains_multi'] as $key) {
+					$raw = isset($field[ $key ]) ? (string) $field[ $key ] : '';
+
+					if ('' === $raw) {
+						continue;
+					}
+
+					foreach (preg_split('/\r\n|\r|\n/', $raw) as $line) {
+						$host = $this->normalize_base_domain((string) $line);
+
+						if ('' !== $host) {
+							$domains[ $host ] = true;
+						}
+					}
+				}
+			}
+		}
+
+		return array_keys($domains);
+	}
+
+	/**
+	 * Normalises a domain string for base-domain comparison.
+	 *
+	 * Lowercases, trims whitespace, strips an optional scheme, removes a
+	 * trailing path/dot, drops any port suffix, and removes a leading `www.`
+	 * so callers can compare hosts symbolically without worrying about
+	 * superficial formatting differences.
+	 *
+	 * @since 2.12.1
+	 *
+	 * @param string $domain Raw domain or URL.
+	 * @return string Empty string when the input cannot be parsed as a host.
+	 */
+	protected function normalize_base_domain(string $domain): string {
+
+		$domain = strtolower(trim($domain));
+
+		if ('' === $domain) {
+			return '';
+		}
+
+		// Strip scheme/path so wp_parse_url gives us only the host.
+		if ( ! str_contains($domain, '://')) {
+			$domain = 'http://' . $domain;
+		}
+
+		$host = wp_parse_url($domain, PHP_URL_HOST);
+
+		if ( ! is_string($host) || '' === $host) {
+			return '';
+		}
+
+		$host = rtrim($host, '.');
+		$host = preg_replace('/^www\./', '', $host);
+
+		return (string) $host;
 	}
 
 	/**
@@ -402,17 +607,16 @@ class Domain_Manager extends Base_Manager {
 	 * Triggers subdomain mapping events on site deletion.
 	 *
 	 * @since 2.0.0
+	 * @since 2.12.1 Uses `is_network_base_domain()` so deletions of subdirectory
+	 *               subsites that share a network-base domain do not enqueue a
+	 *               `wu_remove_subdomain` job for the shared host.
 	 *
 	 * @param \WP_Site $site The site being removed.
 	 * @return void
 	 */
 	public function handle_site_deleted($site): void {
 
-		global $current_site;
-
-		$has_subdomain = str_replace($current_site->domain, '', $site->domain);
-
-		if ( ! $has_subdomain) {
+		if ($this->is_network_base_domain((string) $site->domain)) {
 			return;
 		}
 

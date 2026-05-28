@@ -9,6 +9,7 @@
 
 namespace WP_Ultimo\UI;
 
+use Psr\Log\LogLevel;
 use WP_Ultimo\Managers\Field_Templates_Manager;
 
 // Exit if accessed directly
@@ -318,6 +319,51 @@ class Template_Switching_Element extends Base_Element {
 		}
 
 		if ( ! $this->site->is_customer_allowed()) {
+			/*
+			 * Customer reports of "You are not allowed to switch templates
+			 * for this site." here are almost always data-specific:
+			 *
+			 *   - The site has no `wu_customer_id` blogmeta (legacy/imported
+			 *     sites, sites detached from their owner via direct DB edit,
+			 *     or sites created before WU 2.0 migration).
+			 *   - The logged-in WP user has no linked Customer record
+			 *     (`wp_wu_customers.user_id` does not match
+			 *     `get_current_user_id()`).
+			 *   - The mapped domain on the request resolved to a different
+			 *     blog than the customer expected, so `wu_get_current_site()`
+			 *     returned a site owned by someone else.
+			 *
+			 * Log the resolved IDs so the network admin can triage from
+			 * `wp-content/uploads/wp-ultimo/logs/template-switching.log`
+			 * without having to instrument the AJAX call themselves. We
+			 * deliberately do NOT echo these IDs back to the customer
+			 * (information disclosure risk: knowing which customer owns
+			 * a site is a sensitive piece of network metadata).
+			 *
+			 * Reported by customer ("No puedes cambiar la plantilla de
+			 * este sitio").
+			 */
+			$resolved_customer    = WP_Ultimo()->currents->get_customer();
+			$resolved_customer_id = $resolved_customer ? (int) $resolved_customer->get_id() : 0;
+
+			if ( ! $resolved_customer_id) {
+				$fallback_customer    = wu_get_current_customer();
+				$resolved_customer_id = $fallback_customer ? (int) $fallback_customer->get_id() : 0;
+			}
+
+			wu_log_add(
+				'template-switching',
+				sprintf(
+					'switch_template: not_authorized — wp_user_id=%d, current_blog_id=%d, site_id=%d, site_customer_id=%d, resolved_customer_id=%d',
+					get_current_user_id(),
+					get_current_blog_id(),
+					(int) $this->site->get_id(),
+					(int) $this->site->get_customer_id(),
+					$resolved_customer_id
+				),
+				LogLevel::WARNING
+			);
+
 			wp_send_json_error(new \WP_Error('not_authorized', __('You are not allowed to switch templates for this site.', 'ultimate-multisite')));
 			return;
 		}

@@ -438,7 +438,7 @@ class SSO {
 		$threshold = (int) apply_filters('wu_sso_redirect_loop_threshold', 3);
 		$window    = (int) apply_filters('wu_sso_redirect_loop_window', 120);
 
-		if ($threshold < 1 || $window < 1) {
+		if ($threshold < 1 || $window < 1 || ! $this->is_sso_loop_request()) {
 			return false;
 		}
 
@@ -467,6 +467,34 @@ class SSO {
 	}
 
 	/**
+	 * Check if the current request looks like an SSO loop hop.
+	 *
+	 * Plain logged-out visits to protected URLs can call auth_redirect()
+	 * repeatedly without ever entering the SSO flow. Only requests carrying an
+	 * SSO fingerprint should consume the redirect-loop budget.
+	 *
+	 * @since 2.0.11
+	 * @return bool True when the request carries an SSO fingerprint.
+	 */
+	private function is_sso_loop_request(): bool {
+
+		if ($this->input('wu_sso_token') || 'login' === $this->input('sso') || $this->input('return_url') || $this->input('_jsonp')) {
+			return true;
+		}
+
+		$referer = wp_get_referer();
+
+		if ( ! $referer) {
+			return false;
+		}
+
+		$referer_path = (string) wp_parse_url($referer, PHP_URL_PATH);
+		$sso_path     = '/' . ltrim($this->get_url_path(), '/');
+
+		return 0 === strpos($referer_path, $sso_path);
+	}
+
+	/**
 	 * Listens for SSO requests and route them to the correct handler.
 	 *
 	 * @since 2.0.11
@@ -487,6 +515,8 @@ class SSO {
 		status_header(200);
 
 		$return_type = wp_is_jsonp_request() ? 'jsonp' : 'redirect';
+
+		$action = (string) preg_replace('/-grant\/?$/', '', $action);
 
 		$action = str_replace($this->get_url_path(), 'sso', $action);
 
@@ -654,6 +684,7 @@ class SSO {
 		// HMAC-signed token.
 		$hmac = hash_hmac('sha256', $payload, wp_salt('auth'));
 
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Encodes an HMAC-signed SSO token for URL transport.
 		return rtrim(strtr(base64_encode($hmac . '::' . $payload), '+/', '-_'), '=');
 	}
 
@@ -775,6 +806,7 @@ class SSO {
 			$token .= str_repeat('=', 4 - $padding);
 		}
 
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decodes the URL-safe HMAC-signed SSO token generated above.
 		$decoded = base64_decode($token, true);
 
 		if ( ! $decoded || false === strpos($decoded, '::') ) {
