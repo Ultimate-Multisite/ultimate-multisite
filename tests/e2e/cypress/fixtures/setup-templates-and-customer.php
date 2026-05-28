@@ -74,7 +74,16 @@ foreach ( [$template_one_id, $template_two_id] as $template_blog_id ) {
 	$template_site->set_archived( false );
 	$template_site->set_deleted( false );
 	$template_site->set_spam( false );
-	$template_site->save();
+	$template_saved = $template_site->save();
+
+	if ( is_wp_error( $template_saved ) || false === $template_saved ) {
+		echo wp_json_encode( [
+			'error'   => 'template_save_failed',
+			'blog_id' => $template_blog_id,
+			'detail'  => is_wp_error( $template_saved ) ? $template_saved->get_error_message() : 'save returned false',
+		] );
+		return;
+	}
 }
 
 // --- Customer ----------------------------------------------------------
