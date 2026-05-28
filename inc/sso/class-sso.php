@@ -488,6 +488,8 @@ class SSO {
 
 		$return_type = wp_is_jsonp_request() ? 'jsonp' : 'redirect';
 
+		$action = (string) preg_replace('/-grant\/?$/', '', $action);
+
 		$action = str_replace($this->get_url_path(), 'sso', $action);
 
 		$action = trim(wu_replace_dashes($action), '/');
@@ -654,6 +656,7 @@ class SSO {
 		// HMAC-signed token.
 		$hmac = hash_hmac('sha256', $payload, wp_salt('auth'));
 
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Encodes an HMAC-signed SSO token for URL transport.
 		return rtrim(strtr(base64_encode($hmac . '::' . $payload), '+/', '-_'), '=');
 	}
 
@@ -775,6 +778,7 @@ class SSO {
 			$token .= str_repeat('=', 4 - $padding);
 		}
 
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decodes the URL-safe HMAC-signed SSO token generated above.
 		$decoded = base64_decode($token, true);
 
 		if ( ! $decoded || false === strpos($decoded, '::') ) {
