@@ -438,7 +438,7 @@ class SSO {
 		$threshold = (int) apply_filters('wu_sso_redirect_loop_threshold', 3);
 		$window    = (int) apply_filters('wu_sso_redirect_loop_window', 120);
 
-		if ($threshold < 1 || $window < 1) {
+		if ($threshold < 1 || $window < 1 || ! $this->is_sso_loop_request()) {
 			return false;
 		}
 
@@ -464,6 +464,34 @@ class SSO {
 		$_COOKIE['wu_sso_redirect_attempts'] = $value;
 
 		return $count >= $threshold;
+	}
+
+	/**
+	 * Check if the current request looks like an SSO loop hop.
+	 *
+	 * Plain logged-out visits to protected URLs can call auth_redirect()
+	 * repeatedly without ever entering the SSO flow. Only requests carrying an
+	 * SSO fingerprint should consume the redirect-loop budget.
+	 *
+	 * @since 2.0.11
+	 * @return bool True when the request carries an SSO fingerprint.
+	 */
+	private function is_sso_loop_request(): bool {
+
+		if ($this->input('wu_sso_token') || 'login' === $this->input('sso') || $this->input('return_url') || $this->input('_jsonp')) {
+			return true;
+		}
+
+		$referer = wp_get_referer();
+
+		if ( ! $referer) {
+			return false;
+		}
+
+		$referer_path = (string) wp_parse_url($referer, PHP_URL_PATH);
+		$sso_path     = '/' . ltrim($this->get_url_path(), '/');
+
+		return 0 === strpos($referer_path, $sso_path);
 	}
 
 	/**
