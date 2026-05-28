@@ -48,14 +48,17 @@ if ($existing) {
 	}
 }
 
-// 2. Insert domain mapping for 127.0.0.1:PORT directly into the DB.
-//    The Domain model's validation rejects IP addresses, so we bypass it.
+/*
+ * 2. Insert domain mapping for 127.0.0.1:PORT directly into the DB.
+ * The Domain model's validation rejects IP addresses, so we bypass it.
+ */
 $table = $wpdb->base_prefix . 'wu_domain_mappings';
 $now   = current_time('mysql');
 
 // Check if the mapping already exists (look for both with and without port).
 $existing_domain = $wpdb->get_var(
 	$wpdb->prepare(
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is built from the trusted WP database prefix.
 		"SELECT id FROM {$table} WHERE domain IN (%s, %s) AND blog_id = %d LIMIT 1",
 		$mapped_domain,
 		'127.0.0.1',
@@ -67,7 +70,11 @@ if ($existing_domain) {
 	// Update existing record to ensure domain includes port.
 	$wpdb->update(
 		$table,
-		['domain' => $mapped_domain, 'active' => 1, 'stage' => 'done'],
+		[
+			'domain' => $mapped_domain,
+			'active' => 1,
+			'stage'  => 'done',
+		],
 		['id' => $existing_domain],
 		['%s', '%d', '%s'],
 		['%d']
@@ -98,6 +105,45 @@ if ($existing_domain) {
 	}
 
 	$domain_id = $wpdb->insert_id;
+}
+
+if ($port) {
+	$bare_domain_id = $wpdb->get_var(
+	$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is built from the trusted WP database prefix.
+			"SELECT id FROM {$table} WHERE domain = %s AND blog_id = %d LIMIT 1",
+			'127.0.0.1',
+			$site_id
+		)
+	);
+
+	if ($bare_domain_id) {
+		$wpdb->update(
+			$table,
+			[
+				'active' => 1,
+				'stage'  => 'done',
+			],
+			['id' => $bare_domain_id],
+			['%d', '%s'],
+			['%d']
+		);
+	} else {
+		$wpdb->insert(
+			$table,
+			[
+				'blog_id'        => $site_id,
+				'domain'         => '127.0.0.1',
+				'active'         => 1,
+				'primary_domain' => 0,
+				'secure'         => 0,
+				'stage'          => 'done',
+				'date_created'   => $now,
+				'date_modified'  => $now,
+			],
+			['%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s']
+		);
+	}
 }
 
 // Also set the wu_dmtable property so get_by_domain() can find it.
