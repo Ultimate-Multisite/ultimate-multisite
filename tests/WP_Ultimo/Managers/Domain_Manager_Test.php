@@ -324,7 +324,7 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 	 */
 	public function test_manager_slug(): void {
 		$reflection = new \ReflectionClass($this->domain_manager);
-		$slug_prop = $reflection->getProperty('slug');
+		$slug_prop  = $reflection->getProperty('slug');
 
 		if (PHP_VERSION_ID < 80100) {
 			$slug_prop->setAccessible(true);
@@ -843,7 +843,7 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 
 		wp_cache_flush();
 
-		$site = get_blog_details($blog_id);
+		$site     = get_blog_details($blog_id);
 		$mappings = Domain::get_by_site($site);
 
 		$this->assertNotFalse($mappings);
@@ -1662,7 +1662,7 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 	 */
 	public function test_date_created(): void {
 		$domain = new Domain();
-		$date = '2025-01-01 12:00:00';
+		$date   = '2025-01-01 12:00:00';
 		$domain->set_date_created($date);
 
 		$this->assertEquals($date, $domain->get_date_created());
@@ -1790,7 +1790,7 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 	 */
 	public function test_domain_validation_rules(): void {
 		$domain = new Domain();
-		$rules = $domain->validation_rules();
+		$rules  = $domain->validation_rules();
 
 		$this->assertIsArray($rules);
 		$this->assertArrayHasKey('blog_id', $rules);
@@ -1851,7 +1851,7 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 
 		// Domain should still be in checking-dns stage (DNS won't resolve in test env)
 		$fetched = wu_get_domain($domain->get_id());
-		$stage = $fetched->get_stage();
+		$stage   = $fetched->get_stage();
 
 		// It should either still be checking-dns (retry scheduled) or failed (if tries exceeded)
 		$this->assertContains($stage, [Domain_Stage::CHECKING_DNS, Domain_Stage::FAILED]);
@@ -2540,5 +2540,240 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 			$fetched->is_primary_domain(),
 			'A custom domain reaching done-without-ssl should also be auto-promoted.'
 		);
+	}
+
+	// ----------------------------------------------------------------
+	// NEW: is_network_base_domain + checkout-form-available-domains guard
+	//
+	// Regression: in subdirectory multisite, an operator can publish an
+	// alternate base domain via the checkout form's site_url field
+	// (`available_domains` / `available_domains_multi`). When customers
+	// register subsites under that alternate base (e.g. `example.com/<slug>`),
+	// the old `str_replace($current_site->domain, '', $site->domain)` test
+	// in handle_site_created/handle_site_deleted treated the alternate base
+	// as a per-subsite custom mapping and produced a `primary_domain = true`
+	// Domain record for `example.com` against each newly registered subsite —
+	// which made Mercator/sunrise route ALL `example.com/*` traffic to that
+	// single subsite and 404 every sibling.
+	// ----------------------------------------------------------------
+
+	/**
+	 * The network primary domain is always treated as a base domain.
+	 */
+	public function test_is_network_base_domain_matches_network_primary(): void {
+		global $current_site;
+
+		$this->assertTrue(
+			$this->domain_manager->is_network_base_domain((string) $current_site->domain)
+		);
+	}
+
+	/**
+	 * Hostnames are normalised before comparison: www.* and case differences
+	 * must not change the verdict.
+	 */
+	public function test_is_network_base_domain_normalises_host(): void {
+		global $current_site;
+
+		$upper    = strtoupper((string) $current_site->domain);
+		$with_www = 'www.' . preg_replace('/^www\./i', '', (string) $current_site->domain);
+
+		$this->assertTrue($this->domain_manager->is_network_base_domain($upper));
+		$this->assertTrue($this->domain_manager->is_network_base_domain($with_www));
+	}
+
+	/**
+	 * Foreign hosts that are not the network primary and not declared via the
+	 * filter must be classified as per-site mapped domains (false).
+	 */
+	public function test_is_network_base_domain_rejects_unknown_host(): void {
+		add_filter('wu_checkout_form_base_domains', '__return_empty_array', PHP_INT_MAX);
+
+		try {
+			$this->assertFalse(
+				$this->domain_manager->is_network_base_domain('totally-unrelated-host.test')
+			);
+		} finally {
+			remove_filter('wu_checkout_form_base_domains', '__return_empty_array', PHP_INT_MAX);
+		}
+	}
+
+	/**
+	 * Hosts injected through the `wu_checkout_form_base_domains` filter are
+	 * recognised as base domains. This filter is the public seam used by the
+	 * production code path (checkout-form-derived domains feed into it via
+	 * `get_checkout_form_base_domains()`).
+	 */
+	public function test_is_network_base_domain_honours_filter(): void {
+		$filter = function () {
+			return ['nambo.pro'];
+		};
+
+		add_filter('wu_checkout_form_base_domains', $filter, PHP_INT_MAX);
+
+		try {
+			$this->assertTrue($this->domain_manager->is_network_base_domain('nambo.pro'));
+			$this->assertTrue($this->domain_manager->is_network_base_domain('NAMBO.PRO'));
+			$this->assertTrue($this->domain_manager->is_network_base_domain('www.nambo.pro'));
+			$this->assertTrue($this->domain_manager->is_network_base_domain('https://nambo.pro/'));
+		} finally {
+			remove_filter('wu_checkout_form_base_domains', $filter, PHP_INT_MAX);
+		}
+	}
+
+	/**
+	 * Regression: handle_site_created MUST NOT create a Domain record when
+	 * the new site's domain is one of the operator-declared checkout-form
+	 * base domains. Without this guard, every subdirectory subsite created
+	 * under `nambo.pro` was getting a `primary_domain = true` mapping row
+	 * for `nambo.pro`, which broke every sibling subsite.
+	 */
+	public function test_handle_site_created_skips_domain_record_for_checkout_form_base(): void {
+		$base_filter = function () {
+			return ['regression-base.test'];
+		};
+		add_filter('wu_checkout_form_base_domains', $base_filter, PHP_INT_MAX);
+
+		// Build a synthetic WP_Site whose domain is exactly the operator
+		// base. We don't need a real blog row for this assertion — the
+		// guard runs before any DB write, and using a fake site keeps the
+		// test independent of blog factory quirks.
+		$blog_id = $this->create_test_blog();
+		$site    = (object) [
+			'blog_id' => $blog_id,
+			'domain'  => 'regression-base.test',
+			'path'    => '/some-tenant/',
+		];
+
+		try {
+			$this->domain_manager->handle_site_created($site);
+
+			$created = wu_get_domains([
+				'blog_id' => $blog_id,
+				'domain'  => 'regression-base.test',
+				'number'  => 1,
+			]);
+
+			$this->assertSame(
+				[],
+				$created,
+				'handle_site_created must not create a mapped-domain record for a checkout-form base domain.'
+			);
+		} finally {
+			remove_filter('wu_checkout_form_base_domains', $base_filter, PHP_INT_MAX);
+		}
+	}
+
+	/**
+	 * The `wu_should_create_domain_record_for_site` filter can suppress the
+	 * automatic Domain record even for non-base domains (escape hatch for
+	 * integrations).
+	 */
+	public function test_handle_site_created_respects_should_create_filter(): void {
+		add_filter('wu_should_create_domain_record_for_site', '__return_false');
+		// Force the base-domain list to empty so we exercise the filter, not the base check.
+		add_filter('wu_checkout_form_base_domains', '__return_empty_array', PHP_INT_MAX);
+
+		$blog_id = $this->create_test_blog();
+		$site    = (object) [
+			'blog_id' => $blog_id,
+			'domain'  => 'addon-suppressed.test',
+			'path'    => '/',
+		];
+
+		try {
+			$this->domain_manager->handle_site_created($site);
+
+			$created = wu_get_domains([
+				'blog_id' => $blog_id,
+				'domain'  => 'addon-suppressed.test',
+				'number'  => 1,
+			]);
+
+			$this->assertSame(
+				[],
+				$created,
+				'wu_should_create_domain_record_for_site=false must suppress automatic record creation.'
+			);
+		} finally {
+			remove_all_filters('wu_should_create_domain_record_for_site');
+			remove_filter('wu_checkout_form_base_domains', '__return_empty_array', PHP_INT_MAX);
+		}
+	}
+
+	/**
+	 * Handle_site_deleted must not enqueue wu_remove_subdomain for a site
+	 * whose domain is a checkout-form base — that base is shared and the
+	 * subdomain-removal hook would (incorrectly) instruct host providers to
+	 * tear down the shared base.
+	 */
+	public function test_handle_site_deleted_skips_remove_for_checkout_form_base(): void {
+		$base_filter = function () {
+			return ['regression-base-delete.test'];
+		};
+		add_filter('wu_checkout_form_base_domains', $base_filter, PHP_INT_MAX);
+
+		$blog_id = $this->create_test_blog();
+		$site    = (object) [
+			'blog_id' => $blog_id,
+			'domain'  => 'regression-base-delete.test',
+			'path'    => '/some-tenant/',
+		];
+
+		wu_unschedule_all_actions('wu_remove_subdomain');
+
+		try {
+			$this->domain_manager->handle_site_deleted($site);
+
+			$matching_actions = wu_get_scheduled_actions(
+				[
+					'hook'     => 'wu_remove_subdomain',
+					'status'   => \ActionScheduler_Store::STATUS_PENDING,
+					'args'     => [
+						'subdomain' => $site->domain,
+						'site_id'   => $site->blog_id,
+					],
+					'per_page' => 5,
+				],
+				'ids'
+			);
+
+			$this->assertEmpty(
+				$matching_actions,
+				'handle_site_deleted must not enqueue wu_remove_subdomain for a checkout-form base domain.'
+			);
+		} finally {
+			remove_filter('wu_checkout_form_base_domains', $base_filter, PHP_INT_MAX);
+			wu_unschedule_all_actions('wu_remove_subdomain');
+		}
+	}
+
+	/**
+	 * Normalize_base_domain must accept a wide variety of formatting
+	 * (scheme prefix, trailing path, trailing dot, port, casing, leading www.).
+	 */
+	public function test_normalize_base_domain_handles_varied_inputs(): void {
+		$reflection = new \ReflectionClass($this->domain_manager);
+		$method     = $reflection->getMethod('normalize_base_domain');
+		$method->setAccessible(true);
+
+		$cases = [
+			'Example.COM'               => 'example.com',
+			'www.Example.com'           => 'example.com',
+			'http://example.com/path'   => 'example.com',
+			'https://example.com:8080/' => 'example.com',
+			'example.com.'              => 'example.com',
+			'  EXAMPLE.com  '           => 'example.com',
+			''                          => '',
+		];
+
+		foreach ($cases as $input => $expected) {
+			$actual = $method->invoke($this->domain_manager, $input);
+			$this->assertSame(
+				$expected,
+				$actual,
+				"normalize_base_domain({$input}) should yield '{$expected}', got '{$actual}'"
+			);
+		}
 	}
 }
