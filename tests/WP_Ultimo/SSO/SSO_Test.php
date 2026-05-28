@@ -45,10 +45,13 @@ class SSO_Test extends \WP_UnitTestCase {
 		unset($_REQUEST['broker']);
 		unset($_REQUEST['sso_verify']);
 		unset($_REQUEST['wu_sso_token']);
+		unset($_REQUEST['sso']);
 		unset($_REQUEST['return_url']);
 		unset($_REQUEST['redirect_to']);
+		unset($_REQUEST['_jsonp']);
 		unset($_COOKIE['wu_sso_denied']);
 		unset($_COOKIE['wu_sso_redirect_attempts']);
+		unset($_SERVER['HTTP_REFERER']);
 
 		remove_all_filters('wu_sso_redirect_loop_threshold');
 		remove_all_filters('wu_sso_redirect_loop_window');
@@ -253,6 +256,8 @@ class SSO_Test extends \WP_UnitTestCase {
 	public function test_sso_redirect_loop_counter_skips_at_threshold(): void {
 		$sso = SSO::get_instance();
 
+		$_REQUEST['sso'] = 'login';
+
 		add_filter(
 			'wu_sso_redirect_loop_threshold',
 			function () {
@@ -276,6 +281,8 @@ class SSO_Test extends \WP_UnitTestCase {
 	public function test_sso_redirect_loop_counter_resets_after_window(): void {
 		$sso = SSO::get_instance();
 
+		$_REQUEST['sso'] = 'login';
+
 		add_filter(
 			'wu_sso_redirect_loop_threshold',
 			function () {
@@ -291,6 +298,34 @@ class SSO_Test extends \WP_UnitTestCase {
 		);
 
 		$_COOKIE['wu_sso_redirect_attempts'] = '1:' . (time() - 120);
+
+		$method = new \ReflectionMethod($sso, 'should_skip_redirect_due_to_loop');
+		$method->setAccessible(true);
+
+		$this->assertFalse($method->invoke($sso));
+		$this->assertSame(1, $this->get_sso_redirect_attempt_count());
+	}
+
+	/**
+	 * Test plain protected URL visits do not consume the SSO loop budget.
+	 */
+	public function test_sso_redirect_loop_counter_ignores_non_sso_requests(): void {
+		$sso = SSO::get_instance();
+
+		$method = new \ReflectionMethod($sso, 'should_skip_redirect_due_to_loop');
+		$method->setAccessible(true);
+
+		$this->assertFalse($method->invoke($sso));
+		$this->assertSame(0, $this->get_sso_redirect_attempt_count());
+	}
+
+	/**
+	 * Test SSO referers consume the redirect-loop budget.
+	 */
+	public function test_sso_redirect_loop_counter_counts_sso_referer(): void {
+		$sso = SSO::get_instance();
+
+		$_SERVER['HTTP_REFERER'] = home_url('/sso');
 
 		$method = new \ReflectionMethod($sso, 'should_skip_redirect_due_to_loop');
 		$method->setAccessible(true);
