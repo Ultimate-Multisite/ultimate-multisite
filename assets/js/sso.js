@@ -21,6 +21,10 @@
 
 	const denied = wu_read_cookie('wu_sso_denied');
 
+	const checkout_form = document.querySelector(
+		'#wrapper-field-checkout, .wu-checkout, .wu-checkout-form'
+	);
+
 	document.head.insertAdjacentHTML('beforeend', `
     <style>
       @keyframes fade_in {
@@ -59,7 +63,7 @@
     </style>
   `);
 
-	if (! o.is_user_logged_in && ! denied) {
+	if (! o.is_user_logged_in && ! denied && ! checkout_form) {
 
 		const s = document.getElementsByTagName('script')[ 0 ];
 
