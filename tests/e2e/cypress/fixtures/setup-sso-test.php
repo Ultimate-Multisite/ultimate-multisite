@@ -25,10 +25,20 @@ if (preg_match('/:(\d+)$/', $network_domain, $m)) {
 	$port = ':' . $m[1];
 }
 
-$mapped_domain = '127.0.0.1' . $port;
+$mapped_host   = '127.0.0.1';
+$mapped_domain = $mapped_host . $port;
 
 // 1. Create a subsite for SSO testing (or reuse if it already exists).
-$existing = get_blog_id_from_url($network_domain, '/sso-test-site/');
+$existing_sites = get_sites(
+	[
+		'domain' => $mapped_host,
+		'path'   => '/',
+		'number' => 1,
+		'fields' => 'ids',
+	]
+);
+
+$existing = $existing_sites ? (int) $existing_sites[0] : get_blog_id_from_url($network_domain, '/sso-test-site/');
 
 if ($existing) {
 	$site_id = $existing;
@@ -47,6 +57,24 @@ if ($existing) {
 		exit(1);
 	}
 }
+
+/*
+ * wp-env receives browser requests for 127.0.0.1:PORT, but WordPress core's
+ * multisite bootstrap strips the non-standard port before `pre_get_site_by_path`
+ * runs. Store the test subsite as a native 127.0.0.1 root-domain site as well
+ * as a mapped domain so the request resolves to the subsite before core's
+ * unknown-domain redirect sends it back to the main localhost site.
+ */
+wp_update_site(
+	$site_id,
+	[
+		'domain' => $mapped_host,
+		'path'   => '/',
+	]
+);
+
+update_blog_option($site_id, 'home', 'http://' . $mapped_domain);
+update_blog_option($site_id, 'siteurl', 'http://' . $mapped_domain);
 
 /*
  * 2. Insert domain mapping for 127.0.0.1:PORT directly into the DB.
