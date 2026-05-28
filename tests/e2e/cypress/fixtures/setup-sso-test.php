@@ -65,13 +65,18 @@ if ($existing) {
  * as a mapped domain so the request resolves to the subsite before core's
  * unknown-domain redirect sends it back to the main localhost site.
  */
-wp_update_site(
-	$site_id,
+$wpdb->update(
+	$wpdb->blogs,
 	[
 		'domain' => $mapped_host,
 		'path'   => '/',
-	]
+	],
+	['blog_id' => $site_id],
+	['%s', '%s'],
+	['%d']
 );
+
+clean_blog_cache($site_id);
 
 update_blog_option($site_id, 'home', 'http://' . $mapped_domain);
 update_blog_option($site_id, 'siteurl', 'http://' . $mapped_domain);
