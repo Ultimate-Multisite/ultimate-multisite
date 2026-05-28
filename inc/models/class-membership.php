@@ -2458,6 +2458,51 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			 * @since 2.0.0
 			 */
 			$expiration = apply_filters('wu_membership_renewal_expiration_date', $expiration, $plan, $this->get_id(), $this);
+		} elseif ($this->is_recurring() && ! $this->is_free()) {
+			/*
+			 * Defensive guard against a non-advancing expiration on a recurring
+			 * renewal.
+			 *
+			 * Callers (e.g. payment gateway integrations) may pass an explicit
+			 * $expiration derived from a subscription's "next payment" date. If
+			 * that source date has not been advanced yet at the time renew() is
+			 * called, the passed expiration can be equal to or earlier than the
+			 * membership's current expiration. Accepting it verbatim "renews" the
+			 * membership to an already-due date, so it expires immediately even
+			 * though a payment just succeeded.
+			 *
+			 * When the passed expiration does not move the current expiration
+			 * forward, fall back to the plan-derived expiration so a paid renewal
+			 * always extends access. Non-recurring/free memberships and explicit
+			 * future dates are left untouched.
+			 *
+			 * @since 2.5.1
+			 */
+			$current_expiration = $this->get_date_expiration();
+
+			if ( ! empty($current_expiration) && '0000-00-00 00:00:00' !== $current_expiration) {
+				$passed_ts  = strtotime($expiration);
+				$current_ts = strtotime($current_expiration);
+
+				if ($passed_ts && $current_ts && $passed_ts <= $current_ts) {
+					$fallback = $this->calculate_expiration(! $this->is_recurring());
+
+					if ($fallback && strtotime($fallback) > $current_ts) {
+						wu_log_add(
+							"membership-{$id}",
+							sprintf(
+								'Renewal received a non-advancing expiration (%s <= current %s) for membership #%d; using plan-derived expiration %s instead.',
+								$expiration,
+								$current_expiration,
+								$id,
+								$fallback
+							)
+						);
+
+						$expiration = $fallback;
+					}
+				}
+			}
 		}
 
 		/**
