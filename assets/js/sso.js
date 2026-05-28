@@ -24,6 +24,7 @@
 	const checkout_form = document.querySelector(
 		'#wrapper-field-checkout, .wu-checkout, .wu-checkout-form'
 	);
+	const checkout_url = /\/register\/?$/.test(window.location.pathname);
 
 	document.head.insertAdjacentHTML('beforeend', `
     <style>
@@ -63,7 +64,7 @@
     </style>
   `);
 
-	if (! o.is_user_logged_in && ! denied && ! checkout_form) {
+	if (! o.is_user_logged_in && ! denied && ! checkout_form && ! checkout_url) {
 
 		const s = document.getElementsByTagName('script')[ 0 ];
 
