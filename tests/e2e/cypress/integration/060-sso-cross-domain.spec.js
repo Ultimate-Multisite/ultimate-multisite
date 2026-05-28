@@ -8,12 +8,11 @@
  * Uses localhost vs 127.0.0.1 — two genuinely different hostnames that
  * both resolve without DNS/hosts changes, with cookies scoped per hostname.
  *
- * Environment note: wp-env uses non-standard port 8889. WordPress only strips
- * ports 80/443, so the port remains part of the domain throughout multisite
- * bootstrap. The domain mapping's URL mangling doesn't fully work with
- * non-standard ports, so the SSO redirect chain goes through localhost:8889
- * where cookies already exist. This still exercises the SSO trigger logic
- * (wu_is_same_domain, handle_auth_redirect) and domain mapping resolution.
+ * Environment note: wp-env receives browser requests on a non-standard port
+ * (8889), while WordPress core's early multisite bootstrap strips the port
+ * before domain lookup. The fixture stores the test subsite on the bare
+ * 127.0.0.1 host and keeps the browser-facing URL with the port, so this still
+ * exercises SSO across distinct cookie domains without external DNS.
  */
 describe("SSO Cross-Domain Authentication", () => {
   const mainSiteUrl = "http://localhost:8889";
@@ -88,7 +87,7 @@ describe("SSO Cross-Domain Authentication", () => {
       //    uses port 8889, the redirect goes through localhost:8889 where auth
       //    cookies exist, so the user is immediately authenticated.
       //
-      //    The final landing page is the subsite's wp-admin on localhost:8889.
+      //    The final landing page is the subsite's wp-admin on the mapped host.
       cy.visit(`${mappedDomainUrl}/wp-admin/`, {
         failOnStatusCode: false,
       });
@@ -101,8 +100,8 @@ describe("SSO Cross-Domain Authentication", () => {
       // Confirm we are logged in: admin bar should be present.
       cy.get("#wpadminbar").should("exist");
 
-      // Confirm we are on the SSO test subsite (not the main site).
-      cy.url().should("include", "/sso-test-site/");
+      // Confirm we stayed on the mapped subsite host (not the main-site host).
+      cy.url().should("include", mappedDomainUrl);
     }
   );
 
@@ -120,8 +119,9 @@ describe("SSO Cross-Domain Authentication", () => {
         failOnStatusCode: false,
       });
 
-      // After SSO, the user should land on the requested page (or wp-admin).
+      // After SSO, the user should land on the requested admin page.
       cy.url({ timeout: 60000 }).should("include", "/wp-admin/");
+      cy.url().should("include", targetPath);
       cy.get("body", { timeout: 30000 }).should("have.class", "wp-admin");
       cy.get("#wpadminbar").should("exist");
     }
