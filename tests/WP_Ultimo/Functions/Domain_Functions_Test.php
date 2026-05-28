@@ -108,4 +108,47 @@ class Domain_Functions_Test extends WP_UnitTestCase {
 
 		$this->assertIsString($result);
 	}
+
+	/**
+	 * Test wu_with_sso returns the default SSO URL when no filter is attached.
+	 */
+	public function test_wu_with_sso_returns_default_sso_url(): void {
+
+		$url = home_url('/test-page');
+
+		$this->assertSame(\WP_Ultimo\SSO\SSO::with_sso($url), wu_with_sso($url));
+	}
+
+	/**
+	 * Test wu_with_sso exposes the SSO URL filter with context.
+	 */
+	public function test_wu_with_sso_filters_url_with_context(): void {
+
+		$user_id = self::factory()->user->create();
+		$url     = home_url('/test-page');
+		$host    = wp_parse_url($url, PHP_URL_HOST);
+
+		wp_set_current_user($user_id);
+
+		$filter = function ($sso_url, $user, $site_id, $redirect_to) use ($host) {
+
+			$this->assertInstanceOf(\WP_User::class, $user);
+			$this->assertSame(get_current_user_id(), $user->ID);
+			$this->assertSame((int) get_blog_id_from_url($host), $site_id);
+			$this->assertSame('', $redirect_to);
+
+			return $sso_url . '#test-filter-fired';
+		};
+
+		add_filter(
+			'wu_sso_url',
+			$filter,
+			10,
+			4
+		);
+
+		$this->assertSame(\WP_Ultimo\SSO\SSO::with_sso($url) . '#test-filter-fired', wu_with_sso($url));
+
+		remove_filter('wu_sso_url', $filter, 10);
+	}
 }

@@ -132,7 +132,32 @@ function wu_restore_original_url($url, $blog_id) {
  */
 function wu_with_sso($url) {
 
-	return \WP_Ultimo\SSO\SSO::with_sso($url);
+	$sso_url = \WP_Ultimo\SSO\SSO::with_sso($url);
+
+	$user = wp_get_current_user();
+
+	if ( ! $user->exists()) {
+		$user = null;
+	}
+
+	$site_id = 0;
+	$host    = wp_parse_url($url, PHP_URL_HOST);
+
+	if ($host) {
+		$site_id = (int) get_blog_id_from_url($host);
+	}
+
+	/**
+	 * Filter the generated SSO URL.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param string        $sso_url     The SSO URL.
+	 * @param \WP_User|null $user        The current user, or null when unavailable.
+	 * @param int           $site_id     The target site ID.
+	 * @param string        $redirect_to The redirect URL.
+	 */
+	return apply_filters('wu_sso_url', $sso_url, $user, $site_id, '');
 }
 
 /**
