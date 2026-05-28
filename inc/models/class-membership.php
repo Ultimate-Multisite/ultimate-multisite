@@ -2293,12 +2293,21 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 	/**
 	 * Removes a pending site of a membership.
 	 *
+	 * Explicitly clears the membership meta cache after the delete attempt so
+	 * cross-process pending-site pollers cannot keep reading a stale
+	 * `pending_site` value from persistent object cache when the meta row was
+	 * already removed by another worker.
+	 *
 	 * @since 2.0.0
 	 * @return bool
 	 */
 	public function delete_pending_site() {
 
-		return $this->delete_meta('pending_site');
+		$result = $this->delete_meta(self::META_PENDING_SITE);
+
+		wp_cache_delete($this->get_id(), 'wu_membership_meta');
+
+		return $result;
 	}
 
 	/**

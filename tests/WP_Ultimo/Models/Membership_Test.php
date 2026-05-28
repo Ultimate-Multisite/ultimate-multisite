@@ -1238,6 +1238,30 @@ class Membership_Test extends \WP_UnitTestCase {
 		$this->assertIsBool($result);
 	}
 
+	/**
+	 * Test delete_pending_site clears stale membership meta cache entries.
+	 */
+	public function test_delete_pending_site_invalidates_meta_cache(): void {
+		$membership = $this->make_membership_with_pending_meta();
+		$pending    = $membership->create_pending_site(
+			[
+				'title' => 'Pending Cache Test',
+				'path'  => '/pending-cache-test/',
+			]
+		);
+
+		get_metadata('wu_membership', $membership->get_id());
+
+		$this->assertNotFalse(wp_cache_get($membership->get_id(), 'wu_membership_meta'), 'Pre-condition: membership meta cache should be warmed.');
+
+		$this->assertTrue($membership->delete_pending_site(), 'First delete should remove the pending_site row.');
+
+		wp_cache_set($membership->get_id(), ['pending_site' => [$pending]], 'wu_membership_meta');
+
+		$this->assertFalse($membership->delete_pending_site(), 'Second delete should report no deleted row.');
+		$this->assertFalse(wp_cache_get($membership->get_id(), 'wu_membership_meta'), 'delete_pending_site() must clear stale membership meta cache even when no row is deleted.');
+	}
+
 	// ---------------------------------------------------------------
 	// to_search_results Tests
 	// ---------------------------------------------------------------
