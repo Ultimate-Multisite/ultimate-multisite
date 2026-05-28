@@ -1,4 +1,5 @@
 <?php
+// phpcs:ignoreFile Squiz.Commenting.FileComment -- Legacy sunrise wrapper format is intentionally preserved.
 // WP Ultimo Starts #
 /**
  * Ultimate Multisite Sunrise
@@ -37,6 +38,20 @@ $wu_mu_sunrise = defined('WPMU_PLUGIN_DIR')
 	? WPMU_PLUGIN_DIR . '/ultimate-multisite/inc/class-sunrise.php'
 	: WP_CONTENT_DIR . '/mu-plugins/ultimate-multisite/inc/class-sunrise.php';
 
+$wu_sunrise_candidates = [$wu_sunrise, $wu_mu_sunrise];
+
+if (defined('WP_PLUGIN_DIR')) {
+	$wu_dynamic_sunrise_files = glob(WP_PLUGIN_DIR . '/*/inc/class-sunrise.php');
+
+	if (is_array($wu_dynamic_sunrise_files)) {
+		foreach ($wu_dynamic_sunrise_files as $wu_dynamic_sunrise_file) {
+			if (file_exists(dirname(dirname($wu_dynamic_sunrise_file)) . '/ultimate-multisite.php')) {
+				$wu_sunrise_candidates[] = $wu_dynamic_sunrise_file;
+			}
+		}
+	}
+}
+
 /**
  * We search for the sunrise class file
  * in the plugins and mu-plugins folders.
@@ -44,7 +59,7 @@ $wu_mu_sunrise = defined('WPMU_PLUGIN_DIR')
  * @since 2.0.0.3 Sunrise Version.
  */
 
-foreach ([$wu_sunrise, $wu_mu_sunrise] as $wu_sunrise_file) {
+foreach (array_unique($wu_sunrise_candidates) as $wu_sunrise_file) {
 	if (file_exists($wu_sunrise_file)) {
 		if ($wu_sunrise_file === $wu_mu_sunrise) {
 
