@@ -30,7 +30,7 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 		parent::set_up();
 
 		// Reset request globals between tests.
-		foreach ( [ 'template_id' ] as $key ) {
+		foreach ( ['template_id'] as $key ) {
 			unset( $_REQUEST[ $key ], $_GET[ $key ], $_POST[ $key ] );
 		}
 	}
@@ -40,7 +40,7 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 	 */
 	public function tear_down(): void {
 
-		foreach ( [ 'template_id' ] as $key ) {
+		foreach ( ['template_id'] as $key ) {
 			unset( $_REQUEST[ $key ], $_GET[ $key ], $_POST[ $key ] );
 		}
 
@@ -68,8 +68,8 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 		add_filter( 'wp_doing_ajax', '__return_true' );
 
 		$handler = function () {
-			return function ( $message ) {
-				throw new \WPAjaxDieContinueException( (string) $message );
+			return function ($message) {
+				throw new \WPAjaxDieContinueException( esc_html( (string) $message ) );
 			};
 		};
 
@@ -83,7 +83,7 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 	 *
 	 * @param callable $handler The handler returned by install_ajax_die_handler().
 	 */
-	private function remove_ajax_die_handler( callable $handler ): void {
+	private function remove_ajax_die_handler(callable $handler): void {
 
 		remove_filter( 'wp_doing_ajax', '__return_true' );
 		remove_filter( 'wp_die_ajax_handler', $handler, 1 );
@@ -123,7 +123,7 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 	 * @param string $output Raw output from the AJAX handler.
 	 * @return array
 	 */
-	private function decode_json( string $output ): array {
+	private function decode_json(string $output): array {
 
 		$this->assertNotEmpty(
 			$output,
@@ -168,7 +168,7 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 	 * Empty template_id must yield a JSON error body, not silence.
 	 */
 	public function test_switch_template_missing_template_id_emits_json_error(): void {
-		$user_id = $this->factory()->user->create( [ 'role' => 'administrator' ] );
+		$user_id = $this->factory()->user->create( ['role' => 'administrator'] );
 		grant_super_admin( $user_id );
 		wp_set_current_user( $user_id );
 
@@ -201,12 +201,98 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Authorized callers must pass the is_customer_allowed() gate in the
+	 * wu-ajax light-ajax dispatch path — that is, when the Current singleton
+	 * has NOT been pre-populated and the customer must be resolved via the
+	 * `wu_get_current_customer()` fallback inside Site::is_customer_allowed().
+	 *
+	 * Regression guard for the "No puedes cambiar la plantilla de este
+	 * sitio" customer report: page render passed (Current singleton loaded
+	 * by `init`/`wp` actions) but the wu-ajax POST dispatched at
+	 * plugins_loaded:20 — before `init` — was returning `not_authorized`.
+	 * If this test fails, the fallback chain in Site::is_customer_allowed()
+	 * has regressed. We assert specifically that the failure is NOT the
+	 * `not_authorized` code; an empty template_id (template_id_required) is
+	 * acceptable here because the goal is to prove the auth check itself
+	 * passes for a legitimate owner whose Current singleton is unloaded.
+	 */
+	public function test_switch_template_authorizes_owner_via_wu_ajax_fallback(): void {
+
+		$owner_user_id = $this->factory()->user->create( ['role' => 'subscriber'] );
+
+		$owner_customer = wu_create_customer(
+			[
+				'user_id'       => $owner_user_id,
+				'email_address' => 'wu-ajax-owner-' . uniqid() . '@example.com',
+			]
+		);
+
+		if ( is_wp_error( $owner_customer ) ) {
+			$this->markTestSkipped( 'Customer creation failed: ' . $owner_customer->get_error_message() );
+		}
+
+		$site_id = $this->factory()->blog->create();
+		$site    = wu_get_site( $site_id );
+		$site->set_type( 'customer_owned' );
+		$site->set_customer_id( $owner_customer->get_id() );
+		$site->save();
+
+		/*
+		 * Simulate the wu-ajax pipeline: log the user in but leave the
+		 * Current singleton UNLOADED. This mirrors light-ajax dispatch at
+		 * plugins_loaded:20, before `init` fires Current::load_currents().
+		 * The auth check must succeed via the wu_get_current_customer()
+		 * fallback inside Site::is_customer_allowed().
+		 */
+		wp_set_current_user( $owner_user_id );
+		WP_Ultimo()->currents->set_customer( false );
+
+		$loaded_ref = new \ReflectionProperty( WP_Ultimo()->currents, 'loaded' );
+
+		if ( PHP_VERSION_ID < 80100 ) {
+			$loaded_ref->setAccessible( true );
+		}
+
+		$loaded_ref->setValue( WP_Ultimo()->currents, false );
+
+		$element  = Template_Switching_Element::get_instance();
+		$site_ref = new \ReflectionProperty( $element, 'site' );
+
+		if ( PHP_VERSION_ID < 80100 ) {
+			$site_ref->setAccessible( true );
+		}
+
+		$site_ref->setValue( $element, $site );
+
+		// No template_id: stops the switch BEFORE override_site() runs but
+		// only after the is_customer_allowed() gate, which is what we test.
+		$result = $this->call_switch_template();
+
+		$this->assertTrue(
+			$result['exception'],
+			'wp_send_json_error must be reached; the AJAX call must always emit JSON.'
+		);
+
+		$decoded = $this->decode_json( $result['output'] );
+
+		$this->assertSame( false, $decoded['success'] );
+		$this->assertNotEmpty( $decoded['data'], 'Error payload must include a code/message.' );
+
+		$this->assertNotSame(
+			'not_authorized',
+			$decoded['data'][0]['code'],
+			'Authorized owner must pass the is_customer_allowed() gate in the wu-ajax fallback path. '
+				. 'Got not_authorized — Site::is_customer_allowed() did not honour the wu_get_current_customer() fallback.'
+		);
+	}
+
+	/**
 	 * Unauthorized callers must be rejected before template override runs.
 	 */
 	public function test_switch_template_rejects_unauthorized_caller(): void {
 
-		$owner_user_id = $this->factory()->user->create( [ 'role' => 'subscriber' ] );
-		$other_user_id = $this->factory()->user->create( [ 'role' => 'subscriber' ] );
+		$owner_user_id = $this->factory()->user->create( ['role' => 'subscriber'] );
+		$other_user_id = $this->factory()->user->create( ['role' => 'subscriber'] );
 
 		$owner_customer = wu_create_customer(
 			[
@@ -245,7 +331,22 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 
 		$ref->setValue( $element, $site );
 
+		// Capture the diagnostic log entry: when the auth gate trips, the
+		// handler must record the resolved IDs so the network admin can
+		// triage data-shape problems (missing wu_customer_id blogmeta,
+		// detached customer record, wrong-site resolution) without having
+		// to instrument the AJAX call themselves.
+		$log_messages  = [];
+		$log_collector = function ($type, $message) use (&$log_messages) {
+			if ( 'template-switching' === $type ) {
+				$log_messages[] = $message;
+			}
+		};
+		add_action( 'wu_log_add', $log_collector, 10, 2 );
+
 		$result = $this->call_switch_template();
+
+		remove_action( 'wu_log_add', $log_collector, 10 );
 
 		$this->assertTrue(
 			$result['exception'],
@@ -256,6 +357,21 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 
 		$this->assertSame( false, $decoded['success'] );
 		$this->assertSame( 'not_authorized', $decoded['data'][0]['code'] );
+
+		$this->assertNotEmpty(
+			$log_messages,
+			'Diagnostic log entry must be recorded under the template-switching handle when the auth gate denies a switch.'
+		);
+		$this->assertStringContainsString(
+			'not_authorized',
+			$log_messages[0],
+			'Log line must include the not_authorized marker.'
+		);
+		$this->assertStringContainsString(
+			'site_customer_id=' . $owner_customer->get_id(),
+			$log_messages[0],
+			'Log line must include the site_customer_id so the admin can triage data-shape issues.'
+		);
 	}
 
 	/**
@@ -266,7 +382,7 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 	 */
 	private function render_element_with_context(): string {
 
-		$user_id  = $this->factory()->user->create( [ 'role' => 'subscriber' ] );
+		$user_id  = $this->factory()->user->create( ['role' => 'subscriber'] );
 		$customer = wu_create_customer(
 			[
 				'user_id'       => $user_id,
@@ -483,5 +599,4 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 			'Spam template must not appear in the grid sites array.'
 		);
 	}
-
 }
