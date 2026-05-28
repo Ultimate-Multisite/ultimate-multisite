@@ -10,6 +10,11 @@ describe("Manual Gateway Checkout Flow", () => {
 		path: `manualsite${timestamp}`,
 	};
 
+	before(() => {
+		cy.wpCliFile("tests/e2e/cypress/fixtures/setup-checkout-form.php");
+		cy.wpCliFile("tests/e2e/cypress/fixtures/setup-gateway.php");
+	});
+
 	it("Should complete the UM checkout form with manual gateway", {
 		retries: 0,
 	}, () => {

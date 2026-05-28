@@ -11,8 +11,33 @@ $existing = WP_Ultimo\Models\Checkout_Form::query(
 );
 
 if ( $existing ) {
-	$form    = $existing[0];
-	$page_id = wu_get_setting('default_registration_page', 0);
+	$form = $existing[0];
+	$page = get_page_by_path('register');
+
+	if ( $page ) {
+		$page_id = $page->ID;
+
+		wp_update_post(
+			[
+				'ID'           => $page_id,
+				'post_content' => '[wu_checkout slug="main-form"]',
+			]
+		);
+	} else {
+		$page_id = wp_insert_post(
+			[
+				'post_name'    => 'register',
+				'post_title'   => 'Register',
+				'post_content' => '[wu_checkout slug="main-form"]',
+				'post_status'  => 'publish',
+				'post_type'    => 'page',
+				'post_author'  => 1,
+			]
+		);
+	}
+
+	wu_save_setting('default_registration_page', $page_id);
+
 	echo 'form:' . esc_html($form->get_id()) . ',page:' . esc_html($page_id);
 	return;
 }
