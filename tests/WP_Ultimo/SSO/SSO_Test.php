@@ -745,6 +745,21 @@ class SSO_Test extends \WP_UnitTestCase {
 		$this->assertTrue(true);
 	}
 
+	/**
+	 * Test handle_requests normalizes sso-grant URLs before dispatching.
+	 */
+	public function test_handle_requests_source_normalizes_sso_grant_to_server_action(): void {
+		$source = file_get_contents(
+			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
+		);
+
+		$this->assertStringContainsString(
+			"preg_replace('/-grant\\/?$/', '', \$action)",
+			$source,
+			'handle_requests() must normalize sso-grant requests to the sso server action'
+		);
+	}
+
 	// ------------------------------------------------------------------
 	// Session handler
 	// ------------------------------------------------------------------
