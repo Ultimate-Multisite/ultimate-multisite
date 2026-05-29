@@ -978,12 +978,29 @@ class SSO {
 		// Attach through redirect if the client isn't attached yet.
 		if ( ! $broker->isAttached()) {
 			/*
-			 * For JSONP requests (initiated by a <script> tag), we must NOT
-			 * redirect — the browser follows 302s transparently for script
-			 * tags, but the final response from the server will be a redirect
-			 * (not JavaScript), so the wu.sso() callback never fires.
-			 * Instead, return a JSONP error so the JS can handle it gracefully
-			 * and set the wu_sso_denied cookie to prevent further attempts.
+			 * For JSONP requests (initiated by a <script> tag) we cannot
+			 * 302 to HTML — the browser follows the redirect transparently
+			 * but the final response is HTML, not JavaScript, so the
+			 * wu.sso() callback never fires.
+			 *
+			 * Previously this branch returned `{code: 0, message: "Broker
+			 * not attached"}`, which sso.js treats as a denial and uses
+			 * to set the `wu_sso_denied` cookie for 5 minutes (see
+			 * window.wu.sso() in assets/js/sso.js, lines 101-117). The
+			 * effect was that the very first subsite front-end page-load
+			 * silently disabled auto-SSO for the next 5 minutes, even
+			 * though the user was in fact logged in on the main site and
+			 * the only reason the broker wasn't attached was that this
+			 * was the JSONP attach probe itself.
+			 *
+			 * Return `verify: must-redirect` instead so the already
+			 * present sso.js branch (assets/js/sso.js, lines 93-95)
+			 * performs a top-level navigation to
+			 * `<broker>/sso?return_url=<original_page>`. That request
+			 * re-enters handle_broker() as a regular page load (not
+			 * JSONP) and falls through to the non-JSONP redirect below,
+			 * which after #1301 reaches the cookie-less server handler
+			 * via `getAttachUrl()` and completes the SSO round-trip.
 			 */
 			if ('jsonp' === $response_type) {
 				header('Content-Type: application/javascript; charset=utf-8');
@@ -992,8 +1009,8 @@ class SSO {
 					'wu.sso(%s, %d);',
 					wp_json_encode(
 						[
-							'code'    => 0,
-							'message' => 'Broker not attached',
+							'code'   => 200,
+							'verify' => 'must-redirect',
 						]
 					),
 					200

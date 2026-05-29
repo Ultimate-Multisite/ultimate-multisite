@@ -747,6 +747,64 @@ class SSO_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Verify the unattached-broker JSONP payload requests a top-level
+	 * navigation via `verify: must-redirect` rather than the legacy
+	 * `code: 0, message: "Broker not attached"` denial.
+	 *
+	 * The legacy payload tripped sso.js into setting the wu_sso_denied
+	 * cookie for 5 minutes on the very first subsite front-end page-load,
+	 * which silently disabled auto-SSO before it could complete a single
+	 * round-trip. The must-redirect payload makes sso.js navigate the top
+	 * frame to <broker>/sso?return_url=..., which re-enters handle_broker
+	 * as a non-JSONP request and falls through to the redirect branch.
+	 */
+	public function test_handle_broker_source_jsonp_unattached_returns_must_redirect(): void {
+		$source = file_get_contents(
+			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
+		);
+
+		$unattached_section = '';
+
+		if (preg_match("/isAttached\(\).*?wp_safe_redirect/s", $source, $matches)) {
+			$unattached_section = $matches[0];
+		}
+
+		$this->assertNotEmpty(
+			$unattached_section,
+			'Could not locate the unattached broker section in handle_broker'
+		);
+
+		$this->assertStringContainsString(
+			"'verify' => 'must-redirect'",
+			$unattached_section,
+			'Unattached-broker JSONP response must request a top-level redirect via verify: must-redirect'
+		);
+
+		$this->assertStringNotContainsString(
+			"'message' => 'Broker not attached'",
+			$unattached_section,
+			'Unattached-broker JSONP response must NOT use the legacy denial payload that triggers wu_sso_denied on first hit'
+		);
+	}
+
+	/**
+	 * Verify sso.js still recognises the `must-redirect` verify value
+	 * and performs a top-level navigation. Without this branch the PHP
+	 * fix above would have no effect on the browser side.
+	 */
+	public function test_sso_js_handles_must_redirect_verify(): void {
+		$source = file_get_contents(
+			dirname(__DIR__, 3) . '/assets/js/sso.js'
+		);
+
+		$this->assertStringContainsString(
+			"payload.verify === 'must-redirect'",
+			$source,
+			'sso.js must keep handling the must-redirect verify value with a top-level navigation'
+		);
+	}
+
+	/**
 	 * Verify that the SSO JS does not redirect in incognito mode.
 	 * The incognito redirect caused an infinite loop:
 	 * redirect -> sso_verify=invalid -> redirect -> repeat.
