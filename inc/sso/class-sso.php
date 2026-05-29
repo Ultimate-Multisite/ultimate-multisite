@@ -578,9 +578,41 @@ class SSO {
 			exit;
 		}
 
-		// Get the return URL (subsite) to redirect to after login.
-		// Just let WordPress show the login page - don't exit.
-		// The login form will have redirect_to parameter.
+		/*
+		 * Not logged in on the main site. Anonymous visitors must not
+		 * be forced through wp-login.php — the broker page they came
+		 * from may be intentionally anonymous (free-checkout, landing
+		 * pages, public marketing pages, etc.). The earlier "Just let
+		 * WordPress show the login page - don't exit" comment that used
+		 * to live here predated the must-redirect flow #1309 enabled
+		 * and was incorrect: /sso-grant is not wp-login.php, so falling
+		 * through has WordPress render its 404 template instead.
+		 *
+		 * Re-use the existing denial-signalling pattern already
+		 * implemented in handle_broker() (see the `'invalid' ===
+		 * $verify_code` branch a few hundred lines below): redirect
+		 * back to the broker's /sso URL with sso_verify=invalid
+		 * appended. handle_broker() recognises the signal, sets
+		 * wu_sso_denied=1 on the broker domain for 5 minutes, and
+		 * redirects the user to their original return_url. sso.js
+		 * then sees the cookie (assets/js/sso.js:22) and skips the
+		 * JSONP probe entirely, so the user browses anonymously
+		 * without further SSO disruption.
+		 *
+		 * If the broker URL is missing (malformed grant request) we
+		 * just exit; the request was malformed so an empty response
+		 * is preferable to either a 404 or a forced login.
+		 */
+		$broker_url = $this->input('return_url', '');
+
+		if (empty($broker_url)) {
+			exit;
+		}
+
+		$denial_url = add_query_arg('sso_verify', 'invalid', $broker_url);
+
+		wp_safe_redirect($denial_url, 302, 'WP-Ultimo-SSO');
+		exit;
 	}
 
 	/**
