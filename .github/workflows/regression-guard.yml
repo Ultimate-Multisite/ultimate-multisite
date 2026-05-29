@@ -1,0 +1,24 @@
+# Ultimate Multisite — regression guard
+#
+# Drop this file into  .github/workflows/regression-guard.yml  in each plugin
+# repo (core / woocommerce / captcha), next to regression-guard.sh at the repo
+# root. It runs on every push and PR and fails the build if any of the guarded
+# bug-fix code paths disappears — so a new feature cannot silently reintroduce
+# one of the 5 documented production regressions.
+#
+# No SSH, no live site, no secrets. Pure grep over the repo source.
+
+name: regression-guard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run regression guard
+        run: bash regression-guard.sh
