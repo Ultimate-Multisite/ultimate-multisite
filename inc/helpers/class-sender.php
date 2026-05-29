@@ -9,6 +9,7 @@
 
 namespace WP_Ultimo\Helpers;
 
+use Psr\Log\LogLevel;
 use WP_Ultimo\Models\Email_Template;
 
 // Exit if accessed directly
@@ -115,6 +116,16 @@ class Sender {
 		$bcc = '';
 
 		/*
+		 * Build From early — needed both for the From: header and as a safe, real
+		 * fallback for the visible To: header in the BCC strategy below (avoids
+		 * passing an invalid address such as 'undisclosed-recipients:;' through
+		 * wp_mail/PHPMailer address validation).
+		 */
+		$from_email  = wu_get_isset($from, 'email', wu_get_setting('from_email'));
+		$from_name   = wu_get_isset($from, 'name');
+		$from_string = wu_format_email_string($from_email, $from_name);
+
+		/*
 		 * Build the recipients list.
 		 */
 		if (count($to) > 1) {
@@ -123,9 +134,19 @@ class Sender {
 			/*
 			 * Decide which strategy to use, BCC or multiple "to"s.
 			 *
-			 * Default strategy is BCC. All recipients are placed in the Bcc header so
-			 * no individual address is exposed in the To: field (GDPR/privacy compliance).
-			 * The To: header is set to "undisclosed-recipients:;" per RFC 2822 §3.6.3.
+			 * Default strategy is BCC: all recipients are placed in the Bcc header so
+			 * no individual address is exposed in the To: field (GDPR/privacy
+			 * compliance — see #1195).
+			 *
+			 * The visible To: header is set to the sender's own From address. This is
+			 * the conventional pattern for BCC broadcasts (the sender mails themselves
+			 * with everyone else BCC'd) and, unlike the RFC 2822 §3.6.3 group syntax
+			 * "undisclosed-recipients:;", it passes wp_mail / PHPMailer address
+			 * validation (FILTER_VALIDATE_EMAIL) and the PHP mail() / SMTP envelope
+			 * checks on every common host configuration. Using the group syntax made
+			 * WordPress silently drop the To: recipient, which on some SMTP plugins
+			 * triggered a fall-back to PHP mail() and a fatal on hosts where mail()
+			 * is in disable_functions.
 			 *
 			 * Depending on the SMTP solution being used, BCC vs individual sends can
 			 * make a difference in the number of outbound connections made.
@@ -144,12 +165,29 @@ class Sender {
 					$to
 				);
 
-				$bcc = implode(', ', array_filter($bcc_array));
+				$bcc_array = array_filter($bcc_array);
+
+				/*
+				 * Defensive guard: if every recipient was filtered out, abort instead
+				 * of calling wp_mail() with no valid recipients.
+				 */
+				if (empty($bcc_array)) {
+					wu_log_add('mailer', __('No valid recipients after filtering BCC list; aborting send.', 'ultimate-multisite'), LogLevel::WARNING);
+
+					return false;
+				}
+
+				$bcc = implode(', ', $bcc_array);
 
 				$headers[] = "Bcc: $bcc";
 
-				// RFC 2822 §3.6.3 — privacy-safe placeholder when all recipients are BCC'd.
-				$to = 'undisclosed-recipients:;';
+				/*
+				 * Use the From address (or admin_email as a last resort) as the
+				 * visible To: header — RFC-compliant, GDPR-safe (no recipient
+				 * exposed) and validates as a real email so PHPMailer/SMTP plugins
+				 * accept it.
+				 */
+				$to = $from_string ? $from_string : get_option('admin_email');
 			}
 		} else {
 			$to = [
@@ -157,31 +195,36 @@ class Sender {
 			];
 		}
 
-		/*
-		 * Build From
-		 */
-		$from_email  = wu_get_isset($from, 'email', wu_get_setting('from_email'));
-		$from_name   = wu_get_isset($from, 'name');
-		$from_string = wu_format_email_string($from_email, $from_name);
-
 		$headers[] = "From: {$from_string}";
 
 		$attachments = $args['attachments'];
 
-		// if (isset($args['schedule'])) {
+		/*
+		 * Send the actual email.
+		 *
+		 * Wrap the wp_mail() call so exceptions thrown by third-party SMTP plugins
+		 * (e.g. WP Mail SMTP, FluentSMTP, Easy WP SMTP) inside phpmailer_init or
+		 * wp_mail hooks — or PHPMailer fatals such as a missing native mail()
+		 * function on hosts that put it in disable_functions — do not abort the
+		 * surrounding event/action pipeline. A delivery failure must be logged,
+		 * not allowed to fatal an unrelated WP_Hook callback chain that may have
+		 * pending follow-up work (membership status updates, site provisioning,
+		 * webhook fan-out, etc.).
+		 */
+		try {
+			$sent = wp_mail($to, $subject, $template, $headers, $attachments);
+		} catch (\Throwable $e) {
+			wu_log_add(
+				'mailer',
+				// translators: %s is the exception class and message reported by wp_mail or an SMTP plugin.
+				sprintf(__('wp_mail() threw %1$s: %2$s', 'ultimate-multisite'), get_class($e), $e->getMessage()),
+				LogLevel::ERROR
+			);
 
-		// wu_schedule_single_action($args['schedule'], 'wu_send_schedule_system_email', array(
-		// 'to'          => $to,
-		// 'subject'     => $subject,
-		// 'template'    => $template,
-		// 'headers'     => $headers,
-		// 'attachments' => $attachments,
-		// ));
+			return false;
+		}
 
-		// }
-
-		// Send the actual email
-		return wp_mail($to, $subject, $template, $headers, $attachments);
+		return $sent;
 	}
 
 	/**
