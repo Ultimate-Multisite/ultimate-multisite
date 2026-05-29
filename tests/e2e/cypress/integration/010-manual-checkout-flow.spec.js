@@ -10,6 +10,14 @@ describe("Manual Gateway Checkout Flow", () => {
 		path: `manualsite${timestamp}`,
 	};
 
+	before(() => {
+		// The setup wizard/regression specs run before checkout specs in CI and can
+		// rewrite gateway settings. Re-enable manual immediately before this flow.
+		cy.wpCliFile("tests/e2e/cypress/fixtures/setup-gateway.php").then((result) => {
+			expect(result.stdout).to.contain("gateway:manual");
+		});
+	});
+
 	it("Should complete the UM checkout form with manual gateway", {
 		retries: 0,
 	}, () => {
