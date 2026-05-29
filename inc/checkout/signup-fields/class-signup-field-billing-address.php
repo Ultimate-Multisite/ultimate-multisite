@@ -349,11 +349,14 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 			 * billing_zip_code adds an extra `uses_postal_code` gate so the
 			 * ZIP field is hidden for countries that don't use postal codes
 			 * (Hong Kong, UAE, Angola, etc. — see Country_Default's list).
+			 * Guard the symbol with `typeof` so older/minified checkout bundles
+			 * that have not registered the Vue data key yet still render the form
+			 * instead of throwing a ReferenceError.
 			 */
 			if ('billing_country' === $field_key) {
 				$field['wrapper_html_attr']['v-if'] = "(order === false || order.should_collect_payment) && !($self_billing_gateways)";
 			} elseif ('billing_zip_code' === $field_key) {
-				$field['wrapper_html_attr']['v-if'] = "(order === false || order.should_collect_payment) && !($self_billing_gateways) && uses_postal_code";
+				$field['wrapper_html_attr']['v-if'] = "(order === false || order.should_collect_payment) && !($self_billing_gateways) && (typeof uses_postal_code === 'undefined' || uses_postal_code)";
 			} elseif ($zip_only) {
 				// Other fields in zip_only mode share the same gateway exclusion.
 				$field['wrapper_html_attr']['v-if'] = "!($self_billing_gateways)";

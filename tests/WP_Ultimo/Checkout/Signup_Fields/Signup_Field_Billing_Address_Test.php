@@ -252,6 +252,25 @@ class Signup_Field_Billing_Address_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Regression guard: the ZIP field visibility expression must not throw when
+	 * older/minified checkout assets render before the Vue `uses_postal_code`
+	 * data key is available.
+	 */
+	public function test_zip_visibility_guards_uses_postal_code_symbol(): void {
+		$fields = $this->field->to_fields_array(
+			array(
+				'id'              => 'billing_address',
+				'zip_and_country' => true,
+				'element_classes' => '',
+			)
+		);
+
+		$this->assertArrayHasKey( 'billing_zip_code', $fields );
+		$this->assertArrayHasKey( 'v-if', $fields['billing_zip_code']['wrapper_html_attr'] );
+		$this->assertStringContainsString( "typeof uses_postal_code === 'undefined'", $fields['billing_zip_code']['wrapper_html_attr']['v-if'] );
+	}
+
+	/**
 	 * Test build_select_alternative sets v-if on base_field.
 	 */
 	public function test_build_select_alternative_sets_v_if_on_base_field(): void {
