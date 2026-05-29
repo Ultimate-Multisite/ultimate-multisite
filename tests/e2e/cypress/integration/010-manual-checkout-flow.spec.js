@@ -26,7 +26,7 @@ describe("Manual Gateway Checkout Flow", () => {
 		cy.get('#wrapper-field-pricing_table label[id^="wu-product-"]', {
 			timeout: 15000,
 		})
-			.first()
+			.contains("Test Plan")
 			.click();
 
 		cy.wait(3000);

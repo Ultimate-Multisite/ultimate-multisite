@@ -8,6 +8,8 @@ $product->set_slug('test-plan');
 $product->set_amount(29.99);
 $product->set_duration(1);
 $product->set_duration_unit('month');
+$product->set_recurring(false);
+$product->set_pricing_type('paid');
 $product->set_type('plan');
 $product->set_active(true);
 $product->save();
