@@ -1031,6 +1031,43 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Regression guard for the loopback fast-path 400 perf bug.
+	 *
+	 * Membership::publish_pending_site_async() fires a loopback
+	 * wp_remote_request() against admin-ajax.php to start the site
+	 * publish without waiting for Action Scheduler. That request has no
+	 * auth cookies, so admin-ajax dispatches the *nopriv* action.
+	 *
+	 * If `wp_ajax_nopriv_wu_publish_pending_site` has no listener the
+	 * dispatcher falls through to `wp_die("0")` -> HTTP 400, the
+	 * loopback is logged as "Loopback fast-path returned HTTP 400 -
+	 * falling back to Action Scheduler", and the visible site-creation
+	 * delay balloons from seconds to tens of seconds. (Observed on
+	 * production for every site creation prior to this fix; see the
+	 * production wu-logs/membership-*.log entries.)
+	 *
+	 * Security on the nopriv path is enforced by the HMAC token
+	 * validated inside publish_pending_site() -- the nonce path stays
+	 * available for the logged-in admin modal flow.
+	 *
+	 * @since 2.5.x
+	 */
+	public function test_init_registers_loopback_nopriv_handler_for_publish_pending_site(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertIsInt(
+			has_action('wp_ajax_wu_publish_pending_site', [$manager, 'publish_pending_site']),
+			'wp_ajax_wu_publish_pending_site must be registered for the logged-in admin modal flow.'
+		);
+
+		$this->assertIsInt(
+			has_action('wp_ajax_nopriv_wu_publish_pending_site', [$manager, 'publish_pending_site']),
+			'wp_ajax_nopriv_wu_publish_pending_site must be registered so the unauthenticated HMAC-gated loopback fast-path from publish_pending_site_async() does not return HTTP 400 and fall back to Action Scheduler.'
+		);
+	}
+
+	/**
 	 * Test that the method bails gracefully when wc_get_order() returns false
 	 * (i.e. the order does not exist).
 	 *
