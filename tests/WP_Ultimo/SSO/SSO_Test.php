@@ -1010,6 +1010,85 @@ class SSO_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Regression guard for the /sso-grant 404 introduced when #1309
+	 * enabled the `verify: must-redirect` top-level navigation from
+	 * the unattached JSONP probe.
+	 *
+	 * Flow that exposed the bug: anonymous user on a broker subsite ->
+	 * sso.js JSONP probe -> handle_broker returns must-redirect ->
+	 * browser top-navigates to <broker>/sso?return_url=... ->
+	 * handle_broker non-JSONP redirect via getAttachUrl() ->
+	 * <main>/sso-grant -> handle_server() with not-logged-in user and
+	 * response_type=redirect. Before this guard, that branch fell
+	 * through with the comment "Just let WordPress show the login page
+	 * - don't exit", but /sso-grant is not wp-login.php, so WordPress
+	 * rendered its 404 template and Sidekick subsequently cached it,
+	 * leaving the cross-domain SSO entry permanently broken for new
+	 * anonymous visitors.
+	 *
+	 * The correct behaviour for anonymous visitors is: do not force a
+	 * redirect to wp-login.php (the broker page may be intentionally
+	 * anonymous — free-checkout, landing, marketing). Instead, re-use
+	 * the existing denial-signalling pattern in handle_broker() (the
+	 * `'invalid' === $verify_code` branch): redirect back to the
+	 * broker's /sso URL with sso_verify=invalid appended. handle_broker
+	 * recognises the signal, sets wu_sso_denied=1 on the broker domain
+	 * for 5 minutes, and redirects to the original return_url. sso.js
+	 * (line 22) then sees the cookie and skips the JSONP probe so the
+	 * user browses anonymously without further SSO disruption.
+	 *
+	 * Since handle_server() calls exit, we lock the behaviour in via a
+	 * source-pattern match (matching the project convention used by
+	 * test_handle_server_source_sets_javascript_content_type_for_jsonp
+	 * and its peers in this file).
+	 */
+	public function test_handle_server_source_signals_denial_when_not_logged_in_non_jsonp(): void {
+		$source = file_get_contents(
+			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
+		);
+
+		$start = strpos( $source, 'public function handle_server(' );
+		$end   = strpos( $source, 'private function handle_main_site_logged_in_user' );
+
+		$this->assertNotFalse( $start, 'handle_server() must be present for inspection' );
+		$this->assertNotFalse( $end, 'handle_main_site_logged_in_user() must be present for inspection' );
+
+		$body = substr( $source, $start, $end - $start );
+
+		// The non-JSONP not-logged-in branch must redirect back to the
+		// broker's /sso URL with sso_verify=invalid appended, so
+		// handle_broker can set wu_sso_denied on the broker domain
+		// and bounce the user back to their original page.
+		$this->assertMatchesRegularExpression(
+			'/add_query_arg\s*\(\s*[\'"]sso_verify[\'"]\s*,\s*[\'"]invalid[\'"]/s',
+			$body,
+			'handle_server() not-logged-in non-JSONP branch must append sso_verify=invalid to the broker URL so handle_broker can set wu_sso_denied and bounce the user back to the original page anonymously (instead of forcing wp-login.php).'
+		);
+
+		$this->assertMatchesRegularExpression(
+			'/wp_safe_redirect\s*\(\s*\$denial_url\s*,\s*302\s*,\s*[\'"]WP-Ultimo-SSO[\'"]\s*\)\s*;\s*exit\s*;/s',
+			$body,
+			'handle_server() not-logged-in non-JSONP branch must call wp_safe_redirect( $denial_url, 302, \'WP-Ultimo-SSO\' ); exit; after building the denial URL.'
+		);
+
+		// Must NOT force wp-login.php on anonymous visitors — broker
+		// pages may legitimately be anonymous (free-checkout, landing).
+		$this->assertDoesNotMatchRegularExpression(
+			'/wp_safe_redirect\s*\(\s*wp_login_url\s*\(/s',
+			$body,
+			'handle_server() must NOT redirect anonymous visitors to wp_login_url() — that would break free-checkout and other intentionally-anonymous broker pages. Use the sso_verify=invalid denial signal instead.'
+		);
+
+		// The stale pre-#1309 comment that misled callers into thinking
+		// WP would render wp-login.php must be gone.
+		$this->assertStringNotContainsString(
+			"Just let WordPress show the login page - don't exit",
+			$body,
+			'Stale comment must be removed: /sso-grant is not wp-login.php, so falling through has WP render its 404 template (pre-#1309 misconception).'
+		);
+	}
+
+	/**
 	 * Verify that all JSONP branches set the
 	 * Content-Type: application/javascript header.
 	 *
