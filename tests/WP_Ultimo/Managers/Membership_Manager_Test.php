@@ -127,6 +127,68 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		return $membership;
 	}
 
+	/**
+	 * Install an AJAX die handler so wp_send_json() does not stop PHPUnit.
+	 *
+	 * @return callable The installed handler.
+	 */
+	private function install_ajax_die_handler(): callable {
+
+		add_filter('wp_doing_ajax', '__return_true');
+
+		$handler = function () {
+			return function ($message) {
+				throw new \WPAjaxDieContinueException(esc_html((string) $message));
+			};
+		};
+
+		add_filter('wp_die_ajax_handler', $handler, 1);
+
+		return $handler;
+	}
+
+	/**
+	 * Remove the AJAX die handler.
+	 *
+	 * @param callable $handler The handler returned by install_ajax_die_handler().
+	 * @return void
+	 */
+	private function remove_ajax_die_handler(callable $handler): void {
+
+		remove_filter('wp_doing_ajax', '__return_true');
+		remove_filter('wp_die_ajax_handler', $handler, 1);
+	}
+
+	/**
+	 * Call the pending-site poll handler and capture its JSON response.
+	 *
+	 * @param Membership $membership Membership to poll.
+	 * @return array
+	 */
+	private function call_check_pending_site_created(Membership $membership): array {
+
+		$handler = $this->install_ajax_die_handler();
+		$manager = $this->get_manager_instance();
+
+		$_REQUEST['membership_hash'] = $membership->get_hash();
+
+		ob_start();
+
+		try {
+			$manager->check_pending_site_created();
+		} catch (\WPAjaxDieContinueException $exception) {
+			// Expected: wp_send_json() terminates via wp_die() in AJAX context.
+			unset($exception);
+		}
+
+		$output = ob_get_clean();
+
+		unset($_REQUEST['membership_hash']);
+		$this->remove_ajax_die_handler($handler);
+
+		return json_decode($output, true);
+	}
+
 	// ========================================================================
 	// init() -- verify hooks are registered
 	// ========================================================================
@@ -224,6 +286,45 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 
 		$this->assertIsInt(
 			has_action('wu_async_publish_pending_site', [$manager, 'async_publish_pending_site'])
+		);
+	}
+
+	/**
+	 * Test pending-site poll clears stale membership meta cache before reading.
+	 */
+	public function test_check_pending_site_created_invalidates_stale_pending_site_cache(): void {
+
+		global $wpdb;
+
+		if (empty($wpdb->wu_membershipmeta)) {
+			$wpdb->wu_membershipmeta = $wpdb->prefix . 'wu_membershipmeta';
+		}
+
+		$membership = $this->create_membership();
+
+		$pending_site = $membership->create_pending_site(
+			[
+				'title' => 'Stale Cache Site',
+				'path'  => '/stale-cache-site/',
+			]
+		);
+
+		wp_cache_set($membership->get_id(), ['pending_site' => [$pending_site]], 'wu_membership_meta');
+
+		$wpdb->delete( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			$wpdb->wu_membershipmeta,
+			[
+				'wu_membership_id' => $membership->get_id(),
+				'meta_key'         => 'pending_site', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			]
+		);
+
+		$response = $this->call_check_pending_site_created($membership);
+
+		$this->assertSame(
+			'completed',
+			$response['publish_status'] ?? null,
+			'poll handler should report completed after clearing a stale pending_site cache entry'
 		);
 	}
 

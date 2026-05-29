@@ -212,6 +212,14 @@ class Membership_Manager extends Base_Manager {
 			return new \WP_Error('error', __('An unexpected error happened.', 'ultimate-multisite'));
 		}
 
+		/*
+		 * The async publish loopback can run in a different long-lived PHP
+		 * worker than this polling request. Clear this worker's in-process
+		 * membership meta cache before reading pending_site so stale cached
+		 * data cannot keep the thank-you page stuck after creation completes.
+		 */
+		wp_cache_delete($membership->get_id(), 'wu_membership_meta');
+
 		$pending_site = $membership->get_pending_site();
 
 		if ( ! $pending_site) {
