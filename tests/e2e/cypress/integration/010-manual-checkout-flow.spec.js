@@ -22,11 +22,18 @@ describe("Manual Gateway Checkout Flow", () => {
 		);
 		cy.wait(3000);
 
-		// Select the plan
+		// Select the plan by name. Do NOT use `.first()` — after the Setup
+		// Wizard runs (wizard.spec.js), the wizard creates Free/Premium/SEO
+		// products with list_order=0, which sort ahead of `Test Plan`
+		// (default list_order=10). `.first()` would pick "Free" (no payment
+		// required → manual gateway radio absent) or "Premium" (recurring →
+		// rejected because Manual_Gateway::supports_recurring() returns false).
+		// Either path means the form never reaches status=done. Selecting by
+		// name pins to the one-time-payment plan that 000-setup created.
 		cy.get('#wrapper-field-pricing_table label[id^="wu-product-"]', {
 			timeout: 15000,
 		})
-			.first()
+			.contains("Test Plan")
 			.click();
 
 		cy.wait(3000);
