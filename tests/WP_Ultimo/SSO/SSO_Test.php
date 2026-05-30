@@ -158,6 +158,25 @@ class SSO_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test broker /sso handoff URLs are unwrapped before token minting.
+	 */
+	public function test_get_sso_return_url_unwraps_broker_sso_handoff_return_url(): void {
+		$sso        = SSO::get_instance();
+		$return_url = 'https://customer.example.com/wp/wp-admin/';
+
+		$_REQUEST['return_url'] = add_query_arg(
+			'return_url',
+			$return_url,
+			'https://customer.example.com/sso'
+		);
+
+		$method = new \ReflectionMethod($sso, 'get_sso_return_url');
+		$method->setAccessible(true);
+
+		$this->assertSame($return_url, $method->invoke($sso));
+	}
+
+	/**
 	 * Test nested return_url values are sanitized when extracted from redirect_to.
 	 */
 	public function test_get_sso_return_url_sanitizes_nested_return_url_from_redirect_to(): void {
@@ -227,6 +246,44 @@ class SSO_Test extends \WP_UnitTestCase {
 		$redirect_to = 'https://customer.example.com/wp-admin/edit.php';
 
 		$_REQUEST['redirect_to'] = $redirect_to;
+
+		$method = new \ReflectionMethod($sso, 'get_sso_redirect_to');
+		$method->setAccessible(true);
+
+		$this->assertSame($redirect_to, $method->invoke($sso, $return_url));
+	}
+
+	/**
+	 * Test broker /sso handoff URLs are not used as the post-token redirect target.
+	 */
+	public function test_get_sso_redirect_to_unwraps_broker_sso_handoff_redirect_to(): void {
+		$sso         = SSO::get_instance();
+		$return_url  = 'https://customer.example.com/';
+		$redirect_to = 'https://customer.example.com/wp/wp-admin/';
+
+		$_REQUEST['redirect_to'] = add_query_arg(
+			'return_url',
+			$redirect_to,
+			'https://customer.example.com/sso'
+		);
+
+		$method = new \ReflectionMethod($sso, 'get_sso_redirect_to');
+		$method->setAccessible(true);
+
+		$this->assertSame($redirect_to, $method->invoke($sso, $return_url));
+	}
+
+	/**
+	 * Test unwrapped broker /sso return URLs are used directly as the redirect target.
+	 */
+	public function test_get_sso_redirect_to_uses_unwrapped_broker_sso_return_url_directly(): void {
+		$sso         = SSO::get_instance();
+		$redirect_to = 'https://customer.example.com/wp/wp-admin/';
+		$return_url  = add_query_arg(
+			'return_url',
+			$redirect_to,
+			'https://customer.example.com/sso'
+		);
 
 		$method = new \ReflectionMethod($sso, 'get_sso_redirect_to');
 		$method->setAccessible(true);
@@ -765,7 +822,7 @@ class SSO_Test extends \WP_UnitTestCase {
 
 		$unattached_section = '';
 
-		if (preg_match("/isAttached\(\).*?wp_safe_redirect/s", $source, $matches)) {
+		if (preg_match('/isAttached\(\).*?wp_safe_redirect/s', $source, $matches)) {
 			$unattached_section = $matches[0];
 		}
 

@@ -748,9 +748,10 @@ class SSO {
 	private function get_sso_return_url(string $fallback = ''): string {
 		$return_url  = $this->input('return_url', '');
 		$redirect_to = $this->input('redirect_to', $fallback);
+		$return_url  = $this->unwrap_sso_handoff_url($return_url);
 
 		if ( ! empty($redirect_to) && $this->is_cross_domain_url($redirect_to) ) {
-			return esc_url_raw($redirect_to);
+			return esc_url_raw($this->unwrap_sso_handoff_url($redirect_to));
 		}
 
 		if ( empty($return_url) && ! empty($redirect_to) ) {
@@ -780,8 +781,16 @@ class SSO {
 		$redirect_to = $this->input('redirect_to', '');
 
 		if ( ! empty($redirect_to) && $this->is_cross_domain_url($redirect_to) ) {
-			return esc_url_raw($redirect_to);
+			return esc_url_raw($this->unwrap_sso_handoff_url($redirect_to));
 		}
+
+		$unwrapped_return_url = $this->unwrap_sso_handoff_url($return_url);
+
+		if ($unwrapped_return_url !== $return_url) {
+			return esc_url_raw($unwrapped_return_url);
+		}
+
+		$return_url = $unwrapped_return_url;
 
 		if ( ! empty($return_url) && $this->is_cross_domain_url($return_url) ) {
 			return esc_url_raw(rtrim($return_url, '/') . '/wp/wp-admin/');
@@ -902,6 +911,63 @@ class SSO {
 		$scheme    = strtolower((string) wp_parse_url($url, PHP_URL_SCHEME));
 
 		return ! empty($host) && ! empty($main_host) && $host !== $main_host && in_array($scheme, ['http', 'https'], true);
+	}
+
+	/**
+	 * Extract the real target URL from a broker /sso handoff URL.
+	 *
+	 * The must-redirect flow navigates through the broker's /sso endpoint with
+	 * the visitor's intended target nested in return_url/redirect_to. When the
+	 * main SSO server is already authenticated, the cookie-less token must be
+	 * attached to that intended target, not back to /sso, otherwise the target
+	 * broker re-enters the attach flow before init can consume the token.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $url URL that may point to the broker SSO endpoint.
+	 * @return string Unwrapped URL when available, otherwise the original URL.
+	 */
+	private function unwrap_sso_handoff_url(string $url): string {
+		if (empty($url) || ! $this->is_sso_handoff_url($url)) {
+			return $url;
+		}
+
+		$query = (string) wp_parse_url($url, PHP_URL_QUERY);
+
+		if (empty($query)) {
+			return $url;
+		}
+
+		parse_str($query, $query_params);
+
+		foreach (['redirect_to', 'return_url'] as $param) {
+			$nested_url = isset($query_params[ $param ]) ? esc_url_raw((string) $query_params[ $param ]) : '';
+
+			if ( ! empty($nested_url) && $this->is_cross_domain_url($nested_url) && ! $this->is_sso_handoff_url($nested_url)) {
+				return $nested_url;
+			}
+		}
+
+		return $url;
+	}
+
+	/**
+	 * Check whether a URL points at this SSO broker endpoint.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $url URL to inspect.
+	 * @return bool True when the URL path ends at the SSO endpoint.
+	 */
+	private function is_sso_handoff_url(string $url): bool {
+		$path     = trim((string) wp_parse_url($url, PHP_URL_PATH), '/');
+		$sso_path = trim($this->get_url_path(), '/');
+
+		if (empty($path) || empty($sso_path)) {
+			return false;
+		}
+
+		return (bool) preg_match('/(?:^|\/)' . preg_quote($sso_path, '/') . '\/?$/', $path);
 	}
 
 	/**
