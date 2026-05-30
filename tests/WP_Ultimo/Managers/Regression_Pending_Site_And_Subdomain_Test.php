@@ -9,6 +9,7 @@
  *          publishing flag older than the timeout as *stale* so the AJAX
  *          poller (`Membership_Manager::check_pending_site_created()`)
  *          resets it and answers `stopped`, unblocking re-publishing.
+ *
  *          @see https://github.com/Ultimate-Multisite/ultimate-multisite/pull/1267
  *
  *  BUG 5 — Subdomain callback under wildcard DNS → half-built site.
@@ -17,6 +18,7 @@
  *          registered") and aborted site creation, leaving a half-built
  *          subsite (real case: Eva, blog 347). The fix guards the enqueue
  *          with `has_action('wu_add_subdomain')`.
+ *
  *          @since 2.12.1
  *
  * These tests EXECUTE the real manager methods and assert on the resulting
@@ -27,6 +29,8 @@
  */
 
 namespace WP_Ultimo\Managers;
+
+defined('ABSPATH') || exit;
 
 use WP_UnitTestCase;
 use WP_Ultimo\Models\Site;
@@ -144,16 +148,16 @@ class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
 	/**
 	 * Invoke an AJAX handler, capturing the JSON wp_send_json output.
 	 *
-	 * @param callable $callable The handler to run.
+	 * @param callable $ajax_handler The handler to run.
 	 * @return array The decoded JSON payload.
 	 */
-	private function capture_ajax_json(callable $callable): array {
+	private function capture_ajax_json(callable $ajax_handler): array {
 
 		add_filter('wp_doing_ajax', '__return_true');
 
 		$die_handler = function () {
 			return function ($message) {
-				throw new \WPAjaxDieContinueException((string) $message);
+				throw new \WPAjaxDieContinueException(esc_html((string) $message));
 			};
 		};
 		add_filter('wp_die_ajax_handler', $die_handler, 1);
@@ -161,9 +165,10 @@ class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
 		ob_start();
 
 		try {
-			$callable();
+			$ajax_handler();
 		} catch (\WPAjaxDieContinueException $e) {
 			// wp_send_json() called wp_die() — expected.
+			unset($e);
 		}
 
 		$output = ob_get_clean();
@@ -179,7 +184,7 @@ class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
 	// =========================================================================
 	// BUG 4 — stale publishing flag unblocks the overlay
 	// Exercises: Membership_Manager::check_pending_site_created()
-	//            which wires Site::is_publishing_stale()
+	// which wires Site::is_publishing_stale()
 	// =========================================================================
 
 	/**
