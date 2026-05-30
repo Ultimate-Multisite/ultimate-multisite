@@ -72,8 +72,17 @@ describe("Stripe Gateway Checkout Flow", () => {
 		cy.get("#field-site_title").should("be.visible").clear().type(siteData.title);
 		cy.get("#field-site_url").should("be.visible").clear().type(siteData.path);
 
-		// Select Stripe gateway
-		cy.get('input[type="radio"][name="gateway"][value="stripe"]').check({ force: true });
+		// Select Stripe gateway. When Stripe is the only active gateway, the
+		// checkout template renders it as a hidden input instead of a radio.
+		cy.get('input[name="gateway"][value="stripe"]', { timeout: 10000 }).then(
+			($gateway) => {
+				if ($gateway.attr("type") === "radio") {
+					cy.wrap($gateway).check({ force: true });
+				} else {
+					expect($gateway).to.have.attr("type", "hidden");
+				}
+			}
+		);
 
 		// Set billing address via Vue model (fields are hidden when Stripe is selected,
 		// but values are still sent to server and passed to Stripe's confirmPayment)
