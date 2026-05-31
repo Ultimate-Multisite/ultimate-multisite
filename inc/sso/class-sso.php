@@ -236,6 +236,14 @@ class SSO {
 
 		add_action('wu_sso_handle_sso', [$this, 'handle_broker'], 20);
 
+		add_action('wu_sso_handle_sso_logout_grant', [$this, 'handle_server_logout']);
+
+		add_action('wu_sso_handle_sso_logout', [$this, 'handle_broker_logout']);
+
+		add_filter('logout_redirect', [$this, 'handle_logout_redirect'], 10, 3);
+
+		add_action('wp_login', [$this, 'clear_sso_denied_cookie'], 10, 0);
+
 		add_filter('allowed_http_origins', [$this, 'add_additional_origins']);
 
 		/**
@@ -658,6 +666,318 @@ class SSO {
 	}
 
 	/**
+	 * Add a broker logout token to customer-site logout redirects.
+	 *
+	 * Customer-site logouts must also clear the main SSO server session. We keep
+	 * the browser on the customer site, add a short-lived logout token to the
+	 * redirect URL, and let the logged-out page call the main-site SSO logout
+	 * endpoint in the background.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string   $redirect_to The requested logout redirect URL.
+	 * @param string   $requested_redirect_to The raw requested redirect URL.
+	 * @param \WP_User $user The user being logged out.
+	 * @return string
+	 */
+	public function handle_logout_redirect($redirect_to, $requested_redirect_to, $user) {
+
+		if (is_main_site() || ! $user instanceof \WP_User || empty($user->ID)) {
+			return $redirect_to;
+		}
+
+		$this->set_sso_denied_cookie();
+
+		if (empty($redirect_to) || $this->is_admin_redirect_url($redirect_to)) {
+			$redirect_to = home_url('/');
+		}
+
+		return add_query_arg(
+			[
+				'loggedout'           => 'true',
+				'wu_sso_logout'       => '1',
+				'wu_sso_logout_token' => $this->generate_sso_logout_token((int) $user->ID),
+			],
+			$redirect_to
+		);
+	}
+
+	/**
+	 * Handle background SSO logout requests on the main site.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $response_type Redirect, JSON, or JSONP.
+	 * @return void
+	 */
+	public function handle_server_logout($response_type = 'redirect'): void {
+
+		nocache_headers();
+
+		$result = $this->validate_sso_logout_token($this->input('wu_sso_logout_token', ''));
+
+		if (is_wp_error($result)) {
+			$this->send_sso_logout_response($response_type, 403, $result->get_error_message());
+		}
+
+		$user_id         = (int) $result['user_id'];
+		$current_user_id = get_current_user_id();
+
+		if ($current_user_id && $current_user_id === $user_id) {
+			wp_logout();
+			delete_site_transient('wu_sso_logout_' . $result['jti']);
+		}
+
+		$this->set_sso_denied_cookie();
+		$this->send_sso_logout_response($response_type, 200, 'logged-out');
+	}
+
+	/**
+	 * Check whether a logout redirect points back into a protected admin area.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $redirect_to Logout redirect URL.
+	 * @return bool
+	 */
+	private function is_admin_redirect_url(string $redirect_to): bool {
+
+		$path = (string) wp_parse_url($redirect_to, PHP_URL_PATH);
+
+		return false !== strpos($path, '/wp-admin') || false !== strpos($path, 'wp-login.php');
+	}
+
+	/**
+	 * Set the short SSO-denial cookie used to avoid immediate re-login loops.
+	 *
+	 * @since 2.0.11
+	 * @return void
+	 */
+	private function set_sso_denied_cookie(): void {
+
+		if ( ! headers_sent()) {
+			setcookie('wu_sso_denied', '1', time() + 300, COOKIEPATH, COOKIE_DOMAIN);
+		}
+
+		$_COOKIE['wu_sso_denied'] = '1';
+	}
+
+	/**
+	 * Clear the temporary SSO-denial cookie after an intentional login.
+	 *
+	 * @since 2.0.11
+	 * @return void
+	 */
+	public function clear_sso_denied_cookie(): void {
+
+		if ( ! headers_sent()) {
+			setcookie('wu_sso_denied', '', 1, COOKIEPATH, COOKIE_DOMAIN);
+		}
+
+		unset($_COOKIE['wu_sso_denied']);
+	}
+
+	/**
+	 * Generate a short-lived token for clearing the main SSO session.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param int $user_id User ID being logged out.
+	 * @return string
+	 */
+	private function generate_sso_logout_token(int $user_id): string {
+
+		$expiry = time() + 300;
+		$jti    = wp_generate_uuid4();
+
+		$payload = wp_json_encode(
+			[
+				'user_id' => $user_id,
+				'exp'     => $expiry,
+				'jti'     => $jti,
+			]
+		);
+
+		set_site_transient('wu_sso_logout_' . $jti, $user_id, 300);
+
+		$hmac = hash_hmac('sha256', $payload, wp_salt('auth'));
+
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Encodes an HMAC-signed SSO logout token for URL transport.
+		return rtrim(strtr(base64_encode($hmac . '::' . $payload), '+/', '-_'), '=');
+	}
+
+	/**
+	 * Validate a short-lived main SSO logout token.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $token Logout token.
+	 * @return array|\WP_Error
+	 */
+	private function validate_sso_logout_token(string $token) {
+
+		if (empty($token)) {
+			return new \WP_Error('missing_token', __('Missing SSO logout token.', 'ultimate-multisite'));
+		}
+
+		$token   = strtr($token, '-_', '+/');
+		$padding = strlen($token) % 4;
+
+		if ($padding) {
+			$token .= str_repeat('=', 4 - $padding);
+		}
+
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decodes the URL-safe HMAC-signed SSO logout token generated above.
+		$decoded = base64_decode($token, true);
+
+		if ( ! $decoded || false === strpos($decoded, '::')) {
+			return new \WP_Error('invalid_token', __('Invalid SSO logout token format.', 'ultimate-multisite'));
+		}
+
+		[$expected_hmac, $payload_json] = explode('::', $decoded, 2);
+		$hmac                           = hash_hmac('sha256', $payload_json, wp_salt('auth'));
+
+		if ( ! hash_equals($hmac, $expected_hmac)) {
+			return new \WP_Error('invalid_signature', __('Invalid SSO logout token signature.', 'ultimate-multisite'));
+		}
+
+		$payload = json_decode($payload_json, true);
+
+		if (json_last_error() !== JSON_ERROR_NONE) {
+			return new \WP_Error('invalid_payload', __('Invalid SSO logout token payload.', 'ultimate-multisite'));
+		}
+
+		if (empty($payload['exp']) || $payload['exp'] < time()) {
+			return new \WP_Error('token_expired', __('SSO logout token has expired.', 'ultimate-multisite'));
+		}
+
+		$jti     = (string) ($payload['jti'] ?? '');
+		$user_id = (int) ($payload['user_id'] ?? 0);
+
+		if (empty($jti) || $user_id <= 0 || (int) get_site_transient('wu_sso_logout_' . $jti) !== $user_id) {
+			return new \WP_Error('invalid_token', __('SSO logout token has already been used or is invalid.', 'ultimate-multisite'));
+		}
+
+		if ( ! get_user_by('id', $user_id)) {
+			return new \WP_Error('user_not_found', __('User not found.', 'ultimate-multisite'));
+		}
+
+		return [
+			'user_id' => $user_id,
+			'jti'     => $jti,
+		];
+	}
+
+	/**
+	 * Send the background logout endpoint response.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $response_type Response transport.
+	 * @param int    $status Response status code.
+	 * @param string $message Response message.
+	 * @return void
+	 */
+	private function send_sso_logout_response(string $response_type, int $status, string $message): void {
+
+		status_header($status);
+
+		$payload = [
+			'code'    => $status,
+			'message' => $message,
+		];
+
+		if ('jsonp' === $response_type) {
+			header('Content-Type: application/javascript; charset=utf-8');
+
+			printf(
+				'window.wu&&window.wu.sso_logout&&window.wu.sso_logout(%s);',
+				wp_json_encode($payload)
+			);
+
+			exit;
+		}
+
+		header('Content-Type: application/json; charset=utf-8');
+
+		echo wp_json_encode($payload); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		exit;
+	}
+
+	/**
+	 * Handle customer-site SSO logout endpoint requests.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $response_type Redirect, JSON, or JSONP.
+	 * @return void
+	 */
+	public function handle_broker_logout($response_type = 'redirect'): void {
+
+		nocache_headers();
+
+		$this->get_broker()->clearToken();
+		$this->set_sso_denied_cookie();
+		$this->send_sso_logout_response($response_type, 200, 'logged-out');
+	}
+
+	/**
+	 * Build the main-site SSO logout endpoint URL.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $token Logout token.
+	 * @return string
+	 */
+	private function get_sso_logout_url(string $token): string {
+
+		return add_query_arg(
+			[
+				'_jsonp'              => 'wu_sso_logout',
+				'wu_sso_logout_token' => $token,
+			],
+			get_home_url(get_main_site_id(), $this->get_url_path('logout'))
+		);
+	}
+
+	/**
+	 * Enqueue the logged-out page script that clears the main SSO session.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $token Logout token.
+	 * @return void
+	 */
+	private function enqueue_sso_logout_script(string $token): void {
+
+		if (empty($token)) {
+			return;
+		}
+
+		$logout_url   = $this->get_sso_logout_url($token);
+		$filtered_url = remove_query_arg(
+			[
+				'wu_sso_logout',
+				'wu_sso_logout_token',
+			],
+			$this->get_current_url()
+		);
+
+		wp_register_script('wu-sso-logout', '', [], wu_get_version(), true);
+
+		wp_add_inline_script(
+			'wu-sso-logout',
+			sprintf(
+				'(function(){window.wu=window.wu||{};window.wu.sso_logout=function(){};var s=document.createElement("script");s.async=true;s.defer=true;s.src=%1$s;document.head.appendChild(s);if(window.history&&window.history.replaceState){window.history.replaceState(null,null,%2$s+window.location.hash);}}());',
+				wp_json_encode($logout_url),
+				wp_json_encode($filtered_url)
+			)
+		);
+
+		wp_enqueue_script('wu-sso-logout');
+	}
+
+	/**
 	 * Handle login redirect to send user back to subsite after SSO login.
 	 *
 	 * @since 2.0.11
@@ -823,6 +1143,7 @@ class SSO {
 
 		wp_set_auth_cookie($user_id, true);
 		wp_set_current_user($user_id);
+		$this->clear_sso_denied_cookie();
 
 		$redirect_to = $this->input('redirect_to', admin_url());
 		$redirect_to = remove_query_arg('wu_sso_token', $redirect_to);
@@ -1300,6 +1621,8 @@ class SSO {
 	public function add_sso_removable_query_args($removable_query_args) {
 
 		$removable_query_args[] = $this->get_url_path();
+		$removable_query_args[] = 'wu_sso_logout';
+		$removable_query_args[] = 'wu_sso_logout_token';
 
 		return $removable_query_args;
 	}
@@ -1314,6 +1637,11 @@ class SSO {
 	public function enqueue_script(): void {
 
 		if (is_main_site()) {
+			return;
+		}
+
+		if ($this->input('wu_sso_logout') && $this->input('wu_sso_logout_token')) {
+			$this->enqueue_sso_logout_script($this->input('wu_sso_logout_token'));
 			return;
 		}
 
@@ -1458,7 +1786,7 @@ class SSO {
 
 		$sso_path = $this->get_url_path();
 
-		$pattern = "/\/?{$sso_path}(-grant)?\/?$/";
+		$pattern = "/\/?{$sso_path}(-grant|-logout)?\/?$/";
 
 		$m = [];
 
@@ -1474,6 +1802,10 @@ class SSO {
 
 		if ( ! $action) {
 			$action = $this->input("$sso_path-grant", 'done') !== 'done' ? "$sso_path-grant" : '';
+		}
+
+		if ( ! $action) {
+			$action = $this->input("$sso_path-logout", 'done') !== 'done' ? "$sso_path-logout" : '';
 		}
 
 		if ( ! $action) {
