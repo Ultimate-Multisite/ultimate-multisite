@@ -461,15 +461,56 @@ function wu_username_from_email($email, $new_user_args = [], $suffix = '') {
 		$email_username = $email_parts[0];
 
 		$common_emails = [
+			// English.
 			'sales',
 			'hello',
 			'mail',
 			'contact',
 			'info',
+			'support',
+			'admin',
+			'office',
+			'help',
+			'noreply',
+			'no-reply',
+			'team',
+			// Spanish.
+			'ventas',
+			'hola',
+			'correo',
+			'contacto',
+			'soporte',
+			'administracion',
+			'oficina',
+			'ayuda',
+			'equipo',
+			// Portuguese.
+			'vendas',
+			'ola',
+			'contato',
+			'suporte',
+			'ajuda',
+			// French / German / Italian common ones.
+			'bonjour',
+			'kontakt',
+			'vertrieb',
+			'vendite',
 		];
 
-		// Exclude common prefixes.
-		if (in_array($email_username, $common_emails, true)) {
+		/**
+		 * Filter the list of generic mailbox prefixes that should NOT be used as a
+		 * username (e.g. contacto@, info@, ventas@). When the email's local part is
+		 * one of these, the site domain is used instead so the customer does not end
+		 * up with a username like "contacto".
+		 *
+		 * @since 3.7.0
+		 * @param array  $common_emails Generic mailbox prefixes (lowercased).
+		 * @param string $email         The customer email address.
+		 */
+		$common_emails = (array) apply_filters('wu_username_generic_email_prefixes', $common_emails, $email);
+
+		// Exclude common prefixes (case-insensitive: "Contacto", "INFO" also match).
+		if (in_array(strtolower($email_username), array_map('strtolower', $common_emails), true)) {
 
 			// Get the domain part, minus the dot.
 			$email_username = strtok($email_parts[1], '.');

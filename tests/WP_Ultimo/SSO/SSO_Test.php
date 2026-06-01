@@ -119,6 +119,61 @@ class SSO_Test extends \WP_UnitTestCase {
 
 		$this->assertSame('sso-grant', $sso->get_url_path('grant'));
 		$this->assertSame('sso-login', $sso->get_url_path('login'));
+		$this->assertSame('sso-logout', $sso->get_url_path('logout'));
+	}
+
+	/**
+	 * Test SSO logout token validates for the issuing user.
+	 */
+	public function test_sso_logout_token_validates_for_user(): void {
+		$user_id = self::factory()->user->create();
+		$sso     = SSO::get_instance();
+
+		$generate = new \ReflectionMethod($sso, 'generate_sso_logout_token');
+		$generate->setAccessible(true);
+
+		$validate = new \ReflectionMethod($sso, 'validate_sso_logout_token');
+		$validate->setAccessible(true);
+
+		$result = $validate->invoke($sso, $generate->invoke($sso, $user_id));
+
+		$this->assertIsArray($result);
+		$this->assertSame($user_id, $result['user_id']);
+		$this->assertNotEmpty($result['jti']);
+
+		delete_site_transient('wu_sso_logout_' . $result['jti']);
+	}
+
+	/**
+	 * Test SSO logout endpoint URL targets the main-site logout handoff.
+	 */
+	public function test_sso_logout_url_uses_logout_endpoint_and_jsonp(): void {
+		$sso = SSO::get_instance();
+
+		$method = new \ReflectionMethod($sso, 'get_sso_logout_url');
+		$method->setAccessible(true);
+
+		$url = $method->invoke($sso, 'token-value');
+
+		$this->assertStringContainsString('/sso-logout', $url);
+		$this->assertStringContainsString('_jsonp=wu_sso_logout', $url);
+		$this->assertStringContainsString('wu_sso_logout_token=token-value', $url);
+	}
+
+	/**
+	 * Test source registers the background SSO logout handlers.
+	 */
+	public function test_sso_source_registers_logout_handlers(): void {
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Local source inspection keeps this test lightweight.
+		$source = file_get_contents(
+			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
+		);
+
+		$this->assertStringContainsString('wu_sso_handle_sso_logout_grant', $source);
+		$this->assertStringContainsString('wu_sso_handle_sso_logout', $source);
+		$this->assertStringContainsString('logout_redirect', $source);
+		$this->assertStringContainsString('wp_login', $source);
+		$this->assertStringContainsString('clear_sso_denied_cookie', $source);
 	}
 
 	/**
@@ -149,6 +204,25 @@ class SSO_Test extends \WP_UnitTestCase {
 			'return_url',
 			$return_url,
 			home_url('/wp-login.php')
+		);
+
+		$method = new \ReflectionMethod($sso, 'get_sso_return_url');
+		$method->setAccessible(true);
+
+		$this->assertSame($return_url, $method->invoke($sso));
+	}
+
+	/**
+	 * Test broker /sso handoff URLs are unwrapped before token minting.
+	 */
+	public function test_get_sso_return_url_unwraps_broker_sso_handoff_return_url(): void {
+		$sso        = SSO::get_instance();
+		$return_url = 'https://customer.example.com/wp/wp-admin/';
+
+		$_REQUEST['return_url'] = add_query_arg(
+			'return_url',
+			$return_url,
+			'https://customer.example.com/sso'
 		);
 
 		$method = new \ReflectionMethod($sso, 'get_sso_return_url');
@@ -227,6 +301,44 @@ class SSO_Test extends \WP_UnitTestCase {
 		$redirect_to = 'https://customer.example.com/wp-admin/edit.php';
 
 		$_REQUEST['redirect_to'] = $redirect_to;
+
+		$method = new \ReflectionMethod($sso, 'get_sso_redirect_to');
+		$method->setAccessible(true);
+
+		$this->assertSame($redirect_to, $method->invoke($sso, $return_url));
+	}
+
+	/**
+	 * Test broker /sso handoff URLs are not used as the post-token redirect target.
+	 */
+	public function test_get_sso_redirect_to_unwraps_broker_sso_handoff_redirect_to(): void {
+		$sso         = SSO::get_instance();
+		$return_url  = 'https://customer.example.com/';
+		$redirect_to = 'https://customer.example.com/wp/wp-admin/';
+
+		$_REQUEST['redirect_to'] = add_query_arg(
+			'return_url',
+			$redirect_to,
+			'https://customer.example.com/sso'
+		);
+
+		$method = new \ReflectionMethod($sso, 'get_sso_redirect_to');
+		$method->setAccessible(true);
+
+		$this->assertSame($redirect_to, $method->invoke($sso, $return_url));
+	}
+
+	/**
+	 * Test unwrapped broker /sso return URLs are used directly as the redirect target.
+	 */
+	public function test_get_sso_redirect_to_uses_unwrapped_broker_sso_return_url_directly(): void {
+		$sso         = SSO::get_instance();
+		$redirect_to = 'https://customer.example.com/wp/wp-admin/';
+		$return_url  = add_query_arg(
+			'return_url',
+			$redirect_to,
+			'https://customer.example.com/sso'
+		);
 
 		$method = new \ReflectionMethod($sso, 'get_sso_redirect_to');
 		$method->setAccessible(true);
@@ -765,7 +877,7 @@ class SSO_Test extends \WP_UnitTestCase {
 
 		$unattached_section = '';
 
-		if (preg_match("/isAttached\(\).*?wp_safe_redirect/s", $source, $matches)) {
+		if (preg_match('/isAttached\(\).*?wp_safe_redirect/s', $source, $matches)) {
 			$unattached_section = $matches[0];
 		}
 
@@ -1092,27 +1204,28 @@ class SSO_Test extends \WP_UnitTestCase {
 	 * Verify that all JSONP branches set the
 	 * Content-Type: application/javascript header.
 	 *
-	 * There are four JSONP response paths:
+	 * There are five JSONP response paths:
 	 * 1. handle_server JSONP success/error response
 	 * 2. handle_broker JSONP error for unattached broker
 	 * 3. handle_broker JSONP "nothing to see here" for attached broker
 	 * 4. handle_main_site_logged_in_user JSONP success response
+	 * 5. send_sso_logout_response background logout response
 	 */
 	public function test_handle_broker_source_sets_javascript_content_type_for_jsonp(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
-		// There should be four JSONP blocks with the header.
+		// There should be five JSONP blocks with the header.
 		$count = preg_match_all(
 			"/header\(\s*'Content-Type:\s*application\/javascript;\s*charset=utf-8'\s*\)/",
 			$source
 		);
 
 		$this->assertSame(
-			4,
+			5,
 			$count,
-			'All four JSONP response paths must set the Content-Type header'
+			'All five JSONP response paths must set the Content-Type header'
 		);
 	}
 

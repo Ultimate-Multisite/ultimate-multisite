@@ -89,9 +89,22 @@ class Membership_Manager extends Base_Manager {
 		add_action('wu_async_membership_swap', [$this, 'async_membership_swap'], 10);
 
 		/*
-		 * Deal with pending sites creation
+		 * Deal with pending sites creation.
+		 *
+		 * `publish_pending_site` is also registered on the nopriv hook
+		 * because the loopback fast-path called by
+		 * Membership::publish_pending_site_async() uses
+		 * wp_remote_request() — which does not forward auth cookies, so
+		 * admin-ajax.php dispatches `wp_ajax_nopriv_wu_publish_pending_site`.
+		 * Without a nopriv listener the dispatch falls through to
+		 * `wp_die('0')` and admin-ajax returns HTTP 400 on every loopback,
+		 * forcing the slower Action Scheduler fallback for every site
+		 * creation. Security on the nopriv path is enforced by the HMAC
+		 * token verified in publish_pending_site(); the admin-modal
+		 * (logged-in) path keeps the nonce check.
 		 */
 		add_action('wp_ajax_wu_publish_pending_site', [$this, 'publish_pending_site']);
+		add_action('wp_ajax_nopriv_wu_publish_pending_site', [$this, 'publish_pending_site']);
 
 		add_action('wp_ajax_wu_check_pending_site_created', [$this, 'check_pending_site_created']);
 
