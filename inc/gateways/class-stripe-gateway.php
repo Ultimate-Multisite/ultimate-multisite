@@ -708,6 +708,7 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 			$payment->set_gateway_payment_id($payment_id);
 			$payment->save();
 
+			// One-time Stripe checkouts do not enter the subscription branch below.
 			if ( ! $subscription && 'downgrade' !== $type ) {
 				$membership_status = $cart->has_trial() ? Membership_Status::TRIALING : Membership_Status::ACTIVE;
 
