@@ -201,6 +201,78 @@ class Sunrise_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test addon sunrise filtering excludes duplicate main plugin directories.
+	 */
+	public function test_filter_addon_sunrise_candidates_excludes_duplicate_main_plugin_directories() {
+		$plugins_dir = sys_get_temp_dir() . '/wu-sunrise-test-' . uniqid('', true);
+
+		$duplicate_dir = $plugins_dir . '/ultimate-multisite-1-1';
+		$addon_dir     = $plugins_dir . '/ultimate-multisite-woocommerce';
+
+		wp_mkdir_p($duplicate_dir);
+		wp_mkdir_p($addon_dir);
+
+		$duplicate_sunrise = $duplicate_dir . '/sunrise.php';
+		$addon_sunrise     = $addon_dir . '/sunrise.php';
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture setup.
+		file_put_contents($duplicate_sunrise, '<?php // duplicate main sunrise.');
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture setup.
+		file_put_contents($duplicate_dir . '/ultimate-multisite.php', '<?php // duplicate main bootstrap.');
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture setup.
+		file_put_contents($addon_sunrise, '<?php // addon sunrise.');
+
+		$reflection = new \ReflectionClass(Sunrise::class);
+		$method     = $reflection->getMethod('filter_addon_sunrise_candidates');
+
+		// Only call setAccessible() on PHP < 8.1 where it's needed
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		try {
+			$result = $method->invoke(null, [$duplicate_sunrise, $addon_sunrise]);
+
+			$this->assertSame([$addon_sunrise], $result);
+		} finally {
+			$this->remove_test_directory($plugins_dir);
+		}
+	}
+
+	/**
+	 * Remove a temporary test directory recursively.
+	 *
+	 * @param string $dir Directory path.
+	 */
+	private function remove_test_directory($dir) {
+
+		if ( ! is_dir($dir) ) {
+			return;
+		}
+
+		$items = scandir($dir);
+
+		foreach ( $items as $item ) {
+			if ('.' === $item || '..' === $item) {
+				continue;
+			}
+
+			$path = $dir . '/' . $item;
+
+			if ( is_dir($path) ) {
+				$this->remove_test_directory($path);
+				continue;
+			}
+
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- Test fixture cleanup.
+			unlink($path);
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- Test fixture cleanup.
+		rmdir($dir);
+	}
+
+	/**
 	 * Test manage_sunrise_updates method doesn't throw fatal errors.
 	 */
 	public function test_manage_sunrise_updates_no_fatal_errors() {
