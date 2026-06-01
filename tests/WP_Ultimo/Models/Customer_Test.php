@@ -383,6 +383,8 @@ class Customer_Test extends WP_UnitTestCase {
 		$this->assertArrayHasKey('billing_address', $search_results);
 		$this->assertArrayHasKey('user_login', $search_results);
 		$this->assertArrayHasKey('user_email', $search_results);
+		$this->assertArrayNotHasKey('user_pass', $search_results);
+		$this->assertArrayNotHasKey('user_activation_key', $search_results);
 		$this->assertEquals('searchuser', $search_results['user_login']);
 		$this->assertEquals('search@example.com', $search_results['user_email']);
 	}

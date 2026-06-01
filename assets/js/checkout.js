@@ -172,6 +172,8 @@
 			show_login_prompt: false,
 			login_prompt_field: '',
 			checking_user_exists: false,
+			is_submitting: false,
+			checkout_successful: false,
 			logging_in: false,
 			login_error: '',
 			inline_login_password: '',
@@ -569,6 +571,8 @@
 
 						fields.cart_type = results.data.cart_type;
 
+						const form = this.$el;
+
 						// Append the hidden fields
 						jQuery.each(Object.assign({}, fields), function (index, value) {
 
@@ -580,7 +584,7 @@
 
 							hidden.value = value;
 
-							jQuery('#wu_form').append(hidden);
+							jQuery(form).append(hidden);
 
 						});
 
@@ -861,8 +865,13 @@
 				validate_form() {
 
 					this.errors = [];
+					this.is_submitting = true;
 
-					const form_data_obj = jQuery('#wu_form').serializeArray().reduce(function (json, { name, value }) {
+					if (this.check_user_exists_debounced.cancel) {
+						this.check_user_exists_debounced.cancel();
+					}
+
+					const form_data_obj = jQuery(this.$el).serializeArray().reduce(function (json, { name, value }) {
 
 						// Get products from this
 						if (name !== 'products[]') {
@@ -894,6 +903,7 @@
 					if (client_errors.length) {
 
 						this.errors = client_errors;
+						this.is_submitting = false;
 
 						this.unblock();
 
@@ -939,6 +949,7 @@
 						if (results.success === false) {
 
 							that.errors = [].concat(that.errors, results.data);
+							that.is_submitting = false;
 
 							that.unblock();
 
@@ -947,6 +958,8 @@
 						} // end if;
 
 						if (! that.errors.length) {
+
+							that.checkout_successful = true;
 
 							that.form_success(results);
 
@@ -958,6 +971,8 @@
 
 						} else {
 
+							that.is_submitting = false;
+
 							that.unblock();
 
 						} // end if;
@@ -967,10 +982,12 @@
 				},
 				resubmit() {
 
-					jQuery('#wu_form').get(0).submit();
+					jQuery(this.$el).get(0).submit();
 
 				},
 				handle_errors(errors) {
+
+					this.is_submitting = false;
 
 					this.unblock();
 
@@ -1148,6 +1165,14 @@
 				}, 500),
 				check_user_exists(field_type, value) {
 
+					// Ignore delayed existence checks once checkout submission starts.
+					// The email watcher is debounced, so it can otherwise run after
+					// wu_validate_form has already created the customer and show a false
+					// "customer already exists" prompt for the newly-created account.
+					if (this.is_submitting || this.checkout_successful) {
+						return;
+					}
+
 					// Don't let other field checks interfere with an active email prompt
 					if (this.show_login_prompt && this.login_prompt_field === 'email' && field_type !== 'email') {
 						return;
@@ -1173,10 +1198,14 @@
 					this.request('wu_check_user_exists', {
 						field_type,
 						value,
-						_wpnonce: jQuery('[name="_wpnonce"]').val()
+						_wpnonce: jQuery(this.$el).find('[name="_wpnonce"]').val()
 					}, function(results) {
 
 						that.checking_user_exists = false;
+
+						if (that.is_submitting || that.checkout_successful) {
+							return;
+						}
 
 						if (results.success && results.data.exists) {
 
@@ -1286,7 +1315,7 @@
 					const login_data = hooks.applyFilters('wu_inline_login_data', {
 						username_or_email,
 						password: this.inline_login_password,
-						_wpnonce: jQuery('[name="_wpnonce"]').val()
+						_wpnonce: jQuery(this.$el).find('[name="_wpnonce"]').val()
 					}, field_type);
 
 					this.request('wu_inline_login', login_data, function(results) {
@@ -1492,7 +1521,7 @@
 							const inline_login_data = hooks.applyFilters('wu_inline_login_data', {
 								username_or_email,
 								password,
-								_wpnonce: jQuery('[name="_wpnonce"]').val()
+								_wpnonce: jQuery(that.$el).find('[name="_wpnonce"]').val()
 							}, fieldType);
 
 							jQuery.ajax({

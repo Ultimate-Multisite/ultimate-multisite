@@ -773,6 +773,8 @@ class Customer extends Base_Model implements Billable, Notable {
 			);
 
 			$search_result = array_merge((array) $user->data, $search_result);
+
+			unset($search_result['user_pass'], $search_result['user_activation_key']);
 		}
 
 		$search_result['billing_address_data'] = $this->get_billing_address()->to_array();
