@@ -290,7 +290,7 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 				'display_value'   => $this->get_webhook_listener_url(),
 				'wrapper_classes' => '',
 				'require'         => [
-					'active_gateways' => 'stripe',
+					'active_gateways'         => 'stripe',
 					'stripe_show_direct_keys' => 1,
 				],
 			]
@@ -707,6 +707,21 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 			$payment->set_gateway($this->get_id());
 			$payment->set_gateway_payment_id($payment_id);
 			$payment->save();
+
+			if ( ! $subscription && 'downgrade' !== $type ) {
+				$membership_status = $cart->has_trial() ? Membership_Status::TRIALING : Membership_Status::ACTIVE;
+
+				$membership->set_gateway($this->get_id());
+				$membership->set_gateway_customer_id($s_customer->id);
+				$membership->set_gateway_subscription_id('');
+				$membership->add_to_times_billed(1);
+
+				if ('reactivation' === $type) {
+					$membership->reactivate(false);
+				} else {
+					$membership->renew(false, $membership_status);
+				}
+			}
 
 			$this->trigger_payment_processed($payment, $membership);
 		}
