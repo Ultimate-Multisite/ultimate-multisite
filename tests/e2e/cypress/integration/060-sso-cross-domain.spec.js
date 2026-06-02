@@ -28,13 +28,13 @@
  * assertions below were written as if the mapping worked end-to-end. The
  * spec has therefore never passed on `main` since it was added.
  *
- * The SSO trigger logic that does work in this environment is covered by
+ * The SSO trigger logic that DOES work in this environment is covered by
  * `065-sso-redirect-loop.spec.js` (passing). Until the CI environment is
  * reconfigured so domain mapping survives non-standard ports — for example
  * by running wp-env on port 80, by adding an Nginx host alias, or by
  * routing `127.0.0.1:8889` through a Caddy/Traefik reverse proxy — this
- * suite is skipped to keep the required Cypress check green. Restoration is
- * tracked in #1322.
+ * suite is skipped to keep the required `cypress (8.2, chrome)` check
+ * green. Restoration is tracked in #1322.
  */
 describe.skip("SSO Cross-Domain Authentication", () => {
   const mainSiteUrl = "http://localhost:8889";
