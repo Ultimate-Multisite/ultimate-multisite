@@ -617,12 +617,27 @@
 					 * username, password on step 4) from blocking submission of
 					 * earlier steps that do not include those fields.
 					 *
-					 * Falls back to all rules when step_fields is unavailable
-					 * (legacy single-step forms).
+					 * Falls back to the rendered form fields when step_fields is
+					 * unavailable or stale. This keeps multi-step guest checkouts from
+					 * validating account fields that were already submitted on a prior
+					 * step and are no longer present in the DOM.
 					 */
 					const stepFields = (typeof wu_checkout !== 'undefined' && wu_checkout.step_fields) ? wu_checkout.step_fields : null;
 					const currentStep = jQuery('input[name="checkout_step"]').val();
+					const renderedFields = [];
 					let rules = allRules;
+
+					jQuery('#wu_form').serializeArray().forEach(function (field) {
+
+						const fieldName = field.name.replace(/\[\]$/, '');
+
+						if (allRules[ fieldName ] && renderedFields.indexOf(fieldName) === -1) {
+
+							renderedFields.push(fieldName);
+
+						}
+
+					});
 
 					if (stepFields && currentStep && stepFields[ currentStep ]) {
 
@@ -630,13 +645,23 @@
 
 						rules = {};
 
-						allowedFields.forEach(function(fieldId) {
+						allowedFields.forEach(function (fieldId) {
 
 							if (allRules[ fieldId ]) {
 
 								rules[ fieldId ] = allRules[ fieldId ];
 
 							}
+
+						});
+
+					} else if (currentStep && renderedFields.length) {
+
+						rules = {};
+
+						renderedFields.forEach(function (fieldId) {
+
+							rules[ fieldId ] = allRules[ fieldId ];
 
 						});
 

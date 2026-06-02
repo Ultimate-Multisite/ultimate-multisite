@@ -42,9 +42,42 @@ final class Checkout_Step_Fields_Test extends TestCase {
 								'name' => 'E-mail Address',
 								'type' => 'email',
 							],
+							[
+								'id'   => 'account_submit',
+								'name' => 'Next Step',
+								'type' => 'submit_button',
+							],
 						],
 					],
-					// Step 2: payment data only (must NOT leak into step 1).
+					// Step 2: template data only (must NOT re-demand account data).
+					[
+						'id'     => 'site',
+						'name'   => 'Site',
+						'logged' => 'always',
+						'fields' => [
+							[
+								'id'   => 'site_title',
+								'name' => 'Site Title',
+								'type' => 'site_title',
+							],
+							[
+								'id'   => 'site_url',
+								'name' => 'Site URL',
+								'type' => 'site_url',
+							],
+							[
+								'id'   => 'template_selection',
+								'name' => 'Templates',
+								'type' => 'template_selection',
+							],
+							[
+								'id'   => 'site_submit',
+								'name' => 'Next Step',
+								'type' => 'submit_button',
+							],
+						],
+					],
+					// Step 3: payment data only (must NOT leak into step 1).
 					[
 						'id'     => 'payment',
 						'name'   => 'Payment',
@@ -60,6 +93,16 @@ final class Checkout_Step_Fields_Test extends TestCase {
 								'name' => 'Payment',
 								'type' => 'payment',
 							],
+							[
+								'id'   => 'order_summary',
+								'name' => 'Order Summary',
+								'type' => 'order_summary',
+							],
+							[
+								'id'   => 'submit',
+								'name' => 'Submit',
+								'type' => 'submit_button',
+							],
 						],
 					],
 				],
@@ -69,12 +112,12 @@ final class Checkout_Step_Fields_Test extends TestCase {
 		$this->assertNotInstanceOf(
 			\WP_Error::class,
 			$form,
-			'Failed to seed the checkout form fixture: ' . ( is_wp_error($form) ? $form->get_error_message() : '' )
+			'Failed to seed the checkout form fixture: ' . (is_wp_error($form) ? $form->get_error_message() : '')
 		);
 
-		$checkout = new \WP_Ultimo\Checkout\Checkout();
+		$checkout = \WP_Ultimo\Checkout\Checkout::get_instance();
 
-		// Inject the seeded form into the real checkout instance (public prop).
+		// Inject the seeded form into the real checkout singleton (public prop).
 		$checkout->checkout_form = $form;
 
 		$vars = $checkout->get_checkout_variables();
@@ -103,9 +146,11 @@ final class Checkout_Step_Fields_Test extends TestCase {
 		$step_fields = $this->build_step_fields_map();
 
 		$this->assertArrayHasKey('account', $step_fields, 'Step 1 (account) must be present in the step_fields map.');
+		$this->assertArrayHasKey('site', $step_fields, 'The later site/template step must be present in the step_fields map.');
 		$this->assertArrayHasKey('payment', $step_fields, 'The later payment step must be present in the step_fields map.');
 
 		$account_fields = $step_fields['account'];
+		$site_fields    = $step_fields['site'];
 		$payment_fields = $step_fields['payment'];
 
 		// Step 1 owns its own fields.
@@ -115,6 +160,17 @@ final class Checkout_Step_Fields_Test extends TestCase {
 		// The core of the guard: later-step-only fields must NOT be demanded on Step 1.
 		$this->assertNotContains('password', $account_fields, 'Step 1 must NOT require the password field that lives on the payment step.');
 		$this->assertNotContains('payment', $account_fields, 'Step 1 must NOT require the payment/gateway field that lives on the payment step.');
+		$this->assertNotContains('site_title', $account_fields, 'Step 1 must NOT require the site title field that lives on the site step.');
+		$this->assertNotContains('template_id', $account_fields, 'Step 1 must NOT require the template field that lives on the site step.');
+
+		// The issue #1332 guard: after account fields are submitted, the template
+		// step validates its own fields and does not re-demand guest credentials.
+		$this->assertContains('site_title', $site_fields, 'The template step should validate its own site title field.');
+		$this->assertContains('site_url', $site_fields, 'The template step should validate its own site URL field.');
+		$this->assertContains('template_id', $site_fields, 'The template_selection field must expose the template_id validation rule key used by JS.');
+		$this->assertNotContains('email_address', $site_fields, 'The template step must NOT revalidate the prior email field for guest users.');
+		$this->assertNotContains('username', $site_fields, 'The template step must NOT revalidate the prior username field for guest users.');
+		$this->assertNotContains('password', $site_fields, 'The template step must NOT revalidate the prior password field for guest users.');
 
 		// And the later step really does carry the rest (proves a real partition,
 		// not everything collapsed into step 1).
@@ -143,8 +199,8 @@ final class Checkout_Step_Fields_Test extends TestCase {
 
 		$all_field_ids = array_values(array_unique($all_field_ids));
 
-		// All four seeded fields are represented somewhere.
-		foreach (['username', 'email_address', 'password', 'payment'] as $expected) {
+		// All seeded validation targets are represented somewhere.
+		foreach (['username', 'email_address', 'site_title', 'site_url', 'template_id', 'password', 'payment'] as $expected) {
 			$this->assertContains($expected, $all_field_ids, "Field '{$expected}' must appear in some step.");
 		}
 
