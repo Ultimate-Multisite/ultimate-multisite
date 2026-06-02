@@ -1,5 +1,5 @@
 === Ultimate Multisite – WordPress Multisite SaaS & WaaS Platform ===
-Contributors: aanduque, superdav42, vvwb, surferking
+Contributors: aanduque, superdav42, vvwb, surferking, mahyarrezghi, josevega, patrickgroot, michaelcartersa, rajibhasenraju
 Donate link: https://github.com/sponsors/superdav42/
 Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
