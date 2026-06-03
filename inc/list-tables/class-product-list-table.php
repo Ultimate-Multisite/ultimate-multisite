@@ -200,31 +200,10 @@ class Product_List_Table extends Base_List_Table {
 		$bulk_action = $this->current_action();
 
 		if ('duplicate' === $bulk_action) {
-			$product = wu_request('id');
+			$new_product = $this->duplicate_product(wu_request('id'));
 
-			$product = wu_get_product($product);
-
-			if ( ! $product) {
-				WP_Ultimo()->notices->add(__('Product not found.', 'ultimate-multisite'), 'error', 'network-admin');
-
-				return;
-			}
-
-			$new_product = $product->duplicate();
-
-			// translators: the %s is the thing copied.
-			$new_name = sprintf(__('Copy of %s', 'ultimate-multisite'), $product->get_name());
-
-			$new_product->set_name($new_name);
-
-			$new_product->set_slug(sanitize_title($new_name . '-' . time()));
-
-			$new_product->set_date_created(wu_get_current_time('mysql', true));
-
-			$result = $new_product->save();
-
-			if (is_wp_error($result)) {
-				WP_Ultimo()->notices->add($result->get_error_message(), 'error', 'network-admin');
+			if (is_wp_error($new_product)) {
+				WP_Ultimo()->notices->add($new_product->get_error_message(), 'error', 'network-admin');
 
 				return;
 			}
@@ -241,6 +220,46 @@ class Product_List_Table extends Base_List_Table {
 
 			exit;
 		}
+	}
+
+	/**
+	 * Duplicates a product and persists the copy.
+	 *
+	 * @since 2.5.2
+	 *
+	 * @param int $product_id Product ID to duplicate.
+	 * @return \WP_Ultimo\Models\Product|\WP_Error The duplicated product or error on failure.
+	 */
+	protected function duplicate_product($product_id) {
+
+		$product = wu_get_product(absint($product_id));
+
+		if ( ! $product) {
+			return new \WP_Error('wu_product_not_found', __('Product not found.', 'ultimate-multisite'));
+		}
+
+		$new_product = $product->duplicate();
+
+		// translators: the %s is the thing copied.
+		$new_name = sprintf(__('Copy of %s', 'ultimate-multisite'), $product->get_name());
+
+		$new_product->set_name($new_name);
+
+		$new_product->set_slug(sanitize_title($new_name . '-' . time()));
+
+		$new_product->set_date_created(wu_get_current_time('mysql', true));
+
+		$result = $new_product->save();
+
+		if (is_wp_error($result)) {
+			return $result;
+		}
+
+		if ( ! $result || ! $new_product->get_id()) {
+			return new \WP_Error('wu_product_duplicate_failed', __('Product could not be duplicated.', 'ultimate-multisite'));
+		}
+
+		return $new_product;
 	}
 
 	/**
