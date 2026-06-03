@@ -203,6 +203,23 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test get_form_capability resolves callable capabilities.
+	 */
+	public function test_get_form_capability_resolves_callable(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$form = [
+			'id'         => 'callable_capability_form_xyz',
+			'capability' => function () {
+				return 'read';
+			},
+		];
+
+		$this->assertSame('read', $manager->get_form_capability($form));
+	}
+
+	/**
 	 * Test register_form stores custom render and handler callables.
 	 */
 	public function test_register_form_stores_render_and_handler(): void {
@@ -405,6 +422,41 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 		$this->assertIsArray($form);
 		$this->assertIsCallable($form['render']);
 		$this->assertIsCallable($form['handler']);
+	}
+
+	/**
+	 * Test register_action_forms delete_modal uses a request-time capability.
+	 */
+	public function test_register_action_forms_delete_modal_has_dynamic_capability(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$manager->register_action_forms();
+
+		$form = $manager->get_form('delete_modal');
+
+		$this->assertIsArray($form);
+		$this->assertIsCallable($form['capability']);
+
+		$_REQUEST['model'] = 'product';
+
+		$this->assertSame('wu_delete_products', $manager->get_form_capability($form));
+
+		unset($_REQUEST['model']);
+	}
+
+	/**
+	 * Test get_model_delete_capability handles metadata delete modal models.
+	 */
+	public function test_get_model_delete_capability_handles_meta_model(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$_REQUEST['model'] = 'membership_meta_pending_site';
+
+		$this->assertSame('wu_delete_memberships', $manager->get_model_delete_capability());
+
+		unset($_REQUEST['model']);
 	}
 
 	/**
@@ -1048,10 +1100,11 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 	// =========================================================================
 
 	/**
-	 * Test security_checks calls wp_die(0) when request is not an AJAX request.
+	 * Test security_checks calls wp_die() when request is not an AJAX request.
 	 *
 	 * security_checks() checks $_SERVER['HTTP_X_REQUESTED_WITH'] for the value
-	 * 'xmlhttprequest'. When absent (or wrong), it calls wp_die(0).
+	 * 'xmlhttprequest'. When absent (or wrong), it calls wp_die() with a clear
+	 * message instead of returning a raw 0.
 	 *
 	 * wp_die() in non-AJAX context uses wp_die_handler (not wp_die_ajax_handler).
 	 * We install a wp_die_handler filter that throws WPDieException so PHPUnit
@@ -1072,17 +1125,17 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 
 		add_filter('wp_die_handler', $die_handler, 1);
 
-		$exception_caught = false;
+		$exception_message = '';
 
 		try {
 			$manager->security_checks();
 		} catch (\WPDieException $e) {
-			$exception_caught = true;
+			$exception_message = $e->getMessage();
 		}
 
 		remove_filter('wp_die_handler', $die_handler, 1);
 
-		$this->assertTrue($exception_caught, 'security_checks() should call wp_die() for non-AJAX requests');
+		$this->assertSame('Invalid form request.', $exception_message, 'security_checks() should return a clear message for non-AJAX requests');
 	}
 
 	/**
