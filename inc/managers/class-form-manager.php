@@ -125,6 +125,8 @@ class Form_Manager extends Base_Manager {
 
 		call_user_func($form['render']);
 
+		printf('<input type="hidden" name="form" value="%s">', esc_attr($form['id']));
+
 		echo '<input type="hidden" name="action" value="wu_form_handler">';
 
 		wp_nonce_field('wu_form_' . $form['id']);
@@ -492,6 +494,15 @@ class Form_Manager extends Base_Manager {
 
 			if (is_wp_error($saved)) {
 				wp_send_json_error($saved);
+			}
+
+			if ( ! $saved) {
+				wp_send_json_error(
+					new \WP_Error(
+						'delete-failed',
+						__('The item could not be deleted.', 'ultimate-multisite')
+					)
+				);
 			}
 
 			do_action("wu_after_delete_{$model}_modal", $object);

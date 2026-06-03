@@ -583,6 +583,48 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 		$this->assertStringContainsString('customers', $response['data']['redirect_url']);
 	}
 
+	/**
+	 * Test handle_model_delete_form returns an error when the model delete fails.
+	 */
+	public function test_handle_model_delete_form_errors_when_delete_returns_false(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$filter = function () {
+			return new class() {
+				public function get_id() {
+
+					return 123;
+				}
+
+				public function delete() {
+
+					return false;
+				}
+			};
+		};
+
+		add_filter('wu_delete_form_get_object_customer', $filter);
+
+		$_REQUEST['model']   = 'customer';
+		$_REQUEST['id']      = '123';
+		$_REQUEST['confirm'] = '1';
+		unset($_REQUEST['meta_key']);
+
+		$result = $this->call_in_ajax_context([$manager, 'handle_model_delete_form']);
+
+		remove_filter('wu_delete_form_get_object_customer', $filter);
+		unset($_REQUEST['model'], $_REQUEST['id'], $_REQUEST['confirm']);
+
+		$this->assertTrue($result['exception'], 'Should terminate via wp_die()');
+
+		$response = json_decode($result['output'], true);
+
+		$this->assertIsArray($response);
+		$this->assertFalse($response['success']);
+		$this->assertSame('delete-failed', $response['data'][0]['code']);
+	}
+
 	// =========================================================================
 	// render_model_delete_form
 	// =========================================================================
