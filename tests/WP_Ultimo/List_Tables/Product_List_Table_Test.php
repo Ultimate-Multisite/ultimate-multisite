@@ -154,7 +154,7 @@ class Product_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_type_returns_span_with_label(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type_label', 'get_type_class' ] )
+			->addMethods( ['get_type_label', 'get_type_class'] )
 			->getMock();
 		$item->method( 'get_type_label' )->willReturn( 'Plan' );
 		$item->method( 'get_type_class' )->willReturn( 'wu-bg-blue-200' );
@@ -176,7 +176,7 @@ class Product_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_slug_returns_slug_in_span(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_slug' ] )
+			->addMethods( ['get_slug'] )
 			->getMock();
 		$item->method( 'get_slug' )->willReturn( 'pro-plan' );
 
@@ -197,7 +197,7 @@ class Product_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_amount_returns_free_for_zero_amount(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_pricing_type', 'get_amount', 'is_recurring' ] )
+			->addMethods( ['get_pricing_type', 'get_amount', 'is_recurring'] )
 			->getMock();
 		$item->method( 'get_pricing_type' )->willReturn( 'paid' );
 		$item->method( 'get_amount' )->willReturn( 0 );
@@ -213,7 +213,7 @@ class Product_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_amount_returns_none_for_contact_us(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_pricing_type', 'get_amount', 'is_recurring' ] )
+			->addMethods( ['get_pricing_type', 'get_amount', 'is_recurring'] )
 			->getMock();
 		$item->method( 'get_pricing_type' )->willReturn( 'contact_us' );
 
@@ -229,7 +229,7 @@ class Product_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_amount_returns_one_time_for_non_recurring(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_pricing_type', 'get_amount', 'is_recurring', 'get_currency' ] )
+			->addMethods( ['get_pricing_type', 'get_amount', 'is_recurring', 'get_currency'] )
 			->getMock();
 		$item->method( 'get_pricing_type' )->willReturn( 'paid' );
 		$item->method( 'get_amount' )->willReturn( 50 );
@@ -251,7 +251,7 @@ class Product_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_setup_fee_returns_no_setup_fee(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_pricing_type', 'has_setup_fee' ] )
+			->addMethods( ['get_pricing_type', 'has_setup_fee'] )
 			->getMock();
 		$item->method( 'get_pricing_type' )->willReturn( 'paid' );
 		$item->method( 'has_setup_fee' )->willReturn( false );
@@ -267,12 +267,44 @@ class Product_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_setup_fee_returns_none_for_contact_us(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_pricing_type', 'has_setup_fee' ] )
+			->addMethods( ['get_pricing_type', 'has_setup_fee'] )
 			->getMock();
 		$item->method( 'get_pricing_type' )->willReturn( 'contact_us' );
 
 		$output = $this->table->column_setup_fee( $item );
 
 		$this->assertStringContainsString( 'None', $output );
+	}
+
+	/**
+	 * Test duplicate_product creates a persisted editable copy.
+	 */
+	public function test_duplicate_product_creates_persisted_copy(): void {
+
+		$product = wu_create_product(
+			[
+				'name'            => 'Duplicate Action Product',
+				'slug'            => 'duplicate-action-product-' . wp_rand(),
+				'type'            => 'plan',
+				'amount'          => 49.99,
+				'skip_validation' => true,
+			]
+		);
+
+		$this->assertNotWPError( $product );
+
+		$table = new class() extends Product_List_Table {
+			public function duplicate_product_for_test($product_id) {
+				return $this->duplicate_product( $product_id );
+			}
+		};
+
+		$duplicate = $table->duplicate_product_for_test( $product->get_id() );
+
+		$this->assertNotWPError( $duplicate );
+		$this->assertNotSame( $product->get_id(), $duplicate->get_id() );
+		$this->assertSame( 'Copy of Duplicate Action Product', $duplicate->get_name() );
+		$this->assertSame( 'plan', $duplicate->get_type() );
+		$this->assertNotFalse( wu_get_product( $duplicate->get_id() ) );
 	}
 }
