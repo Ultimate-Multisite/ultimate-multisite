@@ -176,10 +176,11 @@ class Form_Manager extends Base_Manager {
 	 */
 	public function security_checks() {
 		/*
-		 * We only want ajax requests.
+		 * We only want ajax requests, but return a clear message instead of a raw
+		 * `0` so direct modal URLs fail clearly.
 		 */
 		if ((empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower(sanitize_key(wp_unslash($_SERVER['HTTP_X_REQUESTED_WITH']))) !== 'xmlhttprequest')) {
-			wp_die(0);
+			wp_die(esc_html__('Invalid form request.', 'ultimate-multisite'));
 		}
 
 		$form = $this->get_form(wu_request('form'));
@@ -188,9 +189,58 @@ class Form_Manager extends Base_Manager {
 			$this->display_form_unavailable();
 		}
 
-		if ( ! current_user_can($form['capability'])) {
-			$this->display_form_unavailable();
+		$capability = $this->get_form_capability($form);
+
+		if ( ! $capability || ! current_user_can($capability)) {
+			$this->display_form_unavailable(new \WP_Error('permission-denied', __('You do not have permission to access this form.', 'ultimate-multisite')));
 		}
+	}
+
+	/**
+	 * Returns the capability required to access a registered form.
+	 *
+	 * Form capabilities can be static strings or callables that resolve against
+	 * the current request. The dynamic path is used by shared action forms such
+	 * as the delete modal, whose model is only known when the modal URL is opened.
+	 *
+	 * @since 2.4.5
+	 *
+	 * @param array $form Registered form attributes.
+	 * @return string
+	 */
+	public function get_form_capability($form) {
+
+		$capability = wu_get_isset($form, 'capability', 'manage_network');
+
+		if (is_callable($capability)) {
+			$capability = call_user_func($capability, $form);
+		}
+
+		return (string) $capability;
+	}
+
+	/**
+	 * Returns the current model delete capability for the shared delete modal.
+	 *
+	 * @since 2.4.5
+	 *
+	 * @return string
+	 */
+	public function get_model_delete_capability() {
+
+		$model = wu_request('model');
+
+		if ( ! $model) {
+			return 'manage_network';
+		}
+
+		if (str_contains((string) $model, '_meta_')) {
+			$elements = explode('_meta_', (string) $model);
+
+			$model = $elements[0];
+		}
+
+		return "wu_delete_{$model}s";
 	}
 
 	/**
@@ -297,14 +347,12 @@ class Form_Manager extends Base_Manager {
 	 */
 	public function register_action_forms(): void {
 
-		$model = wu_request('model');
-
 		wu_register_form(
 			'delete_modal',
 			[
 				'render'     => [$this, 'render_model_delete_form'],
 				'handler'    => [$this, 'handle_model_delete_form'],
-				'capability' => "wu_delete_{$model}s",
+				'capability' => [$this, 'get_model_delete_capability'],
 			]
 		);
 
