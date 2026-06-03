@@ -4,7 +4,7 @@
  *
  * Handles DNS record display and management in the Ultimate Multisite UI.
  *
- * @param $
+ * @param {Function} $ jQuery.
  * @since 2.3.0
  */
 (function($) {
@@ -16,6 +16,71 @@
 	$(document).ready(function() {
 		initDNSManagement();
 	});
+
+	/**
+	 * Get the localized DNS management config.
+	 *
+	 * @return {Object} DNS management config.
+	 */
+	function getConfig() {
+		return window.wu_dns_config || {};
+	}
+
+	/**
+	 * Get a localized string with a fallback.
+	 *
+	 * @param {string} key      The config i18n key.
+	 * @param {string} fallback The fallback string.
+	 * @return {string} Localized string.
+	 */
+	function getString(key, fallback) {
+		const config = getConfig();
+
+		return (config.i18n && config.i18n[ key ]) || fallback;
+	}
+
+	/**
+	 * Get the AJAX endpoint for front-end and admin contexts.
+	 *
+	 * @return {string} AJAX endpoint URL.
+	 */
+	function getAjaxUrl() {
+		const config = getConfig();
+
+		if (config.ajaxurl) {
+			return config.ajaxurl;
+		}
+
+		return typeof ajaxurl !== 'undefined' ? ajaxurl : '';
+	}
+
+	/**
+	 * Add a query argument to a URL.
+	 *
+	 * @param {string} url   Base URL.
+	 * @param {string} key   Query key.
+	 * @param {string} value Query value.
+	 * @return {string} URL with the query argument.
+	 */
+	function addQueryArg(url, key, value) {
+		return url + (url.indexOf('?') > -1 ? '&' : '?') + key + '=' + encodeURIComponent(value);
+	}
+
+	/**
+	 * Show an error message.
+	 *
+	 * @param {string} message The message to show.
+	 */
+	function showError(message) {
+		if (window.wu_ajax_error) {
+			window.wu_ajax_error(message);
+			return;
+		}
+
+		if (window.console && window.console.error) {
+			window.console.error(message);
+		}
+	}
 
 	/**
 	 * Initialize the DNS Management Vue instance.
@@ -85,16 +150,24 @@
 				 */
 				loadRecords() {
 					const self = this;
+					const ajaxUrl = getAjaxUrl();
+					const config = getConfig();
 
 					this.loading = true;
 					this.error = null;
 
+					if (! ajaxUrl || ! config.nonce) {
+						this.loading = false;
+						this.error = getString('missing_config', 'DNS management could not be initialized. Please refresh the page and try again.');
+						return;
+					}
+
 					$.ajax({
-						url: ajaxurl,
+						url: ajaxUrl,
 						method: 'POST',
 						data: {
 							action: 'wu_get_dns_records_for_domain',
-							nonce: wu_dns_config.nonce,
+							nonce: config.nonce,
 							domain: this.domain,
 						},
 						success(response) {
@@ -113,12 +186,12 @@
 									self.error = response.data.message;
 								}
 							} else {
-								self.error = (response.data && response.data.message) || 'Failed to load DNS records.';
+								self.error = (response.data && response.data.message) || getString('failed_load_records', 'Failed to load DNS records.');
 							}
 						},
 						error(xhr, status, errorMsg) {
 							self.loading = false;
-							self.error = 'Network error: ' + errorMsg;
+							self.error = getString('network_error', 'Network error:') + ' ' + errorMsg;
 						},
 					});
 				},
@@ -198,13 +271,13 @@
 				 * @return {string} Edit URL.
 				 */
 				getEditUrl(record) {
-					if (! wu_dns_config.edit_url) {
+					const editUrl = getConfig().edit_url;
+
+					if (! editUrl) {
 						return '#';
 					}
 
-					return wu_dns_config.edit_url +
-						'&record_id=' + encodeURIComponent(record.id) +
-						'&domain_id=' + encodeURIComponent(this.domainId);
+					return addQueryArg(addQueryArg(editUrl, 'record_id', record.id), 'domain_id', this.domainId);
 				},
 
 				/**
@@ -214,13 +287,13 @@
 				 * @return {string} Delete URL.
 				 */
 				getDeleteUrl(record) {
-					if (! wu_dns_config.delete_url) {
+					const deleteUrl = getConfig().delete_url;
+
+					if (! deleteUrl) {
 						return '#';
 					}
 
-					return wu_dns_config.delete_url +
-						'&record_id=' + encodeURIComponent(record.id) +
-						'&domain_id=' + encodeURIComponent(this.domainId);
+					return addQueryArg(addQueryArg(deleteUrl, 'record_id', record.id), 'domain_id', this.domainId);
 				},
 
 				/**
@@ -274,18 +347,26 @@
 						return;
 					}
 
-					if (! confirm('Are you sure you want to delete ' + this.selectedRecords.length + ' selected records?')) {
+					// eslint-disable-next-line no-alert -- Bulk deletion needs a synchronous confirmation before the AJAX request.
+					if (! window.confirm(getString('confirm_delete', 'Are you sure you want to delete the selected DNS records?'))) {
 						return;
 					}
 
 					const self = this;
+					const ajaxUrl = getAjaxUrl();
+					const config = getConfig();
+
+					if (! ajaxUrl || ! config.nonce) {
+						showError(getString('missing_config', 'DNS management could not be initialized. Please refresh the page and try again.'));
+						return;
+					}
 
 					$.ajax({
-						url: ajaxurl,
+						url: ajaxUrl,
 						method: 'POST',
 						data: {
 							action: 'wu_bulk_dns_operations',
-							nonce: wu_dns_config.nonce,
+							nonce: config.nonce,
 							domain: this.domain,
 							operation: 'delete',
 							records: this.selectedRecords,
@@ -295,11 +376,11 @@
 								self.selectedRecords = [];
 								self.loadRecords();
 							} else {
-								alert('Error: ' + ((response.data && response.data.message) || 'Failed to delete records.'));
+								showError((response.data && response.data.message) || getString('failed_delete', 'Failed to delete records.'));
 							}
 						},
 						error() {
-							alert('Network error occurred.');
+							showError(getString('network_failed', 'Network error occurred.'));
 						},
 					});
 				},
@@ -329,6 +410,12 @@
 	 * Reinitialize DNS management when modal content is loaded.
 	 * This handles wubox modal scenarios.
 	 */
+	$(document.body).on('wubox:load', function() {
+		setTimeout(function() {
+			initDNSManagement();
+		}, 100);
+	});
+
 	$(document).on('wubox-load', function() {
 		setTimeout(function() {
 			initDNSManagement();

@@ -237,6 +237,47 @@ class Domain_Mapping_Element extends Base_Element {
 	public function register_scripts() {
 
 		add_wubox();
+
+		wp_register_script(
+			'wu-dns-management',
+			wu_get_asset('dns-management.js', 'js'),
+			['jquery', 'wu-vue', 'wubox'],
+			wu_get_version(),
+			true
+		);
+
+		wp_localize_script(
+			'wu-dns-management',
+			'wu_dns_config',
+			[
+				'ajaxurl'    => admin_url('admin-ajax.php'),
+				'nonce'      => wp_create_nonce('wu_dns_nonce'),
+				'add_url'    => wu_get_form_url('user_add_dns_record'),
+				'edit_url'   => wu_get_form_url('user_edit_dns_record'),
+				'delete_url' => wu_get_form_url('user_delete_dns_record'),
+				'i18n'       => [
+					'failed_load_records' => __('Failed to load DNS records.', 'ultimate-multisite'),
+					'missing_config'      => __('DNS management could not be initialized. Please refresh the page and try again.', 'ultimate-multisite'),
+					'network_error'       => __('Network error:', 'ultimate-multisite'),
+					'confirm_delete'      => __('Are you sure you want to delete the selected DNS records?', 'ultimate-multisite'),
+					'failed_delete'       => __('Failed to delete records.', 'ultimate-multisite'),
+					'network_failed'      => __('Network error occurred.', 'ultimate-multisite'),
+				],
+			]
+		);
+
+		wp_add_inline_script(
+			'wu-dns-management',
+			'window.ajaxurl = window.ajaxurl || ' . wp_json_encode(admin_url('admin-ajax.php')) . ';',
+			'before'
+		);
+
+		wp_add_inline_script(
+			'wu-dns-management',
+			'document.body.addEventListener("wubox:load", function() { document.dispatchEvent(new Event("wubox-load")); });'
+		);
+
+		wp_enqueue_script('wu-dns-management');
 	}
 
 	/**
