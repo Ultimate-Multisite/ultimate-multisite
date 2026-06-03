@@ -51,10 +51,7 @@
 	/**
 	 * Function that creates the code to handle the AJAX functionality of the WU List Tables.
 	 *
-	 * @param id
-	 * @param count
-	 * @param filters
-	 * @param date_filters
+	 * @param {string} id Table element ID.
 	 */
 	// eslint-disable-next-line no-undef
 	wu_create_list = function(id) {
@@ -388,6 +385,14 @@
               key.indexOf('_') === 0;
 
 					});
+
+					const current_page = this.__query(window.location.search.substring(1), 'page');
+
+					if (current_page && ! history_vars.page) {
+
+						history_vars.page = current_page;
+
+					} // end if;
 
 					history.pushState({}, null, '?' + $.param(history_vars));
 
