@@ -2324,9 +2324,23 @@ class Checkout {
 		if ($this->checkout_form) {
 			foreach ($this->checkout_form->get_steps_to_show() as $step) {
 				if ( ! empty($step['id']) && ! empty($step['fields'])) {
-					$step_fields[ $step['id'] ] = array_values(
-						array_filter(array_column($step['fields'], 'id'))
-					);
+					$field_ids = [];
+
+					foreach ($step['fields'] as $field) {
+						if ( ! empty($field['id'])) {
+							$field_ids[] = $field['id'];
+						}
+
+						if ('template_selection' === wu_get_isset($field, 'type')) {
+							$field_ids[] = 'template_id';
+						}
+
+						if ('pricing_table' === wu_get_isset($field, 'type')) {
+							$field_ids[] = 'products';
+						}
+					}
+
+					$step_fields[ $step['id'] ] = array_values(array_unique(array_filter($field_ids)));
 				}
 			}
 		}
