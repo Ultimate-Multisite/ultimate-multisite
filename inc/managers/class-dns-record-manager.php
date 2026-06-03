@@ -205,7 +205,7 @@ class DNS_Record_Manager extends Base_Manager {
 
 			wp_send_json_success(
 				[
-					'records'  => $records,
+					'records'  => $this->normalize_records_for_response($records),
 					'readonly' => true,
 					'message'  => __('DNS management is not available. Records are read-only.', 'ultimate-multisite'),
 				]
@@ -220,7 +220,7 @@ class DNS_Record_Manager extends Base_Manager {
 
 			wp_send_json_success(
 				[
-					'records'  => $fallback_records,
+					'records'  => $this->normalize_records_for_response($fallback_records),
 					'readonly' => true,
 					'message'  => $records->get_error_message(),
 				]
@@ -229,12 +229,56 @@ class DNS_Record_Manager extends Base_Manager {
 
 		wp_send_json_success(
 			[
-				'records'      => array_map(fn($r) => $r instanceof DNS_Record ? $r->to_array() : $r, $records),
+				'records'      => $this->normalize_records_for_response($records),
 				'readonly'     => false,
 				'provider'     => $provider->get_id(),
 				'record_types' => $provider->get_supported_record_types(),
 			]
 		);
+	}
+
+	/**
+	 * Normalize DNS records for the management table response.
+	 *
+	 * Provider records use the DNS_Record shape, while read-only PHPDNS fallback
+	 * records use host/data/ip keys. The front-end table expects name/content/id.
+	 *
+	 * @since 2.3.0
+	 *
+	 * @param array $records DNS records returned by a provider or PHPDNS lookup.
+	 * @return array
+	 */
+	private function normalize_records_for_response(array $records): array {
+
+		$normalized = [];
+
+		foreach ($records as $index => $record) {
+			$record = $record instanceof DNS_Record ? $record->to_array() : (array) $record;
+
+			if (! isset($record['name'])) {
+				$record['name'] = $record['host'] ?? '';
+			}
+
+			if (! isset($record['content'])) {
+				$record['content'] = $record['data'] ?? $record['ip'] ?? '';
+			}
+
+			if (is_array($record['content'])) {
+				$record['content'] = implode(', ', array_map('strval', $record['content']));
+			}
+
+			if (! isset($record['ttl'])) {
+				$record['ttl'] = 0;
+			}
+
+			if (! isset($record['id'])) {
+				$record['id'] = md5((string) wp_json_encode($record) . $index);
+			}
+
+			$normalized[] = $record;
+		}
+
+		return $normalized;
 	}
 
 	/**

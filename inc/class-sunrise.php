@@ -240,12 +240,62 @@ class Sunrise {
 			return;
 		}
 
+		$candidates = self::filter_addon_sunrise_candidates($candidates);
+
+		if ( empty( $candidates ) ) {
+			return;
+		}
+
 		sort( $candidates ); // Alphabetical order for determinism.
 
 		foreach ( $candidates as $addon_sunrise ) {
 			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.include_include
 			include_once $addon_sunrise;
 		}
+	}
+
+	/**
+	 * Filter addon sunrise candidates to exclude duplicate main plugin copies.
+	 *
+	 * WordPress can leave duplicate upload directories such as
+	 * ultimate-multisite-1-1 in wp-content/plugins. Those directories match the
+	 * addon sunrise glob but are complete copies of the main plugin, so including
+	 * their sunrise.php redeclares functions already loaded from wp-content/sunrise.php.
+	 * Legitimate addons do not ship the main plugin bootstrap file.
+	 *
+	 * @since 2.5.2
+	 *
+	 * @param array $candidates Absolute paths to candidate sunrise.php files.
+	 * @return array
+	 */
+	protected static function filter_addon_sunrise_candidates($candidates) {
+
+		$filtered = [];
+
+		foreach ( $candidates as $candidate ) {
+			if ( self::is_duplicate_main_plugin_sunrise($candidate) ) {
+				continue;
+			}
+
+			$filtered[] = $candidate;
+		}
+
+		return $filtered;
+	}
+
+	/**
+	 * Check if a sunrise candidate belongs to a duplicate main plugin directory.
+	 *
+	 * @since 2.5.2
+	 *
+	 * @param string $candidate Absolute path to a candidate sunrise.php file.
+	 * @return bool
+	 */
+	protected static function is_duplicate_main_plugin_sunrise($candidate) {
+
+		$plugin_dir = dirname($candidate);
+
+		return file_exists($plugin_dir . '/ultimate-multisite.php');
 	}
 
 	/**
