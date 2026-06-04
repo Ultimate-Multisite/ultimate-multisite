@@ -1894,6 +1894,22 @@ class Site extends Base_Model implements Limitable, Notable {
 	}
 
 	/**
+	 * Record a sovereign provisioning profiling stage when UM-MT profiling is enabled.
+	 *
+	 * @param int                 $blog_id Blog ID.
+	 * @param string              $stage   Stage label.
+	 * @param float               $seconds Elapsed seconds.
+	 * @param array<string,mixed> $context Non-secret scalar context.
+	 * @return void
+	 */
+	private function profile_sovereign_provisioning_stage($blog_id, string $stage, float $seconds, array $context = []): void {
+
+		if (class_exists('\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider')) {
+			\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider::profile_stage((int) $blog_id, $stage, $seconds, $context);
+		}
+	}
+
+	/**
 	 * Save (create or update) the model on the database.
 	 *
 	 * @since 2.0.0
@@ -1901,6 +1917,9 @@ class Site extends Base_Model implements Limitable, Notable {
 	 * @return bool|\WP_Error
 	 */
 	public function save() {
+
+		$profile_total = microtime(true);
+
 		/*
 		 * Prepares the substitutions.
 		 */
@@ -1935,7 +1954,8 @@ class Site extends Base_Model implements Limitable, Notable {
 		$new = ! $this->exists();
 
 		if ($new) {
-			$network = get_network();
+			$profile_stage = microtime(true);
+			$network       = get_network();
 
 			$domain = $this->get_domain() ?: $network->domain;
 
@@ -1960,7 +1980,8 @@ class Site extends Base_Model implements Limitable, Notable {
 			 * Decide if we need to duplicate this site, or create a new one.
 			 */
 			if ($this->get_template()) {
-				$saved = \WP_Ultimo\Helpers\Site_Duplicator::duplicate_site(
+				$profile_stage = microtime(true);
+				$saved         = \WP_Ultimo\Helpers\Site_Duplicator::duplicate_site(
 					$this->get_template_id(),
 					$this->get_title(),
 					[
@@ -1971,6 +1992,18 @@ class Site extends Base_Model implements Limitable, Notable {
 						'user_id' => $user_id ?: 0,
 					]
 				);
+
+				if ( ! is_wp_error($saved) && is_numeric($saved)) {
+					$this->profile_sovereign_provisioning_stage(
+						(int) $saved,
+						'um_site.save_duplicate_site',
+						microtime(true) - $profile_stage,
+						array(
+							'ok'          => true,
+							'template_id' => (int) $this->get_template_id(),
+						)
+					);
+				}
 
 				if (is_wp_error($saved)) {
 
@@ -1984,16 +2017,32 @@ class Site extends Base_Model implements Limitable, Notable {
 					}
 				}
 			} else {
-				$saved = wpmu_create_blog($domain, $this->get_path(), $this->get_title(), $user_id, $this->get_signup_options(), $network_id);
+				$profile_stage = microtime(true);
+				$saved         = wpmu_create_blog($domain, $this->get_path(), $this->get_title(), $user_id, $this->get_signup_options(), $network_id);
+
+				if ( ! is_wp_error($saved) && is_numeric($saved)) {
+					$this->profile_sovereign_provisioning_stage(
+						(int) $saved,
+						'um_site.save_wpmu_create_blog',
+						microtime(true) - $profile_stage,
+						array('ok' => true)
+					);
+				}
 
 				if ($saved && $this->get_public()) {
-					$site_id = $saved;
+					$profile_stage = microtime(true);
+					$site_id       = $saved;
 
 					wp_update_site(
 						$site_id,
 						[
 							'public' => $this->get_public(),
 						]
+					);
+					$this->profile_sovereign_provisioning_stage(
+						(int) $saved,
+						'um_site.save_wp_update_site_public',
+						microtime(true) - $profile_stage
 					);
 				}
 
@@ -2006,10 +2055,20 @@ class Site extends Base_Model implements Limitable, Notable {
 				 * @param array $data The object data that will be stored.
 				 * @param Site  $site The object instance.
 				 */
+				$profile_stage = microtime(true);
 				do_action('wu_site_created', $data, $this);
+				if ( ! is_wp_error($saved) && is_numeric($saved)) {
+					$this->profile_sovereign_provisioning_stage(
+						(int) $saved,
+						'um_site.save_wu_site_created_hooks',
+						microtime(true) - $profile_stage
+					);
+				}
 			}
 
 			if ( ! is_wp_error($saved) && wu_get_setting('enable_screenshot_generator', true)) {
+				$profile_stage = microtime(true);
+
 				/*
 				 * Delay screenshot by 90 seconds so the template is fully
 				 * copied before the screenshot is taken. Without this delay,
@@ -2025,6 +2084,11 @@ class Site extends Base_Model implements Limitable, Notable {
 					],
 					'site'
 				);
+				$this->profile_sovereign_provisioning_stage(
+					(int) $saved,
+					'um_site.save_schedule_screenshot',
+					microtime(true) - $profile_stage
+				);
 			}
 		} else {
 			$saved = wp_update_site($this->get_id(), $this->to_array());
@@ -2036,6 +2100,7 @@ class Site extends Base_Model implements Limitable, Notable {
 
 		$this->blog_id = $saved;
 
+		$profile_stage = microtime(true);
 		switch_to_blog($this->blog_id);
 
 		foreach ($this->get_signup_options() as $key => $value) {
@@ -2043,10 +2108,23 @@ class Site extends Base_Model implements Limitable, Notable {
 		}
 
 		restore_current_blog();
+		$this->profile_sovereign_provisioning_stage(
+			(int) $saved,
+			'um_site.save_signup_options',
+			microtime(true) - $profile_stage,
+			array('count' => count($this->get_signup_options()))
+		);
 
+		$profile_stage = microtime(true);
 		foreach ($this->get_signup_meta() as $key => $value) {
 			update_site_meta($saved, $key, $value);
 		}
+		$this->profile_sovereign_provisioning_stage(
+			(int) $saved,
+			'um_site.save_signup_meta',
+			microtime(true) - $profile_stage,
+			array('count' => count($this->get_signup_meta()))
+		);
 
 		/*
 		 * Guard: never overwrite existing wu_membership_id or wu_customer_id
@@ -2064,6 +2142,7 @@ class Site extends Base_Model implements Limitable, Notable {
 			self::META_CUSTOMER_ID,
 		];
 
+		$profile_stage = microtime(true);
 		foreach ($this->meta as $key => $value) {
 			if ( ! $new && in_array($key, $protected_meta_keys, true) && empty($value)) {
 				continue;
@@ -2071,6 +2150,12 @@ class Site extends Base_Model implements Limitable, Notable {
 
 			update_site_meta($saved, $key, $value);
 		}
+		$this->profile_sovereign_provisioning_stage(
+			(int) $saved,
+			'um_site.save_model_meta',
+			microtime(true) - $profile_stage,
+			array('count' => count($this->meta))
+		);
 
 		/**
 		 * Handles membership.
@@ -2083,7 +2168,8 @@ class Site extends Base_Model implements Limitable, Notable {
 		 *
 		 * @since 2.7.1
 		 */
-		$membership = $this->get_membership();
+		$profile_stage = microtime(true);
+		$membership    = $this->get_membership();
 
 		if ( ! $membership && $this->get_customer_id() && function_exists('wu_get_memberships')) {
 			$memberships = wu_get_memberships(
@@ -2109,11 +2195,18 @@ class Site extends Base_Model implements Limitable, Notable {
 
 			$this->set_customer_id($customer_id);
 		}
+		$this->profile_sovereign_provisioning_stage(
+			(int) $saved,
+			'um_site.save_resolve_membership',
+			microtime(true) - $profile_stage,
+			array('has_membership' => (bool) $membership)
+		);
 
 		/**
 		 * Handles customers.
 		 */
-		$customer = $this->get_customer();
+		$profile_stage = microtime(true);
+		$customer      = $this->get_customer();
 
 		if ($customer) {
 			$role = wu_get_setting('default_role', 'administrator');
@@ -2136,10 +2229,22 @@ class Site extends Base_Model implements Limitable, Notable {
 
 			remove_user_from_blog($user_id, $this->get_id());
 		}
+		$this->profile_sovereign_provisioning_stage(
+			(int) $saved,
+			'um_site.save_customer_assignment',
+			microtime(true) - $profile_stage,
+			array('has_customer' => (bool) $customer)
+		);
 
+		$profile_stage = microtime(true);
 		update_blog_option($this->get_id(), 'blogname', $this->get_name());
 
 		update_blog_option($this->get_id(), 'blogdescription', $this->get_description());
+		$this->profile_sovereign_provisioning_stage(
+			(int) $saved,
+			'um_site.save_blog_options',
+			microtime(true) - $profile_stage
+		);
 
 		/**
 		 * Fires after an object is stored into the database.
@@ -2152,6 +2257,7 @@ class Site extends Base_Model implements Limitable, Notable {
 		 * @param Base_Model $model_object The object instance.
 		 * @param bool       $is_new If this object is a new one.
 		 */
+		$profile_stage = microtime(true);
 		do_action('wu_model_post_save', $this->model, $data, $data_unserialized, $this, $new); // @phpstan-ignore-line
 
 		/**
@@ -2164,6 +2270,11 @@ class Site extends Base_Model implements Limitable, Notable {
 		 * @param bool      $is_new If this object is a new one.
 		 */
 		do_action("wu_{$this->model}_post_save", $data, $this, $new);
+		$this->profile_sovereign_provisioning_stage(
+			(int) $saved,
+			'um_site.save_post_save_hooks',
+			microtime(true) - $profile_stage
+		);
 
 		// Only compute extra hook parameters if the deprecated hook is actually in use.
 		if ($new && has_filter('wu_create_site_meta')) {
@@ -2194,6 +2305,12 @@ class Site extends Base_Model implements Limitable, Notable {
 		if (isset($session)) {
 			$session->destroy();
 		}
+
+		$this->profile_sovereign_provisioning_stage(
+			(int) $saved,
+			'um_site.save_total',
+			microtime(true) - $profile_total
+		);
 
 		return $saved;
 	}

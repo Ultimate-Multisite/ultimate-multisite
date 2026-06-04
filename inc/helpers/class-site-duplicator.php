@@ -309,6 +309,22 @@ class Site_Duplicator {
 	}
 
 	/**
+	 * Record a sovereign provisioning profiling stage when UM-MT profiling is enabled.
+	 *
+	 * @param int                 $blog_id Blog ID.
+	 * @param string              $stage   Stage label.
+	 * @param float               $seconds Elapsed seconds.
+	 * @param array<string,mixed> $context Non-secret scalar context.
+	 * @return void
+	 */
+	private static function profile_sovereign_provisioning_stage($blog_id, string $stage, float $seconds, array $context = []): void {
+
+		if (class_exists('\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider')) {
+			\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider::profile_stage((int) $blog_id, $stage, $seconds, $context);
+		}
+	}
+
+	/**
 	 * Processes a site duplication.
 	 *
 	 * @since 2.0.0
@@ -327,6 +343,8 @@ class Site_Duplicator {
 	 * @return int|\WP_Error The Site ID.
 	 */
 	protected static function process_duplication($args) {
+
+		$profile_total = microtime(true);
 
 		global $current_site, $wpdb;
 
@@ -368,7 +386,17 @@ class Site_Duplicator {
 		if ( ! $args->to_site_id) {
 			$meta = array_merge($args->meta, ['public' => $args->public]);
 
+			$profile_stage    = microtime(true);
 			$args->to_site_id = wpmu_create_blog($args->domain, $args->path, $args->title, $user_id, $meta, $args->network_id);
+
+			if ( ! is_wp_error($args->to_site_id) && is_numeric($args->to_site_id)) {
+				self::profile_sovereign_provisioning_stage(
+					(int) $args->to_site_id,
+					'um_duplicator.wpmu_create_blog',
+					microtime(true) - $profile_stage,
+					array('ok' => true)
+				);
+			}
 
 			$wpdb->show_errors();
 		}
@@ -388,7 +416,14 @@ class Site_Duplicator {
 		\MUCD_Duplicate::bypass_server_limit();
 
 		if ($args->copy_files) {
+			$profile_stage = microtime(true);
 			\MUCD_Files::copy_files($args->from_site_id, $args->to_site_id);
+			self::profile_sovereign_provisioning_stage(
+				(int) $args->to_site_id,
+				'um_duplicator.copy_files',
+				microtime(true) - $profile_stage,
+				array('from_site_id' => (int) $args->from_site_id)
+			);
 		}
 
 		/**
@@ -396,7 +431,14 @@ class Site_Duplicator {
 		 */
 		add_filter('send_site_admin_email_change_email', '__return_false');
 
+		$profile_stage = microtime(true);
 		\MUCD_Data::copy_data($args->from_site_id, $args->to_site_id);
+		self::profile_sovereign_provisioning_stage(
+			(int) $args->to_site_id,
+			'um_duplicator.copy_data',
+			microtime(true) - $profile_stage,
+			array('from_site_id' => (int) $args->from_site_id)
+		);
 
 		/*
 		 * Resolve the real template source from wu_template_id site meta.
@@ -417,10 +459,17 @@ class Site_Duplicator {
 		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
 		 */
 		$template_site_id = (int) $args->from_site_id;
+		$profile_stage    = microtime(true);
 		$meta_template    = (int) get_site_meta($args->to_site_id, 'wu_template_id', true);
 		if (0 < $meta_template && $meta_template !== (int) $args->from_site_id) {
 			$template_site_id = $meta_template;
 		}
+		self::profile_sovereign_provisioning_stage(
+			(int) $args->to_site_id,
+			'um_duplicator.resolve_template_site_id',
+			microtime(true) - $profile_stage,
+			array('template_site_id' => (int) $template_site_id)
+		);
 
 		/*
 		 * Backfill postmeta that MUCD_Data::copy_data() misses.
@@ -434,7 +483,14 @@ class Site_Duplicator {
 		 * @since 2.3.1
 		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
 		 */
+		$profile_stage = microtime(true);
 		self::backfill_postmeta($template_site_id, $args->to_site_id);
+		self::profile_sovereign_provisioning_stage(
+			(int) $args->to_site_id,
+			'um_duplicator.backfill_postmeta',
+			microtime(true) - $profile_stage,
+			array('template_site_id' => (int) $template_site_id)
+		);
 
 		/*
 		 * Rewrite source URLs to target URLs in backfilled postmeta rows.
@@ -446,7 +502,14 @@ class Site_Duplicator {
 		 * @since 2.3.2
 		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/834
 		 */
+		$profile_stage = microtime(true);
 		self::rewrite_backfilled_postmeta_urls($template_site_id, $args->to_site_id);
+		self::profile_sovereign_provisioning_stage(
+			(int) $args->to_site_id,
+			'um_duplicator.rewrite_backfilled_postmeta_urls',
+			microtime(true) - $profile_stage,
+			array('template_site_id' => (int) $template_site_id)
+		);
 
 		/*
 		 * Verify Kit integrity after backfill.
@@ -458,13 +521,33 @@ class Site_Duplicator {
 		 * @since 2.3.1
 		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
 		 */
+		$profile_stage = microtime(true);
 		self::verify_kit_integrity($template_site_id, $args->to_site_id);
+		self::profile_sovereign_provisioning_stage(
+			(int) $args->to_site_id,
+			'um_duplicator.verify_kit_integrity',
+			microtime(true) - $profile_stage,
+			array('template_site_id' => (int) $template_site_id)
+		);
 
 		if ($args->keep_users) {
+			$profile_stage = microtime(true);
 			\MUCD_Duplicate::copy_users($args->from_site_id, $args->to_site_id);
+			self::profile_sovereign_provisioning_stage(
+				(int) $args->to_site_id,
+				'um_duplicator.copy_users',
+				microtime(true) - $profile_stage,
+				array('from_site_id' => (int) $args->from_site_id)
+			);
 		}
 
+		$profile_stage = microtime(true);
 		wp_cache_flush();
+		self::profile_sovereign_provisioning_stage(
+			(int) $args->to_site_id,
+			'um_duplicator.wp_cache_flush',
+			microtime(true) - $profile_stage
+		);
 
 		// Ensure the requested title is applied after duplication, since the
 		// table copy may overwrite the blogname option set during site creation.
@@ -475,7 +558,13 @@ class Site_Duplicator {
 			? $args->title
 			: ucfirst(preg_replace('/\..*$/', '', $args->domain));
 
+		$profile_stage = microtime(true);
 		update_blog_option($args->to_site_id, 'blogname', $new_title);
+		self::profile_sovereign_provisioning_stage(
+			(int) $args->to_site_id,
+			'um_duplicator.update_blogname',
+			microtime(true) - $profile_stage
+		);
 
 		/**
 		 * Allow developers to hook after a site duplication happens.
@@ -483,12 +572,25 @@ class Site_Duplicator {
 		 * @since 1.9.4
 		 * @return void
 		 */
+		$profile_stage = microtime(true);
 		do_action(
 			'wu_duplicate_site',
 			[
 				'from_site_id' => $template_site_id,
 				'site_id'      => $args->to_site_id,
 			]
+		);
+		self::profile_sovereign_provisioning_stage(
+			(int) $args->to_site_id,
+			'um_duplicator.duplicate_site_hooks',
+			microtime(true) - $profile_stage
+		);
+
+		self::profile_sovereign_provisioning_stage(
+			(int) $args->to_site_id,
+			'um_duplicator.total',
+			microtime(true) - $profile_total,
+			array('from_site_id' => (int) $args->from_site_id)
 		);
 
 		return $args->to_site_id;

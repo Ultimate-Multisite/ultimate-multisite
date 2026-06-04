@@ -1299,6 +1299,47 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test publish_pending_site_async can skip the loopback fast-path.
+	 *
+	 * Integrations that need site creation to happen in the queued Action
+	 * Scheduler context can disable the HTTP loopback while keeping the
+	 * fallback action enqueue intact.
+	 */
+	public function test_publish_pending_site_async_can_skip_loopback_via_filter(): void {
+
+		$membership = $this->create_membership();
+
+		// Create a pending site.
+		$pending_site = $membership->create_pending_site([
+			'title'  => 'Test Site',
+			'domain' => 'test-' . wp_rand() . '.example.com',
+		]);
+
+		$membership->update_pending_site($pending_site);
+
+		$captured_url = null;
+		add_filter(
+			'pre_http_request',
+			function ($preempt, $r, $url) use (&$captured_url) {
+				$captured_url = $url;
+
+				return ['response' => ['code' => 200]];
+			},
+			10,
+			3
+		);
+
+		add_filter('wu_publish_pending_site_use_loopback', '__return_false');
+
+		$membership->publish_pending_site_async();
+
+		$this->assertNull($captured_url, 'Loopback HTTP request should not fire when the filter returns false.');
+
+		remove_filter('wu_publish_pending_site_use_loopback', '__return_false');
+		remove_filter('pre_http_request', 10);
+	}
+
+	/**
 	 * Test publish_pending_site_async logs non-2xx responses.
 	 *
 	 * Verifies that HTTP error responses are logged.

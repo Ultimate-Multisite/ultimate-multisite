@@ -2107,50 +2107,65 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			return;
 		}
 
-		// We first try to generate the site through request to start earlier as possible.
-		// Generate a short-lived HMAC token for the loopback request.
-		$expires   = time() + 60;
-		$token     = hash_hmac('sha256', $this->get_id() . '|' . $expires, wp_salt('auth'));
-		$rest_path = add_query_arg(
-			[
-				'action'        => 'wu_publish_pending_site',
-				'membership_id' => $this->get_id(),
-				'wu_token'      => $token,
-				'wu_expires'    => $expires,
-			],
-			admin_url('admin-ajax.php')
-		);
-		$headers   = array(
-			'Cache-Control' => 'no-cache',
-		);
+		/**
+		 * Filter whether pending-site publish should try the admin-ajax loopback fast-path.
+		 *
+		 * Integrations that require a specific execution context for site creation can return
+		 * false to rely solely on the Action Scheduler fallback enqueued below.
+		 *
+		 * @since 2.5.x
+		 *
+		 * @param bool       $use_loopback Whether to trigger the loopback request.
+		 * @param Membership $membership   The membership publishing its pending site.
+		 */
+		$use_loopback = (bool) apply_filters('wu_publish_pending_site_use_loopback', true, $this);
 
-		$request_args = [
-			'timeout'   => 10,
-			/** This filter is documented in wp-includes/class-wp-http-streams.php */
-			'sslverify' => apply_filters('https_local_ssl_verify', false),
-			'headers'   => $headers,
-		];
+		if ($use_loopback) {
+			// We first try to generate the site through request to start earlier as possible.
+			// Generate a short-lived HMAC token for the loopback request.
+			$expires   = time() + 60;
+			$token     = hash_hmac('sha256', $this->get_id() . '|' . $expires, wp_salt('auth'));
+			$rest_path = add_query_arg(
+				[
+					'action'        => 'wu_publish_pending_site',
+					'membership_id' => $this->get_id(),
+					'wu_token'      => $token,
+					'wu_expires'    => $expires,
+				],
+				admin_url('admin-ajax.php')
+			);
+			$headers   = array(
+				'Cache-Control' => 'no-cache',
+			);
 
-		if ( ! function_exists('fastcgi_finish_request')) {
-			// We do not have fastcgi but can make the request continue without listening with blocking = false.
-			$request_args['blocking'] = false;
-		}
-		$result = wp_remote_request(
-			$rest_path,
-			$request_args
-		);
+			$request_args = [
+				'timeout'   => 10,
+				/** This filter is documented in wp-includes/class-wp-http-streams.php */
+				'sslverify' => apply_filters('https_local_ssl_verify', false),
+				'headers'   => $headers,
+			];
 
-		if (is_wp_error($result)) {
-			// translators: %s full error message.
-			wu_log_add("membership-{$this->get_id()}", sprintf(__('Failed to trigger async site creation. The site will not be created until the next cron run which is much slower: %s', 'ultimate-multisite'), $result->get_error_message()));
-		} else {
-			$code = (int) wp_remote_retrieve_response_code($result);
-			if ($code < 200 || $code >= 300) {
-				wu_log_add(
-					"membership-{$this->get_id()}",
-					// translators: %d HTTP status code.
-					sprintf(__('Loopback fast-path returned HTTP %d — falling back to Action Scheduler.', 'ultimate-multisite'), $code)
-				);
+			if ( ! function_exists('fastcgi_finish_request')) {
+				// We do not have fastcgi but can make the request continue without listening with blocking = false.
+				$request_args['blocking'] = false;
+			}
+			$result = wp_remote_request(
+				$rest_path,
+				$request_args
+			);
+
+			if (is_wp_error($result)) {
+				// translators: %s full error message.
+				wu_log_add("membership-{$this->get_id()}", sprintf(__('Failed to trigger async site creation. The site will not be created until the next cron run which is much slower: %s', 'ultimate-multisite'), $result->get_error_message()));
+			} else {
+				$code = (int) wp_remote_retrieve_response_code($result);
+				if ($code < 200 || $code >= 300) {
+					wu_log_add(
+						"membership-{$this->get_id()}",
+						// translators: %d HTTP status code.
+						sprintf(__('Loopback fast-path returned HTTP %d — falling back to Action Scheduler.', 'ultimate-multisite'), $code)
+					);
+				}
 			}
 		}
 
@@ -2164,6 +2179,9 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 	 * @return true|\WP_Error
 	 */
 	public function publish_pending_site() {
+
+		$profile_total = microtime(true);
+
 		/*
 		 * Trigger event before the publication of a site.
 		 */
@@ -2239,7 +2257,20 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		}
 
 		try {
-			$saved = $pending_site->save();
+			$profile_stage = microtime(true);
+			$saved         = $pending_site->save();
+
+			if ( ! is_wp_error($saved) && is_numeric($saved) && class_exists('\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider')) {
+				\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider::profile_stage(
+					(int) $saved,
+					'um_membership.publish_pending_site_save',
+					microtime(true) - $profile_stage,
+					array(
+						'ok'            => true,
+						'membership_id' => (int) $this->get_id(),
+					)
+				);
+			}
 		} catch (\Throwable $e) {
 			/*
 			 * Reset is_publishing when Site::save() or a downstream hook throws,
@@ -2280,12 +2311,37 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			return $saved;
 		}
 
+		$profile_stage = microtime(true);
 		$this->delete_pending_site();
+		if (is_numeric($saved) && class_exists('\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider')) {
+			\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider::profile_stage(
+				(int) $saved,
+				'um_membership.delete_pending_site',
+				microtime(true) - $profile_stage,
+				array('membership_id' => (int) $this->get_id())
+			);
+		}
 
 		/*
 		 * Trigger event that marks the publication of a site.
 		 */
+		$profile_stage = microtime(true);
 		do_action('wu_pending_site_published', $pending_site, $this);
+		if (is_numeric($saved) && class_exists('\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider')) {
+			\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider::profile_stage(
+				(int) $saved,
+				'um_membership.pending_site_published_hooks',
+				microtime(true) - $profile_stage,
+				array('membership_id' => (int) $this->get_id())
+			);
+
+			\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider::profile_stage(
+				(int) $saved,
+				'um_membership.publish_pending_site_total',
+				microtime(true) - $profile_total,
+				array('membership_id' => (int) $this->get_id())
+			);
+		}
 
 		return true;
 	}
