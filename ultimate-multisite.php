@@ -3,7 +3,7 @@
  * Plugin Name: Ultimate Multisite – WordPress Multisite SaaS & WaaS Platform
  * Plugin URI:  https://ultimatemultisite.com
  * Description: Ultimate Multisite is a WordPress Multisite plugin that turns your network into a complete Website-as-a-Service (WaaS) platform with subscriptions, site provisioning, domain mapping, and customer management. Formerly WP Ultimo.
- * Version:     2.12.0
+ * Version:     2.13.0
  * Author:      Ultimate Multisite Community
  * Author URI:  https://ultimatemultisite.com
  * License:     GPLv2 or later
@@ -64,6 +64,9 @@ if (defined('WP_SANDBOX_SCRAPING') && WP_SANDBOX_SCRAPING) {
 if ( ! defined('WP_ULTIMO_PLUGIN_FILE')) {
 	define('WP_ULTIMO_PLUGIN_FILE', __FILE__);
 }
+if ( ! defined('WP_ULTIMO_VERSION')) {
+	define('WP_ULTIMO_VERSION', '2.13.0');
+}
 if ( ! defined('MULTISITE_ULTIMATE_UPDATE_URL')) {
 	define('MULTISITE_ULTIMATE_UPDATE_URL', 'https://ultimatemultisite.com/');
 }
@@ -79,9 +82,9 @@ try {
 	// requires BerlinDB files without registering our classmap, causing a false-positive
 	// that leaves WP_Ultimo classes unmapped. We therefore also verify that the main
 	// WP_Ultimo class is discoverable before deciding the autoloader can be skipped.
-	$berlin_db_loaded       = class_exists( 'BerlinDB\Database\Table', false );
-	$wu_autoloader_present  = interface_exists( 'WP_Ultimo\Traits\Singleton', false ) ||
-	                          class_exists( 'WP_Ultimo', false );
+	$berlin_db_loaded      = class_exists( 'BerlinDB\Database\Table', false );
+	$wu_autoloader_present = interface_exists( 'WP_Ultimo\Traits\Singleton', false ) ||
+								class_exists( 'WP_Ultimo', false );
 	if ( ! $berlin_db_loaded || ! $wu_autoloader_present ) {
 		require_once __DIR__ . '/vendor/autoload_packages.php';
 	}

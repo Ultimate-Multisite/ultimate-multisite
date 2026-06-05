@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 7.4.30
 Tested up to: 7.0
-Stable tag: 2.12.0
+Stable tag: 2.13.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -246,6 +246,19 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+Version [2.13.0] - Released on 2026-06-05
+- New: Added sovereign-tenant support for customer account, checkout, billing, site, invoice, template switching, and domain mapping flows so tenant networks can direct customers back to the main site for managed actions.
+- New: Added renewal-credential checks for recurring memberships so gateways can disable auto-renewal when a saved billing agreement, subscription, or vault token is missing.
+- New: Added HMAC-verified loopback publishing for pending site creation to make checkout-to-site provisioning more reliable on hosts where background jobs are delayed.
+- New: Added developer extension points for SSO URLs, checkout-form base domains, and automatic domain-record creation.
+- Fix: SSO is more reliable across mapped domains, anonymous broker visits, logout, and cross-plugin dependency conflicts.
+- Fix: Pending site creation now recovers from stale publish flags and avoids leaving customers stuck on the site-creation screen.
+- Fix: Domain records are no longer created for shared checkout-form base domains, and unused host-provider background jobs are skipped when no integration is active.
+- Fix: Checkout, billing address, password reset, email verification, template switching, tours, and customer dashboard edge cases no longer block normal customer flows.
+- Fix: Broadcast emails now keep recipients private while avoiding SMTP/plugin fatal errors when recipient lists or mail transports fail.
+- Fix: Membership renewals, expiration display, and payment collection edge cases now avoid immediate expirations, crashes, or missed required payments.
+- Improved: WordPress compatibility is tested up to 7.0, production Vue assets are rebuilt from npm sources, and Cypress end-to-end coverage now exercises more checkout, setup, SSO, and gateway flows.
+
 Version [2.12.0] - Released on 2026-05-15
 - New: Added Hostinger (hPanel) as a supported host provider with domain mapping integration
 - New: Site Exporter now handles network import bundles for streamlined network-wide site restoration
