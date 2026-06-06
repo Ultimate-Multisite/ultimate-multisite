@@ -150,22 +150,76 @@ class Membership_Manager extends Base_Manager {
 
 		ignore_user_abort(true);
 
-		// Send JSON response to client.
-		// Don't use wp_send_json because it will exit prematurely.
-		header('Content-Type: application/json; charset=' . get_option('blog_charset'));
-		echo wp_json_encode(['status' => 'creating-site']);
-
-		// Don't make the request block till we finish, if possible.
-		if (function_exists('fastcgi_finish_request')) {
-			fastcgi_finish_request();
-			// Response is sent, but the php process continues to run and update the site.
-		}
-		// Note: When fastcgi_finish_request is unavailable, the client will wait
-		// for the operation to complete but still receives the JSON response.
+		$this->send_pending_site_publish_started_response();
 
 		$this->async_publish_pending_site($membership_id);
 
 		exit; // Just exit the request
+	}
+
+	/**
+	 * Sends the loopback response before the long-running publish starts.
+	 *
+	 * The checkout fast-path calls this endpoint with a normal blocking
+	 * wp_remote_request() so it can confirm that the HMAC-protected action was
+	 * reached. The endpoint must therefore complete the HTTP response before it
+	 * starts copying/provisioning the pending site, otherwise FrankenPHP and other
+	 * non-FastCGI SAPIs keep the checkout waiting for the full publish.
+	 *
+	 * @since 2.5.x
+	 * @return void
+	 */
+	protected function send_pending_site_publish_started_response() {
+
+		$response = wp_json_encode(['status' => 'creating-site']);
+
+		if ( ! headers_sent()) {
+			header('Content-Type: application/json; charset=' . get_option('blog_charset'));
+			header('Cache-Control: no-cache, must-revalidate, max-age=0');
+			header('Content-Length: ' . strlen($response));
+
+			/*
+			 * The manual fallback below relies on the client being able to treat
+			 * the response body as complete after Content-Length bytes even though
+			 * PHP continues executing the publish in the same request.
+			 */
+			header('Connection: close');
+		}
+
+		echo $response;
+
+		$this->finish_pending_site_publish_response();
+	}
+
+	/**
+	 * Finishes or flushes the HTTP response while allowing PHP to keep running.
+	 *
+	 * @since 2.5.x
+	 * @return void
+	 */
+	protected function finish_pending_site_publish_response() {
+
+		if (function_exists('litespeed_finish_request')) {
+			litespeed_finish_request();
+			return;
+		}
+
+		if (function_exists('fastcgi_finish_request')) {
+			fastcgi_finish_request();
+			return;
+		}
+
+		/*
+		 * FrankenPHP does not expose a PHP-level finish_request() function in all
+		 * contexts. Flush every active output buffer and the SAPI buffer so the
+		 * loopback client can receive the Content-Length-delimited response before
+		 * the pending-site publish work starts.
+		 */
+		while (ob_get_level() > 0) {
+			ob_end_flush();
+		}
+
+		flush();
 	}
 
 	/**
