@@ -2124,7 +2124,7 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		$can_finish_request = (bool) apply_filters('wu_publish_pending_site_can_finish_request', $can_finish_request, $this);
 		$loopback_started = false;
 
-		if ($use_loopback && $can_finish_request) {
+		if ($use_loopback) {
 			// We first try to generate the site through request to start earlier as possible.
 			// Generate a short-lived HMAC token for the loopback request.
 			$expires   = time() + 60;
@@ -2143,7 +2143,8 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			);
 
 			$request_args = [
-				'timeout'   => 10,
+				'blocking'  => $can_finish_request,
+				'timeout'   => $can_finish_request ? 10 : 0.01,
 				/** This filter is documented in wp-includes/class-wp-http-streams.php */
 				'sslverify' => apply_filters('https_local_ssl_verify', false),
 				'headers'   => $headers,
@@ -2157,6 +2158,8 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			if (is_wp_error($result)) {
 				// translators: %s full error message.
 				wu_log_add("membership-{$this->get_id()}", sprintf(__('Failed to trigger async site creation. The site will not be created until the next cron run which is much slower: %s', 'ultimate-multisite'), $result->get_error_message()));
+			} elseif ( ! $can_finish_request) {
+				$loopback_started = true;
 			} else {
 				$code = (int) wp_remote_retrieve_response_code($result);
 				if ($code < 200 || $code >= 300) {

@@ -1345,6 +1345,54 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test publish_pending_site_async uses non-blocking loopback without finish support.
+	 *
+	 * Runtimes such as FrankenPHP do not expose fastcgi_finish_request(), so the
+	 * checkout request must trigger site creation in a separate non-blocking
+	 * loopback request rather than waiting for Action Scheduler cron.
+	 */
+	public function test_publish_pending_site_async_uses_non_blocking_loopback_without_finish_support(): void {
+
+		$membership = $this->create_membership();
+
+		$pending_site = $membership->create_pending_site([
+			'title'  => 'Test Site',
+			'domain' => 'test-' . wp_rand() . '.example.com',
+		]);
+
+		$membership->update_pending_site($pending_site);
+
+		$captured_args = null;
+		add_filter(
+			'pre_http_request',
+			function ($preempt, $r, $url) use (&$captured_args) {
+				if (strpos($url, 'wu_publish_pending_site') !== false) {
+					$captured_args = $r;
+				}
+
+				return ['response' => ['code' => false]];
+			},
+			10,
+			3
+		);
+
+		add_filter('wu_publish_pending_site_can_finish_request', '__return_false');
+
+		$membership->publish_pending_site_async();
+
+		$this->assertIsArray($captured_args, 'Loopback HTTP request should fire without finish-request support.');
+		$this->assertFalse($captured_args['blocking'], 'Loopback should be non-blocking without finish-request support.');
+		$this->assertSame(0.01, $captured_args['timeout'], 'Non-blocking loopback should use a tiny timeout.');
+		$this->assertTrue(
+			as_has_scheduled_action('wu_async_publish_pending_site', ['membership_id' => $membership->get_id()], 'membership'),
+			'Action Scheduler fallback should still be queued when the non-blocking loopback starts.'
+		);
+
+		remove_filter('wu_publish_pending_site_can_finish_request', '__return_false');
+		remove_filter('pre_http_request', 10);
+	}
+
+	/**
 	 * Test publish_pending_site_async falls back from non-2xx responses.
 	 *
 	 * Verifies that HTTP error responses still leave a queued Action Scheduler
