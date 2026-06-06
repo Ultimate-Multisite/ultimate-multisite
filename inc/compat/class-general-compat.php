@@ -65,6 +65,8 @@ class General_Compat {
 		 */
 		add_filter('wu_should_redirect_to_primary_domain', [$this, 'fix_divi_editor_screen']);
 
+		add_action('wu_duplicate_site', [$this, 'clear_divi_static_css_cache'], 20);
+
 		/**
 		 * WP Hide Pro
 	 *
@@ -330,6 +332,155 @@ class General_Compat {
 		}
 
 		return $should_redirect;
+	}
+
+	/**
+	 * Clear Divi's generated static CSS files after site duplication.
+	 *
+	 * Divi stores generated builder CSS outside the uploads tree under
+	 * wp-content/et-cache/{network_id}/{blog_id}/. A cloned site can keep
+	 * stale CSS generated before the copied Divi layout data is available,
+	 * leaving page modules with default spacing/positioning until the cache is
+	 * manually cleared. Removing only the cloned blog's cache directory forces
+	 * Divi to rebuild the files on the next frontend request.
+	 *
+	 * @since 2.5.1
+	 *
+	 * @param array|int|object $site Duplicated site payload.
+	 * @return void
+	 */
+	public function clear_divi_static_css_cache($site): void {
+
+		$blog_id = $this->get_duplicated_site_id($site);
+
+		if (2 > $blog_id || ! defined('WP_CONTENT_DIR')) {
+			return;
+		}
+
+		switch_to_blog($blog_id);
+
+		try {
+			foreach ($this->get_divi_static_css_cache_directories($blog_id) as $cache_dir) {
+				$this->delete_divi_static_css_cache_directory($cache_dir);
+			}
+		} finally {
+			restore_current_blog();
+		}
+	}
+
+	/**
+	 * Extract the duplicated site ID from the wu_duplicate_site payload.
+	 *
+	 * @since 2.5.1
+	 *
+	 * @param array|int|object $site Duplicated site payload.
+	 * @return int
+	 */
+	private function get_duplicated_site_id($site): int {
+
+		if (is_array($site) && isset($site['site_id'])) {
+			return (int) $site['site_id'];
+		}
+
+		if (is_array($site) && isset($site['blog_id'])) {
+			return (int) $site['blog_id'];
+		}
+
+		if (is_object($site) && isset($site->blog_id)) {
+			return (int) $site->blog_id;
+		}
+
+		if (is_object($site) && isset($site->site_id)) {
+			return (int) $site->site_id;
+		}
+
+		return (int) $site;
+	}
+
+	/**
+	 * Get possible Divi static CSS cache directories for a cloned blog.
+	 *
+	 * @since 2.5.1
+	 *
+	 * @param int $blog_id Blog ID.
+	 * @return array
+	 */
+	private function get_divi_static_css_cache_directories(int $blog_id): array {
+
+		$cache_root = trailingslashit(WP_CONTENT_DIR) . 'et-cache';
+		$paths      = [];
+		$site       = function_exists('get_site') ? get_site($blog_id) : null;
+		$network_id = $site && isset($site->site_id) ? (int) $site->site_id : 0;
+
+		if (0 === $network_id && function_exists('get_current_network_id')) {
+			$network_id = (int) get_current_network_id();
+		}
+
+		if (0 < $network_id) {
+			$paths[] = trailingslashit($cache_root) . $network_id . '/' . $blog_id;
+		}
+
+		/*
+		 * Older Divi/static-resource layouts did not include the network ID in
+		 * the path. Keep this as a no-op fallback when that directory is absent.
+		 */
+		$paths[] = trailingslashit($cache_root) . $blog_id;
+
+		return array_values(array_unique($paths));
+	}
+
+	/**
+	 * Safely delete a Divi static CSS cache directory.
+	 *
+	 * @since 2.5.1
+	 *
+	 * @param string $cache_dir Cache directory path.
+	 * @return void
+	 */
+	private function delete_divi_static_css_cache_directory(string $cache_dir): void {
+
+		$cache_root = trailingslashit(WP_CONTENT_DIR) . 'et-cache';
+
+		if ('' === $cache_dir || ! is_dir($cache_dir)) {
+			return;
+		}
+
+		$real_cache_dir  = realpath($cache_dir);
+		$real_cache_root = realpath($cache_root);
+
+		if (false === $real_cache_dir || false === $real_cache_root) {
+			return;
+		}
+
+		$real_cache_dir  = untrailingslashit(wp_normalize_path($real_cache_dir));
+		$real_cache_root = untrailingslashit(wp_normalize_path($real_cache_root));
+
+		if ($real_cache_root === $real_cache_dir || 0 !== strpos(trailingslashit($real_cache_dir), trailingslashit($real_cache_root))) {
+			return;
+		}
+
+		$iterator = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator($real_cache_dir, \FilesystemIterator::SKIP_DOTS),
+			\RecursiveIteratorIterator::CHILD_FIRST
+		);
+
+		foreach ($iterator as $file) {
+			$path = $file->getRealPath();
+
+			if (false === $path) {
+				continue;
+			}
+
+			if ($file->isDir()) {
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir, WordPress.PHP.NoSilencedErrors.Discouraged -- Removes an empty generated cache directory after deleting its contents.
+				@rmdir($path);
+			} else {
+				wp_delete_file($path);
+			}
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir, WordPress.PHP.NoSilencedErrors.Discouraged -- Removes the generated cloned-site Divi cache directory.
+		@rmdir($real_cache_dir);
 	}
 
 	/**
