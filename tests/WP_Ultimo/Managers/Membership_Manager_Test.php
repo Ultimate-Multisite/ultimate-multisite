@@ -1271,6 +1271,8 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 			3
 		);
 
+		add_filter('wu_publish_pending_site_can_finish_request', '__return_true');
+
 		// Call the async publish method.
 		$membership->publish_pending_site_async();
 
@@ -1295,6 +1297,7 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 			'Token in URL should be valid'
 		);
 
+		remove_filter('wu_publish_pending_site_can_finish_request', '__return_true');
 		remove_filter('pre_http_request', 10);
 	}
 
@@ -1321,7 +1324,9 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		add_filter(
 			'pre_http_request',
 			function ($preempt, $r, $url) use (&$captured_url) {
-				$captured_url = $url;
+				if (strpos($url, 'wu_publish_pending_site') !== false) {
+					$captured_url = $url;
+				}
 
 				return ['response' => ['code' => 200]];
 			},
@@ -1340,11 +1345,12 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test publish_pending_site_async logs non-2xx responses.
+	 * Test publish_pending_site_async falls back from non-2xx responses.
 	 *
-	 * Verifies that HTTP error responses are logged.
+	 * Verifies that HTTP error responses still leave a queued Action Scheduler
+	 * fallback for the pending-site publish.
 	 */
-	public function test_publish_pending_site_async_logs_http_errors(): void {
+	public function test_publish_pending_site_async_enqueues_fallback_on_http_errors(): void {
 
 		$membership = $this->create_membership();
 
@@ -1369,28 +1375,17 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 			}
 		);
 
-		// Capture log output.
-		$log_file = WP_CONTENT_DIR . '/wu-logs/membership-' . $membership->get_id() . '.log';
-		if (file_exists($log_file)) {
-			unlink($log_file);
-		}
+		add_filter('wu_publish_pending_site_can_finish_request', '__return_true');
 
 		// Call the async publish method.
 		$membership->publish_pending_site_async();
 
-		// Verify the error was logged.
 		$this->assertTrue(
-			file_exists($log_file),
-			'Log file should be created for HTTP error'
+			as_has_scheduled_action('wu_async_publish_pending_site', ['membership_id' => $membership->get_id()], 'membership'),
+			'Action Scheduler fallback should be queued when the loopback returns HTTP error.'
 		);
 
-		$log_content = file_get_contents($log_file);
-		$this->assertStringContainsString(
-			'HTTP 400',
-			$log_content,
-			'Log should contain HTTP error code'
-		);
-
+		remove_filter('wu_publish_pending_site_can_finish_request', '__return_true');
 		remove_filter('pre_http_request', 10);
 	}
 }

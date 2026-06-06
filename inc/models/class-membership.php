@@ -2119,8 +2119,12 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		 * @param Membership $membership   The membership publishing its pending site.
 		 */
 		$use_loopback = (bool) apply_filters('wu_publish_pending_site_use_loopback', true, $this);
+		$can_finish_request = function_exists('litespeed_finish_request')
+			|| function_exists('fastcgi_finish_request');
+		$can_finish_request = (bool) apply_filters('wu_publish_pending_site_can_finish_request', $can_finish_request, $this);
+		$loopback_started = false;
 
-		if ($use_loopback) {
+		if ($use_loopback && $can_finish_request) {
 			// We first try to generate the site through request to start earlier as possible.
 			// Generate a short-lived HMAC token for the loopback request.
 			$expires   = time() + 60;
@@ -2145,10 +2149,6 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 				'headers'   => $headers,
 			];
 
-			if ( ! function_exists('fastcgi_finish_request')) {
-				// We do not have fastcgi but can make the request continue without listening with blocking = false.
-				$request_args['blocking'] = false;
-			}
 			$result = wp_remote_request(
 				$rest_path,
 				$request_args
@@ -2165,11 +2165,33 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 						// translators: %d HTTP status code.
 						sprintf(__('Loopback fast-path returned HTTP %d — falling back to Action Scheduler.', 'ultimate-multisite'), $code)
 					);
+				} else {
+					$loopback_started = true;
 				}
 			}
 		}
 
 		wu_enqueue_async_action('wu_async_publish_pending_site', ['membership_id' => $this->get_id()], 'membership');
+
+		if ( ! $loopback_started) {
+			$this->dispatch_pending_site_async_queue();
+		}
+	}
+
+	/**
+	 * Dispatches the Action Scheduler async runner immediately.
+	 *
+	 * @since 2.5.x
+	 * @return void
+	 */
+	protected function dispatch_pending_site_async_queue() {
+
+		if ( ! class_exists('\ActionScheduler') || ! class_exists('\ActionScheduler_AsyncRequest_QueueRunner')) {
+			return;
+		}
+
+		$runner = new \ActionScheduler_AsyncRequest_QueueRunner(\ActionScheduler::store());
+		$runner->maybe_dispatch();
 	}
 
 	/**
