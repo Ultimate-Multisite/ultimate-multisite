@@ -183,10 +183,16 @@ jobs:
         working-directory: .wp-performance-action/env
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        timeout-minutes: 15
+        run: |
+          if ! timeout 12m npx playwright install --with-deps chromium; then
+            echo "Playwright browser install timed out or failed; skipping advisory performance metrics."
+            echo "PERF_SKIP=true" >> "$GITHUB_ENV"
+          fi
         working-directory: .wp-performance-action/env
 
       - name: Prepare merged blueprint
+        if: env.PERF_SKIP != 'true'
         run: |
           BLUEPRINT=$(realpath "$GITHUB_WORKSPACE/current/.github/performance-blueprint.json")
           jq -s 'map(to_entries)|flatten|group_by(.key)|map({(.[0].key):map(.value)|add})|add' \
@@ -197,6 +203,7 @@ jobs:
 
       # ── Baseline run (main branch) ─────────────────────────────────
       - name: Start server with baseline plugin
+        if: env.PERF_SKIP != 'true'
         run: |
           BASELINE_PATH=$(realpath "$GITHUB_WORKSPACE/baseline")
           ./node_modules/@wp-playground/cli/wp-playground.js server \
@@ -209,6 +216,7 @@ jobs:
         working-directory: .wp-performance-action/env
 
       - name: Wait for baseline server
+        if: env.PERF_SKIP != 'true'
         run: |
           echo "Waiting for baseline server on port 9400..."
           for i in $(seq 1 60); do
@@ -223,6 +231,7 @@ jobs:
           exit 1
 
       - name: Run baseline performance tests
+        if: env.PERF_SKIP != 'true'
         run: |
           mkdir -p "$WP_PERF_ARTIFACTS"
           for attempt in 1 2 3; do
@@ -257,6 +266,7 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "true"
 
       - name: Stop baseline server
+        if: env.PERF_SKIP != 'true'
         run: |
           npm run stop-server 2>/dev/null || true
           # Clean artifacts for the PR run
@@ -265,6 +275,7 @@ jobs:
 
       # ── PR branch run ───────────────────────────────────────────────
       - name: Start server with PR branch plugin
+        if: env.PERF_SKIP != 'true'
         run: |
           CURRENT_PATH=$(realpath "$GITHUB_WORKSPACE/current")
           ./node_modules/@wp-playground/cli/wp-playground.js server \
@@ -276,6 +287,7 @@ jobs:
         working-directory: .wp-performance-action/env
 
       - name: Wait for PR server
+        if: env.PERF_SKIP != 'true'
         run: |
           echo "Waiting for PR server on port 9400..."
           for i in $(seq 1 60); do
@@ -290,6 +302,7 @@ jobs:
           exit 1
 
       - name: Run PR branch performance tests
+        if: env.PERF_SKIP != 'true'
         run: |
           mkdir -p "$WP_PERF_ARTIFACTS"
           for attempt in 1 2 3; do
@@ -320,14 +333,14 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "true"
 
       - name: Stop server
-        if: always()
+        if: always() && env.PERF_SKIP != 'true'
         run: npm run stop-server 2>/dev/null || true
         working-directory: .wp-performance-action/env
 
       # ── Generate comparison report ──────────────────────────────────
       - name: Generate performance comparison report
         id: prepare-results
-        if: always()
+        if: always() && env.PERF_SKIP != 'true'
         run: |
           RESULTS_JSON="$WP_PERF_ARTIFACTS/performance-results.json"
           if [ ! -f "$RESULTS_JSON" ]; then
