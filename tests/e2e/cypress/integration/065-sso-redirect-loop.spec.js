@@ -16,13 +16,12 @@
  *    re-triggering on every page load.
  *
  * Test environment: wp-env uses localhost:8889 (main site) and
- * sso-test.ultimate-multisite.test:8889 (mapped subsite domain) — two
- * genuinely different hostnames with separate cookie jars, which naturally
- * exercises cross-domain SSO.
+ * 127.0.0.1:8889 (alternate host) — two genuinely different hostnames with
+ * separate cookie jars, which naturally exercises the redirect-loop guard.
  */
 describe("SSO Redirect Loop Prevention", () => {
   const mainSiteUrl = "http://localhost:8889";
-  const mappedDomainHost = "sso-test.ultimate-multisite.test";
+  const mappedDomainHost = "127.0.0.1";
   const mappedDomainUrl = `http://${mappedDomainHost}:8889`;
 
   before(() => {
