@@ -117,7 +117,11 @@ wp_cache_delete('domain:' . $mapped_domain_host, 'domain_mappings');
 wp_cache_delete('domain:127.0.0.1' . $port, 'domain_mappings');
 wp_cache_delete('domain:127.0.0.1', 'domain_mappings');
 
-// 3. Enable SSO and disable the loading overlay (avoids flicker in tests).
+// 3. Enable domain mapping, enable SSO, and disable the loading overlay
+//    (avoids flicker in tests). Domain mapping must be enabled before the
+//    next mapped-host request so sunrise registers the mapped site instead of
+//    falling back to WordPress' main-site redirect.
+wu_save_setting('enable_domain_mapping', true);
 wu_save_setting('enable_sso', true);
 wu_save_setting('enable_sso_loading_overlay', false);
 
