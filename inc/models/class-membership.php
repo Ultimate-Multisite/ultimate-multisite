@@ -62,6 +62,13 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 	const META_PENDING_SITE = 'pending_site';
 
 	/**
+	 * Delay before the pending-site watchdog fallback runs.
+	 *
+	 * @since 2.5.x
+	 */
+	const PENDING_SITE_PUBLISH_WATCHDOG_DELAY = 5 * MINUTE_IN_SECONDS;
+
+	/**
 	 * ID of the customer attached to this membership.
 	 *
 	 * @since 2.0.0
@@ -2118,13 +2125,16 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		 * @param bool       $use_loopback Whether to trigger the loopback request.
 		 * @param Membership $membership   The membership publishing its pending site.
 		 */
-		$use_loopback = (bool) apply_filters('wu_publish_pending_site_use_loopback', true, $this);
+		$use_loopback       = (bool) apply_filters('wu_publish_pending_site_use_loopback', true, $this);
 		$can_finish_request = function_exists('litespeed_finish_request')
 			|| function_exists('fastcgi_finish_request');
 		$can_finish_request = (bool) apply_filters('wu_publish_pending_site_can_finish_request', $can_finish_request, $this);
-		$loopback_started = false;
+		$loopback_started   = false;
+		$args               = ['membership_id' => $this->get_id()];
 
 		if ($use_loopback) {
+			$this->schedule_pending_site_async_watchdog($args);
+
 			// We first try to generate the site through request to start earlier as possible.
 			// Generate a short-lived HMAC token for the loopback request.
 			$expires   = time() + 60;
@@ -2174,11 +2184,47 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			}
 		}
 
-		wu_enqueue_async_action('wu_async_publish_pending_site', ['membership_id' => $this->get_id()], 'membership');
+		if ($loopback_started && $can_finish_request) {
+			return;
+		}
+
+		wu_enqueue_async_action('wu_async_publish_pending_site', $args, 'membership');
 
 		if ( ! $loopback_started) {
 			$this->dispatch_pending_site_async_queue();
 		}
+	}
+
+	/**
+	 * Schedules a delayed Action Scheduler watchdog for a loopback publish attempt.
+	 *
+	 * A blocking 2xx loopback only proves the HMAC-gated AJAX handler started and
+	 * flushed its response; the long-running site publish can still be killed after
+	 * that response. Keep a delayed fallback so the site is still published without
+	 * creating the immediate duplicate AS race fixed by GH#1305.
+	 *
+	 * @since 2.5.x
+	 *
+	 * @param array $args Action Scheduler arguments.
+	 * @return void
+	 */
+	protected function schedule_pending_site_async_watchdog($args) {
+
+		if (false !== wu_next_scheduled_action('wu_async_publish_pending_site', $args, 'membership')) {
+			return;
+		}
+
+		/**
+		 * Filters the delayed fallback window for pending-site loopback publishing.
+		 *
+		 * @since 2.5.x
+		 *
+		 * @param int        $delay      Delay in seconds before the watchdog fallback runs.
+		 * @param Membership $membership The membership publishing its pending site.
+		 */
+		$delay = (int) apply_filters('wu_publish_pending_site_watchdog_delay', self::PENDING_SITE_PUBLISH_WATCHDOG_DELAY, $this);
+
+		wu_schedule_single_action(time() + max(1, $delay), 'wu_async_publish_pending_site', $args, 'membership');
 	}
 
 	/**
@@ -2338,6 +2384,8 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 
 		$profile_stage = microtime(true);
 		$this->delete_pending_site();
+		wu_unschedule_action('wu_async_publish_pending_site', ['membership_id' => $this->get_id()], 'membership');
+
 		if (is_numeric($saved) && class_exists('\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider')) {
 			\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider::profile_stage(
 				(int) $saved,

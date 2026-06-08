@@ -1260,13 +1260,15 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 
 		// Mock wp_remote_request to capture the URL.
 		$captured_url = null;
+		$http_filter  = function ($preempt, $r, $url) use (&$captured_url) {
+			$captured_url = $url;
+			// Return a successful response to prevent actual HTTP request.
+			return ['response' => ['code' => 200]];
+		};
+
 		add_filter(
 			'pre_http_request',
-			function ($preempt, $r, $url) use (&$captured_url) {
-				$captured_url = $url;
-				// Return a successful response to prevent actual HTTP request.
-				return ['response' => ['code' => 200]];
-			},
+			$http_filter,
 			10,
 			3
 		);
@@ -1298,7 +1300,54 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		);
 
 		remove_filter('wu_publish_pending_site_can_finish_request', '__return_true');
-		remove_filter('pre_http_request', 10);
+		remove_filter('pre_http_request', $http_filter, 10);
+	}
+
+	/**
+	 * Test successful blocking loopback gets a delayed watchdog fallback only.
+	 *
+	 * A blocking HTTP 2xx means the loopback publish handler started, not that the
+	 * long-running publish completed. Schedule a delayed watchdog to preserve the
+	 * retry path, but do not enqueue an immediate duplicate Action Scheduler job.
+	 */
+	public function test_publish_pending_site_async_schedules_delayed_watchdog_after_successful_loopback(): void {
+
+		$membership = $this->create_membership();
+
+		$pending_site = $membership->create_pending_site([
+			'title'  => 'Test Site',
+			'domain' => 'test-' . wp_rand() . '.example.com',
+		]);
+
+		$membership->update_pending_site($pending_site);
+
+		$http_filter = function ($preempt, $r, $url) {
+			unset($preempt, $r, $url);
+
+			return ['response' => ['code' => 200]];
+		};
+
+		$delay_filter = function () {
+			return 120;
+		};
+
+		add_filter('pre_http_request', $http_filter, 10, 3);
+		add_filter('wu_publish_pending_site_can_finish_request', '__return_true');
+		add_filter('wu_publish_pending_site_watchdog_delay', $delay_filter);
+
+		$membership->publish_pending_site_async();
+
+		$scheduled_at = wu_next_scheduled_action('wu_async_publish_pending_site', ['membership_id' => $membership->get_id()], 'membership');
+
+		$this->assertIsInt(
+			$scheduled_at,
+			'Successful blocking loopback should schedule a delayed watchdog instead of an immediate async action.'
+		);
+		$this->assertGreaterThan(time() + 60, $scheduled_at, 'Watchdog fallback should be delayed to avoid an immediate duplicate publish race.');
+
+		remove_filter('wu_publish_pending_site_watchdog_delay', $delay_filter);
+		remove_filter('wu_publish_pending_site_can_finish_request', '__return_true');
+		remove_filter('pre_http_request', $http_filter, 10);
 	}
 
 	/**
@@ -1321,15 +1370,17 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$membership->update_pending_site($pending_site);
 
 		$captured_url = null;
+		$http_filter  = function ($preempt, $r, $url) use (&$captured_url) {
+			if (strpos($url, 'wu_publish_pending_site') !== false) {
+				$captured_url = $url;
+			}
+
+			return ['response' => ['code' => 200]];
+		};
+
 		add_filter(
 			'pre_http_request',
-			function ($preempt, $r, $url) use (&$captured_url) {
-				if (strpos($url, 'wu_publish_pending_site') !== false) {
-					$captured_url = $url;
-				}
-
-				return ['response' => ['code' => 200]];
-			},
+			$http_filter,
 			10,
 			3
 		);
@@ -1339,9 +1390,13 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$membership->publish_pending_site_async();
 
 		$this->assertNull($captured_url, 'Loopback HTTP request should not fire when the filter returns false.');
+		$this->assertTrue(
+			as_has_scheduled_action('wu_async_publish_pending_site', ['membership_id' => $membership->get_id()], 'membership'),
+			'Action Scheduler fallback should be queued when loopback is disabled.'
+		);
 
 		remove_filter('wu_publish_pending_site_use_loopback', '__return_false');
-		remove_filter('pre_http_request', 10);
+		remove_filter('pre_http_request', $http_filter, 10);
 	}
 
 	/**
@@ -1363,15 +1418,17 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$membership->update_pending_site($pending_site);
 
 		$captured_args = null;
+		$http_filter   = function ($preempt, $r, $url) use (&$captured_args) {
+			if (strpos($url, 'wu_publish_pending_site') !== false) {
+				$captured_args = $r;
+			}
+
+			return ['response' => ['code' => false]];
+		};
+
 		add_filter(
 			'pre_http_request',
-			function ($preempt, $r, $url) use (&$captured_args) {
-				if (strpos($url, 'wu_publish_pending_site') !== false) {
-					$captured_args = $r;
-				}
-
-				return ['response' => ['code' => false]];
-			},
+			$http_filter,
 			10,
 			3
 		);
@@ -1389,7 +1446,7 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		);
 
 		remove_filter('wu_publish_pending_site_can_finish_request', '__return_false');
-		remove_filter('pre_http_request', 10);
+		remove_filter('pre_http_request', $http_filter, 10);
 	}
 
 	/**
@@ -1411,16 +1468,22 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$membership->update_pending_site($pending_site);
 
 		// Mock wp_remote_request to return a 400 error.
+		$http_filter = function ($preempt, $r, $url) {
+			unset($preempt, $r, $url);
+
+			return [
+				'response' => [
+					'code'    => 400,
+					'message' => 'Bad Request',
+				],
+			];
+		};
+
 		add_filter(
 			'pre_http_request',
-			function () {
-				return [
-					'response' => [
-						'code'    => 400,
-						'message' => 'Bad Request',
-					],
-				];
-			}
+			$http_filter,
+			10,
+			3
 		);
 
 		add_filter('wu_publish_pending_site_can_finish_request', '__return_true');
@@ -1434,6 +1497,6 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		);
 
 		remove_filter('wu_publish_pending_site_can_finish_request', '__return_true');
-		remove_filter('pre_http_request', 10);
+		remove_filter('pre_http_request', $http_filter, 10);
 	}
 }
