@@ -82,6 +82,31 @@ class Checkout_Element extends Base_Element {
 	protected $public = true;
 
 	/**
+	 * Tracks if no-cache checkout signals were already sent for this request.
+	 *
+	 * @since 2.4.14
+	 * @var bool
+	 */
+	protected $checkout_nocache_sent = false;
+
+	/**
+	 * Initializes hooks specific to the checkout element.
+	 *
+	 * @since 2.4.14
+	 * @return void
+	 */
+	public function init() {
+
+		parent::init();
+
+		add_action('wu_ajax_wu_render_checkout', [$this, 'render_deferred_checkout']);
+
+		add_action('wu_ajax_nopriv_wu_render_checkout', [$this, 'render_deferred_checkout']);
+
+		add_filter('wu_light_ajax_should_skip_referer_check', [$this, 'allow_deferred_checkout_ajax_without_referer']);
+	}
+
+	/**
 	 * The icon of the UI element.
 	 * e.g. return fa fa-search
 	 *
@@ -161,6 +186,23 @@ class Checkout_Element extends Base_Element {
 			'type'  => 'text',
 		];
 
+		$fields['defer'] = [
+			'title' => __('Defer Checkout Loading', 'ultimate-multisite'),
+			'desc'  => __('Outputs a cache-safe placeholder first, then loads fresh checkout markup after visitor intent.', 'ultimate-multisite'),
+			'type'  => 'toggle',
+		];
+
+		$fields['defer_trigger'] = [
+			'title'   => __('Deferred Loading Trigger', 'ultimate-multisite'),
+			'desc'    => __('Choose when the deferred checkout placeholder should request the live checkout form.', 'ultimate-multisite'),
+			'type'    => 'select',
+			'options' => [
+				'viewport' => __('When the placeholder enters the viewport', 'ultimate-multisite'),
+				'click'    => __('Only after a click or focus', 'ultimate-multisite'),
+				'load'     => __('As soon as the page loads', 'ultimate-multisite'),
+			],
+		];
+
 		return $fields;
 	}
 
@@ -213,6 +255,8 @@ class Checkout_Element extends Base_Element {
 			'step'                   => false,
 			'display_title'          => false,
 			'membership_limitations' => [],
+			'defer'                  => false,
+			'defer_trigger'          => 'viewport',
 		];
 	}
 
@@ -241,7 +285,63 @@ class Checkout_Element extends Base_Element {
 			return;
 		}
 
+		$pre_loaded_attributes = is_array($this->pre_loaded_attributes) ? $this->pre_loaded_attributes : [];
+
+		$atts = wp_parse_args($pre_loaded_attributes, $this->defaults());
+
+		if ($this->should_defer_checkout($atts)) {
+			return;
+		}
+
+		$this->send_checkout_nocache_headers($atts);
+
 		do_action('wu_setup_checkout', $this);
+	}
+
+	/**
+	 * Skips the checkout script enqueue pass for cache-safe deferred placeholders.
+	 *
+	 * @since 2.4.14
+	 * @return void
+	 */
+	public function enqueue_element_scripts() {
+
+		global $post;
+
+		if ( ! is_a($post, '\WP_Post')) {
+			return;
+		}
+
+		if ($this->contains_current_element($post->post_content, $post)) {
+			$pre_loaded_attributes = is_array($this->pre_loaded_attributes) ? $this->pre_loaded_attributes : [];
+
+			$atts = wp_parse_args($pre_loaded_attributes, $this->defaults());
+
+			if ($this->should_defer_checkout($atts)) {
+				return;
+			}
+		}
+
+		parent::enqueue_element_scripts();
+	}
+
+	/**
+	 * Allows the deferred checkout light-AJAX request to work from cached pages.
+	 *
+	 * Cached placeholders can outlive nonce windows, so the endpoint intentionally
+	 * avoids relying on the cacheable `r` nonce. The endpoint only renders the same
+	 * public checkout form that the shortcode/block would render directly.
+	 *
+	 * @since 2.4.14
+	 *
+	 * @param array $allowed_actions Light-AJAX actions allowed without referer checks.
+	 * @return array
+	 */
+	public function allow_deferred_checkout_ajax_without_referer($allowed_actions) {
+
+		$allowed_actions[] = 'wu_render_checkout';
+
+		return array_unique($allowed_actions);
 	}
 
 	/**
@@ -273,6 +373,507 @@ class Checkout_Element extends Base_Element {
 			// translators: %s the error message.
 			wu_log_add('checkout', sprintf(__('An error occurred while compiling scss: %s', 'ultimate-multisite'), $e->getMessage()), LogLevel::ERROR);
 		}
+	}
+
+	/**
+	 * Renders the live checkout markup for deferred placeholders.
+	 *
+	 * @since 2.4.14
+	 * @return void
+	 */
+	public function render_deferred_checkout() {
+
+		$atts = $this->get_deferred_checkout_request_atts();
+
+		$_REQUEST['checkout_form'] = $atts['slug']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		$this->pre_loaded_attributes = $atts;
+
+		$this->set_checkout_intent_cookie();
+
+		$this->send_checkout_nocache_headers($atts);
+
+		$this->setup();
+
+		do_action('wu_checkout_scripts', null, $this);
+
+		ob_start();
+
+		$this->output($atts);
+
+		$html = ob_get_clean();
+
+		ob_start();
+
+		wp_print_styles(['wu-checkout', 'wu-admin', 'wu-password']);
+
+		wp_print_scripts(['wu-checkout']);
+
+		$assets = ob_get_clean();
+
+		wp_send_json_success(
+			[
+				'html' => $assets . $html,
+			]
+		);
+	}
+
+	/**
+	 * Builds safe checkout attributes from the deferred checkout request.
+	 *
+	 * @since 2.4.14
+	 * @return array
+	 */
+	protected function get_deferred_checkout_request_atts() {
+
+		$membership_limitations = wu_request('membership_limitations', []);
+
+		if (is_string($membership_limitations)) {
+			$membership_limitations = explode(',', $membership_limitations);
+		}
+
+		if ( ! is_array($membership_limitations)) {
+			$membership_limitations = [];
+		}
+
+		$membership_limitations = array_values(array_filter(array_map('sanitize_key', $membership_limitations)));
+
+		return wp_parse_args(
+			[
+				'slug'                   => sanitize_text_field((string) wu_request('slug', 'main-form')),
+				'step'                   => sanitize_key((string) wu_request('step', '')) ?: false,
+				'display_title'          => $this->is_truthy_attribute(wu_request('display_title', false)),
+				'membership_limitations' => $membership_limitations,
+				'defer'                  => false,
+			],
+			$this->defaults()
+		);
+	}
+
+	/**
+	 * Sets a lightweight intent cookie that cache layers can use as a bypass signal.
+	 *
+	 * @since 2.4.14
+	 * @return void
+	 */
+	protected function set_checkout_intent_cookie() {
+
+		$cookie = new \Delight\Cookie\Cookie('wu_checkout_intent');
+		$cookie->setValue('1');
+		$cookie->setMaxAge(HOUR_IN_SECONDS);
+		$cookie->setPath('/');
+		$cookie->setDomain(COOKIE_DOMAIN);
+		$cookie->setHttpOnly(true);
+		$cookie->setSecureOnly(is_ssl());
+		$cookie->setSameSiteRestriction('Lax');
+		$cookie->save();
+
+		$_COOKIE['wu_checkout_intent'] = '1';
+	}
+
+	/**
+	 * Sends no-cache signals for live checkout markup.
+	 *
+	 * @since 2.4.14
+	 *
+	 * @param array $atts Checkout block/shortcode attributes.
+	 * @return void
+	 */
+	protected function send_checkout_nocache_headers($atts) {
+
+		if ($this->checkout_nocache_sent) {
+			return;
+		}
+
+		$this->checkout_nocache_sent = true;
+
+		if ( ! defined('DONOTCACHEPAGE')) {
+			define('DONOTCACHEPAGE', true); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound
+		}
+
+		/**
+		 * Fires when live checkout output requires a fresh, non-cacheable response.
+		 *
+		 * Cache adapters can use this action to integrate with host-specific bypass
+		 * APIs that do not rely on standard WordPress constants or HTTP headers.
+		 *
+		 * @since 2.4.14
+		 *
+		 * @param array            $atts Checkout block/shortcode attributes.
+		 * @param Checkout_Element $element Checkout element instance.
+		 */
+		do_action('wu_checkout_nocache_required', $atts, $this);
+
+		do_action('litespeed_control_set_nocache', 'Ultimate Multisite checkout contains per-request state.'); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+
+		if (headers_sent()) {
+			return;
+		}
+
+		nocache_headers();
+
+		$headers = [
+			'Cache-Control'             => 'no-store, no-cache, must-revalidate, max-age=0, private',
+			'Pragma'                    => 'no-cache',
+			'Expires'                   => 'Wed, 11 Jan 1984 05:00:00 GMT',
+			'Surrogate-Control'         => 'no-store',
+			'CDN-Cache-Control'         => 'no-store',
+			'X-Accel-Expires'           => '0',
+			'X-LiteSpeed-Cache-Control' => 'no-cache',
+		];
+
+		/**
+		 * Filters additional no-cache headers sent with live checkout markup.
+		 *
+		 * @since 2.4.14
+		 *
+		 * @param array            $headers Header name/value pairs.
+		 * @param array            $atts Checkout block/shortcode attributes.
+		 * @param Checkout_Element $element Checkout element instance.
+		 */
+		$headers = apply_filters('wu_checkout_nocache_headers', $headers, $atts, $this);
+
+		foreach ($headers as $name => $value) {
+			$value = str_replace(["\r", "\n"], '', (string) $value);
+
+			header(sprintf('%s: %s', sanitize_key($name), $value), true);
+		}
+	}
+
+	/**
+	 * Checks if a checkout attribute value should be treated as true.
+	 *
+	 * @since 2.4.14
+	 *
+	 * @param mixed $value Attribute value.
+	 * @return bool
+	 */
+	protected function is_truthy_attribute($value) {
+
+		if (is_bool($value)) {
+			return $value;
+		}
+
+		if (is_string($value)) {
+			return in_array(strtolower($value), ['1', 'true', 'yes', 'on'], true);
+		}
+
+		return (bool) $value;
+	}
+
+	/**
+	 * Checks if the current request already expresses live checkout intent.
+	 *
+	 * @since 2.4.14
+	 * @return bool
+	 */
+	protected function has_checkout_intent() {
+
+		if (isset($_COOKIE['wu_checkout_intent']) || isset($_COOKIE['wu_session_signup'])) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			return true;
+		}
+
+		$live_request_keys = apply_filters(
+			'wu_checkout_live_request_keys',
+			[
+				'checkout_action',
+				'checkout_form',
+				'payment',
+				'payment_id',
+				'pre-flight',
+				'resume_checkout',
+				'step',
+				'wu_form',
+			],
+			$this
+		);
+
+		foreach ($live_request_keys as $request_key) {
+			if (wu_request($request_key)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Checks if checkout output should be deferred for cache safety.
+	 *
+	 * @since 2.4.14
+	 *
+	 * @param array $atts Checkout block/shortcode attributes.
+	 * @return bool
+	 */
+	protected function should_defer_checkout($atts) {
+
+		if (wu_is_update_page() || wu_is_new_site_page() || $this->is_thank_you_page()) {
+			return false;
+		}
+
+		$should_defer = $this->is_truthy_attribute($atts['defer'] ?? false) && ! $this->has_checkout_intent();
+
+		return apply_filters('wu_checkout_should_defer_output', $should_defer, $atts, $this);
+	}
+
+	/**
+	 * Returns a supported deferred checkout trigger.
+	 *
+	 * @since 2.4.14
+	 *
+	 * @param array $atts Checkout block/shortcode attributes.
+	 * @return string
+	 */
+	protected function get_deferred_checkout_trigger($atts) {
+
+		$trigger = sanitize_key((string) wu_get_isset($atts, 'defer_trigger', 'viewport'));
+
+		return in_array($trigger, ['click', 'load', 'viewport'], true) ? $trigger : 'viewport';
+	}
+
+	/**
+	 * Builds the payload used by the deferred checkout request.
+	 *
+	 * @since 2.4.14
+	 *
+	 * @param array $atts Checkout block/shortcode attributes.
+	 * @return array
+	 */
+	protected function get_deferred_checkout_payload($atts) {
+
+		$membership_limitations = wu_get_isset($atts, 'membership_limitations', []);
+
+		if ( ! is_array($membership_limitations)) {
+			$membership_limitations = [];
+		}
+
+		return [
+			'action'                 => 'wu_render_checkout',
+			'slug'                   => sanitize_text_field((string) wu_get_isset($atts, 'slug', 'main-form')),
+			'step'                   => sanitize_key((string) wu_get_isset($atts, 'step', '')),
+			'display_title'          => $this->is_truthy_attribute(wu_get_isset($atts, 'display_title', false)) ? 1 : 0,
+			'membership_limitations' => array_values(array_filter(array_map('sanitize_key', $membership_limitations))),
+		];
+	}
+
+	/**
+	 * Outputs a cache-safe placeholder that can request live checkout markup later.
+	 *
+	 * @since 2.4.14
+	 *
+	 * @param array $atts Checkout block/shortcode attributes.
+	 * @return void
+	 */
+	protected function output_deferred_placeholder($atts) {
+
+		$placeholder_id = wp_unique_id('wu-checkout-deferred-');
+		$endpoint       = wu_ajax_url('init', ['action' => 'wu_render_checkout']);
+		$payload        = $this->get_deferred_checkout_payload($atts);
+		$trigger        = $this->get_deferred_checkout_trigger($atts);
+
+		?>
+		<div
+			id="<?php echo esc_attr($placeholder_id); ?>"
+			class="wu-checkout-deferred wu-styling"
+			data-wu-checkout-deferred="1"
+			data-endpoint="<?php echo esc_url($endpoint); ?>"
+			data-trigger="<?php echo esc_attr($trigger); ?>"
+			data-payload="<?php echo esc_attr(wp_json_encode($payload)); ?>"
+			data-error-message="<?php echo esc_attr__('We could not load the checkout form. Please refresh the page and try again.', 'ultimate-multisite'); ?>"
+		>
+			<div class="wu-checkout-deferred__placeholder wu-p-4 wu-border wu-border-solid wu-border-gray-300 wu-rounded wu-text-center">
+				<p class="wu-m-0 wu-mb-3"><?php esc_html_e('Checkout is ready when you are.', 'ultimate-multisite'); ?></p>
+				<button type="button" class="button button-primary" data-wu-checkout-deferred-button>
+					<?php esc_html_e('Start checkout', 'ultimate-multisite'); ?>
+				</button>
+				<span class="wu-checkout-deferred__loading wu-ml-2" hidden data-wu-checkout-deferred-loading>
+					<?php esc_html_e('Loading checkout...', 'ultimate-multisite'); ?>
+				</span>
+			</div>
+			<div class="wu-checkout-deferred__target" hidden data-wu-checkout-deferred-target></div>
+		</div>
+		<script>
+		(function() {
+			var root = document.getElementById('<?php echo esc_js($placeholder_id); ?>');
+
+			if (! root) {
+				return;
+			}
+
+			var button = root.querySelector('[data-wu-checkout-deferred-button]');
+			var loading = root.querySelector('[data-wu-checkout-deferred-loading]');
+			var target = root.querySelector('[data-wu-checkout-deferred-target]');
+			var endpoint = root.getAttribute('data-endpoint');
+			var trigger = root.getAttribute('data-trigger') || 'viewport';
+			var loaded = false;
+			var payload = {};
+
+			try {
+				payload = JSON.parse(root.getAttribute('data-payload') || '{}');
+			} catch (error) {
+				payload = {};
+			}
+
+			function appendParam(parts, key, value) {
+				if (Array.isArray(value)) {
+					value.forEach(function(item) {
+						appendParam(parts, key + '[]', item);
+					});
+
+					return;
+				}
+
+				parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(value));
+			}
+
+			function executeScripts(container) {
+				var scripts = container.querySelectorAll('script');
+
+				scripts.forEach(function(script) {
+					var replacement = document.createElement('script');
+
+					Array.prototype.forEach.call(script.attributes, function(attribute) {
+						replacement.setAttribute(attribute.name, attribute.value);
+					});
+
+					replacement.async = false;
+
+					if (script.src) {
+						replacement.src = script.src;
+					} else {
+						replacement.text = script.text || script.textContent || script.innerHTML || '';
+					}
+
+					script.parentNode.replaceChild(replacement, script);
+				});
+			}
+
+			function setLoading(isLoading) {
+				if (button) {
+					button.disabled = isLoading;
+				}
+
+				if (loading) {
+					loading.hidden = ! isLoading;
+				}
+			}
+
+			function showError() {
+				var message = root.getAttribute('data-error-message');
+				var paragraph;
+
+				setLoading(false);
+
+				if (target) {
+					target.hidden = false;
+					target.innerHTML = '';
+					paragraph = document.createElement('p');
+					paragraph.className = 'wu-text-red-600';
+					paragraph.textContent = message;
+					target.appendChild(paragraph);
+				}
+			}
+
+			function announceLoaded() {
+				var event;
+
+				if ('function' === typeof window.Event) {
+					event = new Event('wu_checkout_deferred_loaded', {bubbles: true});
+				} else {
+					event = document.createEvent('Event');
+					event.initEvent('wu_checkout_deferred_loaded', true, true);
+				}
+
+				root.dispatchEvent(event);
+			}
+
+			function loadCheckout() {
+				var parts = [];
+				var request;
+
+				if (loaded || ! endpoint || ! target) {
+					return;
+				}
+
+				loaded = true;
+				setLoading(true);
+
+				Object.keys(payload).forEach(function(key) {
+					appendParam(parts, key, payload[key]);
+				});
+
+				request = new XMLHttpRequest();
+				request.open('POST', endpoint, true);
+				request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+
+				request.onreadystatechange = function() {
+					var response;
+					var html = '';
+
+					if (4 !== request.readyState) {
+						return;
+					}
+
+					if (request.status < 200 || request.status >= 300) {
+						showError();
+
+						return;
+					}
+
+					try {
+						response = JSON.parse(request.responseText);
+						html = response && response.data ? response.data.html : '';
+					} catch (error) {
+						html = request.responseText;
+					}
+
+					if (! html) {
+						showError();
+
+						return;
+					}
+
+					setLoading(false);
+					target.hidden = false;
+					target.innerHTML = html;
+					executeScripts(target);
+
+					if (button) {
+						button.hidden = true;
+					}
+
+					announceLoaded();
+				};
+
+				request.send(parts.join('&'));
+			}
+
+			if (button) {
+				button.addEventListener('click', function(event) {
+					event.preventDefault();
+					loadCheckout();
+				});
+			}
+
+			root.addEventListener('focusin', loadCheckout);
+
+			if ('load' === trigger) {
+				if ('loading' === document.readyState) {
+					document.addEventListener('DOMContentLoaded', loadCheckout);
+				} else {
+					loadCheckout();
+				}
+			} else if ('viewport' === trigger && 'IntersectionObserver' in window) {
+				new IntersectionObserver(function(entries, observer) {
+					if (entries.some(function(entry) { return entry.isIntersecting; })) {
+						observer.disconnect();
+						loadCheckout();
+					}
+				}).observe(root);
+			}
+		})();
+		</script>
+		<?php
 	}
 
 	/**
@@ -701,6 +1302,14 @@ class Checkout_Element extends Base_Element {
 		if (apply_filters('wu_checkout_skip_output', false, $atts, $content, $this)) {
 			return;
 		}
+
+		if ($this->should_defer_checkout($atts)) {
+			$this->output_deferred_placeholder($atts);
+
+			return;
+		}
+
+		$this->send_checkout_nocache_headers($atts);
 
 		if (wu_is_update_page()) {
 			$atts = [
