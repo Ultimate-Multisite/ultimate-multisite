@@ -3,42 +3,16 @@
  *
  * Verifies that Single Sign-On works: a user logged into the main site
  * (localhost:8889) is automatically authenticated when visiting a subsite
- * through a mapped domain (127.0.0.1:8889).
+ * through a mapped domain (sso-test.ultimate-multisite.test:8889).
  *
- * Uses localhost vs 127.0.0.1 — two genuinely different hostnames that
- * both resolve without DNS/hosts changes, with cookies scoped per hostname.
- *
- * Environment note: wp-env uses non-standard port 8889. WordPress only strips
- * ports 80/443, so the port remains part of the domain throughout multisite
- * bootstrap. The domain mapping's URL mangling doesn't fully work with
- * non-standard ports, so the SSO redirect chain goes through localhost:8889
- * where cookies already exist. This still exercises the SSO trigger logic
- * (wu_is_same_domain, handle_auth_redirect) and domain mapping resolution.
- *
- * --------------------------------------------------------------------------
- * FIXME (skipped) — environment limitation, not a product bug
- * --------------------------------------------------------------------------
- * In the current wp-env CI environment (port 8889), domain mapping for the
- * mapped host `127.0.0.1:8889` does not take effect: requests to
- * `http://127.0.0.1:8889/` are redirected back to `http://localhost:8889/`,
- * so every assertion that expects the mapped host to serve the subsite or
- * trigger the SSO redirect with `sso=login` necessarily fails. The
- * limitation is acknowledged in the header note above ("the SSO redirect
- * chain goes through localhost:8889 where cookies already exist"), but the
- * assertions below were written as if the mapping worked end-to-end. The
- * spec has therefore never passed on `main` since it was added.
- *
- * The SSO trigger logic that DOES work in this environment is covered by
- * `065-sso-redirect-loop.spec.js` (passing). Until the CI environment is
- * reconfigured so domain mapping survives non-standard ports — for example
- * by running wp-env on port 80, by adding an Nginx host alias, or by
- * routing `127.0.0.1:8889` through a Caddy/Traefik reverse proxy — this
- * suite is skipped to keep the required `cypress (8.2, chrome)` check
- * green. Restoration is tracked in #1322.
+ * Uses localhost vs sso-test.ultimate-multisite.test — two genuinely
+ * different hostnames with cookies scoped per hostname. The mapped hostname is
+ * resolved through a CI /etc/hosts entry so the request reaches the same
+ * wp-env port while preserving the mapped Host header for domain mapping.
  */
-describe.skip("SSO Cross-Domain Authentication", () => {
+describe("SSO Cross-Domain Authentication", () => {
   const mainSiteUrl = "http://localhost:8889";
-  const mappedDomainUrl = "http://127.0.0.1:8889";
+  const mappedDomainUrl = "http://sso-test.ultimate-multisite.test:8889";
   const adminUser = "admin";
   const adminPass = "password";
 
@@ -60,7 +34,7 @@ describe.skip("SSO Cross-Domain Authentication", () => {
   });
 
   it("Should resolve mapped domain to the correct subsite", () => {
-    // Verify domain mapping works: 127.0.0.1:8889 should serve the subsite,
+    // Verify domain mapping works: the mapped host should serve the subsite,
     // not redirect to the main site homepage.
     cy.request({
       url: `${mappedDomainUrl}/`,
@@ -76,7 +50,7 @@ describe.skip("SSO Cross-Domain Authentication", () => {
     "Should trigger SSO redirect when visiting wp-admin on mapped domain",
     { retries: 1 },
     () => {
-      // Without login cookies for 127.0.0.1, visiting wp-admin should trigger
+      // Without login cookies for the mapped host, visiting wp-admin should trigger
       // the SSO redirect chain (handle_auth_redirect detects different domain).
       cy.request({
         url: `${mappedDomainUrl}/wp-admin/`,
@@ -103,13 +77,10 @@ describe.skip("SSO Cross-Domain Authentication", () => {
       cy.url().should("include", "/wp-admin/");
       cy.get("body").should("have.class", "wp-admin");
 
-      // 2. Visit wp-admin on the mapped domain (127.0.0.1:8889).
+      // 2. Visit wp-admin on the mapped domain.
       //    SSO triggers: handle_auth_redirect() detects different domain + not
-      //    logged in, redirects to wp-login.php?sso=login. Because this wp-env
-      //    uses port 8889, the redirect goes through localhost:8889 where auth
-      //    cookies exist, so the user is immediately authenticated.
-      //
-      //    The final landing page is the subsite's wp-admin on localhost:8889.
+      //    logged in, redirects through wp-login.php?sso=login, and uses the
+      //    existing main-site auth cookies to authenticate the subsite request.
       cy.visit(`${mappedDomainUrl}/wp-admin/`, {
         failOnStatusCode: false,
       });
@@ -117,13 +88,14 @@ describe.skip("SSO Cross-Domain Authentication", () => {
       // 3. After SSO redirect chain completes, the user should land on the
       //    subsite's wp-admin dashboard (authenticated).
       cy.url({ timeout: 60000 }).should("include", "/wp-admin/");
+      cy.url().should("include", mappedDomainUrl);
       cy.get("body", { timeout: 30000 }).should("have.class", "wp-admin");
 
       // Confirm we are logged in: admin bar should be present.
       cy.get("#wpadminbar").should("exist");
 
-      // Confirm we are on the SSO test subsite (not the main site).
-      cy.url().should("include", "/sso-test-site/");
+      // Confirm we are on the mapped subsite host (not the main site host).
+      cy.url().should("include", mappedDomainUrl);
     }
   );
 
@@ -143,6 +115,7 @@ describe.skip("SSO Cross-Domain Authentication", () => {
 
       // After SSO, the user should land on the requested page (or wp-admin).
       cy.url({ timeout: 60000 }).should("include", "/wp-admin/");
+      cy.url().should("include", mappedDomainUrl);
       cy.get("body", { timeout: 30000 }).should("have.class", "wp-admin");
       cy.get("#wpadminbar").should("exist");
     }

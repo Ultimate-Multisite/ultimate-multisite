@@ -102,6 +102,11 @@ jobs:
             fi
           done
 
+      - name: Add mapped SSO host entry
+        run: |
+          echo "127.0.0.1 sso-test.ultimate-multisite.test" | sudo tee -a /etc/hosts
+          getent hosts sso-test.ultimate-multisite.test
+
       - name: Wait for WordPress to be ready
         run: |
           for i in {1..60}; do
