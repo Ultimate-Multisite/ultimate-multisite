@@ -5010,7 +5010,7 @@ class Checkout_Test extends WP_UnitTestCase {
 		$method     = $this->get_login_method($reflection);
 
 		$login_fired = false;
-		add_action('wp_login', function() use (&$login_fired) {
+		add_action('wp_login', function () use (&$login_fired) {
 			$login_fired = true;
 		});
 
@@ -5128,7 +5128,7 @@ class Checkout_Test extends WP_UnitTestCase {
 		$_REQUEST['password'] = $password;
 
 		$login_fired = false;
-		add_action('wp_login', function() use (&$login_fired) {
+		add_action('wp_login', function () use (&$login_fired) {
 			$login_fired = true;
 		});
 
@@ -5139,6 +5139,69 @@ class Checkout_Test extends WP_UnitTestCase {
 		unset($_REQUEST['password']);
 
 		$this->assertTrue($login_fired, 'wp_login must fire when logging in via wp_signon (password path)');
+
+		// Cleanup.
+		wp_set_current_user(0);
+		$customer->delete();
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		wp_delete_user($user_id);
+	}
+
+	/**
+	 * Test login_customer_after_checkout returns a visible error when wp_signon fails.
+	 *
+	 * Security plugins can hook into the normal WordPress authentication flow and
+	 * reject the credential round-trip. Checkout must stop instead of silently
+	 * handing the customer to a payment gateway while logged out.
+	 */
+	public function test_login_customer_after_checkout_with_password_returns_error_when_signon_fails(): void {
+
+		$unique   = uniqid('badpw_', true);
+		$password = 'TestP@ssw0rd!';
+		$user_id  = self::factory()->user->create([
+			'user_login' => $unique,
+			'user_pass'  => $password,
+			'user_email' => $unique . '@example.com',
+		]);
+
+		wp_set_current_user(0);
+		wp_clear_auth_cookie();
+
+		$customer = wu_create_customer([
+			'user_id'  => $user_id,
+			'username' => $unique,
+			'email'    => $unique . '@example.com',
+		]);
+
+		if (is_wp_error($customer)) {
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+			wp_delete_user($user_id);
+			$this->markTestSkipped('Customer creation failed: ' . $customer->get_error_message());
+		}
+
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+
+		$this->inject_customer($checkout, $reflection, $customer);
+		$this->ensure_session($checkout);
+
+		$_REQUEST['password'] = 'WrongP@ssw0rd!';
+
+		$login_fired = false;
+		add_action('wp_login', function () use (&$login_fired) {
+			$login_fired = true;
+		});
+
+		$method = $this->get_login_method($reflection);
+		$result = $method->invoke($checkout);
+
+		remove_all_actions('wp_login');
+		unset($_REQUEST['password']);
+
+		$this->assertWPError($result);
+		$this->assertSame('checkout_login_failed', $result->get_error_code());
+		$this->assertStringContainsString('Login error:', $result->get_error_message());
+		$this->assertFalse($login_fired, 'wp_login must not fire when wp_signon returns an error');
 
 		// Cleanup.
 		wp_set_current_user(0);
