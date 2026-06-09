@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 7.4.30
 Tested up to: 7.0
-Stable tag: 2.13.0
+Stable tag: 2.13.1
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -246,6 +246,15 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+Version [2.13.1] - Released on 2026-06-08
+- Fix: Pending site fallback timing now handles longer provisioning queues so customers are less likely to hit checkout timeouts.
+- Fix: Checkout progress no longer reuses stale live-state after the active checkout session has moved forward.
+- Fix: Pending sites now launch loopback publishing without requiring cron scheduling.
+- Fix: Pending site dispatch now works reliably on FrankenPHP environments.
+- Fix: Divi cloned sites no longer receive stale CSS cache from previous template operations.
+- Fix: WordPress cron URLs now target the correct site context to avoid cross-site scheduling failures.
+- Improved: Restored cross-domain SSO e2e coverage to keep mapped-domain login flows verified.
+
 Version [2.13.0] - Released on 2026-06-05
 - New: Added sovereign-tenant support for customer account, checkout, billing, site, invoice, template switching, and domain mapping flows so tenant networks can direct customers back to the main site for managed actions.
 - New: Added renewal-credential checks for recurring memberships so gateways can disable auto-renewal when a saved billing agreement, subscription, or vault token is missing.
