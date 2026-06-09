@@ -560,6 +560,12 @@ final class WP_Ultimo {
 		 */
 		WP_Ultimo\UI\Thank_You_Element::get_instance();
 		WP_Ultimo\UI\Checkout_Element::get_instance();
+
+		/*
+		 * Loads native passwordless/passkey authentication before login surfaces.
+		 */
+		WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance();
+
 		WP_Ultimo\UI\Login_Form_Element::get_instance();
 		WP_Ultimo\UI\Simple_Text_Element::get_instance();
 

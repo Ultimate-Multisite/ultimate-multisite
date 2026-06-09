@@ -38,6 +38,7 @@ This plugin was formerly known as WP Ultimo and is now community maintained.
 - **Plan Management** - Create and manage subscription plans with different features and limitations
 - **Template Sites** - Easily clone and use template sites for new customer websites
 - **Customer Dashboard** - Provide a professional management interface for your customers
+- **Passwordless Login** - Let returning users sign in with passkeys or short-lived email codes
 - **White Labeling** - Brand the platform as your own
 - **Hosting Integrations** - Connect with popular hosting control panels like cPanel, RunCloud, and more
 
