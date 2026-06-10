@@ -465,17 +465,35 @@ class General_Compat {
 		);
 
 		foreach ($iterator as $file) {
-			$path = $file->getRealPath();
+			$path            = $file->getPathname();
+			$normalized_path = untrailingslashit(wp_normalize_path($path));
 
-			if (false === $path) {
+			if ($real_cache_dir !== $normalized_path && 0 !== strpos(trailingslashit($normalized_path), trailingslashit($real_cache_dir))) {
+				continue;
+			}
+
+			if ($file->isLink()) {
+				wp_delete_file($path);
+				continue;
+			}
+
+			$real_path = $file->getRealPath();
+
+			if (false === $real_path) {
+				continue;
+			}
+
+			$real_path = untrailingslashit(wp_normalize_path($real_path));
+
+			if ($real_cache_dir !== $real_path && 0 !== strpos(trailingslashit($real_path), trailingslashit($real_cache_dir))) {
 				continue;
 			}
 
 			if ($file->isDir()) {
 				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir, WordPress.PHP.NoSilencedErrors.Discouraged -- Removes an empty generated cache directory after deleting its contents.
-				@rmdir($path);
+				@rmdir($real_path);
 			} else {
-				wp_delete_file($path);
+				wp_delete_file($real_path);
 			}
 		}
 

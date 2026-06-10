@@ -6,9 +6,10 @@
  * @subpackage Tests
  */
 
-namespace WP_Ultimo\Tests;
+namespace WP_Ultimo\Compat;
 
-use WP_Ultimo\Compat\General_Compat;
+defined('ABSPATH') || exit;
+
 use WP_UnitTestCase;
 
 /**
@@ -79,6 +80,47 @@ class General_Compat_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test Divi et-cache symlinks do not delete files outside the cache tree.
+	 */
+	public function test_clear_divi_static_css_cache_does_not_follow_symlinks(): void {
+
+		if ( ! is_multisite()) {
+			$this->markTestSkipped('Divi cache purge tests require multisite');
+		}
+
+		if ( ! function_exists('symlink')) {
+			$this->markTestSkipped('Symlink support is not available');
+		}
+
+		$blog_id       = self::factory()->blog->create();
+		$other_blog_id = self::factory()->blog->create();
+		$network_id    = (int) get_current_network_id();
+		$cache_root    = trailingslashit(WP_CONTENT_DIR) . 'et-cache';
+		$cache_dir     = trailingslashit($cache_root) . $network_id . '/' . $blog_id;
+		$other_dir     = trailingslashit($cache_root) . $network_id . '/' . $other_blog_id;
+		$outside_file  = $other_dir . '/external-target.css';
+		$symlink       = $cache_dir . '/external-target.css';
+
+		$this->cache_dirs = [$cache_dir, $other_dir];
+
+		wp_mkdir_p($cache_dir);
+		wp_mkdir_p($other_dir);
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture setup.
+		file_put_contents($outside_file, 'external divi css');
+
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.symlink_symlink -- Test fixture setup requires a symlink.
+		if ( ! @symlink($outside_file, $symlink)) {
+			$this->markTestSkipped('Symlink fixture could not be created');
+		}
+
+		General_Compat::get_instance()->clear_divi_static_css_cache(['site_id' => $blog_id]);
+
+		$this->assertFileExists($outside_file);
+		$this->assertDirectoryDoesNotExist($cache_dir);
+	}
+
+	/**
 	 * Recursively remove a test directory.
 	 *
 	 * @param string $dir Directory path.
@@ -96,7 +138,7 @@ class General_Compat_Test extends WP_UnitTestCase {
 		);
 
 		foreach ($iterator as $file) {
-			$path = $file->getRealPath();
+			$path = $file->isLink() ? $file->getPathname() : $file->getRealPath();
 
 			if (false === $path) {
 				continue;
