@@ -181,6 +181,56 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Tests starting login always returns the generic OTP challenge first.
+	 */
+	public function test_ajax_start_does_not_expose_passkey_options_before_otp_verification() {
+
+		$user = self::factory()->user->create_and_get(
+			[
+				'user_email' => 'passkey-holder@example.test',
+				'user_login' => 'passkey_holder',
+			]
+		);
+
+		$store = new Passkey_Credential_Store();
+
+		$this->assertTrue(
+			$store->create(
+				$user->ID,
+				'credential-id-start',
+				"-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----\n",
+				1,
+				str_repeat('b', 32),
+				['internal']
+			)
+		);
+
+		add_filter(
+			'wu_passwordless_otp_code',
+			function () {
+				return '123456';
+			}
+		);
+
+		add_filter('wu_passwordless_should_send_otp', '__return_false');
+
+		$_POST['nonce']          = wp_create_nonce('wu_passwordless_auth');
+		$_POST['identifier']     = $user->user_email;
+		$_REQUEST['nonce']       = $_POST['nonce'];
+		$_REQUEST['identifier']  = $_POST['identifier'];
+
+		$response = $this->capture_ajax_json([Passwordless_Auth_Manager::get_instance(), 'ajax_start']);
+
+		$this->assertTrue($response['success']);
+		$this->assertSame('otp', $response['data']['mode']);
+		$this->assertNotEmpty($response['data']['token']);
+		$this->assertArrayNotHasKey('options', $response['data']);
+		$this->assertArrayNotHasKey('publicKey', $response['data']);
+
+		unset($_POST['nonce'], $_POST['identifier'], $_REQUEST['nonce'], $_REQUEST['identifier']);
+	}
+
+	/**
 	 * Installs auth tables.
 	 */
 	protected function install_auth_tables() {
@@ -233,5 +283,36 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query("TRUNCATE TABLE {$table}");
 		}
+	}
+
+	/**
+	 * Captures a JSON AJAX response.
+	 *
+	 * @param callable $ajax_handler AJAX handler to run.
+	 * @return array
+	 */
+	protected function capture_ajax_json(callable $ajax_handler) {
+
+		$die_handler = function ($message) {
+			throw new \WPAjaxDieContinueException(esc_html((string) $message));
+		};
+
+		add_filter('wp_doing_ajax', '__return_true');
+		add_filter('wp_die_ajax_handler', $die_handler, 1);
+
+		ob_start();
+
+		try {
+			$ajax_handler();
+		} catch (\WPAjaxDieContinueException $e) {
+			// Expected termination path for wp_send_json().
+		}
+
+		$output = ob_get_clean();
+
+		remove_filter('wp_die_ajax_handler', $die_handler, 1);
+		remove_filter('wp_doing_ajax', '__return_true');
+
+		return json_decode($output, true);
 	}
 }
