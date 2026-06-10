@@ -27,6 +27,8 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 
 		parent::set_up();
 
+		wu_save_setting('use_passwordless_login', 1);
+
 		$this->install_auth_tables();
 		$this->truncate_auth_tables();
 	}
@@ -40,6 +42,7 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 		remove_all_filters('wu_passwordless_should_send_otp');
 
 		$this->truncate_auth_tables();
+		wu_save_setting('use_passwordless_login', 0);
 
 		parent::tear_down();
 	}
@@ -318,6 +321,26 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 		$this->assertArrayNotHasKey('publicKey', $response['data']);
 
 		unset($_POST['nonce'], $_POST['identifier'], $_REQUEST['nonce'], $_REQUEST['identifier']);
+	}
+
+	/**
+	 * Tests passwordless AJAX endpoints fail closed when the setting is disabled.
+	 */
+	public function test_ajax_start_fails_when_passwordless_login_is_disabled() {
+
+		wu_save_setting('use_passwordless_login', 0);
+
+		$nonce = wp_create_nonce('wu_passwordless_auth');
+
+		$_POST['nonce']    = $nonce;
+		$_REQUEST['nonce'] = $nonce;
+
+		$response = $this->capture_ajax_json([Passwordless_Auth_Manager::get_instance(), 'ajax_start']);
+
+		$this->assertFalse($response['success']);
+		$this->assertSame('passwordless_login_disabled', $response['data']['code']);
+
+		unset($_POST['nonce'], $_REQUEST['nonce']);
 	}
 
 	/**
