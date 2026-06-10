@@ -101,14 +101,16 @@ class Sunrise_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test wu_get_security_mode_key returns a 6-character string.
+	 * Test wu_get_security_mode_key returns a high-entropy string.
 	 */
-	public function test_get_security_mode_key_returns_six_char_string(): void {
+	public function test_get_security_mode_key_returns_high_entropy_string(): void {
+
+		delete_network_option(null, 'wu_security_mode_key');
 
 		$key = wu_get_security_mode_key();
 
 		$this->assertIsString($key);
-		$this->assertSame(6, strlen($key));
+		$this->assertSame(32, strlen($key));
 	}
 
 	/**
@@ -116,20 +118,38 @@ class Sunrise_Functions_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_security_mode_key_returns_hex_characters(): void {
 
+		delete_network_option(null, 'wu_security_mode_key');
+
 		$key = wu_get_security_mode_key();
 
-		$this->assertMatchesRegularExpression('/^[0-9a-f]{6}$/', $key);
+		$this->assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $key);
 	}
 
 	/**
-	 * Test wu_get_security_mode_key is deterministic for same admin email.
+	 * Test wu_get_security_mode_key is stable after generation.
 	 */
-	public function test_get_security_mode_key_is_deterministic(): void {
+	public function test_get_security_mode_key_is_stable_after_generation(): void {
+
+		delete_network_option(null, 'wu_security_mode_key');
 
 		$key1 = wu_get_security_mode_key();
 		$key2 = wu_get_security_mode_key();
 
 		$this->assertSame($key1, $key2);
+	}
+
+	/**
+	 * Test wu_get_security_mode_key can preserve the legacy key without rotating.
+	 */
+	public function test_get_security_mode_key_without_generation_returns_legacy_key(): void {
+
+		delete_network_option(null, 'wu_security_mode_key');
+
+		$expected = substr(md5((string) get_network_option(null, 'admin_email')), 0, 6);
+		$key      = wu_get_security_mode_key(false);
+
+		$this->assertSame($expected, $key);
+		$this->assertSame('', get_network_option(null, 'wu_security_mode_key', ''));
 	}
 
 	/**
