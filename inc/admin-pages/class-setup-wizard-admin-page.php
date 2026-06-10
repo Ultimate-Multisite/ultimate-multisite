@@ -269,6 +269,12 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 			exit;
 		}
 
+		if ( ! check_ajax_referer('wu_setup_install', '_wpnonce', false)) {
+			wp_send_json_error(new \WP_Error('bad-nonce', __('Security check failed. Please reload the page and try again.', 'ultimate-multisite')));
+
+			exit;
+		}
+
 		/*
 		 * Load tables.
 		 */

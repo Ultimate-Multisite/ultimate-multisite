@@ -508,6 +508,12 @@ RewriteRule . index.php [L]';
 			exit;
 		}
 
+		if ( ! check_ajax_referer('wu_setup_install', '_wpnonce', false)) {
+			wp_send_json_error(new \WP_Error('bad-nonce', __('Security check failed. Please reload the page and try again.', 'ultimate-multisite')));
+
+			exit;
+		}
+
 		$installer                   = wu_request('installer', '');
 		$multisite_network_installer = Multisite_Network_Installer::get_instance();
 		$steps                       = $multisite_network_installer->get_steps();
