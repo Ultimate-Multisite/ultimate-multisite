@@ -403,24 +403,8 @@ class Passwordless_Auth_Manager {
 
 		$this->verify_ajax_request();
 
-		$identifier        = sanitize_text_field(wu_request('identifier'));
-		$supports_webauthn = filter_var(wu_request('supports_webauthn'), FILTER_VALIDATE_BOOLEAN);
-		$force_otp         = filter_var(wu_request('force_otp'), FILTER_VALIDATE_BOOLEAN);
-		$user              = $this->find_user($identifier);
-
-		if ($user && $supports_webauthn && ! $force_otp && $this->passkeys->credentials()->user_has_credentials($user->ID)) {
-			$options = $this->passkeys->get_authentication_options($user);
-
-			if ( ! is_wp_error($options)) {
-				wp_send_json_success(
-					[
-						'mode'    => 'passkey',
-						'options' => $options,
-						'message' => __('Use your passkey to continue.', 'ultimate-multisite'),
-					]
-				);
-			}
-		}
+		$identifier = sanitize_text_field(wu_request('identifier'));
+		$user       = $this->find_user($identifier);
 
 		$email = $user ? $user->user_email : $identifier;
 		$otp   = $this->otp->create_and_send($user, $email);
