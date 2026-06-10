@@ -868,8 +868,7 @@ class Checkout_Element extends Base_Element {
 				if ('loading' === document.readyState) {
 					document.addEventListener('DOMContentLoaded', fallbackLoad);
 				} else {
-					window.addEventListener('scroll', fallbackLoad);
-					window.addEventListener('resize', fallbackLoad);
+					fallbackLoad();
 				}
 			}
 
