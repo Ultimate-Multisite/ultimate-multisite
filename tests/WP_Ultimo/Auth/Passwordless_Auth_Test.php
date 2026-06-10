@@ -214,10 +214,13 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 
 		add_filter('wu_passwordless_should_send_otp', '__return_false');
 
-		$_POST['nonce']          = wp_create_nonce('wu_passwordless_auth');
-		$_POST['identifier']     = $user->user_email;
-		$_REQUEST['nonce']       = $_POST['nonce'];
-		$_REQUEST['identifier']  = $_POST['identifier'];
+		$nonce      = wp_create_nonce('wu_passwordless_auth');
+		$identifier = $user->user_email;
+
+		$_POST['nonce']         = $nonce;
+		$_POST['identifier']    = $identifier;
+		$_REQUEST['nonce']      = $nonce;
+		$_REQUEST['identifier'] = $identifier;
 
 		$response = $this->capture_ajax_json([Passwordless_Auth_Manager::get_instance(), 'ajax_start']);
 
@@ -300,18 +303,22 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 		add_filter('wp_doing_ajax', '__return_true');
 		add_filter('wp_die_ajax_handler', $die_handler, 1);
 
+		$did_die = false;
+
 		ob_start();
 
 		try {
 			$ajax_handler();
 		} catch (\WPAjaxDieContinueException $e) {
-			// Expected termination path for wp_send_json().
+			$did_die = true;
 		}
 
 		$output = ob_get_clean();
 
 		remove_filter('wp_die_ajax_handler', $die_handler, 1);
 		remove_filter('wp_doing_ajax', '__return_true');
+
+		$this->assertTrue($did_die, 'Expected wp_send_json() to terminate the AJAX request.');
 
 		return json_decode($output, true);
 	}
