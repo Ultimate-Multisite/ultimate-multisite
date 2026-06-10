@@ -313,7 +313,11 @@ class Login_Form_Element extends Base_Element {
 
 		wp_set_script_translations('wu-password-toggle', 'ultimate-multisite');
 
-		\WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance()->enqueue_assets();
+		$passwordless_auth = \WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance();
+
+		if ($passwordless_auth->is_enabled()) {
+			$passwordless_auth->enqueue_assets();
+		}
 
 		// Enqueue password strength scripts for reset password page.
 		if ($this->is_reset_password_page()) {
@@ -802,21 +806,72 @@ class Login_Form_Element extends Base_Element {
 				$redirect_to = $atts['main_redirect_path'];
 			}
 
-			$fields = [
-				'passwordless_login' => [
-					'type'            => 'html',
-					'content'         => \WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance()->get_login_form_markup(
-						[
-							'context'       => 'login-form',
-							'redirect_to'   => $redirect_to,
-							'redirect_type' => $atts['redirect_type'],
-							'fallback_url'  => $this->get_passwordless_fallback_url($redirect_to),
-						]
-					),
-					'classes'         => '',
-					'wrapper_classes' => 'wu-w-full wu-bg-none',
-				],
-			];
+			$passwordless_auth = \WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance();
+
+			if ($passwordless_auth->is_enabled()) {
+				$fields = [
+					'passwordless_login' => [
+						'type'            => 'html',
+						'content'         => $passwordless_auth->get_login_form_markup(
+							[
+								'context'       => 'login-form',
+								'redirect_to'   => $redirect_to,
+								'redirect_type' => $atts['redirect_type'],
+								'fallback_url'  => $this->get_passwordless_fallback_url($redirect_to),
+							]
+						),
+						'classes'         => '',
+						'wrapper_classes' => 'wu-w-full wu-bg-none',
+					],
+				];
+			} else {
+				$fields = [
+					'log' => [
+						'type'        => 'text',
+						'title'       => $atts['label_username'],
+						'placeholder' => $atts['placeholder_username'],
+						'tooltip'     => '',
+						'html_attr'   => [
+							'autocomplete' => 'username',
+						],
+					],
+					'pwd' => [
+						'type'        => 'password',
+						'title'       => $atts['label_password'],
+						'placeholder' => $atts['placeholder_password'],
+						'tooltip'     => '',
+						'html_attr'   => [
+							'autocomplete' => 'current-password',
+						],
+					],
+				];
+
+				if ($atts['remember']) {
+					$fields['rememberme'] = [
+						'type'  => 'toggle',
+						'title' => $atts['label_remember'],
+						'desc'  => $atts['desc_remember'],
+					];
+				}
+
+				$fields['redirect_to'] = [
+					'type'  => 'hidden',
+					'value' => $redirect_to,
+				];
+
+				$fields['wu_login_form_redirect_type'] = [
+					'type'  => 'hidden',
+					'value' => $atts['redirect_type'],
+				];
+
+				$fields['wp-submit'] = [
+					'type'            => 'submit',
+					'title'           => $atts['label_log_in'],
+					'value'           => $atts['label_log_in'],
+					'classes'         => 'button button-primary wu-w-full',
+					'wrapper_classes' => 'wu-items-end wu-bg-none',
+				];
+			}
 
 			/*
 			 * Use wp_lostpassword_url() so the lostpassword_url filter keeps

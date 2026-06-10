@@ -3280,9 +3280,16 @@ class Checkout {
 		// Enqueue password styles (includes dashicons as dependency).
 		wp_enqueue_style('wu-password');
 
-		\WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance()->enqueue_assets();
+		$script_dependencies = ['jquery-core', 'wu-vue', 'moment', 'wu-block-ui', 'wu-functions', 'password-strength-meter', 'wu-password-strength', 'underscore', 'wp-polyfill', 'wp-hooks', 'wu-cookie-helpers', 'wu-password-toggle'];
 
-		wp_register_script('wu-checkout', wu_get_asset('checkout.js', 'js'), ['jquery-core', 'wu-vue', 'moment', 'wu-block-ui', 'wu-functions', 'password-strength-meter', 'wu-password-strength', 'underscore', 'wp-polyfill', 'wp-hooks', 'wu-cookie-helpers', 'wu-password-toggle', 'wu-passwordless-auth'], wu_get_version(), true);
+		$passwordless_auth = \WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance();
+
+		if ($passwordless_auth->is_enabled()) {
+			$passwordless_auth->enqueue_assets();
+			$script_dependencies[] = 'wu-passwordless-auth';
+		}
+
+		wp_register_script('wu-checkout', wu_get_asset('checkout.js', 'js'), $script_dependencies, wu_get_version(), true);
 
 		wp_set_script_translations('wu-password-toggle', 'ultimate-multisite');
 
