@@ -85,6 +85,8 @@ class Checkout_Element_Test extends WP_UnitTestCase {
 	 * Test live checkout output path contains explicit no-cache safeguards.
 	 */
 	public function test_source_contains_live_checkout_cache_safeguards(): void {
+		// Source-token assertions intentionally guard cache-safety hooks/headers that
+		// are otherwise hard to observe reliably in PHPUnit.
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		$source = file_get_contents(dirname(__DIR__, 3) . '/inc/ui/class-checkout-element.php');
 

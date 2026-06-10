@@ -989,7 +989,11 @@ class Checkout {
 		 * let's check if the user is logged in,
 		 * and if not, let's do that.
 		 */
-		$this->login_customer_after_checkout();
+		$login_result = $this->login_customer_after_checkout();
+
+		if (is_wp_error($login_result)) {
+			return $login_result;
+		}
 
 		/*
 		 * Action time.
@@ -2402,7 +2406,7 @@ class Checkout {
 	 * just created in this very request and the credential is not available.
 	 *
 	 * @since 2.6.0
-	 * @return void
+	 * @return \WP_Error|null
 	 */
 	protected function login_customer_after_checkout() {
 
@@ -2426,7 +2430,24 @@ class Checkout {
 			);
 
 			// Sign in the user as if they used the login form.
-			wp_signon($user_credentials, is_ssl());
+			$signed_in_user = wp_signon($user_credentials, is_ssl());
+
+			if (is_wp_error($signed_in_user)) {
+				$login_error_message = wp_strip_all_tags($signed_in_user->get_error_message());
+
+				if (empty($login_error_message)) {
+					$login_error_message = __('Unknown login error.', 'ultimate-multisite');
+				}
+
+				return new \WP_Error(
+					'checkout_login_failed',
+					sprintf(
+						/* translators: %s is the login failure message returned by WordPress or another plugin. */
+						__('We could not log you in automatically during checkout. Please try again or contact support before continuing. Login error: %s', 'ultimate-multisite'),
+						$login_error_message
+					)
+				);
+			}
 
 			return;
 		}

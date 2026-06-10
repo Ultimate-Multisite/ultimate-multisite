@@ -534,9 +534,14 @@ class Checkout_Element extends Base_Element {
 		$headers = apply_filters('wu_checkout_nocache_headers', $headers, $atts, $this);
 
 		foreach ($headers as $name => $value) {
+			$name  = trim(str_replace(["\r", "\n"], '', (string) $name));
 			$value = str_replace(["\r", "\n"], '', (string) $value);
 
-			header(sprintf('%s: %s', sanitize_key($name), $value), true);
+			if ('' === $name || ! preg_match('/^[A-Za-z0-9-]+$/', $name)) {
+				continue;
+			}
+
+			header(sprintf('%s: %s', $name, $value), true);
 		}
 	}
 
@@ -848,6 +853,26 @@ class Checkout_Element extends Base_Element {
 				request.send(parts.join('&'));
 			}
 
+			function cleanupFallbackLoad() {
+				document.removeEventListener('DOMContentLoaded', fallbackLoad);
+				window.removeEventListener('scroll', fallbackLoad);
+				window.removeEventListener('resize', fallbackLoad);
+			}
+
+			function fallbackLoad() {
+				cleanupFallbackLoad();
+				loadCheckout();
+			}
+
+			function scheduleFallbackLoad() {
+				if ('loading' === document.readyState) {
+					document.addEventListener('DOMContentLoaded', fallbackLoad);
+				} else {
+					window.addEventListener('scroll', fallbackLoad);
+					window.addEventListener('resize', fallbackLoad);
+				}
+			}
+
 			if (button) {
 				button.addEventListener('click', function(event) {
 					event.preventDefault();
@@ -870,6 +895,8 @@ class Checkout_Element extends Base_Element {
 						loadCheckout();
 					}
 				}).observe(root);
+			} else if ('viewport' === trigger) {
+				scheduleFallbackLoad();
 			}
 		})();
 		</script>
