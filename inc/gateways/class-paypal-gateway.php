@@ -954,10 +954,11 @@ class PayPal_Gateway extends Base_PayPal_Gateway {
 
 		$custom = ! empty($posted['custom']) ? explode('|', (string) $posted['custom']) : [];
 
-		if (is_array($custom) && ! empty($custom)) {
+		// `custom` is built as "payment_id|membership_id|customer_id" (see set_express_checkout()).
+		if (is_array($custom) && count($custom) >= 3) {
 			$payment    = wu_get_payment(absint($custom[0]));
-			$membership = wu_get_payment(absint($custom[1]));
-			$customer   = wu_get_payment(absint($custom[2]));
+			$membership = wu_get_membership(absint($custom[1]));
+			$customer   = wu_get_customer(absint($custom[2]));
 		}
 
 		if ( ! empty($posted['recurring_payment_id'])) {
