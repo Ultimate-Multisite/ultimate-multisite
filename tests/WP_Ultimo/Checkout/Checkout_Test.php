@@ -1587,6 +1587,42 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test optional billing address fields do not keep self-required ZIP rules.
+	 */
+	public function test_get_validation_rules_relaxes_optional_billing_address_fields(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->step      = [
+			'fields' => [
+				'billing_country'  => [
+					'type' => 'select',
+				],
+				'billing_zip_code' => [
+					'type' => 'text',
+				],
+			],
+		];
+		$checkout->steps     = [];
+		$checkout->step_name = null;
+
+		$this->ensure_session($checkout);
+
+		unset($_REQUEST['pre-flight'], $_REQUEST['checkout_form']);
+
+		$_REQUEST['billing_country']  = 'US';
+		$_REQUEST['billing_zip_code'] = '';
+		$_REQUEST['user_id']          = self::$customer->get_user_id();
+
+		$rules = $checkout->get_validation_rules();
+
+		$this->assertSame('country', $rules['billing_country']);
+		$this->assertSame('', $rules['billing_zip_code']);
+		$this->assertTrue($checkout->validate($rules));
+
+		unset($_REQUEST['billing_country'], $_REQUEST['billing_zip_code'], $_REQUEST['user_id']);
+	}
+
+	/**
 	 * Test get_validation_rules returns array.
 	 */
 	public function test_get_validation_rules_returns_array(): void {

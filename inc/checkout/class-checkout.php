@@ -2758,6 +2758,31 @@ class Checkout {
 		}
 
 		/*
+		 * Relax the base billing rules for billing-address fields rendered by an
+		 * optional billing-address element. The base ZIP/Country rules use
+		 * required_with:<same field>, and Rakit treats an empty submitted field as
+		 * "present", so optional visible fields would still fail validation.
+		 */
+		$submitted_billing_country = trim((string) wu_request('billing_country', ''));
+
+		$optional_billing_rules = [
+			'billing_country'  => '' === $submitted_billing_country ? '' : 'country',
+			'billing_zip_code' => '',
+		];
+
+		foreach ($this->step['fields'] as $field_key => $field) {
+			if ( ! is_array($field)) {
+				continue;
+			}
+
+			$field_id = wu_get_isset($field, 'id', is_string($field_key) ? $field_key : '');
+
+			if (isset($optional_billing_rules[ $field_id ]) && ! wu_get_isset($field, 'required')) {
+				$validation_rules[ $field_id ] = $optional_billing_rules[ $field_id ];
+			}
+		}
+
+		/*
 		 * Relax billing field requirements when payment is not needed
 		 * (e.g. free trials with allow_trial_without_payment_method enabled).
 		 * Country is kept required for tax calculation at renewal time.
@@ -2775,7 +2800,11 @@ class Checkout {
 		 * against clients (REST, custom forms, automated tests) that bypass
 		 * the v-if hiding.
 		 */
-		$submitted_country = wu_request('billing_country');
+		$submitted_country = trim((string) wu_request('billing_country', ''));
+
+		if ('' === $submitted_country) {
+			$submitted_country = trim((string) wu_request('country', ''));
+		}
 
 		if ($submitted_country && isset($validation_rules['billing_zip_code'])) {
 			$resolved_country = wu_get_country($submitted_country);
