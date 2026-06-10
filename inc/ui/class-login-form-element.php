@@ -578,6 +578,22 @@ class Login_Form_Element extends Base_Element {
 	}
 
 	/**
+	 * Returns the password fallback URL for the passwordless login form.
+	 *
+	 * This keeps the custom login form's "Use password instead" link pointed at
+	 * the standard login handler while preserving the same post-login redirect.
+	 *
+	 * @since 2.5.2
+	 *
+	 * @param string $redirect_to Redirect URL to preserve after password login.
+	 * @return string
+	 */
+	protected function get_passwordless_fallback_url($redirect_to) {
+
+		return add_query_arg('wu_password_fallback', '1', wp_login_url($redirect_to));
+	}
+
+	/**
 	 * The content to be output on the screen.
 	 *
 	 * Should return HTML markup to be used to display the block.
@@ -794,7 +810,7 @@ class Login_Form_Element extends Base_Element {
 							'context'       => 'login-form',
 							'redirect_to'   => $redirect_to,
 							'redirect_type' => $atts['redirect_type'],
-							'fallback_url'  => add_query_arg('wu_password_fallback', '1', wp_login_url($redirect_to)),
+							'fallback_url'  => $this->get_passwordless_fallback_url($redirect_to),
 						]
 					),
 					'classes'         => '',
