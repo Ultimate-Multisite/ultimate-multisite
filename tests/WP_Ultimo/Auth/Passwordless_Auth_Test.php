@@ -181,6 +181,93 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Tests passkey authentication fails closed when usage cannot be persisted.
+	 */
+	public function test_passkey_authentication_fails_when_usage_update_fails() {
+
+		$user = self::factory()->user->create_and_get(
+			[
+				'user_email' => 'passkey-update-failure@example.test',
+			]
+		);
+
+		$credential = (object) [
+			'id'         => 789,
+			'user_id'    => $user->ID,
+			'sign_count' => 1,
+			'public_key' => 'public-key',
+		];
+
+		$challenge = (object) [
+			'id'      => 456,
+			'user_id' => $user->ID,
+			'rp_id'   => 'example.test',
+			'origin'  => 'https://example.test',
+		];
+
+		$helper = $this->getMockBuilder(WebAuthn_Helper::class)
+			->onlyMethods(['parse_client_data', 'is_origin_allowed', 'parse_assertion_authenticator_data', 'verify_assertion_signature'])
+			->getMock();
+
+		$helper->method('parse_client_data')->willReturn(
+			[
+				'challenge' => 'challenge',
+				'origin'    => 'https://example.test',
+				'_raw'      => 'client-data',
+			]
+		);
+
+		$helper->method('is_origin_allowed')->willReturn(true);
+		$helper->method('parse_assertion_authenticator_data')->willReturn(
+			[
+				'rp_id_hash' => hash('sha256', 'example.test', true),
+				'sign_count' => 2,
+			]
+		);
+		$helper->method('verify_assertion_signature')->willReturn(true);
+
+		$credentials = $this->getMockBuilder(Passkey_Credential_Store::class)
+			->onlyMethods(['find_by_credential_id', 'update_usage'])
+			->getMock();
+
+		$credentials->method('find_by_credential_id')->willReturn($credential);
+		$credentials->expects($this->once())
+			->method('update_usage')
+			->with((int) $credential->id, 2)
+			->willReturn(false);
+
+		$challenges = $this->getMockBuilder(WebAuthn_Challenge_Store::class)
+			->onlyMethods(['get_valid', 'mark_used'])
+			->getMock();
+
+		$challenges->method('get_valid')->willReturn($challenge);
+		$challenges->expects($this->once())
+			->method('mark_used')
+			->with((int) $challenge->id)
+			->willReturn(true);
+
+		$service = new Passkey_Service();
+
+		$this->set_protected_property($service, 'helper', $helper);
+		$this->set_protected_property($service, 'credentials', $credentials);
+		$this->set_protected_property($service, 'challenges', $challenges);
+
+		$result = $service->verify_authentication(
+			[
+				'rawId'    => 'credential-id',
+				'response' => [
+					'authenticatorData' => 'authenticator-data',
+					'clientDataJSON'    => 'client-data',
+					'signature'         => 'signature',
+				],
+			]
+		);
+
+		$this->assertWPError($result);
+		$this->assertSame('credential_update_failed', $result->get_error_code());
+	}
+
+	/**
 	 * Tests starting login always returns the generic OTP challenge first.
 	 */
 	public function test_ajax_start_does_not_expose_passkey_options_before_otp_verification() {
@@ -231,6 +318,20 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 		$this->assertArrayNotHasKey('publicKey', $response['data']);
 
 		unset($_POST['nonce'], $_POST['identifier'], $_REQUEST['nonce'], $_REQUEST['identifier']);
+	}
+
+	/**
+	 * Sets a protected property for dependency injection in tests.
+	 *
+	 * @param object $target   Object to modify.
+	 * @param string $property Property name.
+	 * @param mixed  $value Property value.
+	 */
+	protected function set_protected_property($target, $property, $value) {
+
+		$reflection = new \ReflectionProperty($target, $property);
+		$reflection->setAccessible(true);
+		$reflection->setValue($target, $value);
 	}
 
 	/**
