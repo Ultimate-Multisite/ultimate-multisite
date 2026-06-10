@@ -182,11 +182,11 @@ class Broadcast_List_Table extends Base_List_Table {
 
 				$email = $customer->get_email_address();
 
-				$html = "<a href='{$customer_link}' class='wu-p-2 wu-flex wu-flex-grow wu-bg-gray-100 wu-rounded wu-items-center wu-border wu-border-solid wu-border-gray-300'>
+				$html = "<a href='" . esc_url($customer_link) . "' class='wu-p-2 wu-flex wu-flex-grow wu-bg-gray-100 wu-rounded wu-items-center wu-border wu-border-solid wu-border-gray-300'>
 										{$avatar}
 										<div class='wu-pl-2'>
-												<strong class='wu-block'>{$display_name} <small class='wu-font-normal'>(#{$id})</small></strong>
-												<small>{$email}</small>
+												<strong class='wu-block'>" . esc_html($display_name) . " <small class='wu-font-normal'>(#" . esc_html((string) $id) . ")</small></strong>
+												<small>" . esc_html($email) . "</small>
 										</div>
 								</a>";
 
@@ -215,7 +215,7 @@ class Broadcast_List_Table extends Base_List_Table {
 
 					$customer_link = wu_network_admin_url('wp-ultimo-edit-customer', $url_atts);
 
-					$html .= "<div class='wu-flex wu--mr-4'><a role='tooltip' aria-label='{$tooltip_name}' href='{$customer_link}'>{$avatar}</a></div>";
+					$html .= "<div class='wu-flex wu--mr-4'><a role='tooltip' aria-label='" . esc_attr($tooltip_name) . "' href='" . esc_url($customer_link) . "'>{$avatar}</a></div>";
 				}
 
 				if ($targets_count < 7) {
@@ -363,7 +363,7 @@ class Broadcast_List_Table extends Base_List_Table {
 		</div>';
 			}
 
-			$html .= "<div class='wu-flex wu--mr-4'><a role='tooltip' aria-label='{$product_name}' href='{$product_link}'>{$image}</a></div>";
+			$html .= "<div class='wu-flex wu--mr-4'><a role='tooltip' aria-label='" . esc_attr($product_name) . "' href='" . esc_url($product_link) . "'>{$image}</a></div>";
 		}
 
 		if ($product_count > 1 && $product_count < 5) {
