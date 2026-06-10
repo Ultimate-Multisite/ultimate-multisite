@@ -125,6 +125,10 @@ class Magic_Link {
 
 		$site = wu_get_site($site_id);
 
+		if ( ! $site ) {
+			return false;
+		}
+
 		// Build the magic link URL.
 		$site_url = $site->get_active_site_url();
 

@@ -210,6 +210,7 @@ function wu_get_currency_symbol($currency = '') {
 			break;
 		case 'BYN':
 			$currency_symbol = 'Br';
+			break;
 		case 'CHF':
 			$currency_symbol = 'CHF';
 			break;
