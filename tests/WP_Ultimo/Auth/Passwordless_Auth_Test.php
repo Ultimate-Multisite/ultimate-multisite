@@ -87,6 +87,45 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Tests failed OTP email delivery returns an error and removes the stored attempt.
+	 */
+	public function test_failed_otp_email_delivery_cleans_up_attempt() {
+
+		global $wpdb;
+
+		$user = self::factory()->user->create_and_get(
+			[
+				'user_email' => 'otp-delivery-failed@example.test',
+			]
+		);
+
+		$service = new class() extends Email_OTP_Service {
+
+			/**
+			 * Simulates a failed email send.
+			 *
+			 * @param \WP_User $user User object.
+			 * @param string   $code OTP code.
+			 * @return bool
+			 */
+			protected function send_email(\WP_User $user, $code) {
+
+				return false;
+			}
+		};
+
+		$result = $service->create_and_send($user, $user->user_email);
+
+		$this->assertWPError($result);
+		$this->assertSame('otp_email_failed', $result->get_error_code());
+
+		$table = $service->get_table_name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$this->assertSame('0', $wpdb->get_var("SELECT COUNT(*) FROM {$table}"));
+	}
+
+	/**
 	 * Tests WebAuthn challenges are stored hashed and single-use.
 	 */
 	public function test_webauthn_challenges_are_hashed_and_single_use() {
