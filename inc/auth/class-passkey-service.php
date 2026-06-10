@@ -288,7 +288,9 @@ class Passkey_Service {
 			return new \WP_Error('invalid_user', __('Invalid passkey user.', 'ultimate-multisite'));
 		}
 
-		$this->credentials->update_usage((int) $credential->id, $new_count);
+		if ( ! $this->credentials->update_usage((int) $credential->id, $new_count)) {
+			return new \WP_Error('credential_update_failed', __('Could not finalize passkey authentication. Please try again.', 'ultimate-multisite'));
+		}
 
 		return $user;
 	}
