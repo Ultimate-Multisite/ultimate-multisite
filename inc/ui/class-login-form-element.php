@@ -313,6 +313,8 @@ class Login_Form_Element extends Base_Element {
 
 		wp_set_script_translations('wu-password-toggle', 'ultimate-multisite');
 
+		\WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance()->enqueue_assets();
+
 		// Enqueue password strength scripts for reset password page.
 		if ($this->is_reset_password_page()) {
 			// wu-password-strength is globally registered with password-strength-meter as dependency.
@@ -774,59 +776,30 @@ class Login_Form_Element extends Base_Element {
 		} else {
 			$view = 'dashboard-widgets/login-form';
 
-			$fields = [
-				'log' => [
-					'type'        => 'text',
-					'title'       => $atts['label_username'],
-					'placeholder' => $atts['placeholder_username'],
-					'tooltip'     => '',
-					'html_attr'   => [
-						'autocomplete' => 'username',
-					],
-				],
-				'pwd' => [
-					'type'        => 'password',
-					'title'       => $atts['label_password'],
-					'placeholder' => $atts['placeholder_password'],
-					'tooltip'     => '',
-					'html_attr'   => [
-						'autocomplete' => 'current-password',
-					],
-				],
-			];
-
-			if ($atts['remember']) {
-				$fields['rememberme'] = [
-					'type'  => 'toggle',
-					'title' => $atts['label_remember'],
-					'desc'  => $atts['desc_remember'],
-				];
-			}
-
-			$fields['redirect_to'] = [
-				'type'  => 'hidden',
-				'value' => isset($_GET['redirect_to']) ? sanitize_url(wp_unslash($_GET['redirect_to'])) : $atts['redirect'], // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			];
+			$redirect_to = isset($_GET['redirect_to']) ? sanitize_url(wp_unslash($_GET['redirect_to'])) : $atts['redirect']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 			if (isset($_GET['redirect_to'])) { // phpcs:ignore WordPress.Security.NonceVerification
 				$atts['redirect_type'] = 'query_redirect';
 			} elseif ('customer_site' === $atts['redirect_type']) {
-				$fields['redirect_to']['value'] = $atts['customer_redirect_path'];
+				$redirect_to = $atts['customer_redirect_path'];
 			} elseif ('main_site' === $atts['redirect_type']) {
-				$fields['redirect_to']['value'] = $atts['main_redirect_path'];
+				$redirect_to = $atts['main_redirect_path'];
 			}
 
-			$fields['wu_login_form_redirect_type'] = [
-				'type'  => 'hidden',
-				'value' => $atts['redirect_type'],
-			];
-
-			$fields['wp-submit'] = [
-				'type'            => 'submit',
-				'title'           => $atts['label_log_in'],
-				'value'           => $atts['label_log_in'],
-				'classes'         => 'button button-primary wu-w-full',
-				'wrapper_classes' => 'wu-items-end wu-bg-none',
+			$fields = [
+				'passwordless_login' => [
+					'type'            => 'html',
+					'content'         => \WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance()->get_login_form_markup(
+						[
+							'context'       => 'login-form',
+							'redirect_to'   => $redirect_to,
+							'redirect_type' => $atts['redirect_type'],
+							'fallback_url'  => add_query_arg('wu_password_fallback', '1', wp_login_url($redirect_to)),
+						]
+					),
+					'classes'         => '',
+					'wrapper_classes' => 'wu-w-full wu-bg-none',
+				],
 			];
 
 			/*

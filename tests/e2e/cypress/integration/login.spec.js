@@ -1,5 +1,12 @@
 describe("Login", () => {
   describe("User Interface", () => {
+    it("Should show the email-first passwordless login form", () => {
+      cy.visit("/wp-login.php");
+      cy.get(".wu-passwordless-auth").should("be.visible");
+      cy.get(".wu-passwordless-email").should("be.visible");
+      cy.get("#user_pass").should("not.be.visible");
+    });
+
     it("Should be able to login by the user interface", () => {
       cy.loginByForm(
         Cypress.env("admin").username,

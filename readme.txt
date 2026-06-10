@@ -42,6 +42,7 @@ Everything you need to build and scale a WordPress Multisite SaaS platform:
 - **Flexible Plans & Limits** – Package features and enforce quotas across your multisite network
 - **Template Library** – High-converting site templates customers can launch in minutes
 - **Customer Dashboard** – Branded UI for managing billing, sites, domains, and settings
+- **Passwordless Login** – Passkey sign-in and short-lived email codes across login and checkout flows
 - **White-Label Ready** – Rename, rebrand, and customize the experience
 - **Hosting Integrations** – Cloudflare, GridPane, Cloudways, WPMU DEV, and more
 - **Developer-Friendly** – Hooks, filters, and an extensible add-on system
@@ -98,6 +99,10 @@ Yes. Ultimate Multisite includes robust domain mapping with automated DNS verifi
 = Which payment gateways are supported? =
 
 Stripe, PayPal, and manual payments are supported out of the box.
+
+= Does Ultimate Multisite support passwordless login? =
+
+Yes. Ultimate Multisite includes native passwordless login with passkeys when the browser supports WebAuthn and short-lived email one-time codes as a fallback.
 
 = Can I migrate from WP Ultimo? =
 

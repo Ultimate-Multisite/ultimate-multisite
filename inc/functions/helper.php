@@ -269,11 +269,11 @@ function wu_get_function_caller(int $depth = 1): ?string {
  */
 function wu_cli_is_plugin_skipped($plugin = null): bool {
 
-	if ( ! defined('WP_CLI') || ! WP_CLI) {
+	if ( ! defined('WP_CLI') || ! WP_CLI || ! is_callable(['WP_CLI', 'get_config'])) {
 		return false;
 	}
 
-	$skipped_plugins = \WP_CLI::get_config('skip-plugins');
+	$skipped_plugins = call_user_func(['WP_CLI', 'get_config'], 'skip-plugins');
 
 	if (is_bool($skipped_plugins)) {
 		return true;
@@ -349,6 +349,7 @@ function wu_kses_allowed_html(): array {
 		'mask'              => true,
 		'filter'            => true,
 		'aria-hidden'       => true,
+		'aria-live'         => true,
 		'aria-labelledby'   => true,
 		'aria-describedby'  => true,
 		'role'              => true,
@@ -409,6 +410,8 @@ function wu_kses_allowed_html(): array {
 		'@click.prevent'            => true,
 		'@submit'                   => true,
 		'@change'                   => true,
+		'aria-live'                 => true,
+		'role'                      => true,
 		// Common data attributes
 		'data-image'                => true,
 		'data-src'                  => true,
@@ -456,23 +459,34 @@ function wu_kses_allowed_html(): array {
 		'data-include'              => true,
 		'data-clipboard-action'     => true,
 		'data-action'               => true,
+		'data-context'              => true,
+		'data-identifier-field'     => true,
+		'data-redirect-to'          => true,
+		'data-redirect-type'        => true,
+		'data-success'              => true,
+		'data-wu-step'              => true,
 		// others
 		'style'                     => true,
 		'class'                     => true,
 		'id'                        => true,
+		'hidden'                    => true,
 		'data-price'                => true,
 	];
 
 	$allowed_html             = wp_kses_allowed_html('post');
 	$allowed_html['input']    = [
-		'value'       => true,
-		'min'         => true,
-		'max'         => true,
-		'type'        => true,
-		'placeholder' => true,
-		'name'        => true,
-		'disabled'    => true,
-		'checked'     => true,
+		'autocomplete' => true,
+		'value'        => true,
+		'inputmode'    => true,
+		'maxlength'    => true,
+		'min'          => true,
+		'max'          => true,
+		'pattern'      => true,
+		'type'         => true,
+		'placeholder'  => true,
+		'name'         => true,
+		'disabled'     => true,
+		'checked'      => true,
 	];
 	$allowed_html['textarea'] = [
 		'name'     => true,
@@ -491,6 +505,8 @@ function wu_kses_allowed_html(): array {
 		'value'    => true,
 	];
 	$allowed_html['button']   = [
+		'class'           => true,
+		'id'              => true,
 		'type'            => true,
 		'disabled'        => true,
 		'name'            => true,

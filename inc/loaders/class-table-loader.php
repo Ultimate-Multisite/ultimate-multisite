@@ -186,6 +186,30 @@ class Table_Loader {
 	public $checkout_formmeta_table;
 
 	/**
+	 * The Passkey Credentials Table.
+	 *
+	 * @since 2.13.2
+	 * @var \WP_Ultimo\Database\Passkey_Credentials\Passkey_Credentials_Table
+	 */
+	public $passkey_credential_table;
+
+	/**
+	 * The WebAuthn Challenges Table.
+	 *
+	 * @since 2.13.2
+	 * @var \WP_Ultimo\Database\WebAuthn_Challenges\WebAuthn_Challenges_Table
+	 */
+	public $webauthn_challenge_table;
+
+	/**
+	 * The Email OTP Attempts Table.
+	 *
+	 * @since 2.13.2
+	 * @var \WP_Ultimo\Database\Email_OTP_Attempts\Email_OTP_Attempts_Table
+	 */
+	public $email_otp_attempt_table;
+
+	/**
 	 * Loads the table objects for our custom tables.
 	 *
 	 * @since 2.0.0
@@ -255,6 +279,13 @@ class Table_Loader {
 		 */
 		$this->checkout_form_table     = new \WP_Ultimo\Database\Checkout_Forms\Checkout_Forms_Table();
 		$this->checkout_formmeta_table = new \WP_Ultimo\Database\Checkout_Forms\Checkout_Forms_Meta_Table();
+
+		/**
+		 * Loads passwordless authentication tables.
+		 */
+		$this->passkey_credential_table = new \WP_Ultimo\Database\Passkey_Credentials\Passkey_Credentials_Table();
+		$this->webauthn_challenge_table = new \WP_Ultimo\Database\WebAuthn_Challenges\WebAuthn_Challenges_Table();
+		$this->email_otp_attempt_table  = new \WP_Ultimo\Database\Email_OTP_Attempts\Email_OTP_Attempts_Table();
 	}
 
 	/**

@@ -43,6 +43,19 @@ Cypress.Commands.add("loginByForm", (username, password) => {
       }
 
       cy.get("body").then(($body) => {
+		if ($body.find(".wu-passwordless-auth").length) {
+			cy.get(".wu-passwordless-auth").should("be.visible");
+			cy.get(".wu-passwordless-email").should("be.visible");
+			if ($body.find("#user_pass").length) {
+				cy.get("#user_pass").should("not.be.visible");
+			} else {
+				cy.get("#user_pass").should("not.exist");
+			}
+			cy.loginByApi(username, password);
+          cy.visit("/wp-admin/");
+          return;
+        }
+
         if (!$body.find("#user_login").length) {
           cy.loginByApi(username, password);
           cy.visit("/wp-admin/");
