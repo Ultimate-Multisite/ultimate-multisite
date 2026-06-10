@@ -3039,6 +3039,20 @@ class Checkout {
 		 * It ensure that the cart is the same used in beginning of the process.
 		 */
 		$this->order = $payment->get_meta('wu_original_cart');
+
+		/*
+		 * The original cart is only stored for payments created through the
+		 * normal checkout flow (process_order). Payments created elsewhere
+		 * (webhooks, admin, the register API) have no 'wu_original_cart' meta,
+		 * so get_meta() returns its `false` default. Bail cleanly instead of
+		 * fatally calling a method on a boolean.
+		 */
+		if ( ! $this->order instanceof \WP_Ultimo\Checkout\Cart) {
+			$this->errors = new \WP_Error('no-cart', __('This checkout session has expired or cannot be resumed. Please start over.', 'ultimate-multisite'));
+
+			return false;
+		}
+
 		$this->order->set_membership($membership);
 		$this->order->set_customer($customer);
 		$this->order->set_payment($payment);
@@ -3058,7 +3072,7 @@ class Checkout {
 				$gateway = wu_get_gateway($payment->get_gateway());
 			} elseif ($this->order->should_collect_payment() === false) {
 				$gateway = wu_get_gateway('free');
-			} elseif ($gateway->get_id() === 'free') {
+			} elseif ($gateway && $gateway->get_id() === 'free') {
 					$this->errors = new \WP_Error('no-gateway', __('Payment gateway not registered.', 'ultimate-multisite'));
 
 					return false;
