@@ -72,15 +72,31 @@ function wu_save_setting_early($key, $value) {
 }
 
 /**
- * Get the security mode key used to disable security mode
+ * Get the security mode key used to disable security mode.
+ *
+ * This key is exposed in an unauthenticated query string (?wu_secure=KEY) that
+ * turns the network-wide recovery "security mode" off, so it must be
+ * unpredictable. It used to be substr(md5(admin_email), 0, 6) — only ~24 bits
+ * and derived from a frequently public/guessable value, which an attacker could
+ * compute or brute-force. We now use a high-entropy random secret generated once
+ * and stored as a network option. random_bytes() is used (not
+ * wp_generate_password) because this runs from sunrise, before pluggable.php is
+ * loaded. The current key is shown to admins on the settings screen, so rotating
+ * it is transparent for the documented copy-the-URL workflow.
  *
  * @since 2.0.20
  */
 function wu_get_security_mode_key(): string {
 
-	$hash = md5((string) get_network_option(null, 'admin_email'));
+	$key = (string) get_network_option(null, 'wu_security_mode_key', '');
 
-	return substr($hash, 0, 6);
+	if ('' === $key) {
+		$key = bin2hex(random_bytes(16));
+
+		update_network_option(null, 'wu_security_mode_key', $key);
+	}
+
+	return $key;
 }
 
 /**
