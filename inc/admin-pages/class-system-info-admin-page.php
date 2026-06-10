@@ -561,6 +561,10 @@ class System_Info_Admin_Page extends Base_Admin_Page {
 	 */
 	public function generate_text_file_system_info(): void {
 
+		if ( ! current_user_can('manage_network')) {
+			wp_die(esc_html__('You do not have permission to access this resource.', 'ultimate-multisite'), 403);
+		}
+
 		$file_name = sprintf("$this->id-%s.txt", gmdate('Y-m-d'));
 
 		header('Content-Description: File Transfer');

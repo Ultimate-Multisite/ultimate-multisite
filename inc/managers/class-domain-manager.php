@@ -1226,6 +1226,10 @@ class Domain_Manager extends Base_Manager {
 	 */
 	public function get_dns_records(): void {
 
+		if ( ! current_user_can('manage_network')) {
+			wp_send_json_error(new \WP_Error('unauthorized', __('You do not have permission to perform this action.', 'ultimate-multisite')));
+		}
+
 		$domain = wu_request('domain');
 
 		if ( ! $domain) {
@@ -1490,6 +1494,10 @@ class Domain_Manager extends Base_Manager {
 	 * @return void
 	 */
 	public function test_integration() {
+
+		if ( ! current_user_can('manage_network')) {
+			wp_send_json_error(new \WP_Error('unauthorized', __('You do not have permission to perform this action.', 'ultimate-multisite')));
+		}
 
 		$integration_id = wu_request('integration', 'none');
 

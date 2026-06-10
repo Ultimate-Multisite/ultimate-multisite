@@ -146,6 +146,10 @@ class Template_Placeholders {
 	 */
 	public function serve_placeholders_via_ajax(): void {
 
+		if ( ! current_user_can('manage_network')) {
+			wp_send_json_error(new \WP_Error('unauthorized', __('You do not have permission to perform this action.', 'ultimate-multisite')));
+		}
+
 		wp_send_json_success($this->placeholders_as_saved);
 	}
 
@@ -157,7 +161,16 @@ class Template_Placeholders {
 	 */
 	public function save_placeholders(): void {
 
-		if ( ! check_ajax_referer('wu_edit_placeholders_editing')) {
+		if ( ! current_user_can('manage_network')) {
+			wp_send_json(
+				[
+					'code'    => 'not-enough-permissions',
+					'message' => __('You don\'t have permission to alter placeholders.', 'ultimate-multisite'),
+				]
+			);
+		}
+
+		if ( ! check_ajax_referer('wu_edit_placeholders_editing', false, false)) {
 			wp_send_json(
 				[
 					'code'    => 'not-enough-permissions',

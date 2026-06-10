@@ -86,6 +86,19 @@ class Ajax implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function search_models(): void {
 
+		/*
+		 * The selectize search endpoint returns network-wide objects
+		 * (customers, memberships, payments and — for the 'user' model —
+		 * WordPress user logins and email addresses). It is only ever wired
+		 * to network-admin forms, so restrict it to network administrators
+		 * to prevent any logged-in user from enumerating that data.
+		 */
+		if ( ! current_user_can('manage_network')) {
+			wp_send_json([]);
+
+			return;
+		}
+
 		/**
 		 * Fires before the processing of the search request.
 		 *

@@ -74,12 +74,18 @@ abstract class Base_Customer_Facing_Admin_Page extends Base_Admin_Page {
 
 		add_action('updated_user_meta', [$this, 'save_settings'], 10, 4);
 
+		/*
+		 * This form customizes the network-admin menu title/position/icon of
+		 * the customer-facing pages and persists a network-level setting, so it
+		 * must require network-admin rights. The previous 'exist' capability
+		 * allowed any logged-in user to submit it.
+		 */
 		wu_register_form(
 			"edit_admin_page_$this->id",
 			[
 				'render'     => [$this, 'render_edit_page'],
 				'handler'    => [$this, 'handle_edit_page'],
-				'capability' => 'exist',
+				'capability' => 'manage_network',
 			]
 		);
 

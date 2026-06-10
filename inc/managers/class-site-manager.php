@@ -539,6 +539,10 @@ class Site_Manager extends Base_Manager {
 	 */
 	public function get_site_screenshot(): void {
 
+		if ( ! current_user_can('manage_network')) {
+			wp_send_json_error(new \WP_Error('unauthorized', __('You do not have permission to perform this action.', 'ultimate-multisite')));
+		}
+
 		$site_id = wu_request('site_id');
 
 		$site = wu_get_site($site_id);
