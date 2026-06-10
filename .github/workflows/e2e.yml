@@ -19,7 +19,7 @@ jobs:
 
     services:
       mailpit:
-        image: axllent/mailpit:latest
+        image: ghcr.io/axllent/mailpit:latest
         ports:
           - 1025:1025
           - 8025:8025
