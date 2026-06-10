@@ -75,9 +75,7 @@ class WebAuthn_Helper {
 			$host = (string) wp_parse_url(home_url(), PHP_URL_HOST);
 		}
 
-		if (false !== strpos($host, ':') && false === strpos($host, ']')) {
-			$host = (string) preg_replace('/:\d+$/', '', $host);
-		}
+		$host = (string) preg_replace('/^(\[[0-9a-f:]+\]):\d+$|^([^\[\]]+):\d+$/i', '$1$2', $host);
 
 		return trim($host, '[]');
 	}

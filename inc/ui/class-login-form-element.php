@@ -794,6 +794,7 @@ class Login_Form_Element extends Base_Element {
 							'context'       => 'login-form',
 							'redirect_to'   => $redirect_to,
 							'redirect_type' => $atts['redirect_type'],
+							'fallback_url'  => add_query_arg('wu_password_fallback', '1', wp_login_url($redirect_to)),
 						]
 					),
 					'classes'         => '',

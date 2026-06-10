@@ -102,9 +102,10 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 		$this->assertSame(hash('sha256', $challenge), $row->challenge_hash);
 		$this->assertStringNotContainsString($challenge, $row->challenge_hash);
 
-		$store->mark_used((int) $row->id);
+		$this->assertTrue($store->mark_used((int) $row->id));
 
 		$this->assertNull($store->get_valid($challenge, 'authentication'));
+		$this->assertFalse($store->mark_used((int) $row->id));
 	}
 
 	/**

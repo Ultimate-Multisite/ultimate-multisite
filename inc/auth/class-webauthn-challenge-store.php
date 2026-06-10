@@ -122,19 +122,19 @@ class WebAuthn_Challenge_Store {
 
 		global $wpdb;
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$result = $wpdb->update(
-			$this->get_table_name(),
-			[
-				'used_at' => current_time('mysql', true),
-			],
-			[
-				'id' => absint($id),
-			],
-			['%s'],
-			['%d']
+		$table = $this->get_table_name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$result = $wpdb->query(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"UPDATE {$table} SET used_at = %s WHERE id = %d AND used_at IS NULL",
+				current_time('mysql', true),
+				absint($id)
+			)
 		);
 
-		return false !== $result;
+		return 1 === $result;
 	}
 }

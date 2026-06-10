@@ -196,6 +196,10 @@ class Passkey_Service {
 			return new \WP_Error('invalid_rp_id', __('Invalid passkey relying party.', 'ultimate-multisite'));
 		}
 
+		if ( ! $this->challenges->mark_used((int) $challenge->id)) {
+			return new \WP_Error('invalid_challenge', __('Invalid or expired passkey challenge.', 'ultimate-multisite'));
+		}
+
 		$transports = $payload['response']['transports'] ?? [];
 
 		$created = $this->credentials->create(
@@ -210,8 +214,6 @@ class Passkey_Service {
 		if ( ! $created) {
 			return new \WP_Error('credential_store_failed', __('Could not store the passkey. Please try again.', 'ultimate-multisite'));
 		}
-
-		$this->challenges->mark_used((int) $challenge->id);
 
 		return true;
 	}
@@ -276,6 +278,10 @@ class Passkey_Service {
 			return new \WP_Error('invalid_sign_count', __('Passkey counter verification failed.', 'ultimate-multisite'));
 		}
 
+		if ( ! $this->challenges->mark_used((int) $challenge->id)) {
+			return new \WP_Error('invalid_challenge', __('Invalid or expired passkey challenge.', 'ultimate-multisite'));
+		}
+
 		$user = get_user_by('id', (int) $credential->user_id);
 
 		if ( ! $user) {
@@ -283,7 +289,6 @@ class Passkey_Service {
 		}
 
 		$this->credentials->update_usage((int) $credential->id, $new_count);
-		$this->challenges->mark_used((int) $challenge->id);
 
 		return $user;
 	}

@@ -129,8 +129,10 @@ class Email_OTP_Service {
 		 */
 		$should_send = (bool) apply_filters('wu_passwordless_should_send_otp', true, $user, $code);
 
-		if ($should_send) {
-			$this->send_email($user, $code);
+		if ($should_send && ! $this->send_email($user, $code)) {
+			$this->delete_attempt_by_token($token);
+
+			return new \WP_Error('otp_email_failed', __('Could not send the login code email. Please try again.', 'ultimate-multisite'));
 		}
 
 		return [
@@ -191,9 +193,34 @@ class Email_OTP_Service {
 			return new \WP_Error('invalid_otp_user', __('Invalid login code.', 'ultimate-multisite'));
 		}
 
-		$this->consume((int) $attempt->id);
+		if ( ! $this->consume((int) $attempt->id)) {
+			return new \WP_Error('invalid_otp', __('Invalid or expired login code.', 'ultimate-multisite'));
+		}
 
 		return $user;
+	}
+
+	/**
+	 * Deletes a stored OTP attempt by token.
+	 *
+	 * @since 2.13.2
+	 * @param string $token OTP token.
+	 * @return bool
+	 */
+	protected function delete_attempt_by_token($token) {
+
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$result = $wpdb->delete(
+			$this->get_table_name(),
+			[
+				'token_hash' => hash('sha256', sanitize_text_field($token)),
+			],
+			['%s']
+		);
+
+		return false !== $result;
 	}
 
 	/**
@@ -297,24 +324,26 @@ class Email_OTP_Service {
 	 *
 	 * @since 2.13.2
 	 * @param int $id Attempt ID.
-	 * @return void
+	 * @return bool
 	 */
 	protected function consume($id) {
 
 		global $wpdb;
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$wpdb->update(
-			$this->get_table_name(),
-			[
-				'consumed_at' => current_time('mysql', true),
-			],
-			[
-				'id' => absint($id),
-			],
-			['%s'],
-			['%d']
+		$table = $this->get_table_name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$result = $wpdb->query(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"UPDATE {$table} SET consumed_at = %s WHERE id = %d AND consumed_at IS NULL",
+				current_time('mysql', true),
+				absint($id)
+			)
 		);
+
+		return 1 === $result;
 	}
 
 	/**

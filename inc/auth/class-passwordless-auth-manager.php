@@ -404,8 +404,8 @@ class Passwordless_Auth_Manager {
 		$this->verify_ajax_request();
 
 		$identifier        = sanitize_text_field(wu_request('identifier'));
-		$supports_webauthn = (bool) wu_request('supports_webauthn');
-		$force_otp         = (bool) wu_request('force_otp');
+		$supports_webauthn = filter_var(wu_request('supports_webauthn'), FILTER_VALIDATE_BOOLEAN);
+		$force_otp         = filter_var(wu_request('force_otp'), FILTER_VALIDATE_BOOLEAN);
 		$user              = $this->find_user($identifier);
 
 		if ($user && $supports_webauthn && ! $force_otp && $this->passkeys->credentials()->user_has_credentials($user->ID)) {

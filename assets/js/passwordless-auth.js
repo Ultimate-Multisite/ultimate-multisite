@@ -301,7 +301,7 @@
 				return;
 			}
 
-			window.location.assign(state.redirectUrl || data.redirect_url || window.location.href);
+			window.location.assign(data.redirect_url || state.redirectUrl || window.location.href);
 		}
 
 		function start(forceOtp) {
