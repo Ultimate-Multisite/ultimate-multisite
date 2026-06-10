@@ -3047,7 +3047,7 @@ class Checkout {
 		 * so get_meta() returns its `false` default. Bail cleanly instead of
 		 * fatally calling a method on a boolean.
 		 */
-		if ( ! $this->order instanceof \WP_Ultimo\Checkout\Cart) {
+		if ( ! ($this->order instanceof \WP_Ultimo\Checkout\Cart)) {
 			$this->errors = new \WP_Error('no-cart', __('This checkout session has expired or cannot be resumed. Please start over.', 'ultimate-multisite'));
 
 			return false;
