@@ -97,7 +97,7 @@ class Webhook_List_Table extends Base_List_Table {
 	 */
 	public function column_webhook_url($item) {
 
-		$trimmed_url = mb_strimwidth((string) $item->get_webhook_url(), 0, 50, '...');
+		$trimmed_url = esc_html(mb_strimwidth((string) $item->get_webhook_url(), 0, 50, '...'));
 
 		return "<span class='wu-py-1 wu-px-2 wu-bg-gray-200 wu-rounded-sm wu-text-gray-700 wu-text-xs wu-font-mono'>{$trimmed_url}</span>";
 	}
@@ -112,7 +112,7 @@ class Webhook_List_Table extends Base_List_Table {
 	 */
 	public function column_event($item) {
 
-		$event = $item->get_event();
+		$event = esc_html((string) $item->get_event());
 
 		return "<span class='wu-py-1 wu-px-2 wu-bg-gray-200 wu-rounded-sm wu-text-gray-700 wu-text-xs wu-font-mono'>{$event}</span>";
 	}
