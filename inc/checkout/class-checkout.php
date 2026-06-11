@@ -2770,7 +2770,9 @@ class Checkout {
 			'billing_zip_code' => '',
 		];
 
-		foreach ($this->step['fields'] as $field_key => $field) {
+		$billing_rule_fields = $this->checkout_form ? $this->checkout_form->get_all_fields() : $this->step['fields'];
+
+		foreach ($billing_rule_fields as $field_key => $field) {
 			if ( ! is_array($field)) {
 				continue;
 			}
