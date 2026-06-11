@@ -525,7 +525,15 @@ class Checkout_Form_Edit_Admin_Page extends Edit_Admin_Page {
 		foreach ($field_types as $field_type) {
 			$_fields = call_user_func($field_type['fields'], $attributes);
 
-			$additional_fields = array_merge($additional_fields, $_fields);
+			foreach ($_fields as $field_slug => $field) {
+				if (isset($additional_fields[ $field_slug ])) {
+					$additional_fields[ $field_slug ] = $this->merge_duplicate_field_type_field($additional_fields[ $field_slug ], $field);
+
+					continue;
+				}
+
+				$additional_fields[ $field_slug ] = $field;
+			}
 		}
 
 		$default_fields = \WP_Ultimo\Checkout\Signup_Fields\Base_Signup_Field::fields_list();
@@ -581,6 +589,33 @@ class Checkout_Form_Edit_Admin_Page extends Edit_Admin_Page {
 		);
 
 		return $fields;
+	}
+
+	/**
+	 * Merges editor fields that use the same attribute key across field types.
+	 *
+	 * Add-ons can register field types with editor attributes that collide with
+	 * core field attributes, for example an add-on field that also uses a
+	 * `product` selector. Keeping only the last field hides the earlier selector
+	 * because its Vue visibility condition is replaced. Preserve the first field
+	 * configuration and make it visible for both field types.
+	 *
+	 * @since 2.4.13
+	 *
+	 * @param array $existing_field Previously registered editor field.
+	 * @param array $new_field      New editor field using the same key.
+	 * @return array
+	 */
+	protected function merge_duplicate_field_type_field($existing_field, $new_field) {
+
+		$existing_show = wu_get_isset($existing_field, 'wrapper_html_attr', [])['v-show'] ?? '';
+		$new_show      = wu_get_isset($new_field, 'wrapper_html_attr', [])['v-show'] ?? '';
+
+		if ($existing_show && $new_show && $existing_show !== $new_show) {
+			$existing_field['wrapper_html_attr']['v-show'] = sprintf('(%s) || (%s)', $existing_show, $new_show);
+		}
+
+		return $existing_field;
 	}
 
 	/**

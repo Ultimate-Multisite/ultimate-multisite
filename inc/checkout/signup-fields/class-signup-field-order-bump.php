@@ -110,6 +110,7 @@ class Signup_Field_Order_Bump extends Base_Signup_Field {
 	public function defaults() {
 
 		return [
+			'product'                     => '',
 			'order_bump_template'         => 'simple',
 			'display_product_description' => 0,
 		];
@@ -172,6 +173,7 @@ class Signup_Field_Order_Bump extends Base_Signup_Field {
 				'tooltip'     => '',
 				'order'       => 12,
 				'html_attr'   => [
+					'v-model'           => 'product',
 					'data-model'        => 'product',
 					'data-value-field'  => 'id',
 					'data-label-field'  => 'name',
