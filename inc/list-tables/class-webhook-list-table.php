@@ -65,14 +65,14 @@ class Webhook_List_Table extends Base_List_Table {
 			'<a href="%s"><strong>%s</strong></a>
 				<span data-loading="wu_action_button_loading_%s" id="wu_action_button_loading" class="wu-blinking-animation wu-text-gray-600 wu-my-1 wu-text-2xs wu-uppercase wu-font-semibold hidden" >%s</span>',
 			wu_network_admin_url('wp-ultimo-edit-webhook', $url_atts),
-			$item->get_name(),
+			esc_html($item->get_name()),
 			$item->get_id(),
 			__('Sending Test..', 'ultimate-multisite')
 		);
 
 		$actions = [
 			'edit'   => sprintf('<a href="%s">%s</a>', wu_network_admin_url('wp-ultimo-edit-webhook', $url_atts), __('Edit', 'ultimate-multisite')),
-			'test'   => sprintf('<a id="action_button" data-title="' . $item->get_name() . '" data-page="list" data-action="wu_send_test_event" data-event="' . $item->get_event() . '" data-object="' . $item->get_id() . '" data-url="%s" href="">%s</a>', $item->get_webhook_url(), __('Send Test', 'ultimate-multisite')),
+			'test'   => sprintf('<a id="action_button" data-title="' . esc_attr($item->get_name()) . '" data-page="list" data-action="wu_send_test_event" data-event="' . esc_attr($item->get_event()) . '" data-object="' . esc_attr($item->get_id()) . '" data-url="%s" href="">%s</a>', esc_url($item->get_webhook_url()), __('Send Test', 'ultimate-multisite')),
 			'delete' => sprintf(
 				'<a title="%s" class="wubox" href="%s">%s</a>',
 				__('Delete', 'ultimate-multisite'),
@@ -97,7 +97,7 @@ class Webhook_List_Table extends Base_List_Table {
 	 */
 	public function column_webhook_url($item) {
 
-		$trimmed_url = mb_strimwidth((string) $item->get_webhook_url(), 0, 50, '...');
+		$trimmed_url = esc_html(mb_strimwidth((string) $item->get_webhook_url(), 0, 50, '...'));
 
 		return "<span class='wu-py-1 wu-px-2 wu-bg-gray-200 wu-rounded-sm wu-text-gray-700 wu-text-xs wu-font-mono'>{$trimmed_url}</span>";
 	}
@@ -112,7 +112,7 @@ class Webhook_List_Table extends Base_List_Table {
 	 */
 	public function column_event($item) {
 
-		$event = $item->get_event();
+		$event = esc_html((string) $item->get_event());
 
 		return "<span class='wu-py-1 wu-px-2 wu-bg-gray-200 wu-rounded-sm wu-text-gray-700 wu-text-xs wu-font-mono'>{$event}</span>";
 	}
