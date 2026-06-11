@@ -97,6 +97,8 @@ class Signup_Field_Order_Bump_Test extends WP_UnitTestCase {
 	public function test_defaults(): void {
 		$defaults = $this->field->defaults();
 		$this->assertIsArray( $defaults );
+		$this->assertArrayHasKey( 'product', $defaults );
+		$this->assertEquals( '', $defaults['product'] );
 		$this->assertArrayHasKey( 'order_bump_template', $defaults );
 		$this->assertEquals( 'simple', $defaults['order_bump_template'] );
 		$this->assertArrayHasKey( 'display_product_description', $defaults );
@@ -139,6 +141,14 @@ class Signup_Field_Order_Bump_Test extends WP_UnitTestCase {
 	public function test_get_fields_product_is_model_type(): void {
 		$fields = $this->field->get_fields();
 		$this->assertEquals( 'model', $fields['product']['type'] );
+	}
+
+	/**
+	 * Test product field is bound to modal state.
+	 */
+	public function test_get_fields_product_is_bound_to_modal_state(): void {
+		$fields = $this->field->get_fields();
+		$this->assertEquals( 'product', $fields['product']['html_attr']['v-model'] );
 	}
 
 	/**
