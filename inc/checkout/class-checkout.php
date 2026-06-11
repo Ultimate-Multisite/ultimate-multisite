@@ -2112,6 +2112,7 @@ class Checkout {
 			'cancel'               => __('Cancel', 'ultimate-multisite'),
 			'email_exists'         => __('A customer with the same email address or username already exists.', 'ultimate-multisite'),
 			'provisioning_site'    => __('Provisioning your site — this can take up to 60 seconds.', 'ultimate-multisite'),
+			'recording_responses'  => __('Recording Your Responses...', 'ultimate-multisite'),
 			// Client-side validation messages (%s = field label, %d = numeric limit).
 			/* translators: %s: field label */
 			'field_required'       => __('%s is required.', 'ultimate-multisite'),
@@ -2204,6 +2205,7 @@ class Checkout {
 			'needs_billing_info' => true,
 			'auto_renew'         => true,
 			'products'           => array_unique($products),
+			'is_last_step'       => $this->is_last_step(),
 		];
 
 		/*
