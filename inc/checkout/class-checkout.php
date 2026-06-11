@@ -2758,6 +2758,31 @@ class Checkout {
 		}
 
 		/*
+		 * Relax the base billing rules for billing-address fields rendered by an
+		 * optional billing-address element. The base ZIP/Country rules use
+		 * required_with:<same field>, and Rakit treats an empty submitted field as
+		 * "present", so optional visible fields would still fail validation.
+		 */
+		$submitted_billing_country = trim((string) wu_request('billing_country', ''));
+
+		$optional_billing_rules = [
+			'billing_country'  => '' === $submitted_billing_country ? '' : 'country',
+			'billing_zip_code' => '',
+		];
+
+		foreach ($this->step['fields'] as $field_key => $field) {
+			if ( ! is_array($field)) {
+				continue;
+			}
+
+			$field_id = wu_get_isset($field, 'id', is_string($field_key) ? $field_key : '');
+
+			if (isset($optional_billing_rules[ $field_id ]) && ! wu_get_isset($field, 'required')) {
+				$validation_rules[ $field_id ] = $optional_billing_rules[ $field_id ];
+			}
+		}
+
+		/*
 		 * Relax billing field requirements when payment is not needed
 		 * (e.g. free trials with allow_trial_without_payment_method enabled).
 		 * Country is kept required for tax calculation at renewal time.
@@ -2775,7 +2800,11 @@ class Checkout {
 		 * against clients (REST, custom forms, automated tests) that bypass
 		 * the v-if hiding.
 		 */
-		$submitted_country = wu_request('billing_country');
+		$submitted_country = trim((string) wu_request('billing_country', ''));
+
+		if ('' === $submitted_country) {
+			$submitted_country = trim((string) wu_request('country', ''));
+		}
 
 		if ($submitted_country && isset($validation_rules['billing_zip_code'])) {
 			$resolved_country = wu_get_country($submitted_country);
@@ -3280,9 +3309,16 @@ class Checkout {
 		// Enqueue password styles (includes dashicons as dependency).
 		wp_enqueue_style('wu-password');
 
-		\WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance()->enqueue_assets();
+		$script_dependencies = ['jquery-core', 'wu-vue', 'moment', 'wu-block-ui', 'wu-functions', 'password-strength-meter', 'wu-password-strength', 'underscore', 'wp-polyfill', 'wp-hooks', 'wu-cookie-helpers', 'wu-password-toggle'];
 
-		wp_register_script('wu-checkout', wu_get_asset('checkout.js', 'js'), ['jquery-core', 'wu-vue', 'moment', 'wu-block-ui', 'wu-functions', 'password-strength-meter', 'wu-password-strength', 'underscore', 'wp-polyfill', 'wp-hooks', 'wu-cookie-helpers', 'wu-password-toggle', 'wu-passwordless-auth'], wu_get_version(), true);
+		$passwordless_auth = \WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance();
+
+		if ($passwordless_auth->is_enabled()) {
+			$passwordless_auth->enqueue_assets();
+			$script_dependencies[] = 'wu-passwordless-auth';
+		}
+
+		wp_register_script('wu-checkout', wu_get_asset('checkout.js', 'js'), $script_dependencies, wu_get_version(), true);
 
 		wp_set_script_translations('wu-password-toggle', 'ultimate-multisite');
 
