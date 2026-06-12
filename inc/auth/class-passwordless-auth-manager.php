@@ -48,6 +48,10 @@ class Passwordless_Auth_Manager {
 		$this->passkeys = new Passkey_Service();
 		$this->otp      = new Email_OTP_Service();
 
+		if ( ! $this->is_enabled()) {
+			return;
+		}
+
 		add_action('init', [$this, 'register_assets']);
 		add_action('init', [$this, 'maybe_install_tables'], 5);
 
@@ -77,6 +81,17 @@ class Passwordless_Auth_Manager {
 	public function otp() {
 
 		return $this->otp;
+	}
+
+	/**
+	 * Checks if passwordless login is enabled.
+	 *
+	 * @since 2.13.2
+	 * @return bool
+	 */
+	public function is_enabled() {
+
+		return (bool) wu_get_setting('use_passwordless_login', 0);
 	}
 
 	/**
@@ -189,6 +204,10 @@ class Passwordless_Auth_Manager {
 	 */
 	public function enqueue_assets() {
 
+		if ( ! $this->is_enabled()) {
+			return;
+		}
+
 		if ( ! wp_script_is('wu-passwordless-auth', 'registered')) {
 			$this->register_assets();
 		}
@@ -225,6 +244,10 @@ class Passwordless_Auth_Manager {
 	 */
 	public function enqueue_login_assets() {
 
+		if ( ! $this->is_enabled()) {
+			return;
+		}
+
 		$this->enqueue_assets();
 
 		if ($this->is_password_fallback()) {
@@ -244,6 +267,10 @@ class Passwordless_Auth_Manager {
 	 * @return void
 	 */
 	public function render_wp_login_form() {
+
+		if ( ! $this->is_enabled()) {
+			return;
+		}
 
 		if ($this->is_password_fallback()) {
 			return;
@@ -272,6 +299,10 @@ class Passwordless_Auth_Manager {
 	 * @return string
 	 */
 	public function get_login_form_markup($args = []) {
+
+		if ( ! $this->is_enabled()) {
+			return '';
+		}
 
 		$args = wp_parse_args(
 			$args,
@@ -402,6 +433,7 @@ class Passwordless_Auth_Manager {
 	public function ajax_start() {
 
 		$this->verify_ajax_request();
+		$this->ensure_enabled_for_ajax();
 
 		$identifier = sanitize_text_field(wu_request('identifier'));
 		$user       = $this->find_user($identifier);
@@ -431,6 +463,7 @@ class Passwordless_Auth_Manager {
 	public function ajax_verify_otp() {
 
 		$this->verify_ajax_request();
+		$this->ensure_enabled_for_ajax();
 
 		$user = $this->otp->verify(wu_request('token'), wu_request('code'));
 
@@ -466,6 +499,7 @@ class Passwordless_Auth_Manager {
 	public function ajax_verify_passkey() {
 
 		$this->verify_ajax_request();
+		$this->ensure_enabled_for_ajax();
 
 		$credential = json_decode($this->get_json_request_value('credential'), true);
 
@@ -496,6 +530,7 @@ class Passwordless_Auth_Manager {
 	public function ajax_register_options() {
 
 		$this->verify_ajax_request();
+		$this->ensure_enabled_for_ajax();
 
 		if ( ! is_user_logged_in()) {
 			$this->send_error(new \WP_Error('not_logged_in', __('You need to be logged in to create a passkey.', 'ultimate-multisite')));
@@ -517,6 +552,7 @@ class Passwordless_Auth_Manager {
 	public function ajax_register_verify() {
 
 		$this->verify_ajax_request();
+		$this->ensure_enabled_for_ajax();
 
 		if ( ! is_user_logged_in()) {
 			$this->send_error(new \WP_Error('not_logged_in', __('You need to be logged in to create a passkey.', 'ultimate-multisite')));
@@ -550,6 +586,21 @@ class Passwordless_Auth_Manager {
 	protected function verify_ajax_request() {
 
 		check_ajax_referer('wu_passwordless_auth', 'nonce');
+	}
+
+	/**
+	 * Sends an error response when passwordless login is disabled.
+	 *
+	 * @since 2.13.2
+	 * @return void
+	 */
+	protected function ensure_enabled_for_ajax() {
+
+		if ($this->is_enabled()) {
+			return;
+		}
+
+		$this->send_error(new \WP_Error('passwordless_login_disabled', __('Passwordless login is disabled.', 'ultimate-multisite')));
 	}
 
 	/**
