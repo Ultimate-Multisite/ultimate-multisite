@@ -19,7 +19,7 @@ jobs:
 
     services:
       mailpit:
-        image: ghcr.io/axllent/mailpit:latest
+        image: ghcr.io/axllent/mailpit@sha256:3bd7c2f2696deb35a4780d152b404dceec99cb041b942c0877b3b22384714f85
         ports:
           - 1025:1025
           - 8025:8025

@@ -139,6 +139,21 @@ class Sunrise_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test wu_get_security_mode_key without generation returns a stored key.
+	 */
+	public function test_get_security_mode_key_without_generation_returns_persisted_key_when_available(): void {
+
+		delete_network_option(null, 'wu_security_mode_key');
+
+		$generated = wu_get_security_mode_key();
+		$stored    = get_network_option(null, 'wu_security_mode_key', '');
+
+		$this->assertSame($generated, $stored);
+		$this->assertSame($stored, wu_get_security_mode_key(false));
+		$this->assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $stored);
+	}
+
+	/**
 	 * Test wu_get_security_mode_key can preserve the legacy key without rotating.
 	 */
 	public function test_get_security_mode_key_without_generation_returns_legacy_key(): void {

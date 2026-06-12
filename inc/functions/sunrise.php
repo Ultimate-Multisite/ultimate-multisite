@@ -100,9 +100,15 @@ function wu_get_security_mode_key($generate = true): string {
 			return wu_get_legacy_security_mode_key();
 		}
 
-		$key = bin2hex(random_bytes(16));
+		$generated_key = bin2hex(random_bytes(16));
 
-		update_network_option(null, 'wu_security_mode_key', $key);
+		add_network_option(null, 'wu_security_mode_key', $generated_key);
+
+		$key = (string) get_network_option(null, 'wu_security_mode_key', '');
+
+		if ('' === $key) {
+			return wu_get_legacy_security_mode_key();
+		}
 	}
 
 	return $key;
