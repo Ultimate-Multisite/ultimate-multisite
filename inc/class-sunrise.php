@@ -335,7 +335,9 @@ class Sunrise {
 			$security_mode = (bool) (int) wu_get_setting_early('security_mode');
 
 			if ($security_mode) {
-				if (wu_get_isset($_GET, 'wu_secure') === wu_get_security_mode_key()) { // phpcs:ignore WordPress.Security.NonceVerification
+				$provided_key = wu_get_isset($_GET, 'wu_secure'); // phpcs:ignore WordPress.Security.NonceVerification
+
+				if (is_string($provided_key) && hash_equals(wu_get_security_mode_key(false), $provided_key)) {
 					wu_save_setting_early('security_mode', false);
 				} else {
 					/**

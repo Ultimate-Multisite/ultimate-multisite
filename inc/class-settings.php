@@ -904,6 +904,17 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 		$this->add_field(
 			'login-and-registration',
+			'use_passwordless_login',
+			[
+				'title'   => __('Use Passwordless Login', 'ultimate-multisite'),
+				'desc'    => __('When enabled, login forms ask for an email address and let customers sign in with a passkey or a one-time email code. Keep this disabled to use regular username and password login.', 'ultimate-multisite'),
+				'type'    => 'toggle',
+				'default' => 0,
+			]
+		);
+
+		$this->add_field(
+			'login-and-registration',
 			'default_login_page',
 			[
 				'type'        => 'model',
@@ -2100,6 +2111,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			'enable_registration'                => 1,
 			'enable_email_verification'          => 'free_only',
 			'enable_custom_login_page'           => 0,
+			'use_passwordless_login'             => 0,
 			'default_login_page'                 => 0,
 			'obfuscate_original_login_url'       => 0,
 			'subsite_custom_login_logo'          => 0,
