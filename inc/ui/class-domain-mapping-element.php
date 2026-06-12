@@ -781,7 +781,14 @@ class Domain_Mapping_Element extends Base_Element {
 		}
 
 		$dns_manager = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
-		$provider    = $dns_manager->get_dns_provider();
+
+		// Same ownership gate the edit/add/delete DNS handlers enforce.
+		if (! $dns_manager->customer_can_manage_dns(get_current_user_id(), $domain->get_domain())) {
+			wp_send_json_error(new \WP_Error('permission-denied', __('You do not have permission to manage DNS for this domain.', 'ultimate-multisite')));
+			return;
+		}
+
+		$provider = $dns_manager->get_dns_provider();
 
 		wu_get_template(
 			'domain/dns-record-form',

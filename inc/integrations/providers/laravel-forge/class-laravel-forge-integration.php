@@ -265,6 +265,18 @@ class LaravelForge_Integration extends Integration {
 		$symlink_target = $this->get_credential('WU_FORGE_SYMLINK_TARGET');
 
 		if ($deploy_command) {
+			// Validate domain to prevent shell command injection via metacharacters,
+			// mirroring the symlink branch below.
+			if (! preg_match('/^[a-z0-9][a-z0-9\-\.]*[a-z0-9]$/i', $domain)) {
+				wu_log_add(
+					'integration-forge',
+					sprintf('Invalid domain format rejected for shell command: %s', $domain),
+					\Psr\Log\LogLevel::ERROR
+				);
+
+				return '';
+			}
+
 			return str_replace('{domain}', $domain, $deploy_command);
 		}
 

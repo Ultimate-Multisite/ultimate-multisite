@@ -10,7 +10,7 @@ defined('ABSPATH') || exit;
 
 	<li class="wu-p-4 wu-m-0" v-show="!loading" v-cloak>
 
-	<pre id="wu_payload_content" v-html="payload" class="wu-overflow-auto wu-p-4 wu-m-0 wu-mt-2 wu-rounded wu-content-center wu-bg-gray-800 wu-text-white wu-font-mono wu-border wu-border-solid wu-border-gray-300 wu-max-h-screen wu-overflow-y-auto"></pre>
+	<pre id="wu_payload_content" v-text="payload" class="wu-overflow-auto wu-p-4 wu-m-0 wu-mt-2 wu-rounded wu-content-center wu-bg-gray-800 wu-text-white wu-font-mono wu-border wu-border-solid wu-border-gray-300 wu-max-h-screen wu-overflow-y-auto"></pre>
 
 	</li>
 
