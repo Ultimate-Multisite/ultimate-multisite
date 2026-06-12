@@ -271,23 +271,32 @@ class Event extends Base_Model {
 
 		$payload = json_decode(json_encode($payload), true); // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode
 
-		$interpolation_keys = [];
+		/*
+		 * The message templates (get_default_system_messages) intentionally
+		 * contain HTML (e.g. <strong>{{model}}</strong>) and the rendered result
+		 * is output with Vue v-html in the activity-stream widget. The
+		 * interpolated payload values, however, include attacker-influenced model
+		 * fields (customer display names, site titles, etc.), so every value must
+		 * be HTML-escaped before substitution to prevent stored XSS — while the
+		 * template's own markup is preserved.
+		 */
+		$interpolation = [];
 
-		foreach ($payload as $key => &$value) {
-			$interpolation_keys[] = "{{{$key}}}";
-
+		foreach ($payload as $key => $value) {
 			if (is_array($value)) {
-				$value = implode(' &rarr; ', wu_array_flatten($value));
+				$value = implode(' &rarr; ', array_map('esc_html', wu_array_flatten($value)));
+			} else {
+				$value = esc_html((string) $value);
 			}
+
+			$interpolation[ "{{{$key}}}" ] = $value;
 		}
 
-		$interpolation = array_combine($interpolation_keys, $payload);
+		$interpolation['{{payload}}'] = implode(' - ', array_map('esc_html', wu_array_flatten($payload, true)));
 
-		$interpolation['{{payload}}'] = implode(' - ', wu_array_flatten($payload, true));
+		$interpolation['{{model}}'] = esc_html(wu_slug_to_name($this->object_type));
 
-		$interpolation['{{model}}'] = wu_slug_to_name($this->object_type);
-
-		$interpolation['{{object_id}}'] = $this->object_id;
+		$interpolation['{{object_id}}'] = esc_html((string) $this->object_id);
 
 		return strtr($message, $interpolation);
 	}

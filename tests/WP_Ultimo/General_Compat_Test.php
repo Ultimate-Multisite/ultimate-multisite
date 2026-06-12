@@ -80,6 +80,45 @@ class General_Compat_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test Divi uploads fallback et-cache is deleted only for the cloned site.
+	 */
+	public function test_clear_divi_static_css_cache_deletes_uploads_fallback_cache_only(): void {
+
+		if ( ! is_multisite()) {
+			$this->markTestSkipped('Divi cache purge tests require multisite');
+		}
+
+		$blog_id       = self::factory()->blog->create();
+		$other_blog_id = self::factory()->blog->create();
+
+		switch_to_blog($blog_id);
+		$upload_dir = wp_upload_dir(null, false);
+		restore_current_blog();
+
+		switch_to_blog($other_blog_id);
+		$other_upload_dir = wp_upload_dir(null, false);
+		restore_current_blog();
+
+		$cache_dir = trailingslashit($upload_dir['basedir']) . 'et-cache';
+		$other_dir = trailingslashit($other_upload_dir['basedir']) . 'et-cache';
+
+		$this->cache_dirs = [$cache_dir, $other_dir];
+
+		wp_mkdir_p($cache_dir . '/4');
+		wp_mkdir_p($other_dir . '/4');
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture setup.
+		file_put_contents($cache_dir . '/4/et-core-unified-deferred-4.min.css', 'stale divi css');
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture setup.
+		file_put_contents($other_dir . '/4/et-core-unified-deferred-4.min.css', 'other divi css');
+
+		General_Compat::get_instance()->clear_divi_static_css_cache(['site_id' => $blog_id]);
+
+		$this->assertDirectoryDoesNotExist($cache_dir);
+		$this->assertDirectoryExists($other_dir);
+	}
+
+	/**
 	 * Test Divi et-cache symlinks do not delete files outside the cache tree.
 	 */
 	public function test_clear_divi_static_css_cache_does_not_follow_symlinks(): void {
