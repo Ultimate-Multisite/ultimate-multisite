@@ -190,7 +190,7 @@ class Settings_Test extends WP_UnitTestCase {
 	}
 
 	public function test_get_sections_caches_result() {
-		$first = $this->settings->get_sections();
+		$first  = $this->settings->get_sections();
 		$second = $this->settings->get_sections();
 		$this->assertSame($first, $second);
 	}
@@ -367,6 +367,12 @@ class Settings_Test extends WP_UnitTestCase {
 		$this->assertIsArray($defaults);
 	}
 
+	public function test_get_setting_defaults_disables_passwordless_login() {
+		$defaults = Settings::get_setting_defaults();
+		$this->assertArrayHasKey('use_passwordless_login', $defaults);
+		$this->assertSame(0, $defaults['use_passwordless_login']);
+	}
+
 	// ------------------------------------------------------------------
 	// General section fields
 	// ------------------------------------------------------------------
@@ -403,6 +409,13 @@ class Settings_Test extends WP_UnitTestCase {
 	public function test_login_section_has_enable_registration_field() {
 		$section = $this->settings->get_section('login-and-registration');
 		$this->assertArrayHasKey('enable_registration', $section['fields']);
+	}
+
+	public function test_login_section_has_use_passwordless_login_field() {
+		$section = $this->settings->get_section('login-and-registration');
+		$this->assertArrayHasKey('use_passwordless_login', $section['fields']);
+		$this->assertSame('toggle', $section['fields']['use_passwordless_login']['type']);
+		$this->assertSame(0, $section['fields']['use_passwordless_login']['default']);
 	}
 
 	public function test_login_section_has_default_role_field() {
