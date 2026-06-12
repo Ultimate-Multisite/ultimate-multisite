@@ -1702,10 +1702,14 @@
 					jQuery(this).find('button[type="submit"]').prop('disabled', true);
 
 					// Show loading message with status text
+					const loadingText = wu_checkout.is_last_step
+						? (wu_checkout.i18n.provisioning_site || 'Provisioning your site — this can take up to 60 seconds.')
+						: (wu_checkout.i18n.recording_responses || 'Recording Your Responses...');
+
 					const loadingMessage = '<div style="text-align: center;">' +
 					'<div class="spinner is-active wu-float-none" style="float: none !important; margin-bottom: 12px;"></div>' +
 					'<div style="font-size: 14px; line-height: 1.5;">' +
-					(wu_checkout.i18n.provisioning_site || 'Provisioning your site — this can take up to 60 seconds.') +
+					loadingText +
 					'</div>' +
 					'</div>';
 
