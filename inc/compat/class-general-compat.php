@@ -360,8 +360,8 @@ class General_Compat {
 		switch_to_blog($blog_id);
 
 		try {
-			foreach ($this->get_divi_static_css_cache_directories($blog_id) as $cache_dir) {
-				$this->delete_divi_static_css_cache_directory($cache_dir);
+			foreach ($this->get_divi_static_css_cache_directories($blog_id) as $cache) {
+				$this->delete_divi_static_css_cache_directory($cache['dir'], $cache['root']);
 			}
 		} finally {
 			restore_current_blog();
@@ -407,26 +407,57 @@ class General_Compat {
 	 */
 	private function get_divi_static_css_cache_directories(int $blog_id): array {
 
-		$cache_root = trailingslashit(WP_CONTENT_DIR) . 'et-cache';
-		$paths      = [];
-		$site       = function_exists('get_site') ? get_site($blog_id) : null;
-		$network_id = $site && isset($site->site_id) ? (int) $site->site_id : 0;
+		$content_cache_root = trailingslashit(WP_CONTENT_DIR) . 'et-cache';
+		$paths              = [];
+		$site               = function_exists('get_site') ? get_site($blog_id) : null;
+		$network_id         = $site && isset($site->site_id) ? (int) $site->site_id : 0;
 
 		if (0 === $network_id && function_exists('get_current_network_id')) {
 			$network_id = (int) get_current_network_id();
 		}
 
 		if (0 < $network_id) {
-			$paths[] = trailingslashit($cache_root) . $network_id . '/' . $blog_id;
+			$paths[] = [
+				'root' => $content_cache_root,
+				'dir'  => trailingslashit($content_cache_root) . $network_id . '/' . $blog_id,
+			];
 		}
 
 		/*
 		 * Older Divi/static-resource layouts did not include the network ID in
 		 * the path. Keep this as a no-op fallback when that directory is absent.
 		 */
-		$paths[] = trailingslashit($cache_root) . $blog_id;
+		$paths[] = [
+			'root' => $content_cache_root,
+			'dir'  => trailingslashit($content_cache_root) . $blog_id,
+		];
 
-		return array_values(array_unique($paths));
+		$upload_dir = function_exists('wp_upload_dir') ? wp_upload_dir(null, false) : [];
+
+		if ( ! empty($upload_dir['basedir'])) {
+			$uploads_base = untrailingslashit((string) $upload_dir['basedir']);
+
+			/*
+			 * Divi falls back to wp_upload_dir()['basedir']/et-cache when
+			 * WP_CONTENT_DIR is not writable. In multisite this basedir is already
+			 * scoped to the cloned blog (for example uploads/sites/{blog_id}), so
+			 * the blog cache directory is the et-cache root itself.
+			 */
+			$paths[] = [
+				'root' => $uploads_base,
+				'dir'  => trailingslashit($uploads_base) . 'et-cache',
+			];
+		}
+
+		$unique = [];
+
+		foreach ($paths as $path) {
+			$key = wp_normalize_path($path['root'] . '|' . $path['dir']);
+
+			$unique[ $key ] = $path;
+		}
+
+		return array_values($unique);
 	}
 
 	/**
@@ -434,12 +465,11 @@ class General_Compat {
 	 *
 	 * @since 2.5.1
 	 *
-	 * @param string $cache_dir Cache directory path.
+	 * @param string $cache_dir  Cache directory path.
+	 * @param string $cache_root Cache root path used for safety checks.
 	 * @return void
 	 */
-	private function delete_divi_static_css_cache_directory(string $cache_dir): void {
-
-		$cache_root = trailingslashit(WP_CONTENT_DIR) . 'et-cache';
+	private function delete_divi_static_css_cache_directory(string $cache_dir, string $cache_root): void {
 
 		if ('' === $cache_dir || ! is_dir($cache_dir)) {
 			return;

@@ -362,6 +362,15 @@ class Field implements \JsonSerializable {
 
 		if (is_array($attr)) {
 			foreach ($attr as $key => $value) {
+				/*
+				 * Nested field definitions are metadata, not values to resolve now.
+				 * Resolving them can execute editor callbacks while rendering parent
+				 * attributes, leaking markup from hidden child fields into the parent.
+				 */
+				if ('fields' === $key) {
+					continue;
+				}
+
 				$attr[ $key ] = $this->resolve_attribute_value($value);
 			}
 
