@@ -301,6 +301,7 @@
 				return;
 			}
 
+			// Prefer the server-issued redirect over the client-seeded fallback.
 			window.location.assign(data.redirect_url || state.redirectUrl || window.location.href);
 		}
 

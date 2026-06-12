@@ -2229,7 +2229,13 @@ class Cart implements \JsonSerializable {
 		$tax_brackets = [];
 
 		foreach ($line_items as $line_item) {
-			$tax_bracket = $line_item->get_tax_rate();
+			$tax_rate = $line_item->get_tax_rate();
+
+			if ( ! $tax_rate) {
+				continue;
+			}
+
+			$tax_bracket = (string) $tax_rate;
 
 			if (isset($tax_brackets[ $tax_bracket ])) {
 				$tax_brackets[ $tax_bracket ] += $line_item->get_tax_total();

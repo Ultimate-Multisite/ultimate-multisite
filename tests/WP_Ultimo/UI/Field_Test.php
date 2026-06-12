@@ -185,6 +185,45 @@ class Field_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test nested field definition callbacks in option metadata are not resolved.
+	 */
+	public function test_options_do_not_resolve_nested_field_definition_callbacks(): void {
+		$fields_callback_was_called  = false;
+		$nested_description_rendered = false;
+
+		$field = new Field('test_field', [
+			'type'    => 'select-icon',
+			'options' => [
+				'custom' => [
+					'title'  => 'Custom',
+					'fields' => function () use (&$fields_callback_was_called, &$nested_description_rendered) {
+						$fields_callback_was_called = true;
+
+						return [
+							'nested_remove' => [
+								'desc' => function () use (&$nested_description_rendered) {
+									$nested_description_rendered = true;
+
+									print 'leaked nested description';
+								},
+							],
+						];
+					},
+				],
+			],
+		]);
+
+		ob_start();
+		$options = $field->options;
+		$output  = ob_get_clean();
+
+		$this->assertSame('', $output);
+		$this->assertFalse($fields_callback_was_called);
+		$this->assertFalse($nested_description_rendered);
+		$this->assertIsCallable($options['custom']['fields']);
+	}
+
+	/**
 	 * Test field with html attributes.
 	 */
 	public function test_field_with_html_attr(): void {
@@ -222,7 +261,7 @@ class Field_Test extends WP_UnitTestCase {
 			'title' => 'Test',
 		]);
 
-		$json = json_encode($field);
+		$json = wp_json_encode($field);
 
 		$this->assertIsString($json);
 		$this->assertJson($json);
