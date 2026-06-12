@@ -153,8 +153,12 @@ class API_Client {
 			'slug'              => $template['slug'] ?? '',
 			'name'              => $template['name'] ?? '',
 			'description'       => $template['description'] ?? '',
-			'short_description' => $template['short_description'] ?? '',
-			'price_html'        => $template['price_html'] ?? '',
+			// short_description and price_html are rendered with Vue v-html in the
+			// Template Library grid; the data is fetched over HTTP from the remote
+			// marketplace, so sanitize the HTML to allowed post markup to neutralize
+			// any injected script while preserving legitimate formatting.
+			'short_description' => wp_kses_post($template['short_description'] ?? ''),
+			'price_html'        => wp_kses_post($template['price_html'] ?? ''),
 			'permalink'         => $template['permalink'] ?? '',
 			'is_free'           => empty($template['prices']['price'] ?? 0),
 			'prices'            => $template['prices'] ?? [],
