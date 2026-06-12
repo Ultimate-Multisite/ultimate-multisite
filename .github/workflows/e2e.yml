@@ -19,7 +19,7 @@ jobs:
 
     services:
       mailpit:
-        image: axllent/mailpit:latest
+        image: ghcr.io/axllent/mailpit:latest
         ports:
           - 1025:1025
           - 8025:8025
@@ -520,7 +520,12 @@ jobs:
 
       - name: Fix permissions for Cypress output
         if: always()
-        run: sudo chown -R $USER:$USER tests/e2e/cypress
+        run: |
+          if [ -d tests/e2e/cypress ]; then
+            sudo chown -R $USER:$USER tests/e2e/cypress
+          else
+            echo "Cypress output directory does not exist; skipping permission fix."
+          fi
 
       - name: Upload Cypress screenshots
         if: always()
@@ -540,4 +545,9 @@ jobs:
 
       - name: Stop WordPress Environment
         if: always()
-        run: npm run env:stop
+        run: |
+          if [ -f package.json ]; then
+            npm run env:stop
+          else
+            echo "package.json does not exist; checkout did not complete before cleanup."
+          fi
