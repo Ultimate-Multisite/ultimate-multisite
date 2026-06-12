@@ -27,6 +27,8 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 
 		parent::set_up();
 
+		wu_save_setting('use_passwordless_login', 1);
+
 		$this->install_auth_tables();
 		$this->truncate_auth_tables();
 	}
@@ -40,6 +42,7 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 		remove_all_filters('wu_passwordless_should_send_otp');
 
 		$this->truncate_auth_tables();
+		wu_save_setting('use_passwordless_login', 0);
 
 		parent::tear_down();
 	}
@@ -84,6 +87,45 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 		$second_try = $service->verify($created['token'], '123456');
 
 		$this->assertWPError($second_try);
+	}
+
+	/**
+	 * Tests failed OTP email delivery returns an error and removes the stored attempt.
+	 */
+	public function test_failed_otp_email_delivery_cleans_up_attempt() {
+
+		global $wpdb;
+
+		$user = self::factory()->user->create_and_get(
+			[
+				'user_email' => 'otp-delivery-failed@example.test',
+			]
+		);
+
+		$service = new class() extends Email_OTP_Service {
+
+			/**
+			 * Simulates a failed email send.
+			 *
+			 * @param \WP_User $user User object.
+			 * @param string   $code OTP code.
+			 * @return bool
+			 */
+			protected function send_email(\WP_User $user, $code) {
+
+				return false;
+			}
+		};
+
+		$result = $service->create_and_send($user, $user->user_email);
+
+		$this->assertWPError($result);
+		$this->assertSame('otp_email_failed', $result->get_error_code());
+
+		$table = $service->get_table_name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$this->assertSame('0', $wpdb->get_var("SELECT COUNT(*) FROM {$table}"));
 	}
 
 	/**
@@ -142,6 +184,180 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Tests passkey authentication fails closed when usage cannot be persisted.
+	 */
+	public function test_passkey_authentication_fails_when_usage_update_fails() {
+
+		$user = self::factory()->user->create_and_get(
+			[
+				'user_email' => 'passkey-update-failure@example.test',
+			]
+		);
+
+		$credential = (object) [
+			'id'         => 789,
+			'user_id'    => $user->ID,
+			'sign_count' => 1,
+			'public_key' => 'public-key',
+		];
+
+		$challenge = (object) [
+			'id'      => 456,
+			'user_id' => $user->ID,
+			'rp_id'   => 'example.test',
+			'origin'  => 'https://example.test',
+		];
+
+		$helper = $this->getMockBuilder(WebAuthn_Helper::class)
+			->onlyMethods(['parse_client_data', 'is_origin_allowed', 'parse_assertion_authenticator_data', 'verify_assertion_signature'])
+			->getMock();
+
+		$helper->method('parse_client_data')->willReturn(
+			[
+				'challenge' => 'challenge',
+				'origin'    => 'https://example.test',
+				'_raw'      => 'client-data',
+			]
+		);
+
+		$helper->method('is_origin_allowed')->willReturn(true);
+		$helper->method('parse_assertion_authenticator_data')->willReturn(
+			[
+				'rp_id_hash' => hash('sha256', 'example.test', true),
+				'sign_count' => 2,
+			]
+		);
+		$helper->method('verify_assertion_signature')->willReturn(true);
+
+		$credentials = $this->getMockBuilder(Passkey_Credential_Store::class)
+			->onlyMethods(['find_by_credential_id', 'update_usage'])
+			->getMock();
+
+		$credentials->method('find_by_credential_id')->willReturn($credential);
+		$credentials->expects($this->once())
+			->method('update_usage')
+			->with((int) $credential->id, 2)
+			->willReturn(false);
+
+		$challenges = $this->getMockBuilder(WebAuthn_Challenge_Store::class)
+			->onlyMethods(['get_valid', 'mark_used'])
+			->getMock();
+
+		$challenges->method('get_valid')->willReturn($challenge);
+		$challenges->expects($this->once())
+			->method('mark_used')
+			->with((int) $challenge->id)
+			->willReturn(true);
+
+		$service = new Passkey_Service();
+
+		$this->set_protected_property($service, 'helper', $helper);
+		$this->set_protected_property($service, 'credentials', $credentials);
+		$this->set_protected_property($service, 'challenges', $challenges);
+
+		$result = $service->verify_authentication(
+			[
+				'rawId'    => 'credential-id',
+				'response' => [
+					'authenticatorData' => 'authenticator-data',
+					'clientDataJSON'    => 'client-data',
+					'signature'         => 'signature',
+				],
+			]
+		);
+
+		$this->assertWPError($result);
+		$this->assertSame('credential_update_failed', $result->get_error_code());
+	}
+
+	/**
+	 * Tests starting login always returns the generic OTP challenge first.
+	 */
+	public function test_ajax_start_does_not_expose_passkey_options_before_otp_verification() {
+
+		$user = self::factory()->user->create_and_get(
+			[
+				'user_email' => 'passkey-holder@example.test',
+				'user_login' => 'passkey_holder',
+			]
+		);
+
+		$store = new Passkey_Credential_Store();
+
+		$this->assertTrue(
+			$store->create(
+				$user->ID,
+				'credential-id-start',
+				"-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----\n",
+				1,
+				str_repeat('b', 32),
+				['internal']
+			)
+		);
+
+		add_filter(
+			'wu_passwordless_otp_code',
+			function () {
+				return '123456';
+			}
+		);
+
+		add_filter('wu_passwordless_should_send_otp', '__return_false');
+
+		$nonce      = wp_create_nonce('wu_passwordless_auth');
+		$identifier = $user->user_email;
+
+		$_POST['nonce']         = $nonce;
+		$_POST['identifier']    = $identifier;
+		$_REQUEST['nonce']      = $nonce;
+		$_REQUEST['identifier'] = $identifier;
+
+		$response = $this->capture_ajax_json([Passwordless_Auth_Manager::get_instance(), 'ajax_start']);
+
+		$this->assertTrue($response['success']);
+		$this->assertSame('otp', $response['data']['mode']);
+		$this->assertNotEmpty($response['data']['token']);
+		$this->assertArrayNotHasKey('options', $response['data']);
+		$this->assertArrayNotHasKey('publicKey', $response['data']);
+
+		unset($_POST['nonce'], $_POST['identifier'], $_REQUEST['nonce'], $_REQUEST['identifier']);
+	}
+
+	/**
+	 * Tests passwordless AJAX endpoints fail closed when the setting is disabled.
+	 */
+	public function test_ajax_start_fails_when_passwordless_login_is_disabled() {
+
+		wu_save_setting('use_passwordless_login', 0);
+
+		$nonce = wp_create_nonce('wu_passwordless_auth');
+
+		$_POST['nonce']    = $nonce;
+		$_REQUEST['nonce'] = $nonce;
+
+		$response = $this->capture_ajax_json([Passwordless_Auth_Manager::get_instance(), 'ajax_start']);
+
+		$this->assertFalse($response['success']);
+		$this->assertSame('passwordless_login_disabled', $response['data']['code']);
+
+		unset($_POST['nonce'], $_REQUEST['nonce']);
+	}
+
+	/**
+	 * Sets a protected property for dependency injection in tests.
+	 *
+	 * @param object $target   Object to modify.
+	 * @param string $property Property name.
+	 * @param mixed  $value Property value.
+	 */
+	protected function set_protected_property($target, $property, $value) {
+
+		$reflection = new \ReflectionProperty($target, $property);
+		$reflection->setAccessible(true);
+		$reflection->setValue($target, $value);
+	}
+
+	/**
 	 * Installs auth tables.
 	 */
 	protected function install_auth_tables() {
@@ -194,5 +410,40 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query("TRUNCATE TABLE {$table}");
 		}
+	}
+
+	/**
+	 * Captures a JSON AJAX response.
+	 *
+	 * @param callable $ajax_handler AJAX handler to run.
+	 * @return array
+	 */
+	protected function capture_ajax_json(callable $ajax_handler) {
+
+		$die_handler = function ($message) {
+			throw new \WPAjaxDieContinueException(esc_html((string) $message));
+		};
+
+		add_filter('wp_doing_ajax', '__return_true');
+		add_filter('wp_die_ajax_handler', $die_handler, 1);
+
+		$did_die = false;
+
+		ob_start();
+
+		try {
+			$ajax_handler();
+		} catch (\WPAjaxDieContinueException $e) {
+			$did_die = true;
+		}
+
+		$output = ob_get_clean();
+
+		remove_filter('wp_die_ajax_handler', $die_handler, 1);
+		remove_filter('wp_doing_ajax', '__return_true');
+
+		$this->assertTrue($did_die, 'Expected wp_send_json() to terminate the AJAX request.');
+
+		return json_decode($output, true);
 	}
 }
