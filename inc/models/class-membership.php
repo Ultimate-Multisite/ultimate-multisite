@@ -2128,6 +2128,13 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		$use_loopback       = (bool) apply_filters('wu_publish_pending_site_use_loopback', true, $this);
 		$can_finish_request = function_exists('litespeed_finish_request')
 			|| function_exists('fastcgi_finish_request');
+		$server_software    = isset($_SERVER['SERVER_SOFTWARE']) ? sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE'])) : '';
+		$is_frankenphp      = 'frankenphp' === PHP_SAPI || false !== stripos($server_software, 'frankenphp');
+
+		if ($is_frankenphp) {
+			$can_finish_request = false;
+		}
+
 		$can_finish_request = (bool) apply_filters('wu_publish_pending_site_can_finish_request', $can_finish_request, $this);
 		$loopback_started   = false;
 		$args               = ['membership_id' => $this->get_id()];
