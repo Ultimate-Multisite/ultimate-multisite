@@ -328,9 +328,32 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test try_replace does not instantiate objects from known classes.
+	 *
+	 * Both unserialize() calls must use allowed_classes: false so that
+	 * __wakeup() / __destruct() side-effects are never triggered, even for
+	 * classes that happen to be available in the duplication runtime. Any
+	 * serialized object must be returned verbatim (same as an incomplete class).
+	 */
+	public function test_try_replace_does_not_instantiate_known_class_objects() {
+		// stdClass is always available; without allowed_classes: false it would
+		// be instantiated and processed by the object-mutation branch.
+		$obj      = new \stdClass();
+		$obj->url = 'https://example.com/old/page';
+		$serialized = serialize($obj);
+		$row        = ['meta_value' => $serialized];
+
+		$result = \MUCD_Data::try_replace($row, 'meta_value', 'example.com/old', 'example.com/new');
+
+		// With allowed_classes: false the object becomes __PHP_Incomplete_Class
+		// and the guard returns the original serialized value unchanged.
+		$this->assertSame($serialized, $result);
+	}
+
+	/**
 	 * Test try_replace with Elementor Kit-like serialized page settings.
 	 *
-	 * Simulates the _elementor_page_settings structure for a Kit post.
+
 	 * After URL replacement, all non-URL settings must be preserved
 	 * exactly and the result must be valid serialized data.
 	 */
