@@ -12,6 +12,7 @@ use WP_Ultimo\Managers\Membership_Manager;
 use WP_Ultimo\Models\Membership;
 use WP_Ultimo\Models\Customer;
 use WP_Ultimo\Models\Product;
+use WP_Ultimo\Models\Site;
 use WP_Ultimo\Database\Memberships\Membership_Status;
 
 /**
@@ -326,6 +327,72 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 			$response['publish_status'] ?? null,
 			'poll handler should report completed after clearing a stale pending_site cache entry'
 		);
+	}
+
+	/**
+	 * Test pending-site poll recovers when the blog exists but ownership meta is missing.
+	 */
+	public function test_check_pending_site_created_recovers_existing_unattached_blog(): void {
+
+		global $current_site;
+
+		$membership = $this->create_membership();
+		$domain     = 'pending-recovery-' . wp_rand() . '.' . $current_site->domain;
+		$path       = '/';
+		$blog_id    = wpmu_create_blog(
+			$domain,
+			$path,
+			'Pending Recovery Site',
+			$this->customer->get_user_id(),
+			[],
+			get_current_network_id()
+		);
+
+		if (is_wp_error($blog_id)) {
+			$this->fail('Could not create partial test blog: ' . $blog_id->get_error_message());
+		}
+
+		try {
+			delete_site_meta($blog_id, Site::META_MEMBERSHIP_ID);
+			delete_site_meta($blog_id, Site::META_CUSTOMER_ID);
+			update_site_meta($blog_id, Site::META_TYPE, 'site_template');
+
+			$membership->create_pending_site(
+				[
+					'title'         => 'Pending Recovery Site',
+					'domain'        => $domain,
+					'path'          => $path,
+					'is_publishing' => false,
+				]
+			);
+
+			$response = $this->call_check_pending_site_created($membership);
+
+			$this->assertSame(
+				'completed',
+				$response['publish_status'] ?? null,
+				'poll handler should finalize an existing blog left unattached by an interrupted loopback publish'
+			);
+
+			$refreshed = wu_get_membership($membership->get_id());
+
+			$this->assertFalse(
+				$refreshed->get_pending_site(),
+				'pending_site meta should be removed after recovery finalizes the existing blog'
+			);
+
+			$this->assertSame(
+				(string) $membership->get_id(),
+				(string) get_site_meta($blog_id, Site::META_MEMBERSHIP_ID, true)
+			);
+			$this->assertSame(
+				(string) $membership->get_customer_id(),
+				(string) get_site_meta($blog_id, Site::META_CUSTOMER_ID, true)
+			);
+			$this->assertSame('customer_owned', get_site_meta($blog_id, Site::META_TYPE, true));
+		} finally {
+			wpmu_delete_blog($blog_id, true);
+		}
 	}
 
 	// ========================================================================
