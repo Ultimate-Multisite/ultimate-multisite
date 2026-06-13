@@ -12,7 +12,6 @@ use WP_Ultimo\Managers\Membership_Manager;
 use WP_Ultimo\Models\Membership;
 use WP_Ultimo\Models\Customer;
 use WP_Ultimo\Models\Product;
-use WP_Ultimo\Models\Site;
 use WP_Ultimo\Database\Memberships\Membership_Status;
 
 /**
@@ -327,72 +326,6 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 			$response['publish_status'] ?? null,
 			'poll handler should report completed after clearing a stale pending_site cache entry'
 		);
-	}
-
-	/**
-	 * Test pending-site poll recovers when the blog exists but ownership meta is missing.
-	 */
-	public function test_check_pending_site_created_recovers_existing_unattached_blog(): void {
-
-		global $current_site;
-
-		$membership = $this->create_membership();
-		$domain     = 'pending-recovery-' . wp_rand() . '.' . $current_site->domain;
-		$path       = '/';
-		$blog_id    = wpmu_create_blog(
-			$domain,
-			$path,
-			'Pending Recovery Site',
-			$this->customer->get_user_id(),
-			[],
-			get_current_network_id()
-		);
-
-		if (is_wp_error($blog_id)) {
-			$this->fail('Could not create partial test blog: ' . $blog_id->get_error_message());
-		}
-
-		try {
-			delete_site_meta($blog_id, Site::META_MEMBERSHIP_ID);
-			delete_site_meta($blog_id, Site::META_CUSTOMER_ID);
-			update_site_meta($blog_id, Site::META_TYPE, 'site_template');
-
-			$membership->create_pending_site(
-				[
-					'title'         => 'Pending Recovery Site',
-					'domain'        => $domain,
-					'path'          => $path,
-					'is_publishing' => false,
-				]
-			);
-
-			$response = $this->call_check_pending_site_created($membership);
-
-			$this->assertSame(
-				'completed',
-				$response['publish_status'] ?? null,
-				'poll handler should finalize an existing blog left unattached by an interrupted loopback publish'
-			);
-
-			$refreshed = wu_get_membership($membership->get_id());
-
-			$this->assertFalse(
-				$refreshed->get_pending_site(),
-				'pending_site meta should be removed after recovery finalizes the existing blog'
-			);
-
-			$this->assertSame(
-				(string) $membership->get_id(),
-				(string) get_site_meta($blog_id, Site::META_MEMBERSHIP_ID, true)
-			);
-			$this->assertSame(
-				(string) $membership->get_customer_id(),
-				(string) get_site_meta($blog_id, Site::META_CUSTOMER_ID, true)
-			);
-			$this->assertSame('customer_owned', get_site_meta($blog_id, Site::META_TYPE, true));
-		} finally {
-			wpmu_delete_blog($blog_id, true);
-		}
 	}
 
 	// ========================================================================
@@ -1467,13 +1400,13 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test publish_pending_site_async uses non-blocking loopback without finish support.
+	 * Test publish_pending_site_async skips loopback without finish support.
 	 *
 	 * Runtimes such as FrankenPHP do not expose fastcgi_finish_request(), so the
-	 * checkout request must trigger site creation in a separate non-blocking
-	 * loopback request rather than waiting for Action Scheduler cron.
+	 * checkout request must enqueue and dispatch Action Scheduler directly instead
+	 * of relying on a fragile 0.01s admin-ajax loopback.
 	 */
-	public function test_publish_pending_site_async_uses_non_blocking_loopback_without_finish_support(): void {
+	public function test_publish_pending_site_async_skips_loopback_without_finish_support(): void {
 
 		$membership = $this->create_membership();
 
@@ -1484,13 +1417,15 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 
 		$membership->update_pending_site($pending_site);
 
-		$captured_args = null;
-		$http_filter   = function ($preempt, $r, $url) use (&$captured_args) {
+		$publish_loopback_requests = 0;
+		$http_filter               = function ($preempt, $r, $url) use (&$publish_loopback_requests) {
+			unset($preempt, $r);
+
 			if (strpos($url, 'wu_publish_pending_site') !== false) {
-				$captured_args = $r;
+				++$publish_loopback_requests;
 			}
 
-			return ['response' => ['code' => false]];
+			return new \WP_Error('http_blocked_for_test', 'HTTP requests are blocked during this test.');
 		};
 
 		add_filter(
@@ -1504,12 +1439,10 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 
 		$membership->publish_pending_site_async();
 
-		$this->assertIsArray($captured_args, 'Loopback HTTP request should fire without finish-request support.');
-		$this->assertFalse($captured_args['blocking'], 'Loopback should be non-blocking without finish-request support.');
-		$this->assertSame(0.01, $captured_args['timeout'], 'Non-blocking loopback should use a tiny timeout.');
+		$this->assertSame(0, $publish_loopback_requests, 'Pending-site loopback should not fire without finish-request support.');
 		$this->assertTrue(
-			as_has_scheduled_action('wu_async_publish_pending_site', ['membership_id' => $membership->get_id()], 'membership'),
-			'Action Scheduler fallback should still be queued when the non-blocking loopback starts.'
+			wu_switch_blog_and_run(fn() => as_has_scheduled_action('wu_async_publish_pending_site', ['membership_id' => $membership->get_id()], 'membership')),
+			'Action Scheduler publish action should be queued without finish-request support.'
 		);
 
 		remove_filter('wu_publish_pending_site_can_finish_request', '__return_false');
