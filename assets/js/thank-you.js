@@ -95,12 +95,14 @@
 		if (! document.getElementById("wu-sites")) {
 			return;
 		}
+		const has_pending_site = [ true, 1, "1", "true" ].includes(wu_thank_you.has_pending_site);
 		const { Vue, defineComponent } = window.wu_vue;
 		window.wu_sites = new Vue(defineComponent({
 			el: "#wu-sites",
 			data() {
 				return {
 					creating: wu_thank_you.creating,
+					has_pending_site,
 					next_queue: parseInt(wu_thank_you.next_queue, 10) + 5,
 					random: 0,
 					progress_in_seconds: 0,
@@ -156,15 +158,17 @@
 					if (response.publish_status === "completed") {
 						this.creating = false;
 						this.site_ready = true;
-						// Cache-bust redirect only when we actually watched the site transition
-						// through "running" during THIS page load, AND we have not already done
-						// a redirect (is_post_redirect).  Both guards are required:
-						//  • running_count === 0 → gateway completed before page loaded; the PHP
-						//    template already has the correct state, no reload needed.
+						// Cache-bust redirect when this page rendered a pending site and the
+						// poller later observes completion, or when we watched the site transition
+						// through "running" during THIS page load. Both guards are required:
+						//  • has_pending_site === true → PHP rendered the pending badge, so the
+						//    page needs a fresh server render to show Ready/Admin/Visit links.
+						//  • running_count > 0 → the page observed active publishing and should
+						//    refresh after completion even if the initial render was ambiguous.
 						//  • is_post_redirect === true → we already navigated once; a second
 						//    redirect would start an infinite loop (completed page → redirect →
 						//    completed again → redirect …).
-						if (this.running_count > 0 && ! this.is_post_redirect) {
+						if ((this.has_pending_site || this.running_count > 0) && ! this.is_post_redirect) {
 							setTimeout(() => {
 								const sep = window.location.href.indexOf("?") > -1 ? "&" : "?";
 								window.location.href = window.location.href.split("#")[ 0 ] + sep + "_t=" + Date.now();
@@ -210,10 +214,12 @@
 						//     stopped unexpectedly; do one location.reload() for fresh server state.
 						//     The reloaded page will have running_count = 0, so this branch can
 						//     only fire once before falling through to case 2 or 3.
-						//  2. wu_thank_you.creating === false (PHP already reports site done) →
+						//  2. has_pending_site === false and wu_thank_you.creating === false
+						//     (PHP already reports site done) →
 						//     mark ready and stop polling; no navigation needed.
-						//  3. wu_thank_you.creating === true but never saw "running" (webhook
-						//     delay, job not started yet) → keep slow-polling; do NOT reload.
+						//  3. has_pending_site === true but never saw "running" (webhook delay,
+						//     interrupted loopback, or job not started yet) → keep slow-polling;
+						//     do NOT mark the PHP-rendered pending badge as ready client-side.
 						this.creating = false;
 						this.stopped_count++;
 						if (this.stopped_count >= 3) {
@@ -223,11 +229,12 @@
 								// reload before the first navigation clears the page.
 								this._reload_done = true;
 								window.location.reload();
-							} else if (! wu_thank_you.creating) {
+							} else if (! this.has_pending_site && ! wu_thank_you.creating) {
 								// Case 2: PHP already reported creation complete — mark ready.
 								this.site_ready = true;
 							} else {
 								// Case 3: still waiting for job to start — keep slow-polling.
+								fetch(wu_thank_you.wp_cron_url);
 								setTimeout(this.check_site_created, 3e3);
 							}
 						} else {
