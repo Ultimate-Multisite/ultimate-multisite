@@ -448,9 +448,9 @@ if ( ! class_exists('MUCD_Data') ) {
 		 */
 		public static function try_replace($row, $field, $from_string, $to_string) {
 			if (is_serialized($row[ $field ])) {
-				$double_serialize  = false;
-				$original_value    = $row[ $field ];
-				$row[ $field ]     = @unserialize($row[ $field ]);
+				$double_serialize = false;
+				$original_value   = $row[ $field ];
+				$row[ $field ]    = @unserialize($row[ $field ]);
 
 				// Safety: if unserialize failed, return the original value
 				// instead of re-serializing false — which would destroy the data.
@@ -471,9 +471,13 @@ if ( ! class_exists('MUCD_Data') ) {
 					}
 				}
 
+				if ($row[ $field ] instanceof __PHP_Incomplete_Class) {
+					return $original_value;
+				}
+
 				if (is_array($row[ $field ])) {
 					$row[ $field ] = self::replace_recursive($row[ $field ], $from_string, $to_string);
-				} elseif (is_object($row[ $field ]) || $row[ $field ] instanceof __PHP_Incomplete_Class) {
+				} elseif (is_object($row[ $field ])) {
 					$array_object = (array) $row[ $field ];
 					$array_object = self::replace_recursive($array_object, $from_string, $to_string);
 					foreach ($array_object as $key => $value) {
@@ -495,6 +499,8 @@ if ( ! class_exists('MUCD_Data') ) {
 				}
 			} elseif (is_array($row[ $field ])) {
 				$row[ $field ] = self::replace_recursive($row[ $field ], $from_string, $to_string);
+			} elseif ($row[ $field ] instanceof __PHP_Incomplete_Class) {
+				return $row[ $field ];
 			} elseif (is_object($row[ $field ])) {
 				$array_object = (array) $row[ $field ];
 				$array_object = self::replace_recursive($array_object, $from_string, $to_string);
