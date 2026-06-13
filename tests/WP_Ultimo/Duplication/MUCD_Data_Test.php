@@ -325,6 +325,35 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 
 		$this->assertSame($serialized, $result);
 		$this->assertStringContainsString($old_url, $result);
+
+		$incomplete_object = @unserialize($serialized);
+		$nested_payload    = serialize(
+			[
+				'notice' => $incomplete_object,
+				'url'    => $old_url,
+			]
+		);
+		$warnings          = 0;
+
+		set_error_handler(
+			static function ($errno, $errstr) use (&$warnings) {
+				if (false !== strpos($errstr, 'incomplete object')) {
+					++$warnings;
+				}
+
+				return true;
+			}
+		);
+
+		try {
+			$nested_result = \MUCD_Data::try_replace(['meta_value' => $nested_payload], 'meta_value', 'example.com/old', 'example.com/new');
+		} finally {
+			restore_error_handler();
+		}
+
+		$this->assertSame(0, $warnings);
+		$this->assertStringContainsString($old_url, $nested_result);
+		$this->assertStringContainsString('https://example.com/new/page', $nested_result);
 	}
 
 	/**

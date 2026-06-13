@@ -499,6 +499,8 @@ if ( ! class_exists('MUCD_Data') ) {
 				}
 			} elseif (is_array($row[ $field ])) {
 				$row[ $field ] = self::replace_recursive($row[ $field ], $from_string, $to_string);
+			} elseif ($row[ $field ] instanceof __PHP_Incomplete_Class) {
+				return $row[ $field ];
 			} elseif (is_object($row[ $field ])) {
 				$array_object = (array) $row[ $field ];
 				$array_object = self::replace_recursive($array_object, $from_string, $to_string);
