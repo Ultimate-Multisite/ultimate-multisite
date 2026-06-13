@@ -298,12 +298,6 @@ class Membership_Manager extends Base_Manager {
 			exit;
 		}
 
-		if ($this->recover_interrupted_pending_site($membership, $pending_site)) {
-			wp_send_json(['publish_status' => 'completed']);
-
-			exit;
-		}
-
 		/*
 		 * Detect stale publishing state. When the PHP process that was
 		 * creating the site gets killed mid-execution, is_publishing
@@ -343,81 +337,6 @@ class Membership_Manager extends Base_Manager {
 		wp_send_json(['publish_status' => $pending_site->is_publishing() ? 'running' : 'stopped']);
 
 		exit;
-	}
-
-	/**
-	 * Finalizes a pending site when the raw blog exists but publish cleanup stopped.
-	 *
-	 * The loopback fast-path can be interrupted after the template/site is created
-	 * but before Site::save() stores membership metadata and before the pending_site
-	 * membership meta row is removed. In that state the checkout poller sees a
-	 * non-publishing pending site forever while the raw blog already exists. Recover
-	 * the association immediately instead of waiting for the delayed watchdog.
-	 *
-	 * @since 2.13.2
-	 *
-	 * @param \WP_Ultimo\Models\Membership $membership   Membership being polled.
-	 * @param \WP_Ultimo\Models\Site       $pending_site Pending site object.
-	 * @return bool True when the existing blog was finalized.
-	 */
-	protected function recover_interrupted_pending_site($membership, $pending_site) {
-
-		if ($pending_site->is_publishing()) {
-			return false;
-		}
-
-		$domain = $pending_site->get_domain();
-		$path   = $pending_site->get_path() ?: '/';
-
-		if (empty($domain)) {
-			return false;
-		}
-
-		$blog_id = get_blog_id_from_url($domain, $path);
-
-		if ( ! $blog_id || (int) wu_get_main_site_id() === (int) $blog_id) {
-			return false;
-		}
-
-		$existing_membership_id = (int) get_site_meta($blog_id, \WP_Ultimo\Models\Site::META_MEMBERSHIP_ID, true);
-		$existing_customer_id   = (int) get_site_meta($blog_id, \WP_Ultimo\Models\Site::META_CUSTOMER_ID, true);
-
-		if ($existing_membership_id && $existing_membership_id !== (int) $membership->get_id()) {
-			return false;
-		}
-
-		if ($existing_customer_id && $existing_customer_id !== (int) $membership->get_customer_id()) {
-			return false;
-		}
-
-		$pending_site->set_blog_id($blog_id);
-		$pending_site->set_type('customer_owned');
-		$pending_site->set_membership_id($membership->get_id());
-		$pending_site->set_customer_id($membership->get_customer_id());
-
-		switch_to_blog($blog_id);
-
-		foreach ($pending_site->get_signup_options() as $key => $value) {
-			update_option($key, $value);
-		}
-
-		restore_current_blog();
-
-		foreach ($pending_site->get_signup_meta() as $key => $value) {
-			update_site_meta($blog_id, $key, $value);
-		}
-
-		update_site_meta($blog_id, \WP_Ultimo\Models\Site::META_MEMBERSHIP_ID, $membership->get_id());
-		update_site_meta($blog_id, \WP_Ultimo\Models\Site::META_CUSTOMER_ID, $membership->get_customer_id());
-		update_site_meta($blog_id, \WP_Ultimo\Models\Site::META_TYPE, $pending_site->get_type());
-		update_site_meta($blog_id, \WP_Ultimo\Models\Site::META_TEMPLATE_ID, $pending_site->get_template_id());
-
-		$membership->delete_pending_site();
-		wu_unschedule_action('wu_async_publish_pending_site', ['membership_id' => $membership->get_id()], 'membership');
-
-		do_action('wu_pending_site_published', $pending_site, $membership);
-
-		return true;
 	}
 
 	/**
