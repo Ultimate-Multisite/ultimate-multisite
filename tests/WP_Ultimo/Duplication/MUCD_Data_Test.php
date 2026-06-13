@@ -303,6 +303,31 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test try_replace preserves incomplete serialized objects unchanged.
+	 *
+	 * Production templates can contain serialized objects from plugins that are not
+	 * loaded during duplication. PHP unserializes those as __PHP_Incomplete_Class;
+	 * attempting to mutate them aborts checkout provisioning.
+	 */
+	public function test_try_replace_preserves_incomplete_serialized_object() {
+		$class_name = 'Missing\\Plugin\\Notification';
+		$old_url    = 'https://example.com/old/page';
+		$serialized = sprintf(
+			'O:%d:"%s":1:{s:3:"url";s:%d:"%s";}',
+			strlen($class_name),
+			$class_name,
+			strlen($old_url),
+			$old_url
+		);
+		$row        = ['meta_value' => $serialized];
+
+		$result = \MUCD_Data::try_replace($row, 'meta_value', 'example.com/old', 'example.com/new');
+
+		$this->assertSame($serialized, $result);
+		$this->assertStringContainsString($old_url, $result);
+	}
+
+	/**
 	 * Test try_replace with Elementor Kit-like serialized page settings.
 	 *
 	 * Simulates the _elementor_page_settings structure for a Kit post.
