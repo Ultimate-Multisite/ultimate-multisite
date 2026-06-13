@@ -117,6 +117,87 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test duplication preserves usermeta containing incomplete serialized objects.
+	 */
+	public function test_duplication_preserves_incomplete_serialized_user_meta() {
+
+		global $wpdb;
+
+		$result        = null;
+		$raw_meta_name = 'yoast_notifications';
+		$user_id       = self::factory()->user->create(
+			[
+				'user_email' => 'template-subscriber@example.com',
+			]
+		);
+
+		add_user_to_blog($this->template_site_id, $user_id, 'subscriber');
+
+		$class_name = 'Missing\\Plugin\\Notification';
+		$old_url    = 'https://template.example.com/old/page';
+		$raw_value  = sprintf(
+			'O:%d:"%s":1:{s:3:"url";s:%d:"%s";}',
+			strlen($class_name),
+			$class_name,
+			strlen($old_url),
+			$old_url
+		);
+
+		$source_meta_key = $wpdb->get_blog_prefix($this->template_site_id) . $raw_meta_name;
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Regression fixture needs raw serialized usermeta.
+		$wpdb->insert(
+			$wpdb->usermeta,
+			[
+				'user_id'    => $user_id,
+				'meta_key'   => $source_meta_key,
+				'meta_value' => $raw_value,
+			],
+			[
+				'%d',
+				'%s',
+				'%s',
+			]
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+
+		try {
+			$result = Site_Duplicator::duplicate_site(
+				$this->template_site_id,
+				'Incomplete Usermeta Site',
+				[
+					'domain'     => 'incomplete-usermeta.example.com',
+					'path'       => '/',
+					'title'      => 'Incomplete Usermeta Site',
+					'email'      => 'incomplete-usermeta-admin@example.com',
+					'copy_files' => false,
+				]
+			);
+
+			$this->assertIsInt($result);
+
+			$target_meta_key = $wpdb->get_blog_prefix($result) . $raw_meta_name;
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Assert raw serialized usermeta was preserved.
+			$stored_value = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT meta_value FROM {$wpdb->usermeta} WHERE user_id = %d AND meta_key = %s LIMIT 1",
+					$user_id,
+					$target_meta_key
+				)
+			);
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+
+			$this->assertSame($raw_value, $stored_value);
+		} finally {
+			if ($result) {
+				wpmu_delete_blog($result, true);
+			}
+
+			wp_delete_user($user_id);
+		}
+	}
+
+	/**
 	 * Test duplication with invalid source site.
 	 */
 	public function test_duplicate_invalid_source_site() {
