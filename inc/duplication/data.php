@@ -450,7 +450,7 @@ if ( ! class_exists('MUCD_Data') ) {
 			if (is_serialized($row[ $field ])) {
 				$double_serialize = false;
 				$original_value   = $row[ $field ];
-				$row[ $field ]    = @unserialize($row[ $field ]);
+				$row[ $field ]    = @unserialize($row[ $field ], ['allowed_classes' => false]);
 
 				// Safety: if unserialize failed, return the original value
 				// instead of re-serializing false — which would destroy the data.
@@ -460,7 +460,7 @@ if ( ! class_exists('MUCD_Data') ) {
 
 				// FOR SERIALISED OPTIONS, like in wp_carousel plugin
 				if (is_serialized($row[ $field ])) {
-					$inner_unserialized = @unserialize($row[ $field ]);
+					$inner_unserialized = @unserialize($row[ $field ], ['allowed_classes' => false]);
 
 					if (false === $inner_unserialized && 'b:0;' !== $row[ $field ]) {
 						// Inner unserialize failed — fall back to single-serialized handling.
