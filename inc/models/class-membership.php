@@ -2132,9 +2132,30 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		$use_loopback       = (bool) apply_filters('wu_publish_pending_site_use_loopback', true, $this);
 		$can_finish_request = function_exists('litespeed_finish_request')
 			|| function_exists('fastcgi_finish_request');
+		$server_software    = isset($_SERVER['SERVER_SOFTWARE']) ? sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE'])) : '';
+		$is_frankenphp      = 'frankenphp' === PHP_SAPI || false !== stripos($server_software, 'frankenphp');
+
+		if ($is_frankenphp) {
+			$can_finish_request = false;
+		}
+
 		$can_finish_request = (bool) apply_filters('wu_publish_pending_site_can_finish_request', $can_finish_request, $this);
 		$loopback_started   = false;
 		$args               = ['membership_id' => $this->get_id()];
+
+		if ($use_loopback && ! $can_finish_request) {
+			/*
+			 * Runtimes such as FrankenPHP do not expose a finish_request()
+			 * primitive. A 0.01s non-blocking admin-ajax loopback can outlive
+			 * or abort independently from the checkout request, leaving customers
+			 * waiting for the 5-minute watchdog. In that environment, rely on the
+			 * immediate Action Scheduler path and dispatch the queue now.
+			 */
+			wu_enqueue_async_action('wu_async_publish_pending_site', $args, 'membership');
+			$this->dispatch_pending_site_async_queue();
+
+			return;
+		}
 
 		if ($use_loopback) {
 			$this->schedule_pending_site_async_watchdog($args);
@@ -2172,8 +2193,6 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			if (is_wp_error($result)) {
 				// translators: %s full error message.
 				wu_log_add("membership-{$this->get_id()}", sprintf(__('Failed to trigger async site creation. The site will not be created until the next cron run which is much slower: %s', 'ultimate-multisite'), $result->get_error_message()));
-			} elseif ( ! $can_finish_request) {
-				$loopback_started = true;
 			} else {
 				$code = (int) wp_remote_retrieve_response_code($result);
 				if ($code < 200 || $code >= 300) {
