@@ -303,9 +303,86 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test try_replace preserves incomplete serialized objects unchanged.
+	 *
+	 * Production templates can contain serialized objects from plugins that are not
+	 * loaded during duplication. PHP unserializes those as __PHP_Incomplete_Class;
+	 * attempting to mutate them aborts checkout provisioning.
+	 */
+	public function test_try_replace_preserves_incomplete_serialized_object() {
+		$class_name = 'Missing\\Plugin\\Notification';
+		$old_url    = 'https://example.com/old/page';
+		$serialized = sprintf(
+			'O:%d:"%s":1:{s:3:"url";s:%d:"%s";}',
+			strlen($class_name),
+			$class_name,
+			strlen($old_url),
+			$old_url
+		);
+		$row        = ['meta_value' => $serialized];
+
+		$result = \MUCD_Data::try_replace($row, 'meta_value', 'example.com/old', 'example.com/new');
+
+		$this->assertSame($serialized, $result);
+		$this->assertStringContainsString($old_url, $result);
+
+		$incomplete_object = @unserialize($serialized);
+		$nested_payload    = serialize(
+			[
+				'notice' => $incomplete_object,
+				'url'    => $old_url,
+			]
+		);
+		$warnings          = 0;
+
+		set_error_handler(
+			static function ($errno, $errstr) use (&$warnings) {
+				if (false !== strpos($errstr, 'incomplete object')) {
+					++$warnings;
+				}
+
+				return true;
+			}
+		);
+
+		try {
+			$nested_result = \MUCD_Data::try_replace(['meta_value' => $nested_payload], 'meta_value', 'example.com/old', 'example.com/new');
+		} finally {
+			restore_error_handler();
+		}
+
+		$this->assertSame(0, $warnings);
+		$this->assertStringContainsString($old_url, $nested_result);
+		$this->assertStringContainsString('https://example.com/new/page', $nested_result);
+	}
+
+	/**
+	 * Test try_replace does not instantiate objects from known classes.
+	 *
+	 * Both unserialize() calls must use allowed_classes: false so that
+	 * __wakeup() / __destruct() side-effects are never triggered, even for
+	 * classes that happen to be available in the duplication runtime. Any
+	 * serialized object must be returned verbatim (same as an incomplete class).
+	 */
+	public function test_try_replace_does_not_instantiate_known_class_objects() {
+		// stdClass is always available; without allowed_classes: false it would
+		// be instantiated and processed by the object-mutation branch.
+		$obj      = new \stdClass();
+		$obj->url = 'https://example.com/old/page';
+		$serialized = serialize($obj);
+		$row        = ['meta_value' => $serialized];
+
+		$result = \MUCD_Data::try_replace($row, 'meta_value', 'example.com/old', 'example.com/new');
+
+		// With allowed_classes: false the object becomes __PHP_Incomplete_Class
+		// and the guard returns the original serialized value unchanged.
+		$this->assertSame($serialized, $result);
+	}
+
+	/**
 	 * Test try_replace with Elementor Kit-like serialized page settings.
 	 *
-	 * Simulates the _elementor_page_settings structure for a Kit post.
+
 	 * After URL replacement, all non-URL settings must be preserved
 	 * exactly and the result must be valid serialized data.
 	 */

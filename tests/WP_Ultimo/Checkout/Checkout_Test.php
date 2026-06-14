@@ -536,6 +536,17 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test is_first_step with null steps.
+	 */
+	public function test_is_first_step_null_steps(): void {
+
+		$checkout        = Checkout::get_instance();
+		$checkout->steps = null;
+
+		$this->assertTrue($checkout->is_first_step());
+	}
+
+	/**
 	 * Test is_first_step when on first step.
 	 */
 	public function test_is_first_step_on_first(): void {
@@ -625,6 +636,18 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test is_last_step with null steps returns true.
+	 */
+	public function test_is_last_step_null_steps(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->steps     = null;
+		$checkout->step_name = null;
+
+		$this->assertTrue($checkout->is_last_step());
+	}
+
+	/**
 	 * Test is_last_step returns false when pre-flight param is set.
 	 */
 	public function test_is_last_step_pre_flight_returns_false(): void {
@@ -702,6 +725,18 @@ class Checkout_Test extends WP_UnitTestCase {
 		$checkout->step_name = null;
 
 		$this->assertEquals('step-2', $checkout->get_next_step_name());
+	}
+
+	/**
+	 * Test get_next_step_name with null steps returns current step.
+	 */
+	public function test_get_next_step_name_null_steps_returns_current(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->steps     = null;
+		$checkout->step_name = 'thank-you';
+
+		$this->assertEquals('thank-you', $checkout->get_next_step_name());
 	}
 
 	/**

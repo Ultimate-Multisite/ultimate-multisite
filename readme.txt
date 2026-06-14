@@ -3,7 +3,7 @@ Contributors: aanduque, superdav42, vvwb, surferking, mahyarrezghi, josevega, pa
 Donate link: https://github.com/sponsors/superdav42/
 Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
-Requires PHP: 7.4.30
+Requires PHP: 8.2
 Tested up to: 7.0
 Stable tag: 2.13.1
 License: GPLv2
@@ -168,7 +168,7 @@ Ultimate Multisite uses [Microlink](https://microlink.io/) as its primary screen
 == Requirements ==
 
 - WordPress Multisite 5.3 or higher
-- PHP 7.4.30 or higher
+- PHP 8.2 or higher
 - MySQL 5.6 or higher
 
 == Screenshots ==
