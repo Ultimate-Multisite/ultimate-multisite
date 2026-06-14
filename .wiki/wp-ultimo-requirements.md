@@ -34,13 +34,13 @@ After you have Multisite enabled on WordPress, it is time to install Ultimate Mu
 
   * WordPress: v5.3+ (Recommended: Last stable version)
 
-  * PHP: 7.4.x (support to > 8.0 coming soon)
+  * PHP: 8.2+
 
   * MySQL: v5+ (Recommended: 5.6, in case you don't have 8.0 available on your hosting provider)
 
 These are the only software requirements for Ultimate Multisite.
 
-Keep in mind that Ultimate Multisite may work with PHP 8.0 but we recommend running it with PHP 7.4.x.
+Keep in mind that Ultimate Multisite requires PHP 8.2 or higher.
 
 Also, we recommend installing it on **main domains** , not subdomains or subdirectories. It might work on subdomains/subdirectories, but it might present some errors.
 

@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Multisite Ultimate! This document
 
 ### Prerequisites
 
-- PHP 7.4+ (8.1+ recommended for development)
+- PHP 8.2+
 - Node.js 16+ and npm
 - Composer
 - Git

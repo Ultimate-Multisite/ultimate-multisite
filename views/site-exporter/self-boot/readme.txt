@@ -41,7 +41,7 @@ QUICK START (Browser Wizard — recommended)
 REQUIREMENTS
 --------------------------------------------------------------------------------
 
-- PHP 7.4 or later (PHP 8.x recommended)
+- PHP 8.2 or later
 - MySQL 5.7+ or MariaDB 10.2+
 - Outbound HTTPS to wordpress.org (unless core was bundled)
 - ZipArchive PHP extension
