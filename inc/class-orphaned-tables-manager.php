@@ -222,8 +222,14 @@ class Orphaned_Tables_Manager {
 
 		global $wpdb;
 
-		$orphaned_tables = [];
-		$site_ids        = array_fill_keys($this->get_existing_site_ids(), true);
+		$orphaned_tables   = [];
+		$existing_site_ids = $this->get_existing_site_ids();
+
+		if (is_wp_error($existing_site_ids)) {
+			return [];
+		}
+
+		$site_ids = array_fill_keys($existing_site_ids, true);
 
 		// Get all tables from the database
 		$all_tables = $wpdb->get_col('SHOW TABLES'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
@@ -252,15 +258,22 @@ class Orphaned_Tables_Manager {
 	 * when its blog ID no longer has a row in wp_blogs.
 	 *
 	 * @since 2.0.0
-	 * @return array<int>
+	 * @return array<int>|\WP_Error
 	 */
-	private function get_existing_site_ids(): array {
+	private function get_existing_site_ids() {
 
 		global $wpdb;
 
 		$site_ids = $wpdb->get_col("SELECT blog_id FROM {$wpdb->blogs}"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
-		return array_map('intval', $site_ids ?: []);
+		if (! is_array($site_ids) || '' !== $wpdb->last_error) {
+			return new \WP_Error(
+				'wu_orphaned_tables_site_lookup_failed',
+				__('Unable to read site IDs from wp_blogs.', 'ultimate-multisite')
+			);
+		}
+
+		return array_map('intval', $site_ids);
 	}
 
 	/**
@@ -295,8 +308,14 @@ class Orphaned_Tables_Manager {
 
 		global $wpdb;
 
-		$deleted_count = 0;
-		$site_ids      = array_fill_keys($this->get_existing_site_ids(), true);
+		$deleted_count     = 0;
+		$existing_site_ids = $this->get_existing_site_ids();
+
+		if (is_wp_error($existing_site_ids)) {
+			return 0;
+		}
+
+		$site_ids = array_fill_keys($existing_site_ids, true);
 
 		foreach ($tables as $table) {
 			// Sanitize table name to prevent SQL injection

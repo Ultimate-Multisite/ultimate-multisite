@@ -81,7 +81,12 @@ class Orphaned_Tables_Manager_Test extends \WP_UnitTestCase {
 			) {$wpdb->get_charset_collate()}"
 		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
-		$this->assertNotFalse($created, 'Failed to create the test options table.');
+		if (false === $created) {
+			$wpdb->delete($wpdb->blogs, ['blog_id' => $blog_id], ['%d']);
+			clean_blog_cache($blog_id);
+
+			$this->fail('Failed to create the test options table.');
+		}
 
 		clean_blog_cache($blog_id);
 
@@ -250,6 +255,27 @@ class Orphaned_Tables_Manager_Test extends \WP_UnitTestCase {
 			$this->assertSame(0, $result);
 			$this->assertSame($table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)));
 		} finally {
+			$this->remove_blog_row_with_options_table($blog_id, $table);
+		}
+	}
+
+	/**
+	 * Test cleanup fails closed when wp_blogs cannot be read.
+	 */
+	public function test_cleanup_fails_closed_when_blog_lookup_fails(): void {
+
+		global $wpdb;
+
+		[$blog_id, $table] = $this->create_blog_row_with_options_table();
+		$blogs_table       = $wpdb->blogs;
+		$wpdb->blogs       = $wpdb->base_prefix . 'missing_blogs_for_cleanup_test';
+
+		try {
+			$this->assertSame([], $this->get_instance()->find_orphaned_tables());
+			$this->assertSame(0, $this->get_instance()->delete_orphaned_tables([$table]));
+			$this->assertSame($table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)));
+		} finally {
+			$wpdb->blogs = $blogs_table;
 			$this->remove_blog_row_with_options_table($blog_id, $table);
 		}
 	}
