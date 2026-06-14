@@ -223,39 +223,65 @@ class Orphaned_Tables_Manager {
 		global $wpdb;
 
 		$orphaned_tables = [];
-
-		// Get all site IDs
-		$site_ids = get_sites(
-			[
-				'fields' => 'ids',
-				'number' => 0,
-			]
-		);
+		$site_ids        = array_fill_keys($this->get_existing_site_ids(), true);
 
 		// Get all tables from the database
 		$all_tables = $wpdb->get_col('SHOW TABLES'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
 		foreach ($all_tables as $table) {
-			// Check if table matches multisite pattern (prefix + number + underscore)
-			$pattern = '/^' . preg_quote($wpdb->prefix, '/') . '([0-9]+)_(.+)/';
+			$site_id = $this->get_table_site_id($table);
 
-			if (preg_match($pattern, $table, $matches)) {
-				$site_id      = (int) $matches[1];
-				$table_suffix = $matches[2];
+			if (0 === $site_id || 1 === $site_id) {
+				continue;
+			}
 
-				// Skip if this is the main site (usually ID 1)
-				if (1 === $site_id) {
-					continue;
-				}
-
-				// Check if site ID exists in active sites
-				if (! in_array($site_id, $site_ids, true)) {
-					$orphaned_tables[] = $table;
-				}
+			// Check if site ID exists in wp_blogs, across every network.
+			if (! isset($site_ids[ $site_id ])) {
+				$orphaned_tables[] = $table;
 			}
 		}
 
 		return $orphaned_tables;
+	}
+
+	/**
+	 * Get blog IDs that still have a wp_blogs row.
+	 *
+	 * The cleanup process must not rely on get_sites() here because site queries
+	 * can be filtered or scoped by multi-network context. A table is orphaned only
+	 * when its blog ID no longer has a row in wp_blogs.
+	 *
+	 * @since 2.0.0
+	 * @return array<int>
+	 */
+	private function get_existing_site_ids(): array {
+
+		global $wpdb;
+
+		$site_ids = $wpdb->get_col("SELECT blog_id FROM {$wpdb->blogs}"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+		return array_map('intval', $site_ids ?: []);
+	}
+
+	/**
+	 * Extract the site ID from a multisite table name.
+	 *
+	 * @since 2.0.0
+	 * @param string $table Table name.
+	 * @return int Site ID, or 0 when the table is not a per-site multisite table.
+	 */
+	private function get_table_site_id(string $table): int {
+
+		global $wpdb;
+
+		$base_prefix = $wpdb->base_prefix ?: $wpdb->prefix;
+		$pattern     = '/^' . preg_quote($base_prefix, '/') . '([0-9]+)_(.+)/';
+
+		if (! preg_match($pattern, $table, $matches)) {
+			return 0;
+		}
+
+		return (int) $matches[1];
 	}
 
 	/**
@@ -270,14 +296,16 @@ class Orphaned_Tables_Manager {
 		global $wpdb;
 
 		$deleted_count = 0;
+		$site_ids      = array_fill_keys($this->get_existing_site_ids(), true);
 
 		foreach ($tables as $table) {
 			// Sanitize table name to prevent SQL injection
 			$table = sanitize_key($table);
 
-			// Verify the table still exists and matches our pattern
-			$pattern = '/^' . preg_quote($wpdb->prefix, '/') . '([0-9]+)_(.+)/';
-			if (! preg_match($pattern, $table)) {
+			$site_id = $this->get_table_site_id($table);
+
+			// Verify the table still matches our pattern and no wp_blogs row exists.
+			if (0 === $site_id || 1 === $site_id || isset($site_ids[ $site_id ])) {
 				continue;
 			}
 
