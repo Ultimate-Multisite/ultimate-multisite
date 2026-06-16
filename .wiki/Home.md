@@ -1,6 +1,8 @@
 # Ultimate Multisite Documentation
 
-Welcome to the Ultimate Multisite documentation. This wiki contains all the information you need to get started with Ultimate Multisite.
+Looking for the latest documentation? Visit the new Ultimate Multisite docs at [ultimatemultisite.com/docs](https://ultimatemultisite.com/docs/).
+
+This GitHub wiki remains available for legacy and reference material.
 
 ## Documentation Categories
 
