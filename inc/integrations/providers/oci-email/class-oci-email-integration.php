@@ -31,7 +31,7 @@ class OCI_Email_Integration extends Integration {
 	 * @since 2.5.0
 	 * @var string
 	 */
-	private const API_BASE = 'https://email.%s.oci.oraclecloud.com/20170907/';
+	private const API_BASE = 'https://ctrl.email.%s.oci.oraclecloud.com/20170907/';
 
 	/**
 	 * Constructor.
