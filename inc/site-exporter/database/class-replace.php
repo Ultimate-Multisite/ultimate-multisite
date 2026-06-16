@@ -350,6 +350,8 @@ class Replace {
 				$data = $_tmp;
 
 				unset($_tmp);
+			} elseif ($data instanceof \__PHP_Incomplete_Class) {
+				return $data;
 			} elseif (is_object($data)) {
 				$_tmp  = $data;
 				$props = get_object_vars($data);

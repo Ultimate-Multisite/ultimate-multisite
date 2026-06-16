@@ -536,6 +536,17 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test is_first_step with null steps.
+	 */
+	public function test_is_first_step_null_steps(): void {
+
+		$checkout        = Checkout::get_instance();
+		$checkout->steps = null;
+
+		$this->assertTrue($checkout->is_first_step());
+	}
+
+	/**
 	 * Test is_first_step when on first step.
 	 */
 	public function test_is_first_step_on_first(): void {
@@ -625,6 +636,18 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test is_last_step with null steps returns true.
+	 */
+	public function test_is_last_step_null_steps(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->steps     = null;
+		$checkout->step_name = null;
+
+		$this->assertTrue($checkout->is_last_step());
+	}
+
+	/**
 	 * Test is_last_step returns false when pre-flight param is set.
 	 */
 	public function test_is_last_step_pre_flight_returns_false(): void {
@@ -702,6 +725,18 @@ class Checkout_Test extends WP_UnitTestCase {
 		$checkout->step_name = null;
 
 		$this->assertEquals('step-2', $checkout->get_next_step_name());
+	}
+
+	/**
+	 * Test get_next_step_name with null steps returns current step.
+	 */
+	public function test_get_next_step_name_null_steps_returns_current(): void {
+
+		$checkout            = Checkout::get_instance();
+		$checkout->steps     = null;
+		$checkout->step_name = 'thank-you';
+
+		$this->assertEquals('thank-you', $checkout->get_next_step_name());
 	}
 
 	/**
@@ -1620,6 +1655,67 @@ class Checkout_Test extends WP_UnitTestCase {
 		$this->assertTrue($checkout->validate($rules));
 
 		unset($_REQUEST['billing_country'], $_REQUEST['billing_zip_code'], $_REQUEST['user_id']);
+	}
+
+	/**
+	 * Test optional billing fields on earlier checkout steps relax final validation.
+	 */
+	public function test_get_validation_rules_relaxes_optional_billing_address_fields_from_all_steps(): void {
+
+		$form = new \WP_Ultimo\Models\Checkout_Form([
+			'name'     => 'Optional Billing Multi-step ' . time(),
+			'slug'     => 'optional-billing-multi-step-' . time(),
+			'settings' => [
+				[
+					'id'     => 'billing-step',
+					'name'   => 'Billing Step',
+					'fields' => [
+						[
+							'id'   => 'billing_country',
+							'type' => 'select',
+						],
+						[
+							'id'   => 'billing_zip_code',
+							'type' => 'text',
+						],
+					],
+				],
+				[
+					'id'     => 'final-step',
+					'name'   => 'Final Step',
+					'fields' => [
+						[
+							'id'   => 'site_title',
+							'type' => 'text',
+						],
+					],
+				],
+			],
+		]);
+
+		$checkout                = Checkout::get_instance();
+		$checkout->checkout_form = $form;
+		$checkout->step          = $form->get_step('final-step', true);
+		$checkout->steps         = $form->get_steps_to_show();
+		$checkout->step_name     = 'final-step';
+
+		$this->ensure_session($checkout);
+
+		unset($_REQUEST['pre-flight'], $_REQUEST['checkout_form']);
+
+		$_REQUEST['billing_country']  = 'US';
+		$_REQUEST['billing_zip_code'] = '';
+		$_REQUEST['user_id']          = self::$customer->get_user_id();
+
+		$rules = $checkout->get_validation_rules();
+
+		$this->assertSame('country', $rules['billing_country']);
+		$this->assertSame('', $rules['billing_zip_code']);
+		$this->assertTrue($checkout->validate($rules));
+
+		unset($_REQUEST['billing_country'], $_REQUEST['billing_zip_code'], $_REQUEST['user_id']);
+
+		$checkout->checkout_form = null;
 	}
 
 	/**

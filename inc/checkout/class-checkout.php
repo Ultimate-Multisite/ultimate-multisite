@@ -2112,6 +2112,7 @@ class Checkout {
 			'cancel'               => __('Cancel', 'ultimate-multisite'),
 			'email_exists'         => __('A customer with the same email address or username already exists.', 'ultimate-multisite'),
 			'provisioning_site'    => __('Provisioning your site — this can take up to 60 seconds.', 'ultimate-multisite'),
+			'recording_responses'  => __('Recording Your Responses...', 'ultimate-multisite'),
 			// Client-side validation messages (%s = field label, %d = numeric limit).
 			/* translators: %s: field label */
 			'field_required'       => __('%s is required.', 'ultimate-multisite'),
@@ -2204,6 +2205,7 @@ class Checkout {
 			'needs_billing_info' => true,
 			'auto_renew'         => true,
 			'products'           => array_unique($products),
+			'is_last_step'       => $this->is_last_step(),
 		];
 
 		/*
@@ -2770,7 +2772,9 @@ class Checkout {
 			'billing_zip_code' => '',
 		];
 
-		foreach ($this->step['fields'] as $field_key => $field) {
+		$billing_rule_fields = $this->checkout_form ? $this->checkout_form->get_all_fields() : $this->step['fields'];
+
+		foreach ($billing_rule_fields as $field_key => $field) {
 			if ( ! is_array($field)) {
 				continue;
 			}
@@ -3068,6 +3072,20 @@ class Checkout {
 		 * It ensure that the cart is the same used in beginning of the process.
 		 */
 		$this->order = $payment->get_meta('wu_original_cart');
+
+		/*
+		 * The original cart is only stored for payments created through the
+		 * normal checkout flow (process_order). Payments created elsewhere
+		 * (webhooks, admin, the register API) have no 'wu_original_cart' meta,
+		 * so get_meta() returns its `false` default. Bail cleanly instead of
+		 * fatally calling a method on a boolean.
+		 */
+		if ( ! ($this->order instanceof \WP_Ultimo\Checkout\Cart)) {
+			$this->errors = new \WP_Error('no-cart', __('This checkout session has expired or cannot be resumed. Please start over.', 'ultimate-multisite'));
+
+			return false;
+		}
+
 		$this->order->set_membership($membership);
 		$this->order->set_customer($customer);
 		$this->order->set_payment($payment);
@@ -3087,7 +3105,7 @@ class Checkout {
 				$gateway = wu_get_gateway($payment->get_gateway());
 			} elseif ($this->order->should_collect_payment() === false) {
 				$gateway = wu_get_gateway('free');
-			} elseif ($gateway->get_id() === 'free') {
+			} elseif ($gateway && $gateway->get_id() === 'free') {
 					$this->errors = new \WP_Error('no-gateway', __('Payment gateway not registered.', 'ultimate-multisite'));
 
 					return false;
@@ -3365,9 +3383,13 @@ class Checkout {
 	 */
 	public function get_next_step_name() {
 
-		$steps = $this->steps;
+		$steps = $this->get_steps_or_empty_array();
 
 		$keys = array_column($steps, 'id');
+
+		if (empty($keys)) {
+			return $this->step_name;
+		}
 
 		$current_step_index = array_search($this->step_name, array_values($keys), true);
 
@@ -3393,7 +3415,7 @@ class Checkout {
 	 */
 	public function is_first_step() {
 
-		$step_names = array_column($this->steps, 'id');
+		$step_names = array_column($this->get_steps_or_empty_array(), 'id');
 
 		if (empty($step_names)) {
 			return true;
@@ -3431,13 +3453,29 @@ class Checkout {
 			return false;
 		}
 
-		$step_names = array_column($this->steps, 'id');
+		$step_names = array_column($this->get_steps_or_empty_array(), 'id');
 
 		if (empty($step_names)) {
 			return true;
 		}
 
 		return array_pop($step_names) === $this->step_name;
+	}
+
+	/**
+	 * Returns checkout steps as an array.
+	 *
+	 * Payment return and thank-you requests can enqueue checkout scripts after the
+	 * checkout form context has been cleared, leaving the public steps property
+	 * unset/null. Treat that state as an empty one-step flow instead of fataling
+	 * when navigation helpers call array_column().
+	 *
+	 * @since 2.13.2
+	 * @return array
+	 */
+	protected function get_steps_or_empty_array() {
+
+		return is_array($this->steps) ? $this->steps : [];
 	}
 
 	/**

@@ -13,7 +13,7 @@
 <p align="center">
   <a href="http://www.gnu.org/licenses/gpl-2.0.html"><img src="https://img.shields.io/badge/License-GPL%20v2-blue.svg" alt="License: GPL v2"></a>
   <a href="https://wordpress.org/"><img src="https://img.shields.io/badge/WordPress-6.8%20Tested-green.svg" alt="WordPress: 6.8 Tested"></a>
-  <a href="https://php.net/"><img src="https://img.shields.io/badge/PHP-7.4.0%2B-purple.svg" alt="PHP: 7.4.0+"></a>
+  <a href="https://php.net/"><img src="https://img.shields.io/badge/PHP-8.2%2B-purple.svg" alt="PHP: 8.2+"></a>
   <a href="https://php.net/"><img src="https://img.shields.io/badge/Up%20To%20PHP-8.4.6-purple.svg" alt="Up To PHP: 8.4.6"></a>
   <a href="https://github.com/Ultimate-Multisite/ultimate-multisite/releases"><img src="https://img.shields.io/github/v/release/Ultimate-Multisite/ultimate-multisite" alt="Latest Release"></a>
 </p>
@@ -45,7 +45,7 @@ This plugin was formerly known as WP Ultimo and is now community maintained.
 ## 📋 Requirements
 
 - WordPress Multisite 5.3 or higher
-- PHP 7.4.30 or higher
+- PHP 8.2 or higher
 - MySQL 5.6 or higher
 
 ## 🔧 Installation

@@ -4526,6 +4526,22 @@ msgstr ""
 msgid "This image is used on product list tables and other places."
 msgstr ""
 
+#: inc/admin-pages/class-product-edit-admin-page.php:699
+msgid "Plan — Subscription tier that creates and manages customer sites."
+msgstr ""
+
+#: inc/admin-pages/class-product-edit-admin-page.php:700
+msgid "Package — Add-on sold with plans to unlock extra features or resources."
+msgstr ""
+
+#: inc/admin-pages/class-product-edit-admin-page.php:701
+msgid "Service — Work or support customers can buy without creating a site."
+msgstr ""
+
+#: inc/admin-pages/class-product-edit-admin-page.php:702
+msgid "Demo — Temporary trial site for prospects to test before buying."
+msgstr ""
+
 #: inc/admin-pages/class-product-edit-admin-page.php:705
 msgid "General product options such as product slug, type, etc."
 msgstr ""
@@ -4547,13 +4563,13 @@ msgstr ""
 msgid "Lowercase alpha-numeric characters with dashes or underlines. No spaces allowed."
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:727
-#: inc/admin-pages/class-product-edit-admin-page.php:728
+#: inc/admin-pages/class-product-edit-admin-page.php:743
+#: inc/admin-pages/class-product-edit-admin-page.php:744
 msgid "Product Type"
 msgstr ""
 
-#: inc/admin-pages/class-product-edit-admin-page.php:729
-msgid "Different product types have different options."
+#: inc/admin-pages/class-product-edit-admin-page.php:745
+msgid "Choose the type that matches what this product should do: use Plan for subscription tiers that create customer sites; Package for paid add-ons; Service for work or support that does not create a site; and Demo for temporary trial sites."
 msgstr ""
 
 #: inc/admin-pages/class-product-edit-admin-page.php:738
@@ -8081,6 +8097,10 @@ msgstr ""
 
 #: inc/checkout/class-checkout.php:2110
 msgid "Provisioning your site — this can take up to 60 seconds."
+msgstr ""
+
+#: inc/checkout/class-checkout.php:2111
+msgid "Recording Your Responses..."
 msgstr ""
 
 #. translators: %s: field label

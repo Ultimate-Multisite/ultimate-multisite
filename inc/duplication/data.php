@@ -462,7 +462,7 @@ if ( ! class_exists('MUCD_Data') ) {
 				$double_serialize = false;
 				$original_value   = $row[ $field ];
 				// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- Required for legacy serialized option/meta replacement during site duplication.
-				$row[ $field ] = @unserialize($row[ $field ]);
+				$row[ $field ] = @unserialize($row[ $field ], ['allowed_classes' => false]);
 
 				// Safety: if unserialize failed, return the original value
 				// instead of re-serializing false — which would destroy the data.
@@ -473,7 +473,7 @@ if ( ! class_exists('MUCD_Data') ) {
 				// FOR SERIALISED OPTIONS, like in wp_carousel plugin
 				if (is_serialized($row[ $field ])) {
 					// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- Required for legacy double-serialized option/meta replacement during site duplication.
-					$inner_unserialized = @unserialize($row[ $field ]);
+					$inner_unserialized = @unserialize($row[ $field ], ['allowed_classes' => false]);
 
 					if (false === $inner_unserialized && 'b:0;' !== $row[ $field ]) {
 						// Inner unserialize failed — fall back to single-serialized handling.
@@ -484,9 +484,13 @@ if ( ! class_exists('MUCD_Data') ) {
 					}
 				}
 
+				if ($row[ $field ] instanceof __PHP_Incomplete_Class) {
+					return $original_value;
+				}
+
 				if (is_array($row[ $field ])) {
 					$row[ $field ] = self::replace_recursive($row[ $field ], $from_string, $to_string);
-				} elseif (is_object($row[ $field ]) || $row[ $field ] instanceof __PHP_Incomplete_Class) {
+				} elseif (is_object($row[ $field ])) {
 					$array_object = (array) $row[ $field ];
 					$array_object = self::replace_recursive($array_object, $from_string, $to_string);
 					foreach ($array_object as $key => $value) {
@@ -508,6 +512,8 @@ if ( ! class_exists('MUCD_Data') ) {
 				}
 			} elseif (is_array($row[ $field ])) {
 				$row[ $field ] = self::replace_recursive($row[ $field ], $from_string, $to_string);
+			} elseif ($row[ $field ] instanceof __PHP_Incomplete_Class) {
+				return $row[ $field ];
 			} elseif (is_object($row[ $field ])) {
 				$array_object = (array) $row[ $field ];
 				$array_object = self::replace_recursive($array_object, $from_string, $to_string);

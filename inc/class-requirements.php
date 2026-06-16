@@ -36,7 +36,7 @@ class Requirements {
 	 * @since 2.0.0
 	 * @var string
 	 */
-	public static $php_version = '7.4.1';
+	public static $php_version = '8.2';
 
 	/**
 	 * Recommended PHP Version

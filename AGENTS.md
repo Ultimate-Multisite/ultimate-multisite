@@ -4,7 +4,7 @@
 UI text, docs, and user-facing strings. The code namespace `WP_Ultimo` and the `wu_`
 function/hook prefix are preserved for backwards compatibility — do not rename them.
 
-WordPress Multisite WaaS plugin (formerly WP Ultimo). PHP 7.4+, WP 5.3+, GPL v2.
+WordPress Multisite WaaS plugin (formerly WP Ultimo). PHP 8.2+, WP 5.3+, GPL v2.
 Root namespace: `WP_Ultimo`. Text domain: `ultimate-multisite`.
 
 ## Build / Test / Lint Commands
@@ -125,7 +125,7 @@ assets/                  # JS, CSS, images, fonts
 - **i18n**: All user-facing strings via `__()`, `esc_html__()`, etc. with domain `ultimate-multisite`.
 - **Sanitization**: Use `wu_clean()` or WordPress sanitization functions. Custom sanitizers
   registered in `.phpcs.xml.dist`.
-- **PHP compat**: Must work on PHP 7.4+. Platform set to 7.4.1 in composer.json.
+- **PHP compat**: Must work on PHP 8.2+. Platform set to 8.2.0 in composer.json.
 
 ### Naming Conventions
 
