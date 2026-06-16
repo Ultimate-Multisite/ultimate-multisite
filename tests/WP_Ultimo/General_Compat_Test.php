@@ -119,6 +119,55 @@ class General_Compat_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test copied Divi generated CSS cache metadata is deleted only on the cloned site.
+	 */
+	public function test_clear_divi_static_css_cache_deletes_cloned_site_divi_cache_metadata_only(): void {
+
+		if ( ! is_multisite()) {
+			$this->markTestSkipped('Divi cache purge tests require multisite');
+		}
+
+		$blog_id       = self::factory()->blog->create();
+		$other_blog_id = self::factory()->blog->create();
+
+		switch_to_blog($blog_id);
+		$post_id = self::factory()->post->create();
+		update_post_meta($post_id, '_et_builder_module_features_cache', 'stale module cache');
+		update_post_meta($post_id, '_et_dynamic_cached_attributes', 'stale attributes');
+		update_post_meta($post_id, '_et_dynamic_cached_shortcodes', 'stale shortcodes');
+		update_post_meta($post_id, 'et_enqueued_post_fonts', 'stale fonts');
+		update_option('et_critical_css', 'stale critical css');
+		update_option('et_builder_module_features_cache', 'stale option cache');
+		restore_current_blog();
+
+		switch_to_blog($other_blog_id);
+		$other_post_id = self::factory()->post->create();
+		update_post_meta($other_post_id, '_et_builder_module_features_cache', 'other module cache');
+		update_option('et_critical_css', 'other critical css');
+		restore_current_blog();
+
+		$cache_flush_count = did_action('wu_flush_known_caches');
+
+		General_Compat::get_instance()->clear_divi_static_css_cache(['site_id' => $blog_id]);
+
+		$this->assertSame($cache_flush_count + 1, did_action('wu_flush_known_caches'));
+
+		switch_to_blog($blog_id);
+		$this->assertSame('', get_post_meta($post_id, '_et_builder_module_features_cache', true));
+		$this->assertSame('', get_post_meta($post_id, '_et_dynamic_cached_attributes', true));
+		$this->assertSame('', get_post_meta($post_id, '_et_dynamic_cached_shortcodes', true));
+		$this->assertSame('', get_post_meta($post_id, 'et_enqueued_post_fonts', true));
+		$this->assertFalse(get_option('et_critical_css'));
+		$this->assertFalse(get_option('et_builder_module_features_cache'));
+		restore_current_blog();
+
+		switch_to_blog($other_blog_id);
+		$this->assertSame('other module cache', get_post_meta($other_post_id, '_et_builder_module_features_cache', true));
+		$this->assertSame('other critical css', get_option('et_critical_css'));
+		restore_current_blog();
+	}
+
+	/**
 	 * Test Divi et-cache symlinks do not delete files outside the cache tree.
 	 */
 	public function test_clear_divi_static_css_cache_does_not_follow_symlinks(): void {

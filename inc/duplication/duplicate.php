@@ -103,13 +103,13 @@ if ( ! class_exists('MUCD_Duplicate') ) {
 
 			// Copy Site - Data
 			do_action('mucd_before_copy_data', $from_site_id, $to_site_id);
-			$result = MUCD_Data::copy_data($from_site_id, $to_site_id);
+			MUCD_Data::copy_data($from_site_id, $to_site_id);
 			do_action('mucd_after_copy_data', $from_site_id, $to_site_id);
 
 			// Copy Site - Users
 			if ('yes' === $keep_users) {
 				do_action('mucd_before_copy_users', $from_site_id, $to_site_id);
-				$result = self::copy_users($from_site_id, $to_site_id);
+				self::copy_users($from_site_id, $to_site_id);
 				do_action('mucd_after_copy_users', $from_site_id, $to_site_id);
 			}
 
