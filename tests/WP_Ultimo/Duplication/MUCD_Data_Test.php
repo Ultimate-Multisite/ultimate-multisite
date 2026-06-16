@@ -477,6 +477,53 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test upload site-ID path replacement for mapped-domain clone content.
+	 *
+	 * In mapped-domain/subdirectory networks, the clone URL can already be
+	 * rewritten while builder content still points to the template upload site ID
+	 * in wp-content/uploads/sites/{blog_id}. The path-only pass must replace that
+	 * stale site ID even when the origin blog domain/path is no longer present.
+	 */
+	public function test_try_replace_upload_site_id_path_preserves_serialized_data() {
+
+		$settings = [
+			'background'  => 'url(https://nambo.example/wp-content/uploads/sites/25/2026/hero.jpg)',
+			'json_markup' => 'https:\/\/nambo.example\/wp-content\/uploads\/sites\/25\/2026\/logo.png',
+			'nested'      => [
+				'image' => 'https://nambo.example/wp-content/uploads/sites/25/2026/photo.jpg',
+				'count' => 2,
+			],
+		];
+
+		$row = ['meta_value' => serialize($settings)];
+
+		$result = \MUCD_Data::try_replace(
+			$row,
+			'meta_value',
+			'wp-content/uploads/sites/25',
+			'wp-content/uploads/sites/47'
+		);
+
+		$row    = ['meta_value' => $result];
+		$result = \MUCD_Data::try_replace(
+			$row,
+			'meta_value',
+			str_replace('/', '\\/', 'wp-content/uploads/sites/25'),
+			str_replace('/', '\\/', 'wp-content/uploads/sites/47')
+		);
+
+		$unserialized = @unserialize($result);
+
+		$this->assertIsArray($unserialized, 'Result must remain a valid serialized array');
+		$this->assertSame(2, $unserialized['nested']['count']);
+		$this->assertStringContainsString('wp-content/uploads/sites/47/2026/hero.jpg', $unserialized['background']);
+		$this->assertStringContainsString('wp-content\/uploads\/sites\/47\/2026\/logo.png', $unserialized['json_markup']);
+		$this->assertSame('https://nambo.example/wp-content/uploads/sites/47/2026/photo.jpg', $unserialized['nested']['image']);
+		$this->assertStringNotContainsString('wp-content/uploads/sites/25', serialize($unserialized));
+		$this->assertStringNotContainsString('wp-content\/uploads\/sites\/25', serialize($unserialized));
+	}
+
+	/**
 	 * Test get_primary_key returns the correct column for standard WP tables.
 	 */
 	public function test_get_primary_key_returns_correct_column() {

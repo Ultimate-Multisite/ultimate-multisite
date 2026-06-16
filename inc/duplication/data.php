@@ -1,4 +1,11 @@
-<?php
+<?php // phpcs:ignore WordPress.Files.FileName.InvalidClassFileName
+/**
+ * Site duplication data helpers.
+ *
+ * @package WP_Ultimo
+ * @subpackage Duplication
+ * @since 0.2.0
+ */
 
 use Psr\Log\LogLevel;
 
@@ -28,7 +35,7 @@ if ( ! class_exists('MUCD_Data') ) {
 
 			// Copy
 			$saved_options = self::db_copy_tables($from_site_id, $to_site_id);
-			$blog_meta     = self::db_copy_blog_meta($from_site_id, $to_site_id);
+			self::db_copy_blog_meta($from_site_id, $to_site_id);
 			// Update
 			self::db_update_data($from_site_id, $to_site_id, $saved_options);
 		}
@@ -235,10 +242,13 @@ if ( ! class_exists('MUCD_Data') ) {
 			$to_upload_url_w_network_clean   = wu_replace_scheme($to_upload_url_w_network);
 			$from_blog_url_clean             = wu_replace_scheme($from_blog_url);
 			$to_blog_url_clean               = wu_replace_scheme($to_blog_url);
+			$from_upload_path_segment        = 'wp-content/uploads/sites/' . (int) $from_site_id;
+			$to_upload_path_segment          = 'wp-content/uploads/sites/' . (int) $to_site_id;
 
 			$string_to_replace = [
 				$from_upload_url_clean           => $to_upload_url_clean,
 				$from_upload_url_w_network_clean => $to_upload_url_w_network_clean,
+				$from_upload_path_segment        => $to_upload_path_segment,
 				$from_blog_url_clean             => $to_blog_url_clean,
 				$from_site_prefix                => $to_site_prefix,
 			];
@@ -248,6 +258,7 @@ if ( ! class_exists('MUCD_Data') ) {
 			$json_replacements = [
 				str_replace('/', '\\/', $from_upload_url_clean)           => str_replace('/', '\\/', $to_upload_url_clean),
 				str_replace('/', '\\/', $from_upload_url_w_network_clean) => str_replace('/', '\\/', $to_upload_url_w_network_clean),
+				str_replace('/', '\\/', $from_upload_path_segment)        => str_replace('/', '\\/', $to_upload_path_segment),
 				str_replace('/', '\\/', $from_blog_url_clean)             => str_replace('/', '\\/', $to_blog_url_clean),
 			];
 
@@ -306,10 +317,10 @@ if ( ! class_exists('MUCD_Data') ) {
 			global $wpdb;
 
 			$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-				"SHOW KEYS FROM `{$table}` WHERE Key_name = 'PRIMARY'" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+				"SHOW KEYS FROM `{$table}` WHERE Key_name = 'PRIMARY'" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table names cannot be bound as placeholders.
 			);
 
-			$cache[ $table ] = $row ? $row->Column_name : null;
+			$cache[ $table ] = $row ? $row->Column_name : null; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Column_name is returned by SHOW KEYS.
 
 			return $cache[ $table ];
 		}
@@ -448,9 +459,10 @@ if ( ! class_exists('MUCD_Data') ) {
 		 */
 		public static function try_replace($row, $field, $from_string, $to_string) {
 			if (is_serialized($row[ $field ])) {
-				$double_serialize  = false;
-				$original_value    = $row[ $field ];
-				$row[ $field ]     = @unserialize($row[ $field ]);
+				$double_serialize = false;
+				$original_value   = $row[ $field ];
+				// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- Required for legacy serialized option/meta replacement during site duplication.
+				$row[ $field ] = @unserialize($row[ $field ]);
 
 				// Safety: if unserialize failed, return the original value
 				// instead of re-serializing false — which would destroy the data.
@@ -460,6 +472,7 @@ if ( ! class_exists('MUCD_Data') ) {
 
 				// FOR SERIALISED OPTIONS, like in wp_carousel plugin
 				if (is_serialized($row[ $field ])) {
+					// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- Required for legacy double-serialized option/meta replacement during site duplication.
 					$inner_unserialized = @unserialize($row[ $field ]);
 
 					if (false === $inner_unserialized && 'b:0;' !== $row[ $field ]) {
@@ -479,7 +492,7 @@ if ( ! class_exists('MUCD_Data') ) {
 					foreach ($array_object as $key => $value) {
 						try {
 							$row[ $field ]->$key = $value;
-						} catch (\Throwable $exception) {
+						} catch (\Throwable $exception) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch -- Best-effort object property replacement.
 							// ...nothing
 						}
 					}
@@ -487,11 +500,11 @@ if ( ! class_exists('MUCD_Data') ) {
 					$row[ $field ] = self::replace($row[ $field ], $from_string, $to_string);
 				}
 
-				$row[ $field ] = serialize($row[ $field ]);
+				$row[ $field ] = serialize($row[ $field ]); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Required for legacy serialized option/meta replacement during site duplication.
 
 				// Pour des options comme wp_carousel...
 				if ($double_serialize) {
-					$row[ $field ] = serialize($row[ $field ]);
+					$row[ $field ] = serialize($row[ $field ]); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Required for legacy double-serialized option/meta replacement during site duplication.
 				}
 			} elseif (is_array($row[ $field ])) {
 				$row[ $field ] = self::replace_recursive($row[ $field ], $from_string, $to_string);
@@ -501,7 +514,7 @@ if ( ! class_exists('MUCD_Data') ) {
 				foreach ($array_object as $key => $value) {
 					try {
 						$row[ $field ]->$key = $value;
-					} catch (\Throwable $exception) {
+					} catch (\Throwable $exception) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch -- Best-effort object property replacement.
 						// ...nothing
 					}
 				}
@@ -552,7 +565,7 @@ if ( ! class_exists('MUCD_Data') ) {
 				MUCD_Duplicate::write_log('Result :' . var_export($results, true)); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_var_export
 			}
 
-			if ('' != $wpdb->last_error) {
+			if ('' !== $wpdb->last_error) {
 				self::sql_error($sql_query, $wpdb->last_error);
 			}
 
