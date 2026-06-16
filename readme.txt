@@ -353,7 +353,7 @@ Version [2.5.0] - Released on 2026-04-06
 - New: Downgrade handling and signup activity tracking were added for membership flows.
 - Fix: Cross-domain SSO, PayPal merchant validation, Safari autofill password checks, PWYW pricing, coupons, currency precision, subsite password resets, addon upgrade pricing, admin UI, checkout, and SSO stability were improved.
 
-Version [2.4.13] - Released on 2026-XX-XX
+Version [2.4.13] - Unreleased
 - Fix: Large dropdowns no longer truncate options.
 - Fix: Abandoned checkouts, cancelled payments, declined cards, trial reuse, pending payment prompts, and plan changes now recover correctly.
 - Fix: Site name conflicts now show clear errors, failed site creation can retry, complex templates avoid timeout failures, and thank-you page polling is faster and more resilient.
