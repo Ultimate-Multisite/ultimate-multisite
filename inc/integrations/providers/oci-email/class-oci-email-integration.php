@@ -248,4 +248,25 @@ class OCI_Email_Integration extends Integration {
 			],
 		];
 	}
+
+	/**
+	 * Returns provider-specific guidance for the configuration step.
+	 *
+	 * @since 2.5.0
+	 * @return array{title: string, description: string, steps: array<int, string>}
+	 */
+	public function get_configuration_instructions(): array {
+
+		return [
+			'title'       => __('Oracle OCI Email Delivery configuration checklist', 'ultimate-multisite'),
+			'description' => __('Use OCI API key credentials for an IAM user that can manage Email Delivery domains and DKIM records in the selected compartment. SMTP credentials are still managed separately in OCI IAM and used by your server mail transport.', 'ultimate-multisite'),
+			'steps'       => [
+				__('Create or choose an OCI IAM user with a policy that allows managing Email Delivery domains and DKIM in the target compartment.', 'ultimate-multisite'),
+				__('Generate an OCI API signing key for that user, then enter the Tenancy OCID, User OCID, API key fingerprint, private key, and Compartment OCID here.', 'ultimate-multisite'),
+				__('Set the OCI region to the Email Delivery region you use for SMTP, for example <code>eu-zurich-1</code>. The API region and SMTP region should match.', 'ultimate-multisite'),
+				__('Leave the SPF include host as <code>rp.oracleemaildelivery.com</code> unless Oracle provides a different include host for your tenancy.', 'ultimate-multisite'),
+				__('After testing succeeds, publish the returned SPF, DKIM, and DMARC DNS records. For existing SPF records, merge the OCI include into the single existing SPF TXT record instead of creating a second SPF record.', 'ultimate-multisite'),
+			],
+		];
+	}
 }
