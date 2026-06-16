@@ -224,7 +224,7 @@ if (null !== $first_recurring_product) {
 				</span>
 
 				<?php
-				foreach ([3, 12] as $freq) :
+				foreach ([3, 6, 12] as $freq) :
 					$price_variation = $product->get_price_variation($freq, 'month');
 
 					if ( ! $price_variation) {
@@ -303,10 +303,16 @@ if (null !== $first_recurring_product) {
 
 				/**
 				 *
-				 * Display quarterly and Annually plans, to be hidden.
+				 * Display multi-month and annual plans, to be hidden.
 				 */
 				$prices_total = [
 					3  => __('every 3 months', 'ultimate-multisite'),
+					6  => sprintf(
+						// translators: %1$s: the duration number, %2$s: the duration unit.
+						__('every %1$s %2$s', 'ultimate-multisite'),
+						6,
+						wu_get_translatable_string('months')
+					),
 					12 => __('yearly', 'ultimate-multisite'),
 				];
 
