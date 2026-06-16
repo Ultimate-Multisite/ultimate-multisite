@@ -306,7 +306,7 @@ class Customer_Edit_Admin_Page extends Edit_Admin_Page {
 			'delete_all'                => [
 				'type'      => 'toggle',
 				'title'     => __('Delete everything', 'ultimate-multisite'),
-				'desc'      => __('Sites, payments and memberships.', 'ultimate-multisite'),
+				'desc'      => __('Sites, payments and memberships. The user\'s WordPress account will not be removed.', 'ultimate-multisite'),
 				'html_attr' => [
 					'v-bind:value' => 'delete_all_confirmed',
 					'v-model'      => 'delete_all_confirmed',

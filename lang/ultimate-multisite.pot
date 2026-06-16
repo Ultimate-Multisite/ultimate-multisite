@@ -1082,7 +1082,7 @@ msgid "Delete everything"
 msgstr ""
 
 #: inc/admin-pages/class-customer-edit-admin-page.php:309
-msgid "Sites, payments and memberships."
+msgid "Sites, payments and memberships. The user's WordPress account will not be removed."
 msgstr ""
 
 #: inc/admin-pages/class-customer-edit-admin-page.php:317
