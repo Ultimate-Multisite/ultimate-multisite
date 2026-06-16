@@ -310,15 +310,32 @@ class Orphaned_Tables_Manager_Test extends \WP_UnitTestCase {
 		global $wpdb;
 
 		[$blog_id, $table] = $this->create_blog_row_with_options_table();
+		$orphaned_table    = $wpdb->base_prefix . ( $blog_id + 1 ) . '_options';
+		$created           = $wpdb->query(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			"CREATE TABLE {$orphaned_table} (
+				option_id bigint(20) unsigned NOT NULL auto_increment,
+				option_name varchar(191) NOT NULL default '',
+				option_value longtext NOT NULL,
+				autoload varchar(20) NOT NULL default 'yes',
+				PRIMARY KEY  (option_id),
+				UNIQUE KEY option_name (option_name)
+			) {$wpdb->get_charset_collate()}"
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		$this->assertNotFalse($created, 'Failed to create the orphaned-looking test table.');
+
 		$blogs_table       = $wpdb->blogs;
 		$wpdb->blogs       = $wpdb->base_prefix . 'missing_blogs_for_cleanup_test';
 
 		try {
 			$this->assertSame([], $this->get_instance()->find_orphaned_tables());
-			$this->assertSame(0, $this->get_instance()->delete_orphaned_tables([$table]));
+			$this->assertSame(0, $this->get_instance()->delete_orphaned_tables([$table, $orphaned_table]));
 			$this->assertSame($table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)));
+			$this->assertSame($orphaned_table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $orphaned_table)));
 		} finally {
 			$wpdb->blogs = $blogs_table;
+			$wpdb->query("DROP TABLE IF EXISTS {$orphaned_table}"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$this->remove_blog_row_with_options_table($blog_id, $table);
 		}
 	}
