@@ -23,6 +23,23 @@ class Orphaned_Tables_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Assert that a database table can be inspected.
+	 *
+	 * The WordPress test database layer creates temporary tables for test-created
+	 * tables, and those do not appear in SHOW TABLES results.
+	 *
+	 * @param string $table Table name.
+	 */
+	protected function assert_table_exists(string $table): void {
+
+		global $wpdb;
+
+		$columns = $wpdb->get_results("DESCRIBE {$table}"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		$this->assertNotEmpty($columns, "Expected table {$table} to exist.");
+	}
+
+	/**
 	 * Create a wp_blogs row and options table for cleanup safety tests.
 	 *
 	 * @param int $network_id Network ID to store in the wp_blogs row.
@@ -71,14 +88,7 @@ class Orphaned_Tables_Manager_Test extends \WP_UnitTestCase {
 
 		$created = $wpdb->query(
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			"CREATE TABLE {$table} (
-				option_id bigint(20) unsigned NOT NULL auto_increment,
-				option_name varchar(191) NOT NULL default '',
-				option_value longtext NOT NULL,
-				autoload varchar(20) NOT NULL default 'yes',
-				PRIMARY KEY  (option_id),
-				UNIQUE KEY option_name (option_name)
-			) {$wpdb->get_charset_collate()}"
+			"CREATE TABLE {$table} LIKE {$wpdb->options}"
 		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		if (false === $created) {
@@ -87,6 +97,8 @@ class Orphaned_Tables_Manager_Test extends \WP_UnitTestCase {
 
 			$this->fail('Failed to create the test options table.');
 		}
+
+		$this->assert_table_exists($table);
 
 		clean_blog_cache($blog_id);
 
@@ -293,10 +305,19 @@ class Orphaned_Tables_Manager_Test extends \WP_UnitTestCase {
 		[$blog_id, $table] = $this->create_blog_row_with_options_table();
 
 		try {
+			$lookup = new \ReflectionMethod($this->get_instance(), 'get_existing_site_ids');
+			$lookup->setAccessible(true);
+
+			$site_ids = $lookup->invoke($this->get_instance());
+
+			$this->assertIsArray($site_ids);
+			$this->assertContains($blog_id, $site_ids);
+			$this->assert_table_exists($table);
+
 			$result = $this->get_instance()->delete_orphaned_tables([$table]);
 
 			$this->assertSame(0, $result);
-			$this->assertSame($table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)));
+			$this->assert_table_exists($table);
 		} finally {
 			$this->remove_blog_row_with_options_table($blog_id, $table);
 		}
@@ -310,29 +331,23 @@ class Orphaned_Tables_Manager_Test extends \WP_UnitTestCase {
 		global $wpdb;
 
 		[$blog_id, $table] = $this->create_blog_row_with_options_table();
-		$orphaned_table    = $wpdb->base_prefix . ( $blog_id + 1 ) . '_options';
+		$orphaned_table    = $wpdb->base_prefix . ($blog_id + 1) . '_options';
 		$created           = $wpdb->query(
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			"CREATE TABLE {$orphaned_table} (
-				option_id bigint(20) unsigned NOT NULL auto_increment,
-				option_name varchar(191) NOT NULL default '',
-				option_value longtext NOT NULL,
-				autoload varchar(20) NOT NULL default 'yes',
-				PRIMARY KEY  (option_id),
-				UNIQUE KEY option_name (option_name)
-			) {$wpdb->get_charset_collate()}"
+			"CREATE TABLE {$orphaned_table} LIKE {$wpdb->options}"
 		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		$this->assertNotFalse($created, 'Failed to create the orphaned-looking test table.');
+		$this->assert_table_exists($orphaned_table);
 
-		$blogs_table       = $wpdb->blogs;
-		$wpdb->blogs       = $wpdb->base_prefix . 'missing_blogs_for_cleanup_test';
+		$blogs_table = $wpdb->blogs;
+		$wpdb->blogs = $wpdb->base_prefix . 'missing_blogs_for_cleanup_test';
 
 		try {
 			$this->assertSame([], $this->get_instance()->find_orphaned_tables());
 			$this->assertSame(0, $this->get_instance()->delete_orphaned_tables([$table, $orphaned_table]));
-			$this->assertSame($table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)));
-			$this->assertSame($orphaned_table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $orphaned_table)));
+			$this->assert_table_exists($table);
+			$this->assert_table_exists($orphaned_table);
 		} finally {
 			$wpdb->blogs = $blogs_table;
 			$wpdb->query("DROP TABLE IF EXISTS {$orphaned_table}"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
