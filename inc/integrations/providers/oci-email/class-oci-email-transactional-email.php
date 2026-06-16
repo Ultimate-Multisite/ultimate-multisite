@@ -216,9 +216,21 @@ class OCI_Email_Transactional_Email extends Base_Capability_Module implements Tr
 			];
 		}
 
+		$approved_sender = $this->get_or_create_approved_sender($domain);
+
+		if (is_wp_error($approved_sender)) {
+			return [
+				'success' => false,
+				'message' => $approved_sender->get_error_message(),
+			];
+		}
+
 		return [
-			'success'     => true,
-			'dns_records' => $this->build_dns_records($domain, $email_domain, $dkim),
+			'success'         => true,
+			'approved_sender' => $approved_sender['emailAddress'] ?? $approved_sender['email_address'] ?? $this->get_default_approved_sender_address(
+				$domain
+			),
+			'dns_records'     => $this->build_dns_records($domain, $email_domain, $dkim),
 		];
 	}
 
@@ -358,7 +370,13 @@ class OCI_Email_Transactional_Email extends Base_Capability_Module implements Tr
 
 		$body = apply_filters('wu_oci_create_email_domain_body', $body, $domain);
 
-		return $this->get_oci()->oci_api_call('emailDomains', 'POST', $body);
+		$result = $this->get_oci()->oci_api_call('emailDomains', 'POST', $body);
+
+		if ( ! is_wp_error($result)) {
+			wu_log_add('integration-oracle-oci', sprintf('Created OCI Email Delivery domain for "%s".', $domain));
+		}
+
+		return $result;
 	}
 
 	/**
@@ -417,7 +435,10 @@ class OCI_Email_Transactional_Email extends Base_Capability_Module implements Tr
 		$domain_id = $email_domain['id'] ?? '';
 
 		if ( ! $domain_id) {
-			return new \WP_Error('oracle-oci-domain-id-missing', __('OCI email domain response did not include an ID.', 'ultimate-multisite'));
+			return new \WP_Error(
+				'oracle-oci-domain-id-missing',
+				__('OCI email domain response did not include an ID.', 'ultimate-multisite')
+			);
 		}
 
 		$existing = $this->get_oci()->oci_api_call('emailDomains/' . rawurlencode($domain_id) . '/dkims');
@@ -426,18 +447,218 @@ class OCI_Email_Transactional_Email extends Base_Capability_Module implements Tr
 			$items = $existing['items'] ?? $existing;
 
 			if (isset($items['id'])) {
-				return $items;
+				return $this->get_dkim_details($domain_id, $items);
 			}
 
 			if (is_array($items) && ! empty($items)) {
-				return reset($items);
+				return $this->get_dkim_details($domain_id, reset($items));
 			}
 		}
 
-		$selector = sanitize_key(apply_filters('wu_oci_dkim_selector', 'ultimate-multisite', $domain, $email_domain));
-		$body     = apply_filters('wu_oci_create_dkim_body', ['name' => $selector], $domain, $email_domain);
+		$selector = sanitize_key(
+			apply_filters('wu_oci_dkim_selector', 'ultimate-multisite', $domain, $email_domain)
+		);
+		$body     = apply_filters(
+			'wu_oci_create_dkim_body',
+			[
+				'name' => $selector,
+			],
+			$domain,
+			$email_domain
+		);
 
-		return $this->get_oci()->oci_api_call('emailDomains/' . rawurlencode($domain_id) . '/dkims', 'POST', $body);
+		$created = $this->get_oci()->oci_api_call('emailDomains/' . rawurlencode($domain_id) . '/dkims', 'POST', $body);
+
+		if (is_wp_error($created)) {
+			return $created;
+		}
+
+		wu_log_add('integration-oracle-oci', sprintf('Created OCI DKIM selector "%s" for "%s".', $selector, $domain));
+
+		return $this->wait_for_dkim_dns_fields($domain_id, $created);
+	}
+
+	/**
+	 * Fetch a DKIM resource detail response when a list item omits DNS values.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param string $domain_id OCI email domain OCID.
+	 * @param array  $dkim      OCI DKIM summary or detail response.
+	 * @return array|\WP_Error
+	 */
+	private function get_dkim_details(string $domain_id, array $dkim) {
+
+		if ($this->dkim_has_dns_fields($dkim)) {
+			return $dkim;
+		}
+
+		$dkim_id = $dkim['id'] ?? '';
+
+		if ( ! $dkim_id) {
+			return $dkim;
+		}
+
+		$result = $this->get_oci()->oci_api_call(
+			'emailDomains/' . rawurlencode($domain_id) . '/dkims/' . rawurlencode($dkim_id)
+		);
+
+		if (is_wp_error($result)) {
+			return $result;
+		}
+
+		return array_merge($dkim, $result);
+	}
+
+	/**
+	 * Wait briefly for newly-created DKIM DNS fields to become available.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param string $domain_id OCI email domain OCID.
+	 * @param array  $dkim      Newly-created OCI DKIM response.
+	 * @return array|\WP_Error
+	 */
+	private function wait_for_dkim_dns_fields(string $domain_id, array $dkim) {
+
+		$attempts = (int) apply_filters('wu_oci_dkim_dns_field_poll_attempts', 3, $dkim, $domain_id);
+		$attempts = max(1, min(5, $attempts));
+
+		for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+			$details = $this->get_dkim_details($domain_id, $dkim);
+
+			if (is_wp_error($details)) {
+				return $details;
+			}
+
+			if ($this->dkim_has_dns_fields($details)) {
+				return $details;
+			}
+
+			if ($attempt < $attempts) {
+				sleep(1);
+			}
+		}
+
+		return $dkim;
+	}
+
+	/**
+	 * Check whether a DKIM response includes enough DNS data to publish.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param array $dkim OCI DKIM response.
+	 * @return bool
+	 */
+	private function dkim_has_dns_fields(array $dkim): bool {
+
+		return ! empty($this->get_dkim_value($dkim));
+	}
+
+	/**
+	 * Create or return an existing OCI approved sender for a domain.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param string $domain Domain name.
+	 * @return array|\WP_Error
+	 */
+	private function get_or_create_approved_sender(string $domain) {
+
+		$email_address = $this->get_default_approved_sender_address($domain);
+		$existing      = $this->get_approved_sender($email_address);
+
+		if ( ! is_wp_error($existing) && ! empty($existing)) {
+			return $existing;
+		}
+
+		$body = apply_filters(
+			'wu_oci_create_approved_sender_body',
+			[
+				'compartmentId' => $this->get_oci()->get_compartment_ocid(),
+				'emailAddress'  => $email_address,
+			],
+			$domain
+		);
+
+		$result = $this->get_oci()->oci_api_call('approvedSenders', 'POST', $body);
+
+		if (is_wp_error($result)) {
+			return new \WP_Error(
+				'oracle-oci-approved-sender-create-failed',
+				sprintf(
+					/* translators: 1: email address, 2: OCI API error message. */
+					__('Failed to create OCI approved sender "%1$s": %2$s', 'ultimate-multisite'),
+					$email_address,
+					$result->get_error_message()
+				)
+			);
+		}
+
+		wu_log_add('integration-oracle-oci', sprintf('Created OCI approved sender "%s".', $email_address));
+
+		return $result;
+	}
+
+	/**
+	 * Locate an OCI approved sender by email address.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param string $email_address Sender email address.
+	 * @return array|\WP_Error
+	 */
+	private function get_approved_sender(string $email_address) {
+
+		$query  = 'approvedSenders?compartmentId=' . rawurlencode($this->get_oci()->get_compartment_ocid());
+		$query .= '&emailAddress=' . rawurlencode($email_address);
+		$result = $this->get_oci()->oci_api_call($query);
+
+		if (is_wp_error($result)) {
+			return $result;
+		}
+
+		$items = $result['items'] ?? $result;
+
+		if (isset($items['emailAddress']) || isset($items['email_address'])) {
+			return $items;
+		}
+
+		if (is_array($items)) {
+			foreach ($items as $item) {
+				$item_address = $item['emailAddress'] ?? $item['email_address'] ?? '';
+
+				if (strtolower($email_address) === strtolower($item_address)) {
+					return $item;
+				}
+			}
+		}
+
+		return new \WP_Error(
+			'oracle-oci-approved-sender-not-found',
+			__('OCI approved sender was not found.', 'ultimate-multisite')
+		);
+	}
+
+	/**
+	 * Build the default approved sender address for a domain.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param string $domain Domain name.
+	 * @return string
+	 */
+	private function get_default_approved_sender_address(string $domain): string {
+
+		$local_part = apply_filters(
+			'wu_oci_approved_sender_local_part',
+			$this->get_oci()->get_approved_sender_local_part(),
+			$domain
+		);
+		$local_part = sanitize_key($local_part) ?: 'support';
+
+		return $local_part . '@' . $domain;
 	}
 
 	/**
@@ -485,9 +706,9 @@ class OCI_Email_Transactional_Email extends Base_Capability_Module implements Tr
 	 */
 	private function extract_dkim_record(string $domain, array $dkim): ?array {
 
-		$name  = $dkim['dnsSubdomainName'] ?? $dkim['dns_subdomain_name'] ?? $dkim['dnsName'] ?? '';
-		$value = $dkim['dnsTxtRecordValue'] ?? $dkim['dns_txt_record_value'] ?? $dkim['txtRecordValue'] ?? $dkim['cnameRecordValue'] ?? '';
-		$type  = ! empty($dkim['cnameRecordValue']) ? 'CNAME' : 'TXT';
+		$name  = $this->get_dkim_name($domain, $dkim);
+		$value = $this->get_dkim_value($dkim);
+		$type  = $this->is_cname_dkim($dkim) ? 'CNAME' : 'TXT';
 
 		if ( ! $name) {
 			$selector = $dkim['name'] ?? $dkim['selector'] ?? 'ultimate-multisite';
@@ -503,5 +724,59 @@ class OCI_Email_Transactional_Email extends Base_Capability_Module implements Tr
 			'name'  => $name,
 			'value' => $value,
 		];
+	}
+
+	/**
+	 * Extract the DKIM DNS record name from flexible OCI response shapes.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param string $domain Domain name.
+	 * @param array  $dkim   OCI DKIM response.
+	 * @return string
+	 */
+	private function get_dkim_name(string $domain, array $dkim): string {
+
+		$name = $dkim['dnsSubdomainName'] ?? $dkim['dns_subdomain_name'] ?? $dkim['dnsName'] ?? '';
+		$name = $name ?: ($dkim['dnsCnameRecordName'] ?? $dkim['cnameRecordName'] ?? '');
+
+		if ($name) {
+			return $name;
+		}
+
+		$selector = $dkim['name'] ?? $dkim['selector'] ?? 'ultimate-multisite';
+
+		return $selector . '._domainkey.' . $domain;
+	}
+
+	/**
+	 * Extract the DKIM DNS record value from flexible OCI response shapes.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param array $dkim OCI DKIM response.
+	 * @return string
+	 */
+	private function get_dkim_value(array $dkim): string {
+
+		$value = $dkim['dnsTxtRecordValue'] ?? $dkim['dns_txt_record_value'] ?? $dkim['txtRecordValue'] ?? '';
+
+		return (string) ($value ?: ($dkim['dnsCnameRecordValue'] ?? $dkim['cnameRecordValue'] ?? ''));
+	}
+
+	/**
+	 * Determine whether the DKIM response represents a CNAME record.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param array $dkim OCI DKIM response.
+	 * @return bool
+	 */
+	private function is_cname_dkim(array $dkim): bool {
+
+		return ! empty($dkim['dnsCnameRecordValue'])
+			|| ! empty($dkim['cnameRecordValue'])
+			|| ! empty($dkim['dnsCnameRecordName'])
+			|| ! empty($dkim['cnameRecordName']);
 	}
 }
