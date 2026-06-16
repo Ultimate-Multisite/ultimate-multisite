@@ -109,6 +109,49 @@ class Orphaned_Tables_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test helper removes the wp_blogs row when creating the options table fails.
+	 */
+	public function test_create_blog_row_with_options_table_cleans_blog_row_on_table_creation_failure(): void {
+
+		global $wpdb;
+
+		$blog_id = ((int) $wpdb->get_var("SELECT MAX(blog_id) FROM {$wpdb->blogs}")) + 1000; // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$table   = $wpdb->base_prefix . $blog_id . '_options';
+
+		$wpdb->query("DROP TABLE IF EXISTS {$table}"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$created = $wpdb->query(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			"CREATE TABLE {$table} (
+				option_id bigint(20) unsigned NOT NULL auto_increment,
+				option_name varchar(191) NOT NULL default '',
+				option_value longtext NOT NULL,
+				autoload varchar(20) NOT NULL default 'yes',
+				PRIMARY KEY  (option_id),
+				UNIQUE KEY option_name (option_name)
+			) {$wpdb->get_charset_collate()}"
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		$this->assertNotFalse($created, 'Failed to create the conflicting test options table.');
+
+		$caught_failure = false;
+
+		try {
+			$this->create_blog_row_with_options_table();
+		} catch (\PHPUnit\Framework\AssertionFailedError $exception) {
+			$caught_failure = true;
+
+			$this->assertStringContainsString('Failed to create the test options table.', $exception->getMessage());
+			$this->assertNull($wpdb->get_var($wpdb->prepare("SELECT blog_id FROM {$wpdb->blogs} WHERE blog_id = %d", $blog_id))); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		} finally {
+			$wpdb->query("DROP TABLE IF EXISTS {$table}"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->delete($wpdb->blogs, ['blog_id' => $blog_id], ['%d']);
+			clean_blog_cache($blog_id);
+		}
+
+		$this->assertTrue($caught_failure, 'Expected the helper to fail when the options table already exists.');
+	}
+
+	/**
 	 * Test singleton returns correct instance.
 	 */
 	public function test_singleton_returns_correct_instance(): void {
