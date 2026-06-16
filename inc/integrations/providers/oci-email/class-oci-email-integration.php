@@ -31,7 +31,7 @@ class OCI_Email_Integration extends Integration {
 	 * @since 2.5.0
 	 * @var string
 	 */
-	private const API_BASE = 'https://email.%s.oci.oraclecloud.com/20170907/';
+	private const API_BASE = 'https://ctrl.email.%s.oci.oraclecloud.com/20170907/';
 
 	/**
 	 * Constructor.
@@ -45,7 +45,14 @@ class OCI_Email_Integration extends Integration {
 		$this->set_logo(function_exists('wu_get_asset') ? wu_get_asset('oracle-oci.svg', 'img/hosts') : '');
 		$this->set_tutorial_link('https://ultimatemultisite.com/docs/user-guide/host-integrations/oracle-oci-email-delivery');
 		$this->set_constants(['WU_OCI_TENANCY_OCID', 'WU_OCI_USER_OCID', 'WU_OCI_KEY_FINGERPRINT', 'WU_OCI_PRIVATE_KEY', 'WU_OCI_COMPARTMENT_OCID']);
-		$this->set_optional_constants(['WU_OCI_REGION', 'WU_OCI_EMAIL_SPF_INCLUDE', 'WU_OCI_EMAIL_DOMAIN_ENDPOINT']);
+		$this->set_optional_constants(
+			[
+				'WU_OCI_REGION',
+				'WU_OCI_EMAIL_SPF_INCLUDE',
+				'WU_OCI_EMAIL_DOMAIN_ENDPOINT',
+				'WU_OCI_EMAIL_APPROVED_SENDER_LOCAL_PART',
+			]
+		);
 	}
 
 	/**
@@ -97,6 +104,19 @@ class OCI_Email_Integration extends Integration {
 		$spf_include = $this->get_credential('WU_OCI_EMAIL_SPF_INCLUDE');
 
 		return $spf_include ?: 'rp.oracleemaildelivery.com';
+	}
+
+	/**
+	 * Returns the default local part used for OCI approved senders.
+	 *
+	 * @since 2.5.0
+	 * @return string
+	 */
+	public function get_approved_sender_local_part(): string {
+
+		$local_part = sanitize_key($this->get_credential('WU_OCI_EMAIL_APPROVED_SENDER_LOCAL_PART'));
+
+		return $local_part ?: 'support';
 	}
 
 	/**
@@ -208,19 +228,19 @@ class OCI_Email_Integration extends Integration {
 	public function get_fields(): array {
 
 		return [
-			'WU_OCI_TENANCY_OCID'          => [
+			'WU_OCI_TENANCY_OCID'                     => [
 				'title'       => __('OCI Tenancy OCID', 'ultimate-multisite'),
 				'placeholder' => __('e.g. ocid1.tenancy.oc1..aaaa...', 'ultimate-multisite'),
 			],
-			'WU_OCI_USER_OCID'             => [
+			'WU_OCI_USER_OCID'                        => [
 				'title'       => __('OCI User OCID', 'ultimate-multisite'),
 				'placeholder' => __('e.g. ocid1.user.oc1..aaaa...', 'ultimate-multisite'),
 			],
-			'WU_OCI_KEY_FINGERPRINT'       => [
+			'WU_OCI_KEY_FINGERPRINT'                  => [
 				'title'       => __('OCI API Key Fingerprint', 'ultimate-multisite'),
 				'placeholder' => __('e.g. 12:34:56:...', 'ultimate-multisite'),
 			],
-			'WU_OCI_PRIVATE_KEY'           => [
+			'WU_OCI_PRIVATE_KEY'                      => [
 				'title'     => __('OCI API Private Key', 'ultimate-multisite'),
 				'type'      => 'textarea',
 				'desc'      => __('Paste the PEM private key for the OCI API key. Newline escape sequences are supported.', 'ultimate-multisite'),
@@ -228,23 +248,28 @@ class OCI_Email_Integration extends Integration {
 					'autocomplete' => 'new-password',
 				],
 			],
-			'WU_OCI_COMPARTMENT_OCID'      => [
+			'WU_OCI_COMPARTMENT_OCID'                 => [
 				'title'       => __('OCI Compartment OCID', 'ultimate-multisite'),
 				'placeholder' => __('e.g. ocid1.compartment.oc1..aaaa...', 'ultimate-multisite'),
 			],
-			'WU_OCI_REGION'                => [
+			'WU_OCI_REGION'                           => [
 				'title'       => __('OCI Region', 'ultimate-multisite'),
 				'placeholder' => __('e.g. eu-zurich-1', 'ultimate-multisite'),
 				'desc'        => __('Optional. The OCI region for Email Delivery. Defaults to eu-zurich-1.', 'ultimate-multisite'),
 			],
-			'WU_OCI_EMAIL_SPF_INCLUDE'     => [
+			'WU_OCI_EMAIL_SPF_INCLUDE'                => [
 				'title'       => __('OCI SPF Include Host', 'ultimate-multisite'),
 				'placeholder' => __('rp.oracleemaildelivery.com', 'ultimate-multisite'),
 				'desc'        => __('Optional. Override only if Oracle changes the SPF include host for your tenancy or region.', 'ultimate-multisite'),
 			],
-			'WU_OCI_EMAIL_DOMAIN_ENDPOINT' => [
+			'WU_OCI_EMAIL_DOMAIN_ENDPOINT'            => [
 				'title' => __('OCI Email API Endpoint Override', 'ultimate-multisite'),
 				'desc'  => __('Optional. Advanced use only; overrides the generated Email Delivery API endpoint.', 'ultimate-multisite'),
+			],
+			'WU_OCI_EMAIL_APPROVED_SENDER_LOCAL_PART' => [
+				'title'       => __('OCI Approved Sender Local Part', 'ultimate-multisite'),
+				'placeholder' => __('support', 'ultimate-multisite'),
+				'desc'        => __('Optional. Used to create or reuse an OCI approved sender such as support@example.com when a domain is verified.', 'ultimate-multisite'),
 			],
 		];
 	}
