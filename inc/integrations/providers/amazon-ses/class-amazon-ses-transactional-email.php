@@ -49,13 +49,17 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 
 		return [
 			'will'     => [
-				'intercept_wp_mail'  => __('Intercept wp_mail() calls and route them through Amazon SES using the current site\'s domain as the from-address', 'ultimate-multisite'),
-				'domain_verify'      => __('Automatically initiate domain verification in SES when a new domain is added to the network', 'ultimate-multisite'),
-				'domain_cleanup'     => __('Optionally remove the SES email identity when a domain is removed from the network', 'ultimate-multisite'),
+				'intercept_wp_mail' => __('Intercept wp_mail() calls and route them through Amazon SES using the current site\'s domain as the from-address', 'ultimate-multisite'),
+				'domain_verify'     => __('Automatically initiate domain verification in SES when a new domain is added to the network', 'ultimate-multisite'),
+				'domain_cleanup'    => __('Optionally remove the SES email identity when a domain is removed from the network', 'ultimate-multisite'),
 			],
 			'will_not' => [
-				'mailbox_provision'  => __('Provision mailboxes or IMAP/POP3 accounts (use the Email Selling capability for that)', 'ultimate-multisite'),
-				'dns_auto_create'    => __('Automatically create DNS records (you must add the provided SPF/DKIM records to your DNS manually, unless a supported DNS provider is configured)', 'ultimate-multisite'),
+				'mailbox_provision' => sprintf(
+					/* translators: %s is the Ultimate Multisite Email Accounts add-on product URL. */
+					__('Provision mailboxes or IMAP/POP3 accounts <a href="%s">Install Email Accounts Addo-on for that</a>', 'ultimate-multisite'),
+					esc_url('https://ultimatemultisite.com/product/ultimate-multisite-emails/')
+				),
+				'dns_auto_create'   => __('Automatically create DNS records (you must add the provided SPF/DKIM records to your DNS manually, unless a supported DNS provider is configured)', 'ultimate-multisite'),
 			],
 		];
 	}
@@ -124,14 +128,14 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 	 *
 	 * @since 2.5.0
 	 *
-	 * @param null|bool $return Short-circuit return value (null to proceed normally).
-	 * @param array     $atts   wp_mail() arguments: to, subject, message, headers, attachments.
+	 * @param null|bool $short_circuit Short-circuit return value (null to proceed normally).
+	 * @param array     $atts          wp_mail() arguments: to, subject, message, headers, attachments.
 	 * @return bool|null True on success, false on failure, null to fall through to default.
 	 */
-	public function intercept_wp_mail($return, array $atts) {
+	public function intercept_wp_mail($short_circuit, array $atts) {
 
-		if (null !== $return) {
-			return $return;
+		if (null !== $short_circuit) {
+			return $short_circuit;
 		}
 
 		$to      = $atts['to'];
@@ -307,6 +311,9 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @param string $domain The domain name to verify.
+	 * @return array Verification result with DNS records when available.
 	 */
 	public function verify_domain(string $domain): array {
 
@@ -314,7 +321,7 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 			'identities',
 			'POST',
 			[
-				'EmailIdentity' => $domain,
+				'EmailIdentity'         => $domain,
 				'DkimSigningAttributes' => [
 					'NextSigningKeyLength' => 'RSA_2048_BIT',
 				],
@@ -338,6 +345,9 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @param string $domain The domain name to check.
+	 * @return array Verification status result.
 	 */
 	public function get_domain_verification_status(string $domain): array {
 
@@ -365,6 +375,9 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @param string $domain The domain name to fetch DNS records for.
+	 * @return array DNS records result.
 	 */
 	public function get_domain_dns_records(string $domain): array {
 
@@ -389,6 +402,13 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @param string $from    Sender email address.
+	 * @param string $to      Recipient email address.
+	 * @param string $subject Email subject.
+	 * @param string $body    Email body.
+	 * @param array  $headers Optional email headers.
+	 * @return array Send result.
 	 */
 	public function send_email(string $from, string $to, string $subject, string $body, array $headers = []): array {
 
@@ -427,6 +447,10 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @param string $domain Domain name to fetch statistics for.
+	 * @param string $period Reporting period.
+	 * @return array Sending statistics result.
 	 */
 	public function get_sending_statistics(string $domain, string $period = '24h'): array {
 
@@ -456,6 +480,10 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @param string $domain      Domain name to set quota for.
+	 * @param int    $max_per_day Maximum messages allowed per day.
+	 * @return array Quota update result.
 	 */
 	public function set_sending_quota(string $domain, int $max_per_day): array {
 
@@ -543,8 +571,8 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 			}
 
 			[$name, $value] = explode(':', $header, 2);
-			$name  = strtolower(trim($name));
-			$value = trim($value);
+			$name           = strtolower(trim($name));
+			$value          = trim($value);
 
 			switch ($name) {
 				case 'from':
