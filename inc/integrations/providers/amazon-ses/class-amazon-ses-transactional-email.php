@@ -56,7 +56,7 @@ class Amazon_SES_Transactional_Email extends Base_Capability_Module implements T
 			'will_not' => [
 				'mailbox_provision' => sprintf(
 					/* translators: %s is the Ultimate Multisite Email Accounts add-on product URL. */
-					__('Provision mailboxes or IMAP/POP3 accounts <a href="%s">Install Email Accounts Addo-on for that</a>', 'ultimate-multisite'),
+					__('Provision mailboxes or IMAP/POP3 accounts <a href="%s">Install Email Accounts Add-on for that</a>', 'ultimate-multisite'),
 					esc_url('https://ultimatemultisite.com/product/ultimate-multisite-emails/')
 				),
 				'dns_auto_create'   => __('Automatically create DNS records (you must add the provided SPF/DKIM records to your DNS manually, unless a supported DNS provider is configured)', 'ultimate-multisite'),
