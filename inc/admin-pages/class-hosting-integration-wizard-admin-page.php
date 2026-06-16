@@ -241,7 +241,10 @@ class Hosting_Integration_Wizard_Admin_Page extends Wizard_Admin_Page {
 	 */
 	public function section_configuration(): void {
 
-		$fields = $this->integration->get_fields();
+		$fields                     = $this->integration->get_fields();
+		$configuration_instructions = method_exists($this->integration, 'get_configuration_instructions')
+			? call_user_func([$this->integration, 'get_configuration_instructions'])
+			: [];
 
 		// Aggregate fields from capability modules if this is a new Integration
 		if ($this->integration instanceof \WP_Ultimo\Integrations\Integration) {
@@ -292,10 +295,11 @@ class Hosting_Integration_Wizard_Admin_Page extends Wizard_Admin_Page {
 		wu_get_template(
 			'wizards/host-integrations/configuration',
 			[
-				'screen'      => get_current_screen(),
-				'page'        => $this,
-				'integration' => $this->integration,
-				'form'        => $form,
+				'screen'                     => get_current_screen(),
+				'page'                       => $this,
+				'integration'                => $this->integration,
+				'form'                       => $form,
+				'configuration_instructions' => $configuration_instructions,
 			]
 		);
 	}
