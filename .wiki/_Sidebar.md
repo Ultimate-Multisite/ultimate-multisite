@@ -1,6 +1,7 @@
 # Documentation
 
 - [Home](Home)
+- [New docs site](https://ultimatemultisite.com/docs/)
 
 ## Getting Started
 - [Ultimate Multisite 101](wp-ultimo-101)
