@@ -83,7 +83,7 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 		add_action('wu_remove_domain', [$this, 'on_remove_domain'], 10, 2);
 		add_action('wu_add_subdomain', [$this, 'on_add_subdomain'], 10, 2);
 		add_action('wu_remove_subdomain', [$this, 'on_remove_subdomain'], 10, 2);
-		add_action('wu_domain_verified', [$this, 'publish_transactional_email_dns_records'], 10, 3);
+		add_action('wu_domain_verification_initiated', [$this, 'publish_transactional_email_dns_records'], 10, 3);
 		add_action('wu_settings_transactional_email', [$this, 'register_transactional_dns_settings']);
 		add_filter('wu_domain_dns_get_record', [$this, 'add_cloudflare_dns_entries'], 10, 2);
 	}
