@@ -43,7 +43,7 @@ defined('ABSPATH') || exit;
 
 		<li class="wu-flex wu-content-center wu-py-2 wu-px-4 wu-bg-gray-100 wu-border-t-0 wu-border-solid wu-border-l-0 wu-border-r-0 wu-border-b wu-border-gray-300 wu-m-0">
 			<span class="dashicons dashicons-yes-alt wu-text-green-400 wu-self-center wu-mr-2"></span>
-			<span><?php echo esc_html($line); ?></span>
+			<span><?php echo wp_kses($line, wu_kses_allowed_html()); ?></span>
 		</li>
 
 		<?php endforeach; ?>
@@ -65,7 +65,7 @@ defined('ABSPATH') || exit;
 
 			<li class="wu-flex wu-content-center wu-py-2 wu-px-4 wu-bg-gray-100 wu-border-t-0 wu-border-solid wu-border-l-0 wu-border-r-0 wu-border-b wu-border-gray-300 wu-m-0">
 			<span class="dashicons dashicons-dismiss wu-text-red-400 wu-self-center wu-mr-2"></span>
-					<span><?php echo esc_html($line); ?></span>
+					<span><?php echo wp_kses($line, wu_kses_allowed_html()); ?></span>
 			</li>
 
 		<?php endforeach; ?>
@@ -109,4 +109,3 @@ defined('ABSPATH') || exit;
 
 </div>
 <!-- End Submit Box -->
-
