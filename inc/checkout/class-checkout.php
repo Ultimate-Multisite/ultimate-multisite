@@ -3383,9 +3383,13 @@ class Checkout {
 	 */
 	public function get_next_step_name() {
 
-		$steps = $this->steps;
+		$steps = $this->get_steps_or_empty_array();
 
 		$keys = array_column($steps, 'id');
+
+		if (empty($keys)) {
+			return $this->step_name;
+		}
 
 		$current_step_index = array_search($this->step_name, array_values($keys), true);
 
@@ -3411,7 +3415,7 @@ class Checkout {
 	 */
 	public function is_first_step() {
 
-		$step_names = array_column($this->steps, 'id');
+		$step_names = array_column($this->get_steps_or_empty_array(), 'id');
 
 		if (empty($step_names)) {
 			return true;
@@ -3449,13 +3453,29 @@ class Checkout {
 			return false;
 		}
 
-		$step_names = array_column($this->steps, 'id');
+		$step_names = array_column($this->get_steps_or_empty_array(), 'id');
 
 		if (empty($step_names)) {
 			return true;
 		}
 
 		return array_pop($step_names) === $this->step_name;
+	}
+
+	/**
+	 * Returns checkout steps as an array.
+	 *
+	 * Payment return and thank-you requests can enqueue checkout scripts after the
+	 * checkout form context has been cleared, leaving the public steps property
+	 * unset/null. Treat that state as an empty one-step flow instead of fataling
+	 * when navigation helpers call array_column().
+	 *
+	 * @since 2.13.2
+	 * @return array
+	 */
+	protected function get_steps_or_empty_array() {
+
+		return is_array($this->steps) ? $this->steps : [];
 	}
 
 	/**

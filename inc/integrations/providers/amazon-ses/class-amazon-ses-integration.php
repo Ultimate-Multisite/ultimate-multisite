@@ -205,4 +205,24 @@ class Amazon_SES_Integration extends Integration {
 			],
 		];
 	}
+
+	/**
+	 * Returns provider-specific guidance for the configuration step.
+	 *
+	 * @since 2.5.0
+	 * @return array{title: string, description: string, steps: array<int, string>}
+	 */
+	public function get_configuration_instructions(): array {
+
+		return [
+			'title'       => __('Amazon SES configuration checklist', 'ultimate-multisite'),
+			'description' => __('Use IAM credentials that can manage SES identities and send mail in the selected region. After saving, Ultimate Multisite can request domain verification and return the required DNS records.', 'ultimate-multisite'),
+			'steps'       => [
+				__('Create or choose an IAM access key with SES permissions such as <code>ses:GetAccount</code>, <code>ses:CreateEmailIdentity</code>, <code>ses:GetEmailIdentity</code>, <code>ses:DeleteEmailIdentity</code>, and <code>ses:SendEmail</code>.', 'ultimate-multisite'),
+				__('Enter the AWS Access Key ID and Secret Access Key. Prefer a restricted IAM user dedicated to Ultimate Multisite instead of a root or broad administrator key.', 'ultimate-multisite'),
+				__('Set the AWS region where SES is out of sandbox and where you want identities created, for example <code>us-east-1</code>. The region must match your approved SES sending region.', 'ultimate-multisite'),
+				__('After testing succeeds, add the SPF, DKIM, and DMARC records returned for each domain to DNS. Mail should only be considered fully configured when recipient headers show <code>spf=pass</code>, <code>dkim=pass</code>, and <code>dmarc=pass</code>.', 'ultimate-multisite'),
+			],
+		];
+	}
 }

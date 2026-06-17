@@ -21,7 +21,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2
         with:
-          php-version: '7.4'
+          php-version: '8.2'
           extensions: mbstring, intl, curl
           tools: composer, wp-cli
 
@@ -125,7 +125,7 @@ jobs:
             ## Notes
             
             - Compatible with WordPress 5.3+
-            - Requires PHP 7.4.30+
+            - Requires PHP 8.2+
             - Always backup your site before upgrading
 
   deploy-to-wporg:
