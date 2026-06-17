@@ -1082,7 +1082,7 @@ msgid "Delete everything"
 msgstr ""
 
 #: inc/admin-pages/class-customer-edit-admin-page.php:309
-msgid "Sites, payments and memberships."
+msgid "Sites, payments and memberships. The user's WordPress account will not be removed."
 msgstr ""
 
 #: inc/admin-pages/class-customer-edit-admin-page.php:317
@@ -16351,6 +16351,10 @@ msgstr ""
 
 #: inc/functions/currency.php:160
 msgid "Iranian Rial"
+msgstr ""
+
+#: inc/functions/currency.php:161
+msgid "Iranian Toman"
 msgstr ""
 
 #: inc/functions/customer.php:176

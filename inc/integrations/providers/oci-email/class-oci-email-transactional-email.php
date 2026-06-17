@@ -146,7 +146,24 @@ class OCI_Email_Transactional_Email extends Base_Capability_Module implements Tr
 		 * @param int    $site_id     The site ID.
 		 * @param array  $dns_records The DNS records that must be added to complete verification.
 		 */
-		do_action('wu_domain_verified', $domain, $site_id, $result['dns_records'] ?? []);
+		do_action('wu_domain_verification_initiated', $domain, $site_id, $result['dns_records'] ?? []);
+
+		/**
+		 * Fires after OCI domain verification has been initiated.
+		 *
+		 * @since 2.5.0
+		 * @deprecated 2.5.1 Use wu_domain_verification_initiated instead.
+		 *
+		 * @param string $domain      The domain name.
+		 * @param int    $site_id     The site ID.
+		 * @param array  $dns_records The DNS records that must be added to complete verification.
+		 */
+		do_action_deprecated(
+			'wu_domain_verified',
+			[$domain, $site_id, $result['dns_records'] ?? []],
+			'2.5.1',
+			'wu_domain_verification_initiated'
+		);
 	}
 
 	/**
