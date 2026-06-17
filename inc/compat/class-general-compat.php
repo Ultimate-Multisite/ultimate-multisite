@@ -360,9 +360,14 @@ class General_Compat {
 		switch_to_blog($blog_id);
 
 		try {
+			$this->delete_divi_static_css_post_meta();
+			$this->delete_divi_static_css_options();
+
 			foreach ($this->get_divi_static_css_cache_directories($blog_id) as $cache) {
 				$this->delete_divi_static_css_cache_directory($cache['dir'], $cache['root']);
 			}
+
+			$this->flush_divi_cloned_site_page_cache();
 		} finally {
 			restore_current_blog();
 		}
@@ -458,6 +463,72 @@ class General_Compat {
 		}
 
 		return array_values($unique);
+	}
+
+	/**
+	 * Delete copied Divi generated CSS/cache post meta on the cloned blog.
+	 *
+	 * Divi stores derived module-feature/style state in post meta. Those rows are
+	 * copied from the template during table duplication and can cause Divi to
+	 * generate incomplete CSS on the first cloned-site request even after the
+	 * physical et-cache directory is removed.
+	 *
+	 * @since 2.5.1
+	 * @return void
+	 */
+	private function delete_divi_static_css_post_meta(): void {
+
+		$meta_keys = [
+			'_et_dynamic_cached_attributes',
+			'_et_dynamic_cached_shortcodes',
+			'_et_builder_module_features_cache',
+			'et_enqueued_post_fonts',
+		];
+
+		foreach ($meta_keys as $meta_key) {
+			delete_post_meta_by_key($meta_key);
+		}
+	}
+
+	/**
+	 * Delete copied Divi generated CSS/cache options on the cloned blog.
+	 *
+	 * @since 2.5.1
+	 * @return void
+	 */
+	private function delete_divi_static_css_options(): void {
+
+		$options = [
+			'et_critical_css',
+			'et_builder_module_features_cache',
+			'et_dynamic_assets_path',
+			'et_dynamic_assets_version',
+			'et_divi_dynamic_css_cached_no_shortcode',
+		];
+
+		foreach ($options as $option) {
+			delete_option($option);
+		}
+	}
+
+	/**
+	 * Flush cloned-site page caches after Divi generated assets are invalidated.
+	 *
+	 * Page caches can keep serving old HTML that references stale Divi generated
+	 * CSS versions even after the CSS files and Divi cache metadata are cleared.
+	 * Reuse Ultimate Multisite's cache manager so existing cache-plugin support,
+	 * including LiteSpeed, remains centralized.
+	 *
+	 * @since 2.5.1
+	 * @return void
+	 */
+	private function flush_divi_cloned_site_page_cache(): void {
+
+		$cache_manager = '\\WP_Ultimo\\Managers\\Cache_Manager';
+
+		if (class_exists($cache_manager) && method_exists($cache_manager, 'get_instance')) {
+			$cache_manager::get_instance()->flush_known_caches();
+		}
 	}
 
 	/**

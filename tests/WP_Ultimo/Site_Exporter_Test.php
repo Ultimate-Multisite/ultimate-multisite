@@ -263,4 +263,51 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 
 		$this->assertArrayHasKey('network_export', $actions, 'network_export bulk action must be added');
 	}
+
+	/**
+	 * Test exporter replace preserves incomplete serialized objects unchanged.
+	 */
+	public function test_recursive_unserialize_replace_preserves_incomplete_objects(): void {
+
+		$class_name = 'Missing\\Plugin\\Notification';
+		$old_url    = 'https://example.com/old/page';
+		$serialized = sprintf(
+			'O:%d:"%s":1:{s:3:"url";s:%d:"%s";}',
+			strlen($class_name),
+			$class_name,
+			strlen($old_url),
+			$old_url
+		);
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Regression fixture must build serialized PHP payload.
+		$payload  = serialize(
+			[
+				// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- Intentionally creates an incomplete object fixture.
+				'notice' => @unserialize($serialized),
+				'url'    => $old_url,
+			]
+		);
+		$warnings = 0;
+		$replace  = (new \ReflectionClass(\WP_Ultimo\Site_Exporter\Database\Replace::class))->newInstanceWithoutConstructor();
+
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler -- Regression test asserts no incomplete-object warning is emitted.
+		set_error_handler(
+			static function ($errno, $errstr) use (&$warnings) {
+				if (false !== strpos($errstr, 'incomplete object')) {
+					++$warnings;
+				}
+
+				return true;
+			}
+		);
+
+		try {
+			$result = $replace->recursive_unserialize_replace('example.com/old', 'example.com/new', $payload);
+		} finally {
+			restore_error_handler();
+		}
+
+		$this->assertSame(0, $warnings);
+		$this->assertStringContainsString($old_url, $result);
+		$this->assertStringContainsString('https://example.com/new/page', $result);
+	}
 }
