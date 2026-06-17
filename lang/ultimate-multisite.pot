@@ -16353,6 +16353,10 @@ msgstr ""
 msgid "Iranian Rial"
 msgstr ""
 
+#: inc/functions/currency.php:161
+msgid "Iranian Toman"
+msgstr ""
+
 #: inc/functions/customer.php:176
 msgid "The email address is invalid."
 msgstr ""
