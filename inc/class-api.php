@@ -324,7 +324,21 @@ class API implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function validate_credentials($api_key, $api_secret) {
 		$auth = $this->get_auth();
-		return $api_key === $auth['api_key'] && $api_secret === $auth['api_secret'] && 'prevent' !== $api_key && 'prevent' !== $api_secret;
+
+		/*
+		 * 'prevent' is the sentinel stored when API credentials have not been
+		 * generated yet. Reject it explicitly so a request that supplies
+		 * 'prevent' (or empty/unset credentials) can never authenticate.
+		 */
+		if ('prevent' === $auth['api_key'] || 'prevent' === $auth['api_secret'] || '' === (string) $api_key || '' === (string) $api_secret) {
+			return false;
+		}
+
+		/*
+		 * Compare with hash_equals() so the check runs in constant time and does
+		 * not leak the stored key/secret through response-timing differences.
+		 */
+		return hash_equals((string) $auth['api_key'], (string) $api_key) && hash_equals((string) $auth['api_secret'], (string) $api_secret);
 	}
 
 	/**
