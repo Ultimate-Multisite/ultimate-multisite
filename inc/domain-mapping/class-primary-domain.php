@@ -64,7 +64,17 @@ class Primary_Domain {
 			$hosts[] = $domain->get_domain();
 		}
 
-		return $hosts;
+		$site = get_site(get_current_blog_id());
+
+		if ($site && ! empty($site->domain)) {
+			$site_host = wp_parse_url('http://' . $site->domain, PHP_URL_HOST);
+
+			if ($site_host) {
+				$hosts[] = $site_host;
+			}
+		}
+
+		return array_unique($hosts);
 	}
 
 	/**
