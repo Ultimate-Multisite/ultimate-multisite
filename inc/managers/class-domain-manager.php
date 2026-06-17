@@ -1227,7 +1227,11 @@ class Domain_Manager extends Base_Manager {
 	public function get_dns_records(): void {
 
 		if ( ! current_user_can('manage_network')) {
-			wp_send_json_error(new \WP_Error('unauthorized', __('You do not have permission to perform this action.', 'ultimate-multisite')));
+			wp_send_json_error(new \WP_Error('unauthorized', __('You do not have permission to perform this action.', 'ultimate-multisite')), 403);
+		}
+
+		if ( ! check_ajax_referer('wu_get_dns_records', false, false)) {
+			wp_send_json_error(new \WP_Error('invalid_nonce', __('Security check failed. Please try again.', 'ultimate-multisite')), 403);
 		}
 
 		$domain = wu_request('domain');
@@ -1496,7 +1500,11 @@ class Domain_Manager extends Base_Manager {
 	public function test_integration() {
 
 		if ( ! current_user_can('manage_network')) {
-			wp_send_json_error(new \WP_Error('unauthorized', __('You do not have permission to perform this action.', 'ultimate-multisite')));
+			wp_send_json_error(new \WP_Error('unauthorized', __('You do not have permission to perform this action.', 'ultimate-multisite')), 403);
+		}
+
+		if ( ! check_ajax_referer('wu_test_hosting_integration', false, false)) {
+			wp_send_json_error(new \WP_Error('invalid_nonce', __('Security check failed. Please try again.', 'ultimate-multisite')), 403);
 		}
 
 		$integration_id = wu_request('integration', 'none');

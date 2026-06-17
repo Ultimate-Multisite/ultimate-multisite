@@ -170,6 +170,7 @@ class Domain_Edit_Admin_Page extends Edit_Admin_Page {
 			'wu_dns_table_config',
 			[
 				'domain' => $this->get_object()->get_domain(),
+				'nonce'  => wp_create_nonce('wu_get_dns_records'),
 			]
 		);
 

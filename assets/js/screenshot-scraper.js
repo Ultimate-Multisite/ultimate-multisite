@@ -1,4 +1,4 @@
-/* global wu_block_ui, wu_ajax_error */
+/* global wu_block_ui, wu_ajax_error, wu_screenshot_scraper */
 (function($) {
 
 	$(document).ready(function() {
@@ -18,6 +18,7 @@
 				data: {
 					action: 'wu_get_screenshot',
 					site_id: $('#id').val(),
+					_ajax_nonce: wu_screenshot_scraper.nonce,
 				},
 				error(jqXHR) {
 
