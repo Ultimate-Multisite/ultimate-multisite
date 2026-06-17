@@ -45,7 +45,7 @@ class Post_Signup_Activity_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * register_event_types registers all four expected event slugs.
+	 * The register_event_types method registers all four expected event slugs.
 	 */
 	public function test_register_event_types_registers_all_slugs(): void {
 
@@ -68,9 +68,9 @@ class Post_Signup_Activity_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * on_post_published does nothing when the post status is not 'publish'.
+	 * The track_post_published method does nothing when the post status is not 'publish'.
 	 */
-	public function test_on_post_published_ignores_non_publish_status(): void {
+	public function test_track_post_published_ignores_non_publish_status(): void {
 
 		$post = $this->factory->post->create_and_get(
 			[
@@ -82,7 +82,7 @@ class Post_Signup_Activity_Manager_Test extends \WP_UnitTestCase {
 		$events_before = wu_get_events(['number' => 9999]);
 
 		// Simulate a draft-to-draft transition (should be ignored).
-		$this->manager->on_post_published('draft', 'draft', $post);
+		$this->manager->track_post_published('draft', 'draft', $post);
 
 		$events_after = wu_get_events(['number' => 9999]);
 
@@ -94,9 +94,9 @@ class Post_Signup_Activity_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * on_post_published does nothing when old and new status are both 'publish'.
+	 * The track_post_published method does nothing when old and new status are both 'publish'.
 	 */
-	public function test_on_post_published_ignores_re_save_of_published_post(): void {
+	public function test_track_post_published_ignores_re_save_of_published_post(): void {
 
 		$post = $this->factory->post->create_and_get(
 			[
@@ -108,7 +108,7 @@ class Post_Signup_Activity_Manager_Test extends \WP_UnitTestCase {
 		$events_before = wu_get_events(['number' => 9999]);
 
 		// Simulate a publish-to-publish transition (re-save, should be ignored).
-		$this->manager->on_post_published('publish', 'publish', $post);
+		$this->manager->track_post_published('publish', 'publish', $post);
 
 		$events_after = wu_get_events(['number' => 9999]);
 
@@ -120,9 +120,27 @@ class Post_Signup_Activity_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * on_post_published does nothing for excluded post types.
+	 * The track_post_published method does nothing when WordPress passes no post object.
 	 */
-	public function test_on_post_published_ignores_excluded_post_types(): void {
+	public function test_track_post_published_ignores_null_post(): void {
+
+		$events_before = wu_get_events(['number' => 9999]);
+
+		$this->manager->track_post_published('publish', 'draft', null);
+
+		$events_after = wu_get_events(['number' => 9999]);
+
+		$this->assertCount(
+			count($events_before),
+			$events_after,
+			'No event should be created when WordPress does not provide a post object.'
+		);
+	}
+
+	/**
+	 * The track_post_published method does nothing for excluded post types.
+	 */
+	public function test_track_post_published_ignores_excluded_post_types(): void {
 
 		$post = $this->factory->post->create_and_get(
 			[
@@ -133,7 +151,7 @@ class Post_Signup_Activity_Manager_Test extends \WP_UnitTestCase {
 
 		$events_before = wu_get_events(['number' => 9999]);
 
-		$this->manager->on_post_published('publish', 'draft', $post);
+		$this->manager->track_post_published('publish', 'draft', $post);
 
 		$events_after = wu_get_events(['number' => 9999]);
 
@@ -145,7 +163,7 @@ class Post_Signup_Activity_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * get_wu_site returns false when wu_get_site is not available.
+	 * The get_wu_site method returns false when wu_get_site is not available.
 	 */
 	public function test_get_wu_site_returns_false_for_unknown_blog(): void {
 
