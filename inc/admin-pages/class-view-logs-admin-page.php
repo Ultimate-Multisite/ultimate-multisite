@@ -141,15 +141,21 @@ class View_Logs_Admin_Page extends Edit_Admin_Page {
 	 */
 	public function handle_view_logs() {
 
+		if ( ! current_user_can('manage_network')) {
+			wp_die(esc_html__('You do not have permission to access this resource.', 'ultimate-multisite'), 403);
+		}
+
+		$logs_folder = Logger::get_logs_folder();
+
 		$logs_list = list_files(
-			Logger::get_logs_folder(),
+			$logs_folder,
 			2,
 			[
 				'index.html',
 			]
 		);
 
-		$logs_list = array_combine(array_values($logs_list), array_map(fn($file) => str_replace(Logger::get_logs_folder(), '', (string) $file), $logs_list));
+		$logs_list = array_combine(array_values($logs_list), array_map(fn($file) => str_replace($logs_folder, '', (string) $file), $logs_list));
 
 		if (empty($logs_list)) {
 			$logs_list[''] = __('No log files found', 'ultimate-multisite');
@@ -161,9 +167,24 @@ class View_Logs_Admin_Page extends Edit_Admin_Page {
 
 		$contents = '';
 
-		// Security check
-		if ($file && ! stristr((string) $file, Logger::get_logs_folder())) {
-			wp_die(esc_html__('You can see files that are not Ultimate Multisite\'s logs', 'ultimate-multisite'));
+		/*
+		 * Security check: confine the requested file to the logs folder.
+		 *
+		 * realpath() resolves any '..' traversal so a crafted path cannot
+		 * escape the logs directory (the previous substring check accepted
+		 * any path that merely *contained* the logs folder, e.g.
+		 * "<logs>/../../../wp-config.php"). The resolved path must also be a
+		 * real file located under the resolved logs folder.
+		 */
+		if ($file) {
+			$real_file   = realpath((string) $file);
+			$real_folder = realpath($logs_folder);
+
+			if (false === $real_file || false === $real_folder || ! str_starts_with($real_file, trailingslashit($real_folder))) {
+				wp_die(esc_html__('You can only view Ultimate Multisite log files.', 'ultimate-multisite'), 403);
+			}
+
+			$file = $real_file;
 		}
 
 		if ( ! $file && ! empty($logs_list)) {

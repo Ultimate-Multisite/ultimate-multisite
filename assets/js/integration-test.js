@@ -1,3 +1,4 @@
+/* global ajaxurl, Vue, wu_integration_test_data */
 (function($) {
 	$(document).ready(function() {
 		new Vue({
@@ -18,6 +19,7 @@
 						data: {
 							action: 'wu_test_hosting_integration',
 							integration: wu_integration_test_data.integration_id,
+							_ajax_nonce: wu_integration_test_data.nonce,
 						},
 						success(response) {
 							that.loading = false;

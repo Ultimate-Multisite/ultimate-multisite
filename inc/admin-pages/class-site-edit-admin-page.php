@@ -95,6 +95,14 @@ class Site_Edit_Admin_Page extends Edit_Admin_Page {
 
 		wp_enqueue_script('wu-screenshot-scraper');
 
+		wp_localize_script(
+			'wu-screenshot-scraper',
+			'wu_screenshot_scraper',
+			[
+				'nonce' => wp_create_nonce('wu_get_screenshot'),
+			]
+		);
+
 		wp_enqueue_media();
 
 		wp_enqueue_editor();

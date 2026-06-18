@@ -1,7 +1,7 @@
 /* global ajaxurl, Vue, wu_dns_table_config, wu_ajax_error */
 (function($) {
 
-	wu_dns_table = new Vue({
+	window.wu_dns_table = new Vue({
 		el: '#wu-dns-table',
 		data: {
 			error: null,
@@ -23,26 +23,27 @@
 			url: ajaxurl,
 			data: {
 				action: 'wu_get_dns_records',
-				domain: window.wu_dns_table_config.domain,
+				domain: wu_dns_table_config.domain,
+				_ajax_nonce: wu_dns_table_config.nonce,
 			},
 			success(data) {
 
-				Vue.set(wu_dns_table, 'loading', false);
+				Vue.set(window.wu_dns_table, 'loading', false);
 
 				if (data.success) {
 
-					Vue.set(wu_dns_table, 'results', data.data);
+					Vue.set(window.wu_dns_table, 'results', data.data);
 
 				} else {
 
-					Vue.set(wu_dns_table, 'error', data.data);
+					Vue.set(window.wu_dns_table, 'error', data.data);
 
 				}
 
 			},
 			error(jqXHR) {
 
-				Vue.set(wu_dns_table, 'loading', false);
+				Vue.set(window.wu_dns_table, 'loading', false);
 
 				wu_ajax_error(jqXHR);
 

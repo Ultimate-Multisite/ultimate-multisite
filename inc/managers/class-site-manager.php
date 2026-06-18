@@ -539,6 +539,14 @@ class Site_Manager extends Base_Manager {
 	 */
 	public function get_site_screenshot(): void {
 
+		if ( ! current_user_can('manage_network')) {
+			wp_send_json_error(new \WP_Error('unauthorized', __('You do not have permission to perform this action.', 'ultimate-multisite')), 403);
+		}
+
+		if ( ! check_ajax_referer('wu_get_screenshot', false, false)) {
+			wp_send_json_error(new \WP_Error('invalid_nonce', __('Security check failed. Please try again.', 'ultimate-multisite')), 403);
+		}
+
 		$site_id = wu_request('site_id');
 
 		$site = wu_get_site($site_id);

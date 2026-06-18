@@ -320,10 +320,16 @@ class Dashboard_Widgets implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function process_ajax_fetch_rss(): void {
 
+		if ( ! current_user_can('manage_network')) {
+			wp_die('', '', ['response' => 403]);
+		}
+
+		$default_url = 'https://community.wpultimo.com/topics/feed';
+
 		$atts = wp_parse_args(
 			$_GET, // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			[
-				'url'          => 'https://community.wpultimo.com/topics/feed',
+				'url'          => $default_url,
 				'title'        => __('Forum Discussions', 'ultimate-multisite'),
 				'items'        => 3,
 				'show_summary' => 1,
@@ -331,6 +337,15 @@ class Dashboard_Widgets implements \WP_Ultimo\Interfaces\Singleton {
 				'show_date'    => 1,
 			]
 		);
+
+		/*
+		 * Never let the request control the outbound URL. This widget only
+		 * renders the plugin's own community feed; honouring a request-supplied
+		 * URL would turn the endpoint into a server-side request forgery (SSRF)
+		 * probe against internal hosts. Site owners can still override the feed
+		 * server-side via the filter below.
+		 */
+		$atts['url'] = apply_filters('wu_dashboard_rss_feed_url', $default_url);
 
 		wp_widget_rss_output($atts);
 
@@ -376,6 +391,10 @@ class Dashboard_Widgets implements \WP_Ultimo\Interfaces\Singleton {
 	 * @return void
 	 */
 	public function handle_table_csv(): void {
+
+		if ( ! current_user_can('manage_network')) {
+			wp_die('', '', ['response' => 403]);
+		}
 
 		$date_range = wu_request('date_range');
 		$headers    = json_decode(stripslashes((string) wu_request('headers')));
