@@ -637,6 +637,22 @@ class Gateway_Manager extends Base_Manager {
 			wp_send_json_error(['message' => __('Payment not found.', 'ultimate-multisite')]);
 		}
 
+		/*
+		 * Enforce ownership. The payment hash is a reversible identifier (not a
+		 * secret), and the polling nonce is a static value localised into every
+		 * checkout/thank-you page, so neither binds the request to a payment.
+		 * Without this check any logged-in user could poll the status of — and
+		 * trigger gateway verification on — arbitrary payments. Only the owning
+		 * customer (or a network admin) may proceed.
+		 */
+		$current_customer = wu_get_current_customer();
+
+		$is_owner = $current_customer && (int) $payment->get_customer_id() === (int) $current_customer->get_id();
+
+		if ( ! $is_owner && ! current_user_can('manage_network')) {
+			wp_send_json_error(['message' => __('Payment not found.', 'ultimate-multisite')]);
+		}
+
 		// If already completed, return success
 		if ($payment->get_status() === \WP_Ultimo\Database\Payments\Payment_Status::COMPLETED) {
 			wp_send_json_success(
