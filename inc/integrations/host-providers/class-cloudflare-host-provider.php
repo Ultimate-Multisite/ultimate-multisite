@@ -96,8 +96,10 @@ class Cloudflare_Host_Provider extends Base_Host_Provider {
 			]
 		);
 
-		foreach ($cloudflare_zones->result as $zone) {
-			$zone_ids[] = $zone->id;
+		if ( ! is_wp_error($cloudflare_zones) && ! empty($cloudflare_zones->result) && is_iterable($cloudflare_zones->result) ) {
+			foreach ($cloudflare_zones->result as $zone) {
+				$zone_ids[] = $zone->id;
+			}
 		}
 
 		foreach ($zone_ids as $zone_id) {

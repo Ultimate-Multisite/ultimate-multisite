@@ -1106,6 +1106,10 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 
 		$duration = $this->get_duration();
 
+		if ( ! $duration ) {
+			return $amount;
+		}
+
 		$normalized_duration_unit = wu_convert_duration_unit_to_month($this->get_duration_unit());
 
 		return $amount / $duration * $normalized_duration_unit;

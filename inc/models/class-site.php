@@ -2378,6 +2378,10 @@ class Site extends Base_Model implements Limitable, Notable {
 
 					$pending_site = maybe_unserialize($item);
 
+					if ( ! $pending_site instanceof self ) {
+						return null;
+					}
+
 					$pending_site->set_type('pending');
 
 					return $pending_site;
@@ -2385,7 +2389,7 @@ class Site extends Base_Model implements Limitable, Notable {
 				$results
 			);
 
-			return $results;
+			return array_values(array_filter($results));
 		}
 
 		$query = $query_args;
