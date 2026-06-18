@@ -104,6 +104,7 @@
 						action: wu_setup_settings.ajax_action || 'wu_setup_install',
 						installer: content,
 						'dry-run': wu_setup_settings.dry_run,
+						_wpnonce: wu_setup_settings.install_nonce,
 					},
 					success(data) {
 

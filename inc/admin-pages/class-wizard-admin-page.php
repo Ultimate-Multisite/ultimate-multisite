@@ -516,6 +516,7 @@ abstract class Wizard_Admin_Page extends Base_Admin_Page {
 			'wu_setup_settings',
 			[
 				'dry_run'               => wu_request('dry-run', true),
+				'install_nonce'         => wp_create_nonce('wu_setup_install'),
 				'generic_error_message' => __('A server error happened while processing this item.', 'ultimate-multisite'),
 			]
 		);

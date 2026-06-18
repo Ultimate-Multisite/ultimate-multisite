@@ -524,7 +524,7 @@ jobs:
           if [ -d tests/e2e/cypress ]; then
             sudo chown -R $USER:$USER tests/e2e/cypress
           else
-            echo "Cypress output directory does not exist; skipping permission fix."
+            echo "Cypress output directory not found; skipping permission fix."
           fi
 
       - name: Upload Cypress screenshots
@@ -549,5 +549,5 @@ jobs:
           if [ -f package.json ]; then
             npm run env:stop
           else
-            echo "package.json does not exist; checkout did not complete before cleanup."
+            echo "package.json not found; skipping WordPress environment stop."
           fi
