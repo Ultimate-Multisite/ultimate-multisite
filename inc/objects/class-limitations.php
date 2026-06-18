@@ -478,6 +478,18 @@ class Limitations implements \JsonSerializable {
 
 		global $wpdb;
 
+		/*
+		 * $slug is used to build the meta table and column names below, so it
+		 * must never be taken from request input verbatim. Validate it against
+		 * a fixed allow-list of the models that actually carry limitations to
+		 * prevent SQL injection through the identifier.
+		 */
+		$allowed_models = ['membership', 'product', 'customer', 'site'];
+
+		if ( ! in_array($slug, $allowed_models, true)) {
+			return;
+		}
+
 		$wu_prefix = 'wu_';
 
 		/*
