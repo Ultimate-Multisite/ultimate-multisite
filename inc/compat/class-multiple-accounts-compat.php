@@ -316,6 +316,8 @@ class Multiple_Accounts_Compat {
 	 */
 	public function add_column_content($output, $column, $user_id): string {
 
+		$output = (string) $output;
+
 		if ('multiple_accounts' === $column) {
 
 			// Get user email
@@ -334,6 +336,7 @@ class Multiple_Accounts_Compat {
 			$output .= sprintf(esc_html__('%s accounts using this email.', 'ultimate-multisite'), '<strong>' . esc_html($users->total_users) . '</strong>');
 			$output .= sprintf("<br><a href='%s' class=''>" . esc_html__('See all', 'ultimate-multisite') . ' &raquo;</a>', esc_attr(network_admin_url('users.php?s=' . $user->user_email)));
 		}
+
 		return $output;
 	}
 
