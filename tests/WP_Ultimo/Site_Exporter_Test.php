@@ -27,6 +27,13 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	private Site_Exporter $exporter;
 
 	/**
+	 * Pending import transient hashes created during tests.
+	 *
+	 * @var string[]
+	 */
+	private array $pending_import_hashes = [];
+
+	/**
 	 * Set up test fixtures.
 	 */
 	public function set_up(): void {
@@ -34,6 +41,8 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 		parent::set_up();
 
 		$this->exporter = Site_Exporter::get_instance();
+
+		$this->clear_import_cron_events();
 	}
 
 	/**
@@ -42,13 +51,57 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	 */
 	public function tear_down(): void {
 
-		$timestamp = wp_next_scheduled('wu_import_site');
+		$this->clear_import_cron_events();
 
-		if ($timestamp) {
-			wp_unschedule_event($timestamp, 'wu_import_site');
+		foreach ($this->pending_import_hashes as $hash) {
+			wu_exporter_delete_transient("wu_pending_site_import_{$hash}");
+			wu_exporter_delete_transient("wu_pending_network_import_{$hash}");
 		}
 
+		$this->pending_import_hashes = [];
+
 		parent::tear_down();
+	}
+
+	/**
+	 * Clear importer cron events created by tests.
+	 */
+	private function clear_import_cron_events(): void {
+
+		wp_clear_scheduled_hook('wu_import_site');
+		wp_clear_scheduled_hook('wu_import_network');
+	}
+
+	/**
+	 * Add a pending site import transient.
+	 *
+	 * @return string
+	 */
+	private function add_pending_site_import(): string {
+
+		$hash = md5(uniqid('site-import-', true));
+
+		wu_exporter_set_transient("wu_pending_site_import_{$hash}", ['/tmp/site-import.zip', [], $hash], 2 * HOUR_IN_SECONDS);
+
+		$this->pending_import_hashes[] = $hash;
+
+		return $hash;
+	}
+
+	/**
+	 * Add a pending network import transient.
+	 *
+	 * @return string
+	 */
+	private function add_pending_network_import(): string {
+
+		$hash = md5(uniqid('network-import-', true));
+
+		wu_exporter_set_transient("wu_pending_network_import_{$hash}", ['/tmp/network-import.zip', [], $hash], 2 * HOUR_IN_SECONDS);
+
+		$this->pending_import_hashes[] = $hash;
+
+		return $hash;
 	}
 
 	/**
@@ -126,19 +179,25 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test that maybe_run_imports schedules the wu_import_site event when
-	 * it is not already scheduled.
+	 * Test that maybe_run_imports does not schedule import events when no imports are pending.
 	 */
-	public function test_maybe_run_imports_schedules_event_when_not_scheduled(): void {
+	public function test_maybe_run_imports_does_not_schedule_events_without_pending_imports(): void {
 
-		// Clear any pre-existing scheduled event (set_up() hooks fire init which
-		// calls maybe_run_imports() before this test body runs).
-		$existing = wp_next_scheduled('wu_import_site');
-		if ($existing) {
-			wp_unschedule_event($existing, 'wu_import_site');
-		}
+		$this->assertEmpty(wu_exporter_get_pending_imports(), 'Test requires no pending site imports');
+		$this->assertEmpty(wu_exporter_get_pending_network_imports(), 'Test requires no pending network imports');
 
-		$this->assertFalse(wp_next_scheduled('wu_import_site'), 'Event must be unscheduled before test');
+		$this->exporter->maybe_run_imports();
+
+		$this->assertFalse(wp_next_scheduled('wu_import_site'), 'wu_import_site must not be scheduled without pending imports');
+		$this->assertFalse(wp_next_scheduled('wu_import_network'), 'wu_import_network must not be scheduled without pending imports');
+	}
+
+	/**
+	 * Test that maybe_run_imports schedules the wu_import_site event when a site import is pending.
+	 */
+	public function test_maybe_run_imports_schedules_site_event_when_site_import_is_pending(): void {
+
+		$this->add_pending_site_import();
 
 		$this->exporter->maybe_run_imports();
 
@@ -146,6 +205,23 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 
 		$this->assertNotFalse($scheduled, 'wu_import_site must be scheduled after maybe_run_imports()');
 		$this->assertGreaterThan(0, $scheduled, 'Scheduled timestamp must be a positive Unix timestamp');
+		$this->assertFalse(wp_next_scheduled('wu_import_network'), 'wu_import_network must not be scheduled for a site import');
+	}
+
+	/**
+	 * Test that maybe_run_imports schedules the wu_import_network event when a network import is pending.
+	 */
+	public function test_maybe_run_imports_schedules_network_event_when_network_import_is_pending(): void {
+
+		$this->add_pending_network_import();
+
+		$this->exporter->maybe_run_imports();
+
+		$scheduled = wp_next_scheduled('wu_import_network');
+
+		$this->assertNotFalse($scheduled, 'wu_import_network must be scheduled after maybe_run_imports()');
+		$this->assertGreaterThan(0, $scheduled, 'Scheduled timestamp must be a positive Unix timestamp');
+		$this->assertFalse(wp_next_scheduled('wu_import_site'), 'wu_import_site must not be scheduled for a network import');
 	}
 
 	/**
@@ -154,12 +230,7 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	 */
 	public function test_maybe_run_imports_does_not_reschedule_existing_event(): void {
 
-		// Ensure a clean single-scheduled state: clear any existing event, then
-		// schedule one at a known time so we can detect whether it changed.
-		$existing = wp_next_scheduled('wu_import_site');
-		if ($existing) {
-			wp_unschedule_event($existing, 'wu_import_site');
-		}
+		$this->add_pending_site_import();
 
 		wp_schedule_event(time() + 60, 'wu_site_every_minute', 'wu_import_site');
 
@@ -222,7 +293,7 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	 */
 	public function test_wu_import_site_action_is_registered(): void {
 
-		$priority = has_action('wu_import_site', [$this->exporter, 'handle_site_import']);
+		$priority = has_action('wu_import_site');
 
 		$this->assertNotFalse(
 			$priority,
@@ -235,7 +306,7 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	 */
 	public function test_wu_export_network_action_is_registered(): void {
 
-		$priority = has_action('wu_export_network', [$this->exporter, 'handle_network_export']);
+		$priority = has_action('wu_export_network');
 
 		$this->assertNotFalse(
 			$priority,
