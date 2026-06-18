@@ -158,6 +158,7 @@ function wu_get_currencies(): array {
 			'ZAR' => __('South African Rand', 'ultimate-multisite'),
 			'ZMW' => __('Zambian Kwacha', 'ultimate-multisite'),
 			'IRR' => __('Iranian Rial', 'ultimate-multisite'),
+			'IRT' => __('Iranian Toman', 'ultimate-multisite'),
 		]
 	);
 
@@ -196,6 +197,9 @@ function wu_get_currency_symbol($currency = '') {
 		case 'IRR':
 			$currency_symbol = '﷼';
 			break;
+		case 'IRT':
+			$currency_symbol = 'تومان';
+			break;
 		case 'AFN':
 			$currency_symbol = '؋';
 			break;
@@ -210,6 +214,7 @@ function wu_get_currency_symbol($currency = '') {
 			break;
 		case 'BYN':
 			$currency_symbol = 'Br';
+			break;
 		case 'CHF':
 			$currency_symbol = 'CHF';
 			break;
@@ -458,6 +463,7 @@ function wu_is_zero_decimal_currency($currency = 'USD') {
 		'KMF', // Comorian Franc
 		'KRW', // South Korean Won
 		'IRR', // Iranian Rial
+		'IRT', // Iranian Toman
 		'MGA', // Malagasy Ariary
 		'PYG', // Paraguayan Guarani
 		'RWF', // Rwandan Franc

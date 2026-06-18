@@ -186,7 +186,7 @@ class Membership_Manager extends Base_Manager {
 			header('Connection: close');
 		}
 
-		echo $response;
+		echo $response; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Safe JSON from wp_json_encode().
 
 		$this->finish_pending_site_publish_response();
 	}

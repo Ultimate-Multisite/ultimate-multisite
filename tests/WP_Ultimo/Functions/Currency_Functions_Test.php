@@ -35,6 +35,8 @@ class Currency_Functions_Test extends WP_UnitTestCase {
 		$this->assertArrayHasKey('GBP', $currencies);
 		$this->assertArrayHasKey('BRL', $currencies);
 		$this->assertArrayHasKey('JPY', $currencies);
+		$this->assertArrayHasKey('IRR', $currencies);
+		$this->assertArrayHasKey('IRT', $currencies);
 	}
 
 	/**
@@ -75,6 +77,14 @@ class Currency_Functions_Test extends WP_UnitTestCase {
 	public function test_get_currency_symbol_brl(): void {
 		$symbol = wu_get_currency_symbol('BRL');
 		$this->assertEquals('R$', $symbol);
+	}
+
+	/**
+	 * Test wu_get_currency_symbol returns correct symbols for IRT.
+	 */
+	public function test_get_currency_symbol_irt(): void {
+		$symbol = wu_get_currency_symbol('IRT');
+		$this->assertEquals('تومان', $symbol);
 	}
 
 	/**
@@ -139,6 +149,13 @@ class Currency_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test wu_is_zero_decimal_currency returns true for IRT.
+	 */
+	public function test_is_zero_decimal_currency_irt(): void {
+		$this->assertTrue(wu_is_zero_decimal_currency('IRT'));
+	}
+
+	/**
 	 * Test wu_is_zero_decimal_currency returns false for USD.
 	 */
 	public function test_is_zero_decimal_currency_usd(): void {
@@ -173,6 +190,14 @@ class Currency_Functions_Test extends WP_UnitTestCase {
 	 */
 	public function test_stripe_currency_multiplier_krw(): void {
 		$multiplier = wu_stripe_get_currency_multiplier('KRW');
+		$this->assertEquals(1, $multiplier);
+	}
+
+	/**
+	 * Test wu_stripe_get_currency_multiplier returns 1 for IRT.
+	 */
+	public function test_stripe_currency_multiplier_irt(): void {
+		$multiplier = wu_stripe_get_currency_multiplier('IRT');
 		$this->assertEquals(1, $multiplier);
 	}
 

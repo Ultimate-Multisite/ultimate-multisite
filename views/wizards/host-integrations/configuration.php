@@ -9,6 +9,8 @@ defined('ABSPATH') || exit;
 /** @var \WP_Ultimo\Admin_Pages\Wizard_Admin_Page $page  */
 $back_url = $page->get_prev_section_link();
 /** @var \WP_Ultimo\UI\Form $form */
+/** @var array $configuration_instructions */
+$configuration_instructions = $configuration_instructions ?? [];
 ?>
 <h1>
 	<?php esc_html_e('We are almost there!', 'ultimate-multisite'); ?>
@@ -17,6 +19,30 @@ $back_url = $page->get_prev_section_link();
 <p class="wu-text-lg wu-text-gray-600 wu-my-4">
 	<?php esc_html_e('You should have all the information we need in hand right now. The next step is to configure it.', 'ultimate-multisite'); ?>
 </p>
+
+<?php if ( ! empty($configuration_instructions)) : ?>
+	<div class="wu-bg-blue-50 wu-border wu-border-solid wu-border-blue-200 wu-rounded wu-p-4 wu-my-4 wu-text-left">
+		<?php if ( ! empty($configuration_instructions['title'])) : ?>
+			<h3 class="wu-mt-0 wu-mb-2 wu-text-blue-900">
+				<?php echo esc_html($configuration_instructions['title']); ?>
+			</h3>
+		<?php endif; ?>
+
+		<?php if ( ! empty($configuration_instructions['description'])) : ?>
+			<p class="wu-mt-0 wu-text-blue-900">
+				<?php echo wp_kses_post($configuration_instructions['description']); ?>
+			</p>
+		<?php endif; ?>
+
+		<?php if ( ! empty($configuration_instructions['steps'])) : ?>
+			<ol class="wu-mb-0 wu-pl-6 wu-text-blue-900">
+				<?php foreach ($configuration_instructions['steps'] as $step) : ?>
+					<li class="wu-mb-2"><?php echo wp_kses_post($step); ?></li>
+				<?php endforeach; ?>
+			</ol>
+		<?php endif; ?>
+	</div>
+<?php endif; ?>
 
 <div class="wu-mt-6 wu--mx-4">
 

@@ -156,11 +156,11 @@ class Self_Boot_Builder_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * The rendered index.php must be syntactically valid PHP 7.4.
+	 * The rendered index.php must be syntactically valid PHP 8.2.
 	 *
 	 * Runs `php -l` on the rendered output in a subprocess.
 	 */
-	public function test_self_boot_index_template_is_php_74_compatible(): void {
+	public function test_self_boot_index_template_is_php_82_compatible(): void {
 		$rendered = Self_Boot_Builder::render_index_template('single-site', []);
 
 		if (empty($rendered)) {

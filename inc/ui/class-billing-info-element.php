@@ -389,6 +389,10 @@ class Billing_Info_Element extends Base_Element {
 			wp_send_json_error($error);
 		}
 
+		if ( ! $membership->is_customer_allowed()) {
+			wp_send_json_error(new \WP_Error('no-permissions', __('You do not have permissions to perform this action.', 'ultimate-multisite')));
+		}
+
 		$billing_address = $membership->get_billing_address();
 
 		$billing_address->load_attributes_from_post();

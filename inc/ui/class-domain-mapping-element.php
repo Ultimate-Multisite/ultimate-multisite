@@ -580,6 +580,30 @@ class Domain_Mapping_Element extends Base_Element {
 	}
 
 	/**
+	 * Checks whether the current user is allowed to manage a given domain.
+	 *
+	 * The customer-panel domain modals are registered with the 'exist'
+	 * capability (any logged-in user) and reference the target by a
+	 * client-supplied, forgeable id/hash. Authorization must therefore be
+	 * enforced per-object: the user must either be a network admin or the
+	 * owner of the site the domain is mapped to.
+	 *
+	 * @since 2.13.2
+	 * @param \WP_Ultimo\Models\Domain $domain The domain being acted upon.
+	 * @return bool
+	 */
+	protected function current_user_can_manage_domain($domain): bool {
+
+		if (current_user_can('manage_network')) {
+			return true;
+		}
+
+		$site = $domain ? $domain->get_site() : false;
+
+		return (bool) ($site && $site->is_customer_allowed());
+	}
+
+	/**
 	 * Handles deletion of the selected domain
 	 *
 	 * @since 2.0.0
@@ -598,6 +622,10 @@ class Domain_Mapping_Element extends Base_Element {
 		$current_site = wu_request('current_site');
 
 		$get_domain = Domain::get_by_id(wu_request('domain_id'));
+
+		if ( ! $get_domain || ! $this->current_user_can_manage_domain($get_domain)) {
+			wp_send_json_error(new \WP_Error('no-permissions', __('You do not have permissions to perform this action.', 'ultimate-multisite')));
+		}
 
 		$domain = new Domain($get_domain);
 
@@ -684,6 +712,10 @@ class Domain_Mapping_Element extends Base_Element {
 		$domain_id = wu_request('domain_id');
 
 		$domain = wu_get_domain($domain_id);
+
+		if ( ! $domain || ! $this->current_user_can_manage_domain($domain)) {
+			wp_send_json_error(new \WP_Error('no-permissions', __('You do not have permissions to perform this action.', 'ultimate-multisite')));
+		}
 
 		if ($domain) {
 			$domain->set_primary_domain(true);
@@ -781,7 +813,14 @@ class Domain_Mapping_Element extends Base_Element {
 		}
 
 		$dns_manager = \WP_Ultimo\Managers\DNS_Record_Manager::get_instance();
-		$provider    = $dns_manager->get_dns_provider();
+
+		// Same ownership gate the edit/add/delete DNS handlers enforce.
+		if (! $dns_manager->customer_can_manage_dns(get_current_user_id(), $domain->get_domain())) {
+			wp_send_json_error(new \WP_Error('permission-denied', __('You do not have permission to manage DNS for this domain.', 'ultimate-multisite')));
+			return;
+		}
+
+		$provider = $dns_manager->get_dns_provider();
 
 		wu_get_template(
 			'domain/dns-record-form',

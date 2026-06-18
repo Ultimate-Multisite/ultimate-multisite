@@ -152,8 +152,8 @@ final class Site_Exporter {
 		add_action('wu_handle_bulk_action_form_network_export', [$this, 'handle_bulk_network_export'], 10, 2);
 
 		if (defined('WP_CLI') && WP_CLI) {
-			\WP_CLI::add_command('wp-ultimo import-network', [$this, 'wp_cli_import_network']);
-			\WP_CLI::add_command('wu import-network', [$this, 'wp_cli_import_network']);
+			call_user_func(['WP_CLI', 'add_command'], 'wp-ultimo import-network', [$this, 'wp_cli_import_network']);
+			call_user_func(['WP_CLI', 'add_command'], 'wu import-network', [$this, 'wp_cli_import_network']);
 		}
 
 		// Authenticated file download handler (GH#1010)
@@ -2436,11 +2436,11 @@ final class Site_Exporter {
 	 */
 	public function maybe_run_imports(): void {
 
-		if (! wp_next_scheduled('wu_import_site')) {
+		if (wu_exporter_get_pending_imports() && ! wp_next_scheduled('wu_import_site')) {
 			wp_schedule_event(time() + 10, 'wu_site_every_minute', 'wu_import_site');
 		}
 
-		if (! wp_next_scheduled('wu_import_network')) {
+		if (wu_exporter_get_pending_network_imports() && ! wp_next_scheduled('wu_import_network')) {
 			wp_schedule_event(time() + 10, 'wu_site_every_minute', 'wu_import_network');
 		}
 	}
@@ -2741,7 +2741,7 @@ final class Site_Exporter {
 		$zip_path = $args[0] ?? '';
 
 		if (empty($zip_path)) {
-			\WP_CLI::error(__('A network export ZIP path is required.', 'ultimate-multisite'));
+			call_user_func(['WP_CLI', 'error'], __('A network export ZIP path is required.', 'ultimate-multisite'));
 		}
 
 		$options = [
@@ -2755,10 +2755,10 @@ final class Site_Exporter {
 		$result = wu_exporter_import_network($zip_path, $options, false);
 
 		if (is_wp_error($result)) {
-			\WP_CLI::error($result->get_error_message());
+			call_user_func(['WP_CLI', 'error'], $result->get_error_message());
 		}
 
-		\WP_CLI::success(__('Network import completed.', 'ultimate-multisite'));
+		call_user_func(['WP_CLI', 'success'], __('Network import completed.', 'ultimate-multisite'));
 	}
 
 	/**

@@ -14,12 +14,12 @@ jobs:
     timeout-minutes: 45  # Increased for setup wizard + Stripe test clock advancement
     strategy:
       matrix:
-        php: ["8.1", "8.2"]  # Reduced PHP versions for faster CI
+        php: ["8.5"]
         browser: ["chrome"]   # Start with Chrome only for reliability
 
     services:
       mailpit:
-        image: axllent/mailpit:latest
+        image: ghcr.io/axllent/mailpit@sha256:3bd7c2f2696deb35a4780d152b404dceec99cb041b942c0877b3b22384714f85
         ports:
           - 1025:1025
           - 8025:8025

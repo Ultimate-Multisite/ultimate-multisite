@@ -1871,7 +1871,7 @@ class Migrator extends Base_Installer {
 				'parent'             => 0,
 				'line_items'         => $line_items,
 				'status'             => wu_get_isset($map_status, $transaction->type, Payment_Status::COMPLETED),
-				'customer_id'        => $membership ? $customer->get_id() : false,
+				'customer_id'        => ($membership && $customer) ? $customer->get_id() : false,
 				'membership_id'      => $membership ? $membership->get_id() : false,
 				'product_id'         => $membership ? $membership->get_plan_id() : false,
 				'currency'           => $membership ? $membership->get_currency() : false,

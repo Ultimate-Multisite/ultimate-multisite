@@ -18,7 +18,7 @@ final class Checkout_Step_Fields_Test extends TestCase {
 	 *
 	 * @return array
 	 */
-	private function build_step_fields_map(): array {
+	private function build_checkout_variables(string $step_name = 'account'): array {
 
 		$form = wu_create_checkout_form(
 			[
@@ -119,6 +119,8 @@ final class Checkout_Step_Fields_Test extends TestCase {
 
 		// Inject the seeded form into the real checkout singleton (public prop).
 		$checkout->checkout_form = $form;
+		$checkout->steps         = $form->get_steps_to_show();
+		$checkout->step_name     = $step_name;
 
 		$vars = $checkout->get_checkout_variables();
 
@@ -127,6 +129,18 @@ final class Checkout_Step_Fields_Test extends TestCase {
 			$vars,
 			'get_checkout_variables() must expose step_fields so the Vue validator can scope validation per step. If this key is gone, Step 1 demands every field and registration is blocked.'
 		);
+
+		return $vars;
+	}
+
+	/**
+	 * Builds and returns the step_fields checkout variable.
+	 *
+	 * @return array
+	 */
+	private function build_step_fields_map(): array {
+
+		$vars = $this->build_checkout_variables();
 
 		return $vars['step_fields'];
 	}
@@ -212,5 +226,19 @@ final class Checkout_Step_Fields_Test extends TestCase {
 				"Step '{$step_id}' contains every field — fields are not partitioned per step, so Step 1 would demand all of them."
 			);
 		}
+	}
+
+	/**
+	 * Guards the loading-copy decision used by the multi-step Vue form.
+	 */
+	public function test_checkout_variables_expose_step_specific_loading_copy(): void {
+
+		$account_vars = $this->build_checkout_variables('account');
+		$payment_vars = $this->build_checkout_variables('payment');
+
+		$this->assertArrayHasKey('recording_responses', $account_vars['i18n']);
+		$this->assertSame('Recording Your Responses...', $account_vars['i18n']['recording_responses']);
+		$this->assertFalse($account_vars['is_last_step'], 'The first step must not show the provisioning copy.');
+		$this->assertTrue($payment_vars['is_last_step'], 'The final step should keep the provisioning copy.');
 	}
 }
