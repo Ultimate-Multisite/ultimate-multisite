@@ -66,10 +66,10 @@ class Primary_Domain {
 
 		$site = get_site(get_current_blog_id());
 
-		if ($site && ! empty($site->domain)) {
+		if ($site instanceof \WP_Site && '' !== $site->domain) {
 			$site_host = wp_parse_url('http://' . $site->domain, PHP_URL_HOST);
 
-			if ($site_host) {
+			if (is_string($site_host) && '' !== $site_host) {
 				$hosts[] = $site_host;
 			}
 		}
