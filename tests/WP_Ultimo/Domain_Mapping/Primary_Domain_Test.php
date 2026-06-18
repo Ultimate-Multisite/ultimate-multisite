@@ -155,18 +155,26 @@ class Primary_Domain_Test extends \WP_UnitTestCase {
 
 		$this->assertNotWPError($blog_id);
 
-		$this->create_primary_domain_mapping($blog_id, $custom_domain);
+		$mapping = $this->create_primary_domain_mapping($blog_id, $custom_domain);
 
 		$previous_setting = wu_get_setting('force_admin_redirect', 'both');
 		$previous_server  = $_SERVER;
 		$previous_get     = $_GET; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Test restores superglobal state.
 		$previous_request = $_REQUEST; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Test restores superglobal state.
 
+		$domain_mapping           = \WP_Ultimo\Domain_Mapping::get_instance();
+		$previous_current_mapping = $domain_mapping->current_mapping;
+
 		$redirect_filter = static function ($location) {
 			throw new \RuntimeException(esc_url_raw((string) $location));
 		};
 
 		switch_to_blog($blog_id);
+
+		$domain_mapping->current_mapping = $mapping;
+
+		add_filter('home_url', [$domain_mapping, 'mangle_url'], -10, 4);
+		add_filter('site_url', [$domain_mapping, 'mangle_url'], -10, 4);
 		add_filter('wp_redirect', $redirect_filter);
 
 		try {
@@ -192,6 +200,11 @@ class Primary_Domain_Test extends \WP_UnitTestCase {
 			}
 		} finally {
 			remove_filter('wp_redirect', $redirect_filter);
+			remove_filter('site_url', [$domain_mapping, 'mangle_url'], -10);
+			remove_filter('home_url', [$domain_mapping, 'mangle_url'], -10);
+
+			$domain_mapping->current_mapping = $previous_current_mapping;
+
 			restore_current_blog();
 
 			wu_save_setting('force_admin_redirect', $previous_setting);
