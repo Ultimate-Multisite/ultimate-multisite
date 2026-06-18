@@ -599,6 +599,23 @@ class ImportCommand extends MUMigrationBase {
 			$installed_plugins = WP_PLUGIN_DIR;
 			$check_plugins     = false !== $blog_plugins && false !== $network_plugins;
 			foreach ( $plugins as $plugin_name => $plugin ) {
+				/*
+				 * $plugin_name comes from the imported site manifest (untrusted
+				 * JSON). A plugin basename is "<folder>/<file>.php" or
+				 * "<file>.php" — never absolute and never containing a
+				 * parent-directory segment. Reject anything else so a crafted
+				 * manifest cannot drive rename()/activate_plugin() to a path
+				 * outside WP_PLUGIN_DIR (path traversal / arbitrary inclusion).
+				 */
+				if ( ! is_string($plugin_name) || '' === $plugin_name
+					|| false !== strpos($plugin_name, "\0")
+					|| 0 === strpos($plugin_name, '/')
+					|| 0 === strpos($plugin_name, '\\')
+					|| preg_match('#(^|[\\\\/])\.\.([\\\\/]|$)#', $plugin_name) ) {
+					WP_CLI::warning(sprintf(__('Skipping plugin with unsafe path: %s', 'mu-migration'), (string) $plugin_name));
+					continue;
+				}
+
 				$plugin_folder  = dirname($plugin_name);
 				$fullPluginPath = $plugins_dir . '/' . $plugin_folder;
 
