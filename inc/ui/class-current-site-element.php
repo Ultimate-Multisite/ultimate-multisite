@@ -493,6 +493,10 @@ class Current_Site_Element extends Base_Element {
 			wp_send_json_error($error);
 		}
 
+		if ( ! $site->is_customer_allowed()) {
+			wp_send_json_error(new \WP_Error('no-permissions', __('You do not have permissions to perform this action.', 'ultimate-multisite')));
+		}
+
 		$new_title = wu_request('site_title');
 
 		if ( ! $new_title) {

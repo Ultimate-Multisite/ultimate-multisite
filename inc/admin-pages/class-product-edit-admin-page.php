@@ -688,6 +688,22 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 	}
 
 	/**
+	 * Returns the product type options with short usage descriptions.
+	 *
+	 * @since 2.13.2
+	 * @return array
+	 */
+	protected function get_product_type_options() {
+
+		return [
+			Product_Type::PLAN    => __('Plan — Subscription tier that creates and manages customer sites.', 'ultimate-multisite'),
+			Product_Type::PACKAGE => __('Package — Add-on sold with plans to unlock extra features or resources.', 'ultimate-multisite'),
+			Product_Type::SERVICE => __('Service — Work or support customers can buy without creating a site.', 'ultimate-multisite'),
+			Product_Type::DEMO    => __('Demo — Temporary trial site for prospects to test before buying.', 'ultimate-multisite'),
+		];
+	}
+
+	/**
 	 * Returns the list of sections and its fields for the product page.
 	 *
 	 * Can be filtered via 'wu_product_options_sections'.
@@ -726,10 +742,10 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 						'type'        => 'select',
 						'title'       => __('Product Type', 'ultimate-multisite'),
 						'placeholder' => __('Product Type', 'ultimate-multisite'),
-						'desc'        => __('Different product types have different options.', 'ultimate-multisite'),
+						'desc'        => __('Choose the type that matches what this product should do: use Plan for subscription tiers that create customer sites; Package for paid add-ons; Service for work or support that does not create a site; and Demo for temporary trial sites.', 'ultimate-multisite'),
 						'value'       => $this->get_object()->get_type(),
 						'tooltip'     => '',
-						'options'     => Product_Type::to_array(),
+						'options'     => $this->get_product_type_options(),
 						'html_attr'   => [
 							'v-model' => 'product_type',
 						],

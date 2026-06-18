@@ -505,7 +505,7 @@ class DNS_Record {
 						'id'       => $data['id'] ?? ($data['type'] . '-' . ($data['name'] ?? '@')),
 						'type'     => $data['type'] ?? 'A',
 						'name'     => $data['name'] ?? '@',
-						'content'  => $data['value'] ?? '',
+						'content'  => $data['content'] ?? $data['value'] ?? '',
 						'ttl'      => (int) ($data['ttl'] ?? 3600),
 						'priority' => isset($data['priority']) ? (int) $data['priority'] : null,
 						'proxied'  => false,

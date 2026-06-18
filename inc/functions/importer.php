@@ -97,6 +97,7 @@ function wu_exporter_add_pending_network_import(string $zip_path, array $options
 	$base[] = $hash;
 
 	wu_exporter_set_transient("wu_pending_network_import_{$hash}", $base, 2 * HOUR_IN_SECONDS);
+	wu_exporter_schedule_import_cron('wu_import_network');
 
 	return $hash;
 }
@@ -127,8 +128,26 @@ function wu_exporter_add_pending_import(string $file_name, array $options = [], 
 	$base[] = $hash;
 
 	wu_exporter_set_transient("wu_pending_site_import_{$hash}", $base, 2 * HOUR_IN_SECONDS);
+	wu_exporter_schedule_import_cron('wu_import_site');
 
 	return $hash;
+}
+
+/**
+ * Schedule an import cron hook if it is not already scheduled.
+ *
+ * @since 2.5.1
+ *
+ * @param string $hook The import cron hook to schedule.
+ * @return bool
+ */
+function wu_exporter_schedule_import_cron(string $hook): bool {
+
+	if (wp_next_scheduled($hook)) {
+		return true;
+	}
+
+	return false !== wp_schedule_event(time() + 10, 'wu_site_every_minute', $hook);
 }
 
 /**

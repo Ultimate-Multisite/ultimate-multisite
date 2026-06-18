@@ -106,11 +106,11 @@ function wu_restore_original_url($url, $blog_id) {
 	$site = wu_get_site($blog_id);
 
 	if ($site) {
-		$original_site_url = $site->get_site_url();
+		$wp_site = get_site($blog_id);
 
 		$mapped_domain_url = $site->get_active_site_url();
 
-		$original_domain = trim(preg_replace('#^https?://#', '', $original_site_url), '/');
+		$original_domain = $wp_site ? trim($wp_site->domain . $wp_site->path, '/') : trim(preg_replace('#^https?://#', '', $site->get_site_url()), '/');
 
 		$mapped_domain = wp_parse_url($mapped_domain_url, PHP_URL_HOST);
 

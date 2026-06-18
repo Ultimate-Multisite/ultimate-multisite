@@ -39,7 +39,7 @@ class Primary_Domain {
 	/**
 	 * Adds mapped domain hosts to the list of allowed redirect hosts.
 	 *
-	 * wp_safe_redirect() validates the redirect target host against this list.
+	 * The wp_safe_redirect() function validates the redirect target host against this list.
 	 * Without this filter, redirects to mapped domains (which differ from the
 	 * network's own host) would be blocked and fall back to wp_admin_url().
 	 *
@@ -64,7 +64,17 @@ class Primary_Domain {
 			$hosts[] = $domain->get_domain();
 		}
 
-		return $hosts;
+		$site = get_site(get_current_blog_id());
+
+		if ($site instanceof \WP_Site && '' !== $site->domain) {
+			$site_host = wp_parse_url('http://' . $site->domain, PHP_URL_HOST);
+
+			if (is_string($site_host) && '' !== $site_host) {
+				$hosts[] = $site_host;
+			}
+		}
+
+		return array_unique($hosts);
 	}
 
 	/**
@@ -179,7 +189,9 @@ class Primary_Domain {
 			return;
 		}
 
-		$current_url = wp_parse_url(wu_get_current_url());
+		$current_full_url = wu_get_current_url();
+
+		$current_url = wp_parse_url($current_full_url);
 
 		$mapped_url = wp_parse_url($mapped_domain->get_url());
 
@@ -190,12 +202,12 @@ class Primary_Domain {
 		$redirect_url = false;
 
 		if ('force_map' === $redirect_settings && $current_url_to_compare !== $mapped_url_to_compare) {
-			$redirect_url = Domain_Mapping::get_instance()->replace_url(wu_get_current_url(), $mapped_domain);
+			$redirect_url = Domain_Mapping::get_instance()->replace_url($current_full_url, $mapped_domain);
 		} elseif ('force_network' === $redirect_settings && $current_url_to_compare === $mapped_url_to_compare) {
-			$redirect_url = wu_restore_original_url(wu_get_current_url(), $site->get_id());
+			$redirect_url = wu_restore_original_url($current_full_url, $site->get_id());
 		}
 
-		if ($redirect_url) {
+		if ($redirect_url && untrailingslashit($redirect_url) !== untrailingslashit($current_full_url)) {
 			/*
 			 * Use the redirect URL directly instead of parsing and rebuilding
 			 * query args with wp_parse_str() + add_query_arg(). That approach

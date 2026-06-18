@@ -30,7 +30,7 @@ on:
         description: "JSON array of PHP versions to test"
         required: false
         type: string
-        default: '["8.2"]'
+        default: '["8.2", "8.3", "8.4", "8.5"]'
       run-e2e:
         description: "Whether to run E2E (Cypress) tests"
         required: false

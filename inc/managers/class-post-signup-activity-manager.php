@@ -183,15 +183,19 @@ class Post_Signup_Activity_Manager {
 	 *
 	 * @since 2.5.0
 	 *
-	 * @param string   $new_status The new post status.
-	 * @param string   $old_status The old post status.
-	 * @param \WP_Post $post       The post object.
+	 * @param string        $new_status The new post status.
+	 * @param string        $old_status The old post status.
+	 * @param \WP_Post|null $post       The post object, or null when WordPress failed to create it.
 	 * @return void
 	 */
-	public function track_post_published(string $new_status, string $old_status, \WP_Post $post): void {
+	public function track_post_published(string $new_status, string $old_status, ?\WP_Post $post): void {
 
 		// Only fire on the first publish transition.
 		if ('publish' !== $new_status || 'publish' === $old_status) {
+			return;
+		}
+
+		if ( ! $post) {
 			return;
 		}
 

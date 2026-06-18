@@ -63,6 +63,10 @@ function wu_get_discount_codes($query = []) {
  */
 function wu_get_discounted_price($base_price, $amount, $type, $format = true) {
 
+	// Default to the base price so an unknown discount type fails safe to
+	// "no discount applied" instead of an undefined variable.
+	$discounted_price = $base_price;
+
 	if ('percentage' === $type) {
 		$discounted_price = $base_price - ($base_price * ($amount / 100));
 	} elseif ('absolute' === $type) {

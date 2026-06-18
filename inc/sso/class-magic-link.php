@@ -100,6 +100,12 @@ class Magic_Link {
 			return false;
 		}
 
+		$site = wu_get_site($site_id);
+
+		if ( ! $site ) {
+			return false;
+		}
+
 		// Generate secure token.
 		$token = $this->generate_token();
 
@@ -122,8 +128,6 @@ class Magic_Link {
 		wu_switch_blog_and_run(
 			fn() => set_transient($transient_key, $token_data, self::TOKEN_EXPIRATION)
 		);
-
-		$site = wu_get_site($site_id);
 
 		// Build the magic link URL.
 		$site_url = $site->get_active_site_url();
