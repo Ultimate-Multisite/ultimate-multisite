@@ -954,7 +954,7 @@ class PayPal_Gateway extends Base_PayPal_Gateway {
 
 		$custom = ! empty($posted['custom']) ? explode('|', (string) $posted['custom']) : [];
 
-		// `custom` is built as "payment_id|membership_id|customer_id" (see set_express_checkout()).
+		// `custom` is built as "payment_id|membership_id|customer_id" (see process_checkout()).
 		if (is_array($custom) && count($custom) >= 3) {
 			$payment    = wu_get_payment(absint($custom[0]));
 			$membership = wu_get_membership(absint($custom[1]));
@@ -1388,63 +1388,63 @@ class PayPal_Gateway extends Base_PayPal_Gateway {
 				$membership->set_gateway_customer_id($details['PAYERID']);
 				$membership->set_gateway('paypal');
 
-			if (Payment_Status::COMPLETED === $payment_status) {
-				$membership->add_to_times_billed(1);
+				if (Payment_Status::COMPLETED === $payment_status) {
+					$membership->add_to_times_billed(1);
 
-				/*
-				 * Lets deal with upgrades, downgrades and addons
-				 *
-				 * Here, we just need to make sure we process
-				 * a membership swap.
-				 */
-				if ('upgrade' === $cart->get_cart_type() || 'addon' === $cart->get_cart_type()) {
-					$membership->swap($cart);
-
-					$membership->renew(true);
-				} elseif ('downgrade' === $cart->get_cart_type()) {
-					$membership->set_auto_renew(true);
-
-					$membership->schedule_swap($cart);
-
-					$membership->save();
-				} elseif ('reactivation' === $cart->get_cart_type()) {
 					/*
-					 * Use reactivate() for reactivation carts so that the
-					 * wu_membership_pre_reactivate / wu_membership_post_reactivate
-					 * hooks fire and cancellation metadata is cleared correctly.
+					 * Lets deal with upgrades, downgrades and addons
 					 *
-					 * Gate the success redirect on a successful transition to
-					 * prevent charged-but-inactive memberships.
-					 *
-					 * @since 2.5.0
+					 * Here, we just need to make sure we process
+					 * a membership swap.
 					 */
-					$result = $membership->reactivate(true);
+					if ('upgrade' === $cart->get_cart_type() || 'addon' === $cart->get_cart_type()) {
+						$membership->swap($cart);
 
-					if (true !== $result) {
-						$error_msg = is_wp_error($result) ? $result->get_error_message() : __('Membership reactivation failed.', 'ultimate-multisite');
+						$membership->renew(true);
+					} elseif ('downgrade' === $cart->get_cart_type()) {
+						$membership->set_auto_renew(true);
 
-						wu_log_add('paypal', sprintf('Reactivation failed for membership %d: %s', $membership->get_id(), $error_msg));
+						$membership->schedule_swap($cart);
 
-						$this->redirect_with_error($error_msg);
+						$membership->save();
+					} elseif ('reactivation' === $cart->get_cart_type()) {
+						/*
+						 * Use reactivate() for reactivation carts so that the
+						 * wu_membership_pre_reactivate / wu_membership_post_reactivate
+						 * hooks fire and cancellation metadata is cleared correctly.
+						 *
+						 * Gate the success redirect on a successful transition to
+						 * prevent charged-but-inactive memberships.
+						 *
+						 * @since 2.5.0
+						 */
+						$result = $membership->reactivate(true);
 
-						return;
+						if (true !== $result) {
+							$error_msg = is_wp_error($result) ? $result->get_error_message() : __('Membership reactivation failed.', 'ultimate-multisite');
+
+							wu_log_add('paypal', sprintf('Reactivation failed for membership %d: %s', $membership->get_id(), $error_msg));
+
+							$this->redirect_with_error($error_msg);
+
+							return;
+						}
+					} elseif ( ! $is_trial_setup) {
+						$membership->renew(true);
+					} else {
+						$membership->save();
 					}
-				} elseif ( ! $is_trial_setup) {
-					$membership->renew(true);
 				} else {
 					$membership->save();
 				}
-			} else {
-				$membership->save();
+
+				$this->payment = $payment;
+				$redirect_url  = $this->get_return_url();
+
+				wp_safe_redirect($redirect_url);
+
+				exit;
 			}
-
-			$this->payment = $payment;
-			$redirect_url  = $this->get_return_url();
-
-			wp_safe_redirect($redirect_url);
-
-			exit;
-		}
 		} else {
 			wp_die(
 				esc_html__('Something has gone wrong, please try again', 'ultimate-multisite'),
@@ -1554,49 +1554,49 @@ class PayPal_Gateway extends Base_PayPal_Gateway {
 
 				$is_trial_setup = $membership->is_trialing() && empty($payment->get_total());
 
-			/*
-			 * Lets deal with upgrades, downgrades and addons
-			 *
-			 * Here, we just need to make sure we process
-			 * a membership swap.
-			 */
-			if ('upgrade' === $cart->get_cart_type() || 'addon' === $cart->get_cart_type()) {
-				$membership->swap($cart);
-
-				$membership->renew(false);
-			} elseif ('downgrade' === $cart->get_cart_type()) {
-				$membership->schedule_swap($cart);
-
-				$membership->save();
-			} elseif ('reactivation' === $cart->get_cart_type()) {
 				/*
-				 * Use reactivate() for reactivation carts so that the
-				 * wu_membership_pre_reactivate / wu_membership_post_reactivate
-				 * hooks fire and cancellation metadata is cleared correctly.
-				 *
-				 * Gate the success redirect on a successful transition to
-				 * prevent charged-but-inactive memberships.
-				 *
-				 * @since 2.5.0
-				 */
-				$result = $membership->reactivate(false);
+				* Lets deal with upgrades, downgrades and addons
+				*
+				* Here, we just need to make sure we process
+				* a membership swap.
+				*/
+				if ('upgrade' === $cart->get_cart_type() || 'addon' === $cart->get_cart_type()) {
+					$membership->swap($cart);
 
-				if (true !== $result) {
-					$error_msg = is_wp_error($result) ? $result->get_error_message() : __('Membership reactivation failed.', 'ultimate-multisite');
+					$membership->renew(false);
+				} elseif ('downgrade' === $cart->get_cart_type()) {
+					$membership->schedule_swap($cart);
 
-					wu_log_add('paypal', sprintf('Reactivation failed for membership %d (IPN): %s', $membership->get_id(), $error_msg));
+					$membership->save();
+				} elseif ('reactivation' === $cart->get_cart_type()) {
+					/*
+					 * Use reactivate() for reactivation carts so that the
+					 * wu_membership_pre_reactivate / wu_membership_post_reactivate
+					 * hooks fire and cancellation metadata is cleared correctly.
+					 *
+					 * Gate the success redirect on a successful transition to
+					 * prevent charged-but-inactive memberships.
+					 *
+					 * @since 2.5.0
+					 */
+					$result = $membership->reactivate(false);
 
-					$this->redirect_with_error($error_msg);
+					if (true !== $result) {
+						$error_msg = is_wp_error($result) ? $result->get_error_message() : __('Membership reactivation failed.', 'ultimate-multisite');
 
-					return;
+						wu_log_add('paypal', sprintf('Reactivation failed for membership %d (IPN): %s', $membership->get_id(), $error_msg));
+
+						$this->redirect_with_error($error_msg);
+
+						return;
+					}
+				} elseif ( ! $is_trial_setup) {
+					$membership->renew(false);
+				} else {
+					$membership->save();
 				}
-			} elseif ( ! $is_trial_setup) {
-				$membership->renew(false);
-			} else {
-				$membership->save();
-			}
 
-			$this->payment = $payment;
+				$this->payment = $payment;
 				$redirect_url  = $this->get_return_url();
 
 				wp_safe_redirect($redirect_url);
@@ -1696,8 +1696,6 @@ class PayPal_Gateway extends Base_PayPal_Gateway {
 			}
 
 			$body['pending_payment'] = $pending_payment;
-
-			$custom = explode('|', (string) $body['PAYMENTREQUEST_0_CUSTOM']);
 
 			return $body;
 		}
