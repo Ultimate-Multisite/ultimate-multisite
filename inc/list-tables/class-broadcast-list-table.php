@@ -182,13 +182,20 @@ class Broadcast_List_Table extends Base_List_Table {
 
 				$email = $customer->get_email_address();
 
-				$html = "<a href='" . esc_url($customer_link) . "' class='wu-p-2 wu-flex wu-flex-grow wu-bg-gray-100 wu-rounded wu-items-center wu-border wu-border-solid wu-border-gray-300'>
-										{$avatar}
-										<div class='wu-pl-2'>
-												<strong class='wu-block'>" . esc_html($display_name) . " <small class='wu-font-normal'>(#" . esc_html((string) $id) . ")</small></strong>
-												<small>" . esc_html($email) . "</small>
-										</div>
-								</a>";
+				$html = sprintf(
+					'<a href="%s" class="wu-p-2 wu-flex wu-flex-grow wu-bg-gray-100 wu-rounded wu-items-center wu-border wu-border-solid wu-border-gray-300">
+						%s
+						<div class="wu-pl-2">
+							<strong class="wu-block">%s <small class="wu-font-normal">(#%s)</small></strong>
+							<small>%s</small>
+						</div>
+					</a>',
+					esc_url($customer_link),
+					$avatar,
+					esc_html($display_name),
+					esc_html((string) $id),
+					esc_html($email)
+				);
 
 				return $html;
 			default:
@@ -328,13 +335,20 @@ class Broadcast_List_Table extends Base_List_Table {
 
 				$product_link = wu_network_admin_url('wp-ultimo-edit-product', $url_atts);
 
-				$html = "<a href='{$product_link}' class='wu-p-2 wu-flex wu-flex-grow wu-bg-gray-100 wu-rounded wu-items-center wu-border wu-border-solid wu-border-gray-300'>
-						{$image}
-						<div class='wu-pl-2'>
-								<strong class='wu-block'>{$name} <small class='wu-font-normal'>(#{$id})</small></strong>
-								<small>{$description}</small>
+				$html = sprintf(
+					'<a href="%s" class="wu-p-2 wu-flex wu-flex-grow wu-bg-gray-100 wu-rounded wu-items-center wu-border wu-border-solid wu-border-gray-300">
+						%s
+						<div class="wu-pl-2">
+							<strong class="wu-block">%s <small class="wu-font-normal">(#%s)</small></strong>
+							<small>%s</small>
 						</div>
-				</a>";
+					</a>',
+					esc_url($product_link),
+					$image,
+					esc_html($name),
+					esc_html((string) $id),
+					esc_html($description)
+				);
 				break;
 		}
 
