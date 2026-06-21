@@ -49,6 +49,73 @@ class Customer_List_Admin_Page_Test extends WP_UnitTestCase {
 		parent::tearDown();
 	}
 
+	/**
+	 * Install an AJAX die handler so wp_send_json_* does not stop PHPUnit.
+	 *
+	 * @return callable
+	 */
+	private function install_ajax_die_handler(): callable {
+
+		add_filter('wp_doing_ajax', '__return_true');
+
+		$handler = function () {
+			return function ($message) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Test die handler rethrows the raw wp_die message.
+				throw new \WPAjaxDieContinueException((string) $message);
+			};
+		};
+
+		add_filter('wp_die_ajax_handler', $handler, 1);
+
+		return $handler;
+	}
+
+	/**
+	 * Remove an AJAX die handler installed by install_ajax_die_handler().
+	 *
+	 * @param callable $handler The handler returned by install_ajax_die_handler().
+	 * @return void
+	 */
+	private function remove_ajax_die_handler(callable $handler): void {
+
+		remove_filter('wp_doing_ajax', '__return_true');
+		remove_filter('wp_die_ajax_handler', $handler, 1);
+	}
+
+	/**
+	 * Capture and decode a wp_send_json_* response from an AJAX handler.
+	 *
+	 * @param callable $callback AJAX handler callback.
+	 * @return array
+	 */
+	private function capture_json_response(callable $callback): array {
+
+		$handler          = $this->install_ajax_die_handler();
+		$exception_caught = false;
+		$output           = '';
+
+		ob_start();
+
+		try {
+			$callback();
+		} catch (\WPAjaxDieContinueException $e) {
+			$exception_caught = true;
+		} finally {
+			$output = ob_get_clean();
+			$this->remove_ajax_die_handler($handler);
+		}
+
+		$this->assertTrue($exception_caught, 'wp_send_json_* must terminate through wp_die in AJAX context.');
+
+		$json_start  = strpos($output, '{"success"');
+		$json_output = false === $json_start ? $output : substr($output, $json_start);
+		$decoded     = json_decode($json_output, true);
+
+		$this->assertIsArray($decoded, 'Response must be valid JSON: ' . $output);
+
+		return $decoded;
+	}
+
 	// -------------------------------------------------------------------------
 	// init()
 	// -------------------------------------------------------------------------
@@ -374,16 +441,16 @@ class Customer_List_Admin_Page_Test extends WP_UnitTestCase {
 	 * handle_add_new_customer_modal() sends JSON error when customer creation fails.
 	 *
 	 * When type is 'existing' and user_id is 0, wu_create_customer returns WP_Error.
-	 * wp_send_json_error() calls wp_die() which throws WPAjaxDieStopException.
 	 */
 	public function test_handle_add_new_customer_modal_sends_json_error_on_failure(): void {
 
 		$_REQUEST['type']    = 'existing';
 		$_REQUEST['user_id'] = 0;
 
-		$this->expectException(\WPAjaxDieStopException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_add_new_customer_modal());
 
-		$this->page->handle_add_new_customer_modal();
+		$this->assertFalse($response['success']);
+		$this->assertSame('invalid_email', $response['data'][0]['code']);
 	}
 
 	/**
@@ -403,9 +470,10 @@ class Customer_List_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['username']      = 'testuser_' . wp_rand(1000, 9999);
 		$_REQUEST['email_address'] = '';
 
-		$this->expectException(\WPAjaxDieStopException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_add_new_customer_modal());
 
-		$this->page->handle_add_new_customer_modal();
+		$this->assertFalse($response['success']);
+		$this->assertSame('invalid_email', $response['data'][0]['code']);
 	}
 
 	/**
@@ -418,10 +486,15 @@ class Customer_List_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['username']      = 'testcustomer_' . wp_rand(10000, 99999);
 		$_REQUEST['email_address'] = 'testcustomer_' . wp_rand(10000, 99999) . '@example.com';
 
-		// wu_create_customer will attempt to create a user; it either succeeds (sends JSON success)
-		// or fails (sends JSON error). Either way wp_send_json_* calls wp_die().
-		$this->expectException(\WPAjaxDieStopException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_add_new_customer_modal());
 
-		$this->page->handle_add_new_customer_modal();
+		$this->assertArrayHasKey('success', $response);
+
+		if ($response['success']) {
+			$this->assertArrayHasKey('redirect_url', $response['data']);
+			$this->assertStringContainsString('wp-ultimo-edit-customer', $response['data']['redirect_url']);
+		} else {
+			$this->assertFalse($response['success']);
+		}
 	}
 }

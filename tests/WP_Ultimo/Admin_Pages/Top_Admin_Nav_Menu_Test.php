@@ -28,6 +28,8 @@ class Top_Admin_Nav_Menu_Test extends WP_UnitTestCase {
 
 		parent::setUp();
 
+		require_once ABSPATH . WPINC . '/class-wp-admin-bar.php';
+
 		$this->menu = new Top_Admin_Nav_Menu();
 	}
 
@@ -66,7 +68,7 @@ class Top_Admin_Nav_Menu_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * add_top_bar_menus returns early when user lacks manage_network capability.
+	 * Add_top_bar_menus returns early when user lacks manage_network capability.
 	 */
 	public function test_add_top_bar_menus_returns_early_without_capability(): void {
 
@@ -83,7 +85,7 @@ class Top_Admin_Nav_Menu_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * add_top_bar_menus adds parent node when user has capability.
+	 * Add_top_bar_menus adds parent node when user has capability.
 	 */
 	public function test_add_top_bar_menus_adds_parent_node(): void {
 
@@ -94,22 +96,24 @@ class Top_Admin_Nav_Menu_Test extends WP_UnitTestCase {
 			->disableOriginalConstructor()
 			->getMock();
 
+		$added_nodes = [];
+
 		$wp_admin_bar->expects($this->atLeastOnce())
 			->method('add_node')
-			->with(
-				$this->callback(
-					function ($node) {
+			->willReturnCallback(
+				function ($node) use (&$added_nodes) {
 
-						return isset($node['id']) && 'wp-ultimo' === $node['id'];
-					}
-				)
+					$added_nodes[] = $node['id'];
+				}
 			);
 
 		$this->menu->add_top_bar_menus($wp_admin_bar);
+
+		$this->assertContains('wp-ultimo', $added_nodes);
 	}
 
 	/**
-	 * add_top_bar_menus adds sites node when user has wu_read_sites capability.
+	 * Add_top_bar_menus adds sites node when user has wu_read_sites capability.
 	 */
 	public function test_add_top_bar_menus_adds_sites_node_with_capability(): void {
 
@@ -141,7 +145,7 @@ class Top_Admin_Nav_Menu_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * add_top_bar_menus adds memberships node when user has wu_read_memberships capability.
+	 * Add_top_bar_menus adds memberships node when user has wu_read_memberships capability.
 	 */
 	public function test_add_top_bar_menus_adds_memberships_node_with_capability(): void {
 
@@ -172,7 +176,7 @@ class Top_Admin_Nav_Menu_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * add_top_bar_menus adds customers node when user has wu_read_customers capability.
+	 * Add_top_bar_menus adds customers node when user has wu_read_customers capability.
 	 */
 	public function test_add_top_bar_menus_adds_customers_node_with_capability(): void {
 
@@ -203,7 +207,7 @@ class Top_Admin_Nav_Menu_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * add_top_bar_menus adds products node when user has wu_read_products capability.
+	 * Add_top_bar_menus adds products node when user has wu_read_products capability.
 	 */
 	public function test_add_top_bar_menus_adds_products_node_with_capability(): void {
 
@@ -234,7 +238,7 @@ class Top_Admin_Nav_Menu_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * add_top_bar_menus adds payments node when user has wu_read_payments capability.
+	 * Add_top_bar_menus adds payments node when user has wu_read_payments capability.
 	 */
 	public function test_add_top_bar_menus_adds_payments_node_with_capability(): void {
 
@@ -265,7 +269,7 @@ class Top_Admin_Nav_Menu_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * add_top_bar_menus adds discount codes node when user has wu_read_discount_codes capability.
+	 * Add_top_bar_menus adds discount codes node when user has wu_read_discount_codes capability.
 	 */
 	public function test_add_top_bar_menus_adds_discount_codes_node_with_capability(): void {
 
@@ -296,7 +300,7 @@ class Top_Admin_Nav_Menu_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * add_top_bar_menus adds settings node when user has wu_read_settings capability.
+	 * Add_top_bar_menus adds settings node when user has wu_read_settings capability.
 	 */
 	public function test_add_top_bar_menus_adds_settings_node_with_capability(): void {
 
@@ -327,12 +331,16 @@ class Top_Admin_Nav_Menu_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * add_top_bar_menus does not add sites node without capability.
+	 * Add_top_bar_menus does not add sites node without capability.
 	 */
 	public function test_add_top_bar_menus_does_not_add_sites_without_capability(): void {
 
-		wp_set_current_user(1);
-		grant_super_admin(1);
+		$user_id = self::factory()->user->create(['role' => 'administrator']);
+		wp_set_current_user($user_id);
+
+		$user = wp_get_current_user();
+		$user->add_cap('manage_network');
+		$user->remove_cap('wu_read_sites');
 
 		$wp_admin_bar = $this->getMockBuilder(\WP_Admin_Bar::class)
 			->disableOriginalConstructor()

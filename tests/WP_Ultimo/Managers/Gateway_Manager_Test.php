@@ -34,7 +34,29 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	public function setUp(): void {
 		parent::setUp();
 
+		add_filter( 'wp_doing_ajax', '__return_true' );
+		add_filter(
+			'wp_die_ajax_handler',
+			function () {
+				return function ($message) {
+					// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Test die handler rethrows the raw wp_die message.
+					throw new \WPDieException( (string) $message );
+				};
+			},
+			1
+		);
+
 		$this->manager = Gateway_Manager::get_instance();
+	}
+
+	/**
+	 * Tear down test.
+	 */
+	public function tearDown(): void {
+		remove_all_filters( 'wp_doing_ajax' );
+		remove_all_filters( 'wp_die_ajax_handler' );
+
+		parent::tearDown();
 	}
 
 	// -------------------------------------------------------------------------
@@ -47,7 +69,7 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	 * @param array $gateways Value to set for registered_gateways.
 	 * @param array $auto     Value to set for auto_renewable_gateways.
 	 */
-	private function reset_gateways( array $gateways = [], array $auto = [] ): void {
+	private function reset_gateways(array $gateways = [], array $auto = []): void {
 
 		$reflection = new \ReflectionClass( $this->manager );
 
@@ -62,6 +84,31 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			$auto_prop->setAccessible( true );
 		}
 		$auto_prop->setValue( $this->manager, $auto );
+	}
+
+	/**
+	 * Assert that a JSON response path terminates through wp_die().
+	 *
+	 * @param callable $callback Callback that triggers the JSON response.
+	 * @param string   $message  Assertion message.
+	 */
+	private function assert_json_response_dies(callable $callback, string $message): void {
+		$ob_level_before  = ob_get_level();
+		$exception_thrown = false;
+
+		ob_start();
+
+		try {
+			$callback();
+		} catch ( \WPDieException $e ) {
+			$exception_thrown = true;
+		} finally {
+			while ( ob_get_level() > $ob_level_before ) {
+				ob_end_clean();
+			}
+		}
+
+		$this->assertTrue( $exception_thrown, $message );
 	}
 
 	// =========================================================================
@@ -88,7 +135,7 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	public function test_init_registers_plugins_loaded_hook(): void {
 		$this->manager->init();
 
-		$this->assertNotFalse( has_action( 'plugins_loaded', [ $this->manager, 'on_load' ] ) );
+		$this->assertNotFalse( has_action( 'plugins_loaded', [$this->manager, 'on_load'] ) );
 	}
 
 	/**
@@ -97,7 +144,7 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	public function test_on_load_registers_hooks(): void {
 		$this->manager->on_load();
 
-		$this->assertNotFalse( has_action( 'wu_register_gateways', [ $this->manager, 'add_default_gateways' ] ) );
+		$this->assertNotFalse( has_action( 'wu_register_gateways', [$this->manager, 'add_default_gateways'] ) );
 	}
 
 	/**
@@ -106,7 +153,7 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	public function test_on_load_registers_gateway_selector_hook(): void {
 		$this->manager->on_load();
 
-		$this->assertNotFalse( has_action( 'init', [ $this->manager, 'add_gateway_selector_field' ] ) );
+		$this->assertNotFalse( has_action( 'init', [$this->manager, 'add_gateway_selector_field'] ) );
 	}
 
 	/**
@@ -115,7 +162,7 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	public function test_on_load_registers_confirmation_hook(): void {
 		$this->manager->on_load();
 
-		$this->assertNotFalse( has_action( 'template_redirect', [ $this->manager, 'process_gateway_confirmations' ] ) );
+		$this->assertNotFalse( has_action( 'template_redirect', [$this->manager, 'process_gateway_confirmations'] ) );
 	}
 
 	/**
@@ -124,7 +171,7 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	public function test_on_load_registers_webhook_hook(): void {
 		$this->manager->on_load();
 
-		$this->assertNotFalse( has_action( 'init', [ $this->manager, 'maybe_process_webhooks' ] ) );
+		$this->assertNotFalse( has_action( 'init', [$this->manager, 'maybe_process_webhooks'] ) );
 	}
 
 	/**
@@ -133,7 +180,7 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	public function test_on_load_registers_v1_webhook_hook(): void {
 		$this->manager->on_load();
 
-		$this->assertNotFalse( has_action( 'admin_init', [ $this->manager, 'maybe_process_v1_webhooks' ] ) );
+		$this->assertNotFalse( has_action( 'admin_init', [$this->manager, 'maybe_process_v1_webhooks'] ) );
 	}
 
 	// =========================================================================
@@ -226,7 +273,7 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	 */
 	public function test_register_gateway_active_flag_when_active(): void {
 		$gateway_id = 'active-flag-' . wp_generate_uuid4();
-		wu_save_setting( 'active_gateways', [ $gateway_id ] );
+		wu_save_setting( 'active_gateways', [$gateway_id] );
 
 		$this->manager->register_gateway( $gateway_id, 'Active GW', '', Manual_Gateway::class );
 
@@ -527,7 +574,7 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	public function test_legacy_paypal_hidden_without_config(): void {
 		wu_save_setting( 'paypal_test_username', '' );
 		wu_save_setting( 'paypal_live_username', '' );
-		wu_save_setting( 'active_gateways', [ 'stripe' ] );
+		wu_save_setting( 'active_gateways', ['stripe'] );
 
 		$this->reset_gateways();
 		$this->manager->add_default_gateways();
@@ -543,7 +590,7 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	 */
 	public function test_legacy_paypal_shown_with_credentials(): void {
 		wu_save_setting( 'paypal_test_username', 'legacy_api_user' );
-		wu_save_setting( 'active_gateways', [ 'stripe' ] );
+		wu_save_setting( 'active_gateways', ['stripe'] );
 
 		$this->reset_gateways();
 		$this->manager->add_default_gateways();
@@ -562,7 +609,7 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	public function test_legacy_paypal_shown_when_active(): void {
 		wu_save_setting( 'paypal_test_username', '' );
 		wu_save_setting( 'paypal_live_username', '' );
-		wu_save_setting( 'active_gateways', [ 'paypal' ] );
+		wu_save_setting( 'active_gateways', ['paypal'] );
 
 		$this->reset_gateways();
 		$this->manager->add_default_gateways();
@@ -1247,23 +1294,17 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			}
 		);
 
-		$ob_level_before  = ob_get_level();
-		$exception_thrown = false;
-
 		try {
-			$this->manager->maybe_process_webhooks();
-		} catch ( \WPDieException $e ) {
-			$exception_thrown = true;
+			$this->assert_json_response_dies(
+				function () {
+					$this->manager->maybe_process_webhooks();
+				},
+				'Expected WPDieException from wp_send_json_error on Ignorable_Exception'
+			);
 		} finally {
-			while ( ob_get_level() > $ob_level_before ) {
-				ob_end_clean();
-			}
 			unset( $_REQUEST['wu-gateway'] );
 			remove_all_actions( 'wu_manual_process_webhooks' );
 		}
-
-		// wp_send_json_error triggers wp_die which throws WPDieException in tests
-		$this->assertTrue( $exception_thrown, 'Expected WPDieException from wp_send_json_error on Ignorable_Exception' );
 	}
 
 	/**
@@ -1280,23 +1321,17 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			}
 		);
 
-		$ob_level_before  = ob_get_level();
-		$exception_thrown = false;
-
 		try {
-			$this->manager->maybe_process_webhooks();
-		} catch ( \WPDieException $e ) {
-			$exception_thrown = true;
+			$this->assert_json_response_dies(
+				function () {
+					$this->manager->maybe_process_webhooks();
+				},
+				'Expected WPDieException from wp_send_json_error on generic Throwable'
+			);
 		} finally {
-			while ( ob_get_level() > $ob_level_before ) {
-				ob_end_clean();
-			}
 			unset( $_REQUEST['wu-gateway'] );
 			remove_all_actions( 'wu_manual_process_webhooks' );
 		}
-
-		// wp_send_json_error triggers wp_die which throws WPDieException in tests
-		$this->assertTrue( $exception_thrown, 'Expected WPDieException from wp_send_json_error on generic Throwable' );
 	}
 
 	// =========================================================================
@@ -1320,22 +1355,17 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			}
 		);
 
-		$ob_level_before  = ob_get_level();
-		$exception_thrown = false;
-
 		try {
-			$this->manager->maybe_process_v1_webhooks();
-		} catch ( \WPDieException $e ) {
-			$exception_thrown = true;
+			$this->assert_json_response_dies(
+				function () {
+					$this->manager->maybe_process_v1_webhooks();
+				},
+				'Expected WPDieException from wp_send_json_error on Ignorable_Exception in v1 webhook'
+			);
 		} finally {
-			while ( ob_get_level() > $ob_level_before ) {
-				ob_end_clean();
-			}
 			unset( $_REQUEST['action'] );
 			remove_all_actions( 'wu_manual-v1-test_process_webhooks' );
 		}
-
-		$this->assertTrue( $exception_thrown, 'Expected WPDieException from wp_send_json_error on Ignorable_Exception in v1 webhook' );
 	}
 
 	/**
@@ -1355,22 +1385,17 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			}
 		);
 
-		$ob_level_before  = ob_get_level();
-		$exception_thrown = false;
-
 		try {
-			$this->manager->maybe_process_v1_webhooks();
-		} catch ( \WPDieException $e ) {
-			$exception_thrown = true;
+			$this->assert_json_response_dies(
+				function () {
+					$this->manager->maybe_process_v1_webhooks();
+				},
+				'Expected WPDieException from wp_send_json_error on generic Throwable in v1 webhook'
+			);
 		} finally {
-			while ( ob_get_level() > $ob_level_before ) {
-				ob_end_clean();
-			}
 			unset( $_REQUEST['action'] );
 			remove_all_actions( 'wu_manual-v1-throw_process_webhooks' );
 		}
-
-		$this->assertTrue( $exception_thrown, 'Expected WPDieException from wp_send_json_error on generic Throwable in v1 webhook' );
 	}
 
 	// =========================================================================

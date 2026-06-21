@@ -19,7 +19,34 @@ function wu_get_main_site_upload_dir() {
 
 	global $current_site;
 
-	is_multisite() && switch_to_blog($current_site->blog_id);
+	$should_restore = false;
+
+	if (is_multisite()) {
+		if (empty($current_site->id)) {
+			$current_site->id = 1;
+		}
+
+		if (empty($current_site->site_id)) {
+			$current_site->site_id = $current_site->id;
+		}
+
+		if (empty($current_site->blog_id)) {
+			$current_site->blog_id = get_current_blog_id();
+		}
+
+		if ( ! isset($current_site->path)) {
+			$current_site->path = '/';
+		}
+
+		if ( ! isset($current_site->cookie_domain)) {
+			$current_site->cookie_domain = $current_site->domain ?? '';
+		}
+
+		$main_site_id = (int) $current_site->blog_id;
+
+		switch_to_blog($main_site_id);
+		$should_restore = true;
+	}
 
 	if ( ! defined('WP_CONTENT_URL')) {
 		define('WP_CONTENT_URL', get_option('siteurl') . '/wp-content');
@@ -27,7 +54,9 @@ function wu_get_main_site_upload_dir() {
 
 	$uploads = wp_upload_dir(null, false);
 
-	is_multisite() && restore_current_blog();
+	if ($should_restore) {
+		restore_current_blog();
+	}
 
 	return $uploads;
 }

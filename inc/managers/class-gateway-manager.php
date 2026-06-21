@@ -257,15 +257,7 @@ class Gateway_Manager extends Base_Manager {
 
 					wu_log_add("wu-{$gateway_id}-webhook-errors", $message, LogLevel::ERROR);
 
-					/*
-					 * Force a 500.
-					 *
-					 * Most gateways will try again later when
-					 * a non-200 code is returned.
-					 */
-					http_response_code(500);
-
-					wp_send_json_error(new \WP_Error('webhook-error', $message));
+					wp_send_json_error(new \WP_Error('webhook-error', $message), 500);
 				}
 			}
 		}

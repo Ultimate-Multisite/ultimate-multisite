@@ -541,6 +541,10 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 
 		$payment = wu_get_payment(wu_request('payment_id'));
 
+		if ( ! $payment) {
+			wp_send_json_error(new \WP_Error('not-found', __('Payment not found.', 'ultimate-multisite')));
+		}
+
 		$line_item = wu_get_line_item(wu_request('line_item_id'), $payment->get_id());
 
 		if ( ! $line_item) {

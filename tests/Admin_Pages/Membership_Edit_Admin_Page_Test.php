@@ -187,6 +187,80 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * Install an AJAX die handler so wp_send_json_* does not stop PHPUnit.
+	 *
+	 * @return callable
+	 */
+	private function install_ajax_die_handler(): callable {
+		add_filter('wp_doing_ajax', '__return_true');
+
+		$handler = function () {
+			return function ($message) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Test die handler rethrows the raw wp_die message.
+				throw new \WPAjaxDieContinueException((string) $message);
+			};
+		};
+
+		add_filter('wp_die_ajax_handler', $handler, 1);
+
+		return $handler;
+	}
+
+	/**
+	 * Remove an AJAX die handler installed by install_ajax_die_handler().
+	 *
+	 * @param callable $handler The handler returned by install_ajax_die_handler().
+	 * @return void
+	 */
+	private function remove_ajax_die_handler(callable $handler): void {
+		remove_filter('wp_doing_ajax', '__return_true');
+		remove_filter('wp_die_ajax_handler', $handler, 1);
+	}
+
+	/**
+	 * Capture and decode a wp_send_json_* response from an AJAX handler.
+	 *
+	 * @param callable $callback AJAX handler callback.
+	 * @return array
+	 */
+	private function capture_json_response(callable $callback): array {
+		$handler          = $this->install_ajax_die_handler();
+		$exception_caught = false;
+		$output           = '';
+
+		ob_start();
+
+		try {
+			$callback();
+		} catch (\WPAjaxDieContinueException $e) {
+			$exception_caught = true;
+		} finally {
+			$output = ob_get_clean();
+			$this->remove_ajax_die_handler($handler);
+		}
+
+		$this->assertTrue($exception_caught, 'wp_send_json_* must terminate through wp_die in AJAX context.');
+
+		$decoded = json_decode($output, true);
+
+		$this->assertIsArray($decoded, 'Response must be valid JSON: ' . $output);
+
+		return $decoded;
+	}
+
+	/**
+	 * Assert a wp_send_json_error payload error code.
+	 *
+	 * @param array  $response JSON response payload.
+	 * @param string $code     Expected WP_Error code.
+	 * @return void
+	 */
+	private function assert_json_error_code(array $response, string $code): void {
+		$this->assertFalse($response['success']);
+		$this->assertSame($code, $response['data'][0]['code']);
+	}
+
 	// -------------------------------------------------------------------------
 	// Static properties
 	// -------------------------------------------------------------------------
@@ -1253,10 +1327,9 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_handle_transfer_membership_modal_error_when_not_confirmed(): void {
 		unset($_REQUEST['confirm']);
 
-		// wp_send_json_error calls wp_die, so we need to catch it.
-		$this->expectException(\WPDieException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_transfer_membership_modal());
 
-		$this->page->handle_transfer_membership_modal();
+		$this->assert_json_error_code($response, 'not-confirmed');
 	}
 
 	/**
@@ -1266,9 +1339,9 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['confirm'] = 1;
 		$_REQUEST['id']      = 999999;
 
-		$this->expectException(\WPDieException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_transfer_membership_modal());
 
-		$this->page->handle_transfer_membership_modal();
+		$this->assert_json_error_code($response, 'not-found');
 	}
 
 	/**
@@ -1279,9 +1352,9 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['id']                 = $this->membership->get_id();
 		$_REQUEST['target_customer_id'] = 999999;
 
-		$this->expectException(\WPDieException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_transfer_membership_modal());
 
-		$this->page->handle_transfer_membership_modal();
+		$this->assert_json_error_code($response, 'not-found');
 	}
 
 	// -------------------------------------------------------------------------
@@ -1356,9 +1429,9 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_handle_edit_membership_product_modal_error_when_membership_not_found(): void {
 		$_REQUEST['id'] = 999999;
 
-		$this->expectException(\WPDieException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_edit_membership_product_modal());
 
-		$this->page->handle_edit_membership_product_modal();
+		$this->assert_json_error_code($response, 'membership-not-found');
 	}
 
 	/**
@@ -1368,9 +1441,9 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['id']         = $this->membership->get_id();
 		$_REQUEST['product_id'] = 999999;
 
-		$this->expectException(\WPDieException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_edit_membership_product_modal());
 
-		$this->page->handle_edit_membership_product_modal();
+		$this->assert_json_error_code($response, 'product-not-found');
 	}
 
 	/**
@@ -1399,17 +1472,10 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['product_id'] = $product->get_id();
 		$_REQUEST['quantity']   = 1;
 
-		// Capture the WPDieException to inspect the JSON payload from wp_send_json_success/error.
-		try {
-			$this->page->handle_edit_membership_product_modal();
-			$this->fail('Expected WPDieException was not thrown.');
-		} catch (\WPDieException $e) {
-			$payload = json_decode($e->getMessage(), true);
+		$payload = $this->capture_json_response(fn() => $this->page->handle_edit_membership_product_modal());
 
-			// Assert the response indicates success (not an error).
-			$this->assertIsArray($payload, 'Response payload must be valid JSON.');
-			$this->assertTrue($payload['success'], 'handle_edit_membership_product_modal must call wp_send_json_success, not wp_send_json_error.');
-		}
+		// Assert the response indicates success (not an error).
+		$this->assertTrue($payload['success'], 'handle_edit_membership_product_modal must call wp_send_json_success, not wp_send_json_error.');
 
 		// Also verify the product was persisted on the membership.
 		$reloaded = wu_get_membership($this->membership->get_id());
@@ -1460,9 +1526,9 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_handle_remove_membership_product_error_when_membership_not_found(): void {
 		$_REQUEST['id'] = 999999;
 
-		$this->expectException(\WPDieException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_remove_membership_product());
 
-		$this->page->handle_remove_membership_product();
+		$this->assert_json_error_code($response, 'membership-not-found');
 	}
 
 	/**
@@ -1472,9 +1538,9 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['id']         = $this->membership->get_id();
 		$_REQUEST['product_id'] = 999999;
 
-		$this->expectException(\WPDieException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_remove_membership_product());
 
-		$this->page->handle_remove_membership_product();
+		$this->assert_json_error_code($response, 'product-not-found');
 	}
 
 	// -------------------------------------------------------------------------
@@ -1550,9 +1616,9 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_handle_change_membership_plan_modal_error_when_membership_not_found(): void {
 		$_REQUEST['id'] = 999999;
 
-		$this->expectException(\WPDieException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_change_membership_plan_modal());
 
-		$this->page->handle_change_membership_plan_modal();
+		$this->assert_json_error_code($response, 'membership-not-found');
 	}
 
 	/**
@@ -1562,9 +1628,9 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['id']      = $this->membership->get_id();
 		$_REQUEST['plan_id'] = 999999;
 
-		$this->expectException(\WPDieException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_change_membership_plan_modal());
 
-		$this->page->handle_change_membership_plan_modal();
+		$this->assert_json_error_code($response, 'plan-not-found');
 	}
 
 	/**
@@ -1581,9 +1647,9 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['id']      = $this->membership->get_id();
 		$_REQUEST['plan_id'] = $plan_id;
 
-		$this->expectException(\WPDieException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_change_membership_plan_modal());
 
-		$this->page->handle_change_membership_plan_modal();
+		$this->assert_json_error_code($response, 'same-plan');
 	}
 
 	// -------------------------------------------------------------------------

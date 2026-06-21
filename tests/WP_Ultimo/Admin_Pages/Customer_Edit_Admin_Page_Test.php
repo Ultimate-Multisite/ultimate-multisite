@@ -79,6 +79,8 @@ class Customer_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		unset(
 			$_REQUEST['id'],
+			$_REQUEST['confirm'],
+			$_REQUEST['target_user_id'],
 			$_REQUEST['submit_button'],
 			$_GET['delete_meta_key'],
 			$_GET['_wpnonce'],
@@ -91,6 +93,73 @@ class Customer_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$this->clear_notices();
 
 		parent::tearDown();
+	}
+
+	/**
+	 * Install an AJAX die handler so wp_send_json_* does not stop PHPUnit.
+	 *
+	 * @return callable
+	 */
+	private function install_ajax_die_handler(): callable {
+
+		add_filter('wp_doing_ajax', '__return_true');
+
+		$handler = function () {
+			return function ($message) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Test die handler rethrows the raw wp_die message.
+				throw new \WPAjaxDieContinueException((string) $message);
+			};
+		};
+
+		add_filter('wp_die_ajax_handler', $handler, 1);
+
+		return $handler;
+	}
+
+	/**
+	 * Remove an AJAX die handler installed by install_ajax_die_handler().
+	 *
+	 * @param callable $handler The handler returned by install_ajax_die_handler().
+	 * @return void
+	 */
+	private function remove_ajax_die_handler(callable $handler): void {
+
+		remove_filter('wp_doing_ajax', '__return_true');
+		remove_filter('wp_die_ajax_handler', $handler, 1);
+	}
+
+	/**
+	 * Capture and decode a wp_send_json_* response from an AJAX handler.
+	 *
+	 * @param callable $callback AJAX handler callback.
+	 * @return array
+	 */
+	private function capture_json_response(callable $callback): array {
+
+		$handler          = $this->install_ajax_die_handler();
+		$exception_caught = false;
+		$output           = '';
+
+		ob_start();
+
+		try {
+			$callback();
+		} catch (\WPAjaxDieContinueException $e) {
+			$exception_caught = true;
+		} finally {
+			$output = ob_get_clean();
+			$this->remove_ajax_die_handler($handler);
+		}
+
+		$this->assertTrue($exception_caught, 'wp_send_json_* must terminate through wp_die in AJAX context.');
+
+		$json_start  = strpos($output, '{"success"');
+		$json_output = false === $json_start ? $output : substr($output, $json_start);
+		$decoded     = json_decode($json_output, true);
+
+		$this->assertIsArray($decoded, 'Response must be valid JSON: ' . $output);
+
+		return $decoded;
 	}
 
 	/**
@@ -1134,8 +1203,9 @@ class Customer_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_handle_transfer_customer_modal_error_when_not_confirmed(): void {
 
 		// confirm not set in request.
-		$this->expectException(\WPAjaxDieStopException::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_transfer_customer_modal());
 
-		$this->page->handle_transfer_customer_modal();
+		$this->assertFalse($response['success']);
+		$this->assertSame('not-confirmed', $response['data'][0]['code']);
 	}
 }

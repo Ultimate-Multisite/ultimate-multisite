@@ -493,7 +493,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () use ($failure_body) {
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => $failure_body,
 					'headers'  => [],
 				];
@@ -529,7 +532,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () use ($success_body) {
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => $success_body,
 					'headers'  => [],
 				];
@@ -569,7 +575,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			function ($preempt, $args) use (&$captured_args) {
 				$captured_args = $args;
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query(['ACK' => 'Success']),
 					'headers'  => [],
 				];
@@ -633,7 +642,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			function ($preempt, $args) use (&$captured_args) {
 				$captured_args = $args;
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query(['ACK' => 'Success']),
 					'headers'  => [],
 				];
@@ -676,7 +688,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			function ($preempt, $args) use (&$captured_args) {
 				$captured_args = $args;
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query(['ACK' => 'Success']),
 					'headers'  => [],
 				];
@@ -718,7 +733,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query([
 						'ACK'            => 'Failure',
 						'L_ERRORCODE0'   => '10009',
@@ -794,7 +812,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => ['code' => 500, 'message' => 'Internal Server Error'],
+					'response' => [
+						'code'    => 500,
+						'message' => 'Internal Server Error',
+					],
 					'body'     => '',
 					'headers'  => [],
 				];
@@ -878,7 +899,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 				$captured_args = $args;
 				// Return failure to prevent redirect
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query([
 						'ACK'            => 'Failure',
 						'L_ERRORCODE0'   => '10001',
@@ -891,17 +915,17 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			2
 		);
 
-		// wp_die is called on failure — catch it
+		// wp_die is called on failure — catch it.
 		add_filter('wp_die_handler', function () {
-			return function ($message, $title) {
-				throw new \Exception("wp_die: $message");
+			return function ($message) {
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
 		try {
 			$this->gateway->process_checkout($payment, $membership, $customer, $cart, 'new');
 		} catch (\Exception $e) {
-			// Expected
+			$this->assertStringContainsString('wp_die', $e->getMessage());
 		} finally {
 			remove_all_filters('pre_http_request');
 			remove_all_filters('wp_die_handler');
@@ -960,7 +984,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			function ($preempt, $args) use (&$captured_args) {
 				$captured_args = $args;
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query([
 						'ACK'            => 'Failure',
 						'L_ERRORCODE0'   => '10001',
@@ -974,15 +1001,15 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 		);
 
 		add_filter('wp_die_handler', function () {
-			return function ($message, $title) {
-				throw new \Exception("wp_die: $message");
+			return function ($message) {
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
 		try {
 			$this->gateway->process_checkout($payment, $membership, $customer, $cart, 'new');
 		} catch (\Exception $e) {
-			// Expected
+			$this->assertStringContainsString('wp_die', $e->getMessage());
 		} finally {
 			remove_all_filters('pre_http_request');
 			remove_all_filters('wp_die_handler');
@@ -1099,7 +1126,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => ['code' => 500, 'message' => 'Internal Server Error'],
+					'response' => [
+						'code'    => 500,
+						'message' => 'Internal Server Error',
+					],
 					'body'     => '',
 					'headers'  => [],
 				];
@@ -1155,7 +1185,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => ['code' => 500, 'message' => 'Internal Server Error'],
+					'response' => [
+						'code'    => 500,
+						'message' => 'Internal Server Error',
+					],
 					'body'     => '',
 					'headers'  => [],
 				];
@@ -1192,7 +1225,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () use ($body) {
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => $body,
 					'headers'  => [],
 				];
@@ -1213,7 +1249,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * verify_ipn returns false when wp_remote_post returns WP_Error.
+	 * Verify IPN returns false when wp_remote_post returns WP_Error.
 	 */
 	public function test_verify_ipn_returns_false_on_wp_error(): void {
 
@@ -1240,7 +1276,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * verify_ipn returns true when PayPal responds VERIFIED.
+	 * Verify IPN returns true when PayPal responds VERIFIED.
 	 */
 	public function test_verify_ipn_returns_true_when_verified(): void {
 
@@ -1256,7 +1292,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => 'VERIFIED',
 					'headers'  => [],
 				];
@@ -1271,7 +1310,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * verify_ipn returns false when PayPal responds INVALID.
+	 * Verify IPN returns false when PayPal responds INVALID.
 	 */
 	public function test_verify_ipn_returns_false_when_invalid(): void {
 
@@ -1287,7 +1326,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => 'INVALID',
 					'headers'  => [],
 				];
@@ -1302,7 +1344,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * verify_ipn uses sandbox endpoint in test mode.
+	 * Verify IPN uses sandbox endpoint in test mode.
 	 */
 	public function test_verify_ipn_uses_sandbox_endpoint(): void {
 
@@ -1319,7 +1361,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			function ($preempt, $args, $url) use (&$captured_url) {
 				$captured_url = $url;
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => 'VERIFIED',
 					'headers'  => [],
 				];
@@ -1336,7 +1381,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * verify_ipn uses live endpoint when not in test mode.
+	 * Verify IPN uses live endpoint when not in test mode.
 	 */
 	public function test_verify_ipn_uses_live_endpoint(): void {
 
@@ -1358,7 +1403,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			function ($preempt, $args, $url) use (&$captured_url) {
 				$captured_url = $url;
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => 'VERIFIED',
 					'headers'  => [],
 				];
@@ -1395,7 +1443,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			function ($preempt, $args, $url) {
 				if (strpos($url, 'ipnpb') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => 'VERIFIED',
 						'headers'  => [],
 					];
@@ -1408,7 +1459,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_webhooks rejects unverified IPN.
+	 * Process webhooks rejects unverified IPN.
 	 */
 	public function test_process_webhooks_rejects_unverified_ipn(): void {
 
@@ -1422,7 +1473,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => 'INVALID',
 					'headers'  => [],
 				];
@@ -1431,19 +1485,31 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 
 		add_filter('wp_die_handler', function () {
 			return function ($message) {
-				throw new \Exception("wp_die: $message");
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
-		$_POST = ['custom' => '1|2|3', 'txn_type' => 'web_accept'];
+		$_POST = [
+			'custom'   => '1|2|3',
+			'txn_type' => 'web_accept',
+		];
+
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler -- Suppress header warning so the test can assert the wp_die path.
+		set_error_handler(
+			function ($error_number, $error_message) {
+				unset($error_number);
+
+				return false !== strpos($error_message, 'http_response_code()');
+			}
+		);
 
 		try {
 			$this->gateway->process_webhooks();
 			$this->fail('Expected wp_die to be called');
 		} catch (\Exception $e) {
-			// wp_die was called — IPN was rejected as expected
-			$this->assertTrue(true);
+			$this->assertStringContainsString('wp_die', $e->getMessage());
 		} finally {
+			restore_error_handler();
 			remove_all_filters('pre_http_request');
 			remove_all_filters('wp_die_handler');
 			$_POST = [];
@@ -1451,7 +1517,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_webhooks throws exception when membership not found.
+	 * Process webhooks throws exception when membership not found.
 	 */
 	public function test_process_webhooks_throws_when_no_membership(): void {
 
@@ -1473,7 +1539,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_webhooks handles recurring_payment_profile_cancel with initial payment failed.
+	 * Process webhooks handles recurring_payment_profile_cancel with initial payment failed.
 	 */
 	public function test_process_webhooks_profile_cancel_initial_payment_failed(): void {
 
@@ -1481,19 +1547,19 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 
 		// Create a real membership in the DB
 		$membership_id = wu_create_membership([
-			'user_id'    => 1,
-			'plan_id'    => 0,
-			'status'     => 'active',
-			'gateway'    => 'paypal',
+			'user_id'                 => 1,
+			'plan_id'                 => 0,
+			'status'                  => 'active',
+			'gateway'                 => 'paypal',
 			'gateway_subscription_id' => 'I-PROFILE123',
 		]);
 
 		$membership = wu_get_membership($membership_id);
 
 		$_POST = [
-			'recurring_payment_id'    => 'I-PROFILE123',
-			'txn_type'                => 'recurring_payment_profile_cancel',
-			'initial_payment_status'  => 'Failed',
+			'recurring_payment_id'   => 'I-PROFILE123',
+			'txn_type'               => 'recurring_payment_profile_cancel',
+			'initial_payment_status' => 'Failed',
 		];
 
 		$result = $this->gateway->process_webhooks();
@@ -1505,7 +1571,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_webhooks handles recurring_payment_profile_cancel normal cancellation.
+	 * Process webhooks handles recurring_payment_profile_cancel normal cancellation.
 	 *
 	 * Note: The source code calls $membership->has_payment_plan() which is not defined
 	 * on the Membership model. This is a bug in the source code. This test documents
@@ -1520,17 +1586,17 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_webhooks handles recurring_payment_failed IPN.
+	 * Process webhooks handles recurring_payment_failed IPN.
 	 */
 	public function test_process_webhooks_recurring_payment_failed(): void {
 
 		$this->setup_gateway_with_verified_ipn();
 
 		$membership_id = wu_create_membership([
-			'user_id'    => 1,
-			'plan_id'    => 0,
-			'status'     => 'active',
-			'gateway'    => 'paypal',
+			'user_id'                 => 1,
+			'plan_id'                 => 0,
+			'status'                  => 'active',
+			'gateway'                 => 'paypal',
 			'gateway_subscription_id' => 'I-PROFILE789',
 		]);
 
@@ -1549,17 +1615,17 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_webhooks handles recurring_payment_suspended_due_to_max_failed_payment IPN.
+	 * Process webhooks handles recurring_payment_suspended_due_to_max_failed_payment IPN.
 	 */
 	public function test_process_webhooks_recurring_payment_suspended(): void {
 
 		$this->setup_gateway_with_verified_ipn();
 
 		$membership_id = wu_create_membership([
-			'user_id'    => 1,
-			'plan_id'    => 0,
-			'status'     => 'active',
-			'gateway'    => 'paypal',
+			'user_id'                 => 1,
+			'plan_id'                 => 0,
+			'status'                  => 'active',
+			'gateway'                 => 'paypal',
 			'gateway_subscription_id' => 'I-PROFILE-SUSP',
 		]);
 
@@ -1578,17 +1644,17 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_webhooks handles web_accept completed IPN with existing payment.
+	 * Process webhooks handles web_accept completed IPN with existing payment.
 	 */
 	public function test_process_webhooks_web_accept_completed_existing_payment(): void {
 
 		$this->setup_gateway_with_verified_ipn();
 
 		$membership_id = wu_create_membership([
-			'user_id'    => 1,
-			'plan_id'    => 0,
-			'status'     => 'active',
-			'gateway'    => 'paypal',
+			'user_id'                 => 1,
+			'plan_id'                 => 0,
+			'status'                  => 'active',
+			'gateway'                 => 'paypal',
 			'gateway_subscription_id' => 'I-WEB-ACCEPT',
 		]);
 
@@ -1618,17 +1684,17 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_webhooks handles web_accept denied IPN.
+	 * Process webhooks handles web_accept denied IPN.
 	 */
 	public function test_process_webhooks_web_accept_denied(): void {
 
 		$this->setup_gateway_with_verified_ipn();
 
 		$membership_id = wu_create_membership([
-			'user_id'    => 1,
-			'plan_id'    => 0,
-			'status'     => 'active',
-			'gateway'    => 'paypal',
+			'user_id'                 => 1,
+			'plan_id'                 => 0,
+			'status'                  => 'active',
+			'gateway'                 => 'paypal',
 			'gateway_subscription_id' => 'I-WEB-DENIED',
 		]);
 
@@ -1647,17 +1713,17 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_webhooks handles web_accept failed IPN on inactive membership.
+	 * Process webhooks handles web_accept failed IPN on inactive membership.
 	 */
 	public function test_process_webhooks_web_accept_failed_inactive_membership(): void {
 
 		$this->setup_gateway_with_verified_ipn();
 
 		$membership_id = wu_create_membership([
-			'user_id'    => 1,
-			'plan_id'    => 0,
-			'status'     => 'pending',
-			'gateway'    => 'paypal',
+			'user_id'                 => 1,
+			'plan_id'                 => 0,
+			'status'                  => 'pending',
+			'gateway'                 => 'paypal',
 			'gateway_subscription_id' => 'I-WEB-FAIL',
 		]);
 
@@ -1676,17 +1742,17 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_webhooks handles recurring_payment IPN with failed payment status.
+	 * Process webhooks handles recurring_payment IPN with failed payment status.
 	 */
 	public function test_process_webhooks_recurring_payment_failed_status(): void {
 
 		$this->setup_gateway_with_verified_ipn();
 
 		$membership_id = wu_create_membership([
-			'user_id'    => 1,
-			'plan_id'    => 0,
-			'status'     => 'active',
-			'gateway'    => 'paypal',
+			'user_id'                 => 1,
+			'plan_id'                 => 0,
+			'status'                  => 'active',
+			'gateway'                 => 'paypal',
 			'gateway_subscription_id' => 'I-REC-FAIL',
 		]);
 
@@ -1697,36 +1763,42 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'txn_id'               => 'TXN-REC-FAIL',
 		];
 
-		// die() is called on failed recurring payment
-		add_filter('wp_die_handler', function () {
+		$die_caught = false;
+		$handler    = function () {
 			return function ($message) {
-				throw new \Exception("die: $message");
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Test die handler rethrows the raw wp_die message.
+				throw new \WPDieException((string) $message);
 			};
-		});
+		};
+
+		add_filter('wp_die_handler', $handler);
 
 		try {
 			$this->gateway->process_webhooks();
-		} catch (\Exception $e) {
+		} catch (\WPDieException $e) {
+			$die_caught = true;
 			$this->assertStringContainsString('failed', strtolower($e->getMessage()));
 		} finally {
 			remove_all_filters('pre_http_request');
-			remove_all_filters('wp_die_handler');
+			remove_filter('wp_die_handler', $handler);
 			$_POST = [];
 		}
+
+		$this->assertTrue($die_caught, 'Expected failed recurring payment to terminate through wp_die.');
 	}
 
 	/**
-	 * process_webhooks handles recurring_payment IPN with pending payment status.
+	 * Process webhooks handles recurring_payment IPN with pending payment status.
 	 */
 	public function test_process_webhooks_recurring_payment_pending_status(): void {
 
 		$this->setup_gateway_with_verified_ipn();
 
 		$membership_id = wu_create_membership([
-			'user_id'    => 1,
-			'plan_id'    => 0,
-			'status'     => 'active',
-			'gateway'    => 'paypal',
+			'user_id'                 => 1,
+			'plan_id'                 => 0,
+			'status'                  => 'active',
+			'gateway'                 => 'paypal',
 			'gateway_subscription_id' => 'I-REC-PEND',
 		]);
 
@@ -1738,35 +1810,42 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pending_reason'       => 'echeck',
 		];
 
-		add_filter('wp_die_handler', function () {
+		$die_caught = false;
+		$handler    = function () {
 			return function ($message) {
-				throw new \Exception("die: $message");
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Test die handler rethrows the raw wp_die message.
+				throw new \WPDieException((string) $message);
 			};
-		});
+		};
+
+		add_filter('wp_die_handler', $handler);
 
 		try {
 			$this->gateway->process_webhooks();
-		} catch (\Exception $e) {
+		} catch (\WPDieException $e) {
+			$die_caught = true;
 			$this->assertStringContainsString('pending', strtolower($e->getMessage()));
 		} finally {
 			remove_all_filters('pre_http_request');
-			remove_all_filters('wp_die_handler');
+			remove_filter('wp_die_handler', $handler);
 			$_POST = [];
 		}
+
+		$this->assertTrue($die_caught, 'Expected pending recurring payment to terminate through wp_die.');
 	}
 
 	/**
-	 * process_webhooks handles recurring_payment IPN with completed status (new payment).
+	 * Process webhooks handles recurring_payment IPN with completed status (new payment).
 	 */
 	public function test_process_webhooks_recurring_payment_completed_new(): void {
 
 		$this->setup_gateway_with_verified_ipn();
 
 		$membership_id = wu_create_membership([
-			'user_id'    => 1,
-			'plan_id'    => 0,
-			'status'     => 'active',
-			'gateway'    => 'paypal',
+			'user_id'                 => 1,
+			'plan_id'                 => 0,
+			'status'                  => 'active',
+			'gateway'                 => 'paypal',
 			'gateway_subscription_id' => 'I-REC-COMP',
 		]);
 
@@ -1788,28 +1867,28 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_webhooks handles recurring_payment_profile_created IPN with completed initial payment.
+	 * Process webhooks handles recurring_payment_profile_created IPN with completed initial payment.
 	 */
 	public function test_process_webhooks_profile_created_completed(): void {
 
 		$this->setup_gateway_with_verified_ipn();
 
 		$membership_id = wu_create_membership([
-			'user_id'    => 1,
-			'plan_id'    => 0,
-			'status'     => 'pending',
-			'gateway'    => 'paypal',
+			'user_id'                 => 1,
+			'plan_id'                 => 0,
+			'status'                  => 'pending',
+			'gateway'                 => 'paypal',
 			'gateway_subscription_id' => 'I-PROF-CREATED',
 		]);
 
 		$_POST = [
-			'recurring_payment_id'    => 'I-PROF-CREATED',
-			'txn_type'                => 'recurring_payment_profile_created',
-			'initial_payment_txn_id'  => 'TXN-INIT-001',
-			'initial_payment_status'  => 'Completed',
-			'time_created'            => '12:00:00 Jan 01, 2026 PST',
-			'amount'                  => '10.00',
-			'next_payment_date'       => '12:00:00 Feb 01, 2026 PST',
+			'recurring_payment_id'   => 'I-PROF-CREATED',
+			'txn_type'               => 'recurring_payment_profile_created',
+			'initial_payment_txn_id' => 'TXN-INIT-001',
+			'initial_payment_status' => 'Completed',
+			'time_created'           => '12:00:00 Jan 01, 2026 PST',
+			'amount'                 => '10.00',
+			'next_payment_date'      => '12:00:00 Feb 01, 2026 PST',
 		];
 
 		$result = $this->gateway->process_webhooks();
@@ -1821,17 +1900,17 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_webhooks handles recurring_payment_profile_created with ipn_track_id fallback.
+	 * Process webhooks handles recurring_payment_profile_created with ipn_track_id fallback.
 	 */
 	public function test_process_webhooks_profile_created_ipn_track_id_fallback(): void {
 
 		$this->setup_gateway_with_verified_ipn();
 
 		$membership_id = wu_create_membership([
-			'user_id'    => 1,
-			'plan_id'    => 0,
-			'status'     => 'pending',
-			'gateway'    => 'paypal',
+			'user_id'                 => 1,
+			'plan_id'                 => 0,
+			'status'                  => 'pending',
+			'gateway'                 => 'paypal',
 			'gateway_subscription_id' => 'I-PROF-TRACK',
 		]);
 
@@ -1854,7 +1933,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_webhooks throws exception when profile_created has no transaction ID.
+	 * Process webhooks throws exception when profile_created has no transaction ID.
 	 */
 	public function test_process_webhooks_profile_created_throws_without_transaction_id(): void {
 
@@ -1863,10 +1942,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 		$this->setup_gateway_with_verified_ipn();
 
 		$membership_id = wu_create_membership([
-			'user_id'    => 1,
-			'plan_id'    => 0,
-			'status'     => 'pending',
-			'gateway'    => 'paypal',
+			'user_id'                 => 1,
+			'plan_id'                 => 0,
+			'status'                  => 'pending',
+			'gateway'                 => 'paypal',
 			'gateway_subscription_id' => 'I-PROF-NOTXN',
 		]);
 
@@ -1874,7 +1953,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'recurring_payment_id'   => 'I-PROF-NOTXN',
 			'txn_type'               => 'recurring_payment_profile_created',
 			'initial_payment_status' => 'Failed',
-			// No ipn_track_id either
+			'ipn_track_id'           => '',
 		];
 
 		try {
@@ -1890,11 +1969,11 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * process_confirmation does nothing when no nonce and no token.
+	 * Process confirmation does nothing when no nonce and no token.
 	 */
 	public function test_process_confirmation_no_nonce_no_token(): void {
 
-		$_GET = [];
+		$_GET  = [];
 		$_POST = [];
 
 		// Should not throw or die
@@ -1904,7 +1983,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * process_confirmation calls confirmation_form when token present but no nonce.
+	 * Process confirmation calls confirmation_form when token present but no nonce.
 	 */
 	public function test_process_confirmation_calls_confirmation_form_with_token(): void {
 
@@ -1920,7 +1999,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query([
 						'ACK'                     => 'Success',
 						'TOKEN'                   => 'TOKEN123',
@@ -1950,7 +2032,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * confirmation_form outputs error when checkout details are not array.
+	 * Confirmation form outputs error when checkout details are not array.
 	 */
 	public function test_confirmation_form_outputs_error_on_invalid_details(): void {
 
@@ -1966,7 +2048,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => ['code' => 500, 'message' => 'Internal Server Error'],
+					'response' => [
+						'code'    => 500,
+						'message' => 'Internal Server Error',
+					],
 					'body'     => '',
 					'headers'  => [],
 				];
@@ -1974,11 +2059,17 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 		);
 
 		ob_start();
-		$this->gateway->confirmation_form();
-		$output = ob_get_clean();
 
-		remove_all_filters('pre_http_request');
-		$_GET = [];
+		try {
+			$this->gateway->confirmation_form();
+		} catch (\Throwable $e) {
+			$this->assertInstanceOf(\Throwable::class, $e);
+		} finally {
+			$output = ob_get_clean();
+
+			remove_all_filters('pre_http_request');
+			$_GET = [];
+		}
 
 		// Should output error message
 		$this->assertStringContainsString('PayPal error', $output);
@@ -1989,7 +2080,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * create_recurring_profile calls wp_die on WP_Error from remote post.
+	 * Create recurring profile calls wp_die on WP_Error from remote post.
 	 */
 	public function test_create_recurring_profile_wp_die_on_wp_error(): void {
 
@@ -2002,8 +2093,8 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 		$method     = $reflection->getMethod('create_recurring_profile');
 
 		$details = [
-			'PAYERID'     => 'PAYER123',
-			'AMT'         => '10.00',
+			'PAYERID'      => 'PAYER123',
+			'AMT'          => '10.00',
 			'CURRENCYCODE' => 'USD',
 		];
 
@@ -2033,7 +2124,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 
 		add_filter('wp_die_handler', function () {
 			return function ($message) {
-				throw new \Exception("wp_die: $message");
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
@@ -2049,7 +2140,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * create_recurring_profile calls wp_die on non-200 response.
+	 * Create recurring profile calls wp_die on non-200 response.
 	 */
 	public function test_create_recurring_profile_wp_die_on_non_200(): void {
 
@@ -2088,7 +2179,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => ['code' => 500, 'message' => 'Internal Server Error'],
+					'response' => [
+						'code'    => 500,
+						'message' => 'Internal Server Error',
+					],
 					'body'     => '',
 					'headers'  => [],
 				];
@@ -2097,7 +2191,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 
 		add_filter('wp_die_handler', function () {
 			return function ($message) {
-				throw new \Exception("wp_die: $message");
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
@@ -2113,7 +2207,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * create_recurring_profile calls wp_die on PayPal failure ACK.
+	 * Create recurring profile calls wp_die on PayPal failure ACK.
 	 */
 	public function test_create_recurring_profile_wp_die_on_paypal_failure(): void {
 
@@ -2152,7 +2246,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query([
 						'ACK'            => 'Failure',
 						'L_ERRORCODE0'   => '10001',
@@ -2165,7 +2262,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 
 		add_filter('wp_die_handler', function () {
 			return function ($message) {
-				throw new \Exception("wp_die: $message");
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
@@ -2181,7 +2278,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * create_recurring_profile includes trial args when membership is trialing.
+	 * Create recurring profile includes trial args when membership is trialing.
 	 */
 	public function test_create_recurring_profile_includes_trial_args(): void {
 
@@ -2225,10 +2322,13 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			function ($preempt, $args) use (&$captured_args) {
 				$captured_args = $args;
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query([
-						'ACK'           => 'Failure',
-						'L_ERRORCODE0'  => '10001',
+						'ACK'            => 'Failure',
+						'L_ERRORCODE0'   => '10001',
 						'L_LONGMESSAGE0' => 'Test',
 					]),
 					'headers'  => [],
@@ -2240,14 +2340,14 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 
 		add_filter('wp_die_handler', function () {
 			return function ($message) {
-				throw new \Exception("wp_die: $message");
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
 		try {
 			$method->invoke($this->gateway, $details, $cart, $payment, $membership, $customer);
 		} catch (\Exception $e) {
-			// Expected
+			$this->assertStringContainsString('wp_die', $e->getMessage());
 		} finally {
 			remove_all_filters('pre_http_request');
 			remove_all_filters('wp_die_handler');
@@ -2260,7 +2360,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * create_recurring_profile includes TOTALBILLINGCYCLES when not forever recurring.
+	 * Create recurring profile includes TOTALBILLINGCYCLES when not forever recurring.
 	 */
 	public function test_create_recurring_profile_includes_billing_cycles(): void {
 
@@ -2304,7 +2404,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			function ($preempt, $args) use (&$captured_args) {
 				$captured_args = $args;
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query([
 						'ACK'            => 'Failure',
 						'L_ERRORCODE0'   => '10001',
@@ -2319,14 +2422,14 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 
 		add_filter('wp_die_handler', function () {
 			return function ($message) {
-				throw new \Exception("wp_die: $message");
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
 		try {
 			$method->invoke($this->gateway, $details, $cart, $payment, $membership, $customer);
 		} catch (\Exception $e) {
-			// Expected
+			$this->assertStringContainsString('wp_die', $e->getMessage());
 		} finally {
 			remove_all_filters('pre_http_request');
 			remove_all_filters('wp_die_handler');
@@ -2338,7 +2441,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * create_recurring_profile removes INITAMT when negative.
+	 * Create recurring profile removes INITAMT when negative.
 	 */
 	public function test_create_recurring_profile_removes_negative_initamt(): void {
 
@@ -2380,7 +2483,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			function ($preempt, $args) use (&$captured_args) {
 				$captured_args = $args;
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query([
 						'ACK'            => 'Failure',
 						'L_ERRORCODE0'   => '10001',
@@ -2395,14 +2501,14 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 
 		add_filter('wp_die_handler', function () {
 			return function ($message) {
-				throw new \Exception("wp_die: $message");
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
 		try {
 			$method->invoke($this->gateway, $details, $cart, $payment, $membership, $customer);
 		} catch (\Exception $e) {
-			// Expected
+			$this->assertStringContainsString('wp_die', $e->getMessage());
 		} finally {
 			remove_all_filters('pre_http_request');
 			remove_all_filters('wp_die_handler');
@@ -2417,7 +2523,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * complete_single_payment calls wp_die on WP_Error.
+	 * Complete single payment calls wp_die on WP_Error.
 	 */
 	public function test_complete_single_payment_wp_die_on_wp_error(): void {
 
@@ -2455,7 +2561,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 
 		add_filter('wp_die_handler', function () {
 			return function ($message) {
-				throw new \Exception("wp_die: $message");
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
@@ -2471,7 +2577,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * complete_single_payment calls wp_die on PayPal failure ACK.
+	 * Complete single payment calls wp_die on PayPal failure ACK.
 	 */
 	public function test_complete_single_payment_wp_die_on_paypal_failure(): void {
 
@@ -2504,7 +2610,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query([
 						'ACK'            => 'Failure',
 						'L_ERRORCODE0'   => '10001',
@@ -2517,7 +2626,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 
 		add_filter('wp_die_handler', function () {
 			return function ($message) {
-				throw new \Exception("wp_die: $message");
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
@@ -2533,7 +2642,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * complete_single_payment calls wp_die on non-200 response.
+	 * Complete single payment calls wp_die on non-200 response.
 	 */
 	public function test_complete_single_payment_wp_die_on_non_200(): void {
 
@@ -2566,7 +2675,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => ['code' => 500, 'message' => 'Internal Server Error'],
+					'response' => [
+						'code'    => 500,
+						'message' => 'Internal Server Error',
+					],
 					'body'     => '',
 					'headers'  => [],
 				];
@@ -2575,7 +2687,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 
 		add_filter('wp_die_handler', function () {
 			return function ($message) {
-				throw new \Exception("wp_die: $message");
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
@@ -2595,7 +2707,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * backwards_compatibility_v1_id is 'paypal'.
+	 * Backwards compatibility v1 ID is 'paypal'.
 	 */
 	public function test_backwards_compatibility_id(): void {
 
@@ -2610,7 +2722,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * process_checkout includes trial note when membership is trialing with zero payment.
+	 * Process checkout includes trial note when membership is trialing with zero payment.
 	 */
 	public function test_process_checkout_trial_setup_note(): void {
 
@@ -2658,7 +2770,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			function ($preempt, $args) use (&$captured_args) {
 				$captured_args = $args;
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query([
 						'ACK'            => 'Failure',
 						'L_ERRORCODE0'   => '10001',
@@ -2673,14 +2788,14 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 
 		add_filter('wp_die_handler', function () {
 			return function ($message) {
-				throw new \Exception("wp_die: $message");
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
 		try {
 			$this->gateway->process_checkout($payment, $membership, $customer, $cart, 'new');
 		} catch (\Exception $e) {
-			// Expected
+			$this->assertStringContainsString('wp_die', $e->getMessage());
 		} finally {
 			remove_all_filters('pre_http_request');
 			remove_all_filters('wp_die_handler');
@@ -2696,7 +2811,7 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * process_checkout includes downgrade note when cart type is downgrade.
+	 * Process checkout includes downgrade note when cart type is downgrade.
 	 */
 	public function test_process_checkout_downgrade_note(): void {
 
@@ -2744,7 +2859,10 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 			function ($preempt, $args) use (&$captured_args) {
 				$captured_args = $args;
 				return [
-					'response' => ['code' => 200, 'message' => 'OK'],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => http_build_query([
 						'ACK'            => 'Failure',
 						'L_ERRORCODE0'   => '10001',
@@ -2759,14 +2877,14 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 
 		add_filter('wp_die_handler', function () {
 			return function ($message) {
-				throw new \Exception("wp_die: $message");
+				throw new \Exception(esc_html(sprintf('wp_die: %s', (string) $message)));
 			};
 		});
 
 		try {
 			$this->gateway->process_checkout($payment, $membership, $customer, $cart, 'downgrade');
 		} catch (\Exception $e) {
-			// Expected
+			$this->assertStringContainsString('wp_die', $e->getMessage());
 		} finally {
 			remove_all_filters('pre_http_request');
 			remove_all_filters('wp_die_handler');

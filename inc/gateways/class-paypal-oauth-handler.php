@@ -693,6 +693,8 @@ class PayPal_OAuth_Handler {
 
 			if (is_wp_error($result)) {
 				wu_log_add('paypal', sprintf('Failed to delete sandbox webhook: %s', $result->get_error_message()), LogLevel::WARNING);
+			} elseif (false === $result) {
+				wu_log_add('paypal', 'Failed to delete sandbox webhook', LogLevel::WARNING);
 			} else {
 				wu_log_add('paypal', 'Sandbox webhook deleted during disconnect');
 			}
@@ -703,6 +705,8 @@ class PayPal_OAuth_Handler {
 
 			if (is_wp_error($result)) {
 				wu_log_add('paypal', sprintf('Failed to delete live webhook: %s', $result->get_error_message()), LogLevel::WARNING);
+			} elseif (false === $result) {
+				wu_log_add('paypal', 'Failed to delete live webhook', LogLevel::WARNING);
 			} else {
 				wu_log_add('paypal', 'Live webhook deleted during disconnect');
 			}

@@ -51,6 +51,73 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 		parent::tearDown();
 	}
 
+	/**
+	 * Install an AJAX die handler so wp_send_json_* does not stop PHPUnit.
+	 *
+	 * @return callable
+	 */
+	private function install_ajax_die_handler(): callable {
+
+		add_filter('wp_doing_ajax', '__return_true');
+
+		$handler = function () {
+			return function ($message) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Test die handler rethrows the raw wp_die message.
+				throw new \WPAjaxDieContinueException((string) $message);
+			};
+		};
+
+		add_filter('wp_die_ajax_handler', $handler, 1);
+
+		return $handler;
+	}
+
+	/**
+	 * Remove an AJAX die handler installed by install_ajax_die_handler().
+	 *
+	 * @param callable $handler The handler returned by install_ajax_die_handler().
+	 * @return void
+	 */
+	private function remove_ajax_die_handler(callable $handler): void {
+
+		remove_filter('wp_doing_ajax', '__return_true');
+		remove_filter('wp_die_ajax_handler', $handler, 1);
+	}
+
+	/**
+	 * Capture and decode a wp_send_json_* response from an AJAX handler.
+	 *
+	 * @param callable $callback AJAX handler callback.
+	 * @return array
+	 */
+	private function capture_json_response(callable $callback): array {
+
+		$handler          = $this->install_ajax_die_handler();
+		$exception_caught = false;
+		$output           = '';
+
+		ob_start();
+
+		try {
+			$callback();
+		} catch (\WPAjaxDieContinueException $e) {
+			$exception_caught = true;
+		} finally {
+			$output = ob_get_clean();
+			$this->remove_ajax_die_handler($handler);
+		}
+
+		$this->assertTrue($exception_caught, 'wp_send_json_* must terminate through wp_die in AJAX context.');
+
+		$json_start  = strpos($output, '{"success"');
+		$json_output = false === $json_start ? $output : substr($output, $json_start);
+		$decoded     = json_decode($json_output, true);
+
+		$this->assertIsArray($decoded, 'Response must be valid JSON: ' . $output);
+
+		return $decoded;
+	}
+
 	// -------------------------------------------------------------------------
 	// Page properties
 	// -------------------------------------------------------------------------
@@ -151,6 +218,9 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	public function test_register_widgets_does_not_throw(): void {
+
+		set_current_screen('dashboard-network');
+
 		$this->page->register_widgets();
 		$this->assertTrue(true);
 	}
@@ -239,78 +309,174 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	 * No file → Runtime_Exception('no_file') → wp_send_json_error → WPAjaxDieStopException.
 	 */
 	public function test_handle_import_settings_modal_no_file_sends_json_error(): void {
+
 		$_FILES = [];
-		$this->expectException(\WPAjaxDieStopException::class);
-		$this->page->handle_import_settings_modal();
+
+		$response = $this->capture_json_response(
+			function () {
+				$this->page->handle_import_settings_modal();
+			}
+		);
+
+		$this->assertFalse($response['success']);
 	}
 
 	public function test_handle_import_settings_modal_upload_error_sends_json_error(): void {
-		$_FILES['import_file'] = ['name' => 'test.json', 'tmp_name' => '/tmp/x', 'error' => UPLOAD_ERR_INI_SIZE, 'size' => 0];
-		$this->expectException(\WPAjaxDieStopException::class);
-		$this->page->handle_import_settings_modal();
+
+		$_FILES['import_file'] = [
+			'name'     => 'test.json',
+			'tmp_name' => '/tmp/x',
+			'error'    => UPLOAD_ERR_INI_SIZE,
+			'size'     => 0,
+		];
+
+		$response = $this->capture_json_response(
+			function () {
+				$this->page->handle_import_settings_modal();
+			}
+		);
+
+		$this->assertFalse($response['success']);
 	}
 
 	public function test_handle_import_settings_modal_wrong_extension_sends_json_error(): void {
+
 		$tmp = tempnam(sys_get_temp_dir(), 'wu_');
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture writes a temporary upload file.
 		file_put_contents($tmp, '{}');
-		$_FILES['import_file'] = ['name' => 'test.csv', 'tmp_name' => $tmp, 'error' => UPLOAD_ERR_OK, 'size' => 2];
-		$this->expectException(\WPAjaxDieStopException::class);
+
+		$_FILES['import_file'] = [
+			'name'     => 'test.csv',
+			'tmp_name' => $tmp,
+			'error'    => UPLOAD_ERR_OK,
+			'size'     => 2,
+		];
+
 		try {
-			$this->page->handle_import_settings_modal();
+			$response = $this->capture_json_response(
+				function () {
+					$this->page->handle_import_settings_modal();
+				}
+			);
 		} finally {
-			@unlink($tmp);
+			wp_delete_file($tmp);
 		}
+
+		$this->assertFalse($response['success']);
 	}
 
 	public function test_handle_import_settings_modal_invalid_json_sends_json_error(): void {
+
 		$tmp = tempnam(sys_get_temp_dir(), 'wu_');
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture writes a temporary upload file.
 		file_put_contents($tmp, 'not-json');
-		$_FILES['import_file'] = ['name' => 'test.json', 'tmp_name' => $tmp, 'error' => UPLOAD_ERR_OK, 'size' => 8];
-		$this->expectException(\WPAjaxDieStopException::class);
+
+		$_FILES['import_file'] = [
+			'name'     => 'test.json',
+			'tmp_name' => $tmp,
+			'error'    => UPLOAD_ERR_OK,
+			'size'     => 8,
+		];
+
 		try {
-			$this->page->handle_import_settings_modal();
+			$response = $this->capture_json_response(
+				function () {
+					$this->page->handle_import_settings_modal();
+				}
+			);
 		} finally {
-			@unlink($tmp);
+			wp_delete_file($tmp);
 		}
+
+		$this->assertFalse($response['success']);
 	}
 
 	public function test_handle_import_settings_modal_wrong_plugin_sends_json_error(): void {
+
 		$tmp  = tempnam(sys_get_temp_dir(), 'wu_');
-		$data = json_encode(['plugin' => 'other', 'settings' => []]);
+		$data = wp_json_encode([
+			'plugin'   => 'other',
+			'settings' => [],
+		]);
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture writes a temporary upload file.
 		file_put_contents($tmp, $data);
-		$_FILES['import_file'] = ['name' => 'test.json', 'tmp_name' => $tmp, 'error' => UPLOAD_ERR_OK, 'size' => strlen($data)];
-		$this->expectException(\WPAjaxDieStopException::class);
+
+		$_FILES['import_file'] = [
+			'name'     => 'test.json',
+			'tmp_name' => $tmp,
+			'error'    => UPLOAD_ERR_OK,
+			'size'     => strlen($data),
+		];
+
 		try {
-			$this->page->handle_import_settings_modal();
+			$response = $this->capture_json_response(
+				function () {
+					$this->page->handle_import_settings_modal();
+				}
+			);
 		} finally {
-			@unlink($tmp);
+			wp_delete_file($tmp);
 		}
+
+		$this->assertFalse($response['success']);
 	}
 
 	public function test_handle_import_settings_modal_missing_settings_key_sends_json_error(): void {
+
 		$tmp  = tempnam(sys_get_temp_dir(), 'wu_');
-		$data = json_encode(['plugin' => 'ultimate-multisite']);
+		$data = wp_json_encode(['plugin' => 'ultimate-multisite']);
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture writes a temporary upload file.
 		file_put_contents($tmp, $data);
-		$_FILES['import_file'] = ['name' => 'test.json', 'tmp_name' => $tmp, 'error' => UPLOAD_ERR_OK, 'size' => strlen($data)];
-		$this->expectException(\WPAjaxDieStopException::class);
+
+		$_FILES['import_file'] = [
+			'name'     => 'test.json',
+			'tmp_name' => $tmp,
+			'error'    => UPLOAD_ERR_OK,
+			'size'     => strlen($data),
+		];
+
 		try {
-			$this->page->handle_import_settings_modal();
+			$response = $this->capture_json_response(
+				function () {
+					$this->page->handle_import_settings_modal();
+				}
+			);
 		} finally {
-			@unlink($tmp);
+			wp_delete_file($tmp);
 		}
+
+		$this->assertFalse($response['success']);
 	}
 
 	public function test_handle_import_settings_modal_valid_file_sends_json_success(): void {
+
 		$tmp  = tempnam(sys_get_temp_dir(), 'wu_');
-		$data = json_encode(['plugin' => 'ultimate-multisite', 'settings' => []]);
+		$data = wp_json_encode([
+			'plugin'   => 'ultimate-multisite',
+			'settings' => [],
+		]);
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture writes a temporary upload file.
 		file_put_contents($tmp, $data);
-		$_FILES['import_file'] = ['name' => 'test.json', 'tmp_name' => $tmp, 'error' => UPLOAD_ERR_OK, 'size' => strlen($data)];
-		$this->expectException(\WPAjaxDieStopException::class);
+
+		$_FILES['import_file'] = [
+			'name'     => 'test.json',
+			'tmp_name' => $tmp,
+			'error'    => UPLOAD_ERR_OK,
+			'size'     => strlen($data),
+		];
+
 		try {
-			$this->page->handle_import_settings_modal();
+			$response = $this->capture_json_response(
+				function () {
+					$this->page->handle_import_settings_modal();
+				}
+			);
 		} finally {
-			@unlink($tmp);
+			wp_delete_file($tmp);
 		}
+
+		$this->assertTrue($response['success']);
+		$this->assertArrayHasKey('redirect_url', $response['data']);
 	}
 
 	// -------------------------------------------------------------------------
@@ -324,13 +490,33 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	public function test_default_handler_with_permission_redirects(): void {
+
 		$user_id = $this->factory->user->create(['role' => 'administrator']);
 		wp_set_current_user($user_id);
 		grant_super_admin($user_id);
 		$user = get_user_by('id', $user_id);
 		$user->add_cap('wu_edit_settings');
-		$this->expectException(\WPDieException::class);
-		$this->page->default_handler();
+
+		$redirect_url = null;
+
+		$redirect_filter = function ($location) use (&$redirect_url) {
+			$redirect_url = $location;
+
+			throw new \RuntimeException('redirect_intercepted');
+		};
+
+		add_filter('wp_redirect', $redirect_filter);
+
+		try {
+			$this->page->default_handler();
+		} catch (\RuntimeException $e) {
+			$this->assertSame('redirect_intercepted', $e->getMessage());
+		} finally {
+			remove_filter('wp_redirect', $redirect_filter);
+			wp_set_current_user(0);
+		}
+
+		$this->assertNotNull($redirect_url, 'wp_redirect should have been called');
 	}
 
 	// -------------------------------------------------------------------------
@@ -342,8 +528,8 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	public function test_default_view_renders_with_section(): void {
-		$sections = $this->page->get_sections();
-		$first    = array_key_first($sections);
+		$sections   = $this->page->get_sections();
+		$first      = array_key_first($sections);
 		$reflection = new \ReflectionClass($this->page);
 		$prop       = $reflection->getProperty('current_section');
 		$prop->setAccessible(true);
@@ -366,16 +552,16 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	public function test_page_loaded_with_import_redirect_registers_action(): void {
-		$_GET['updated']    = '1';
-		$_REQUEST['tab']    = 'import-export';
+		$_GET['updated'] = '1';
+		$_REQUEST['tab'] = 'import-export';
 		$this->page->page_loaded();
 		$this->assertGreaterThan(0, has_action('wu_page_wizard_after_title'));
 		unset($_GET['updated'], $_REQUEST['tab']);
 	}
 
 	public function test_page_loaded_updated_wrong_tab_no_action(): void {
-		$_GET['updated']    = '1';
-		$_REQUEST['tab']    = 'general';
+		$_GET['updated'] = '1';
+		$_REQUEST['tab'] = 'general';
 		remove_all_actions('wu_page_wizard_after_title');
 		$this->page->page_loaded();
 		$this->assertFalse(has_action('wu_page_wizard_after_title'));
@@ -383,9 +569,9 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	public function test_page_loaded_orphaned_tables_registers_action(): void {
-		$_GET['deleted']    = '3';
-		$_GET['type']       = 'tables';
-		$_REQUEST['tab']    = 'other';
+		$_GET['deleted'] = '3';
+		$_GET['type']    = 'tables';
+		$_REQUEST['tab'] = 'other';
 		remove_all_actions('wu_page_wizard_after_title');
 		$this->page->page_loaded();
 		$this->assertGreaterThan(0, has_action('wu_page_wizard_after_title'));
@@ -393,9 +579,9 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	public function test_page_loaded_orphaned_users_registers_action(): void {
-		$_GET['deleted']    = '5';
-		$_GET['type']       = 'users';
-		$_REQUEST['tab']    = 'other';
+		$_GET['deleted'] = '5';
+		$_GET['type']    = 'users';
+		$_REQUEST['tab'] = 'other';
 		remove_all_actions('wu_page_wizard_after_title');
 		$this->page->page_loaded();
 		$this->assertGreaterThan(0, has_action('wu_page_wizard_after_title'));
@@ -403,9 +589,9 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	public function test_page_loaded_orphaned_wrong_tab_no_action(): void {
-		$_GET['deleted']    = '3';
-		$_GET['type']       = 'tables';
-		$_REQUEST['tab']    = 'general';
+		$_GET['deleted'] = '3';
+		$_GET['type']    = 'tables';
+		$_REQUEST['tab'] = 'general';
 		remove_all_actions('wu_page_wizard_after_title');
 		$this->page->page_loaded();
 		$this->assertFalse(has_action('wu_page_wizard_after_title'));
@@ -417,9 +603,9 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	public function test_orphaned_tables_success_notice(): void {
-		$_GET['deleted']    = '2';
-		$_GET['type']       = 'tables';
-		$_REQUEST['tab']    = 'other';
+		$_GET['deleted'] = '2';
+		$_GET['type']    = 'tables';
+		$_REQUEST['tab'] = 'other';
 		remove_all_actions('wu_page_wizard_after_title');
 		$this->page->page_loaded();
 		ob_start();
@@ -431,9 +617,9 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	public function test_orphaned_tables_zero_info_notice(): void {
-		$_GET['deleted']    = '0';
-		$_GET['type']       = 'tables';
-		$_REQUEST['tab']    = 'other';
+		$_GET['deleted'] = '0';
+		$_GET['type']    = 'tables';
+		$_REQUEST['tab'] = 'other';
 		remove_all_actions('wu_page_wizard_after_title');
 		$this->page->page_loaded();
 		ob_start();
@@ -444,9 +630,9 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	public function test_orphaned_users_success_notice(): void {
-		$_GET['deleted']    = '1';
-		$_GET['type']       = 'users';
-		$_REQUEST['tab']    = 'other';
+		$_GET['deleted'] = '1';
+		$_GET['type']    = 'users';
+		$_REQUEST['tab'] = 'other';
 		remove_all_actions('wu_page_wizard_after_title');
 		$this->page->page_loaded();
 		ob_start();
@@ -457,9 +643,9 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	public function test_orphaned_users_zero_info_notice(): void {
-		$_GET['deleted']    = '0';
-		$_GET['type']       = 'users';
-		$_REQUEST['tab']    = 'other';
+		$_GET['deleted'] = '0';
+		$_GET['type']    = 'users';
+		$_REQUEST['tab'] = 'other';
 		remove_all_actions('wu_page_wizard_after_title');
 		$this->page->page_loaded();
 		ob_start();
@@ -470,9 +656,9 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	public function test_orphaned_unknown_type_outputs_nothing(): void {
-		$_GET['deleted']    = '3';
-		$_GET['type']       = 'unknown_type';
-		$_REQUEST['tab']    = 'other';
+		$_GET['deleted'] = '3';
+		$_GET['type']    = 'unknown_type';
+		$_REQUEST['tab'] = 'other';
 		remove_all_actions('wu_page_wizard_after_title');
 		$this->page->page_loaded();
 		ob_start();
@@ -487,8 +673,8 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	public function test_import_redirect_notice_outputs_success(): void {
-		$_GET['updated']    = '1';
-		$_REQUEST['tab']    = 'import-export';
+		$_GET['updated'] = '1';
+		$_REQUEST['tab'] = 'import-export';
 		remove_all_actions('wu_page_wizard_after_title');
 		$this->page->page_loaded();
 		ob_start();

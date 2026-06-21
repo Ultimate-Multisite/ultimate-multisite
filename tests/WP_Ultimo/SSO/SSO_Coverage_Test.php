@@ -11,6 +11,8 @@
 
 namespace WP_Ultimo\SSO;
 
+// phpcs:disable WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Tests inspect local source files.
+
 /**
  * Coverage-focused tests for SSO class.
  *
@@ -56,6 +58,8 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		remove_all_filters('allowed_http_origins');
 		remove_all_filters('http_origin');
 		remove_all_filters('login_url');
+		remove_all_filters('wp_redirect');
+		remove_all_filters('allowed_redirect_hosts');
 		remove_all_filters('subdomain_install');
 		remove_all_filters('wu_is_same_domain');
 
@@ -238,7 +242,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	/**
 	 * Test handle_requests source structure — action routing.
 	 *
-	 * handle_requests() calls header() when an SSO action is detected,
+	 * The handle_requests() method calls header() when an SSO action is detected,
 	 * which cannot be tested in unit tests. We verify the source structure.
 	 */
 	public function test_handle_requests_source_replaces_url_path_in_action(): void {
@@ -304,34 +308,32 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test handle_server source calls server->attach().
+	 * Test handle_server source reads the broker return URL.
 	 */
-	public function test_handle_server_source_calls_server_attach(): void {
+	public function test_handle_server_source_reads_broker_return_url(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
 		$this->assertStringContainsString(
-			'$server->attach()',
+			"\$broker_url = \$this->input('return_url', '');",
 			$source,
-			'handle_server() must call $server->attach()'
+			'handle_server() must read the broker return_url before denying anonymous SSO grants'
 		);
 	}
 
 	/**
-	 * Test handle_server source handles SSO_Session_Exception with is_ssl check.
+	 * Test handle_server source redirects anonymous requests with invalid verification.
 	 */
-	public function test_handle_server_source_handles_session_exception_with_ssl_check(): void {
+	public function test_handle_server_source_redirects_anonymous_requests_with_invalid_verify(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
-		// The SSO_Session_Exception handler checks is_ssl().
-		$pattern = '/catch\s*\(\s*SSO_Session_Exception\s*\$e\s*\).*?is_ssl\(\)/s';
-		$this->assertMatchesRegularExpression(
-			$pattern,
+		$this->assertStringContainsString(
+			"\$denial_url = add_query_arg('sso_verify', 'invalid', \$broker_url);",
 			$source,
-			'handle_server() must check is_ssl() in SSO_Session_Exception handler'
+			'handle_server() must append sso_verify=invalid to anonymous SSO grant redirects'
 		);
 	}
 
@@ -366,17 +368,17 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test handle_server source includes sso_error in redirect args on error.
+	 * Test handle_server source fails closed without a broker URL.
 	 */
-	public function test_handle_server_source_includes_sso_error_in_redirect(): void {
+	public function test_handle_server_source_fails_closed_without_broker_url(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
 		$this->assertStringContainsString(
-			'sso_error',
+			'if (empty($broker_url))',
 			$source,
-			'handle_server() must include sso_error in redirect args on error'
+			'handle_server() must fail closed when anonymous SSO grant requests omit the broker URL'
 		);
 	}
 
@@ -389,7 +391,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		);
 
 		$this->assertStringContainsString(
-			"return_url",
+			'return_url',
 			$source,
 			'handle_server() must use return_url from GET params'
 		);
@@ -1017,7 +1019,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	/**
 	 * Test get_broker returns an SSO_Broker instance via filter.
 	 *
-	 * get_broker() creates an SSO_Broker with the home URL as the SSO server URL.
+	 * The get_broker() method creates an SSO_Broker with the home URL as the SSO server URL.
 	 * In the test environment, get_home_url() may return a relative path which
 	 * SSO_Broker rejects. We use the wu_sso_get_broker filter to intercept and
 	 * verify the broker was created.
@@ -1392,7 +1394,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	/**
 	 * Test handle_requests executes the body when SSO action is present.
 	 *
-	 * handle_requests() calls header() and do_action(). The do_action fires
+	 * The handle_requests() method calls header() and do_action(). The do_action fires
 	 * handle_broker() which calls exit(). We intercept via a custom exception
 	 * thrown from the wp_redirect filter to stop execution before exit().
 	 */
@@ -1406,13 +1408,14 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		);
 
 		// Set the sso query param to trigger handle_requests().
-		$_REQUEST['sso'] = 'login';
+		$_REQUEST['sso']        = 'login';
 		$_SERVER['REQUEST_URI'] = '/wp-admin/index.php?sso=login';
 
 		$sso = SSO::get_instance();
 
-		// Remove the handle_broker action to prevent exit() from being called.
-		// handle_broker() is registered at priority 20 by startup().
+		// Remove terminating SSO handlers to prevent exit() from being called.
+		// Main-site requests route to handle_server(); subsites route to handle_broker().
+		remove_action('wu_sso_handle_sso_grant', [$sso, 'handle_server']);
 		remove_action('wu_sso_handle_sso', [$sso, 'handle_broker'], 20);
 
 		// Intercept the wu_sso_handle action to verify it fires.
@@ -1426,9 +1429,11 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 
 		// handle_requests() calls header() which may warn in test env.
 		// We suppress the warning since we're testing the code path.
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Suppresses header warnings from request handling in PHPUnit.
 		@$sso->handle_requests();
 
-		// Re-register the action for other tests.
+		// Re-register the actions for other tests.
+		add_action('wu_sso_handle_sso_grant', [$sso, 'handle_server']);
 		add_action('wu_sso_handle_sso', [$sso, 'handle_broker'], 20);
 
 		unset($_REQUEST['sso']);
@@ -1448,7 +1453,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 			}
 		);
 
-		$_REQUEST['sso-grant'] = 'login';
+		$_REQUEST['sso-grant']  = 'login';
 		$_SERVER['REQUEST_URI'] = '/wp-admin/index.php?sso-grant=login';
 
 		$sso = SSO::get_instance();
@@ -1465,6 +1470,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 			}
 		);
 
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Suppresses header warnings from request handling in PHPUnit.
 		@$sso->handle_requests();
 
 		// Re-register the action for other tests.
@@ -1480,33 +1486,32 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
-	 * Test handle_server source calls server->attach().
+	 * Test handle_server source returns login-required for JSONP anonymous requests.
 	 */
-	public function test_handle_server_source_calls_attach(): void {
+	public function test_handle_server_source_returns_login_required_for_jsonp(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
 		$this->assertStringContainsString(
-			'$server->attach()',
+			"'verify'     => 'login-required'",
 			$source,
-			'handle_server() must call $server->attach()'
+			'handle_server() must tell JSONP anonymous requests that login is required'
 		);
 	}
 
 	/**
-	 * Test handle_server source handles SSO_Session_Exception with is_ssl check.
+	 * Test handle_server source delegates logged-in users.
 	 */
-	public function test_handle_server_source_handles_session_exception_ssl_check(): void {
+	public function test_handle_server_source_delegates_logged_in_users(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
-		$pattern = '/catch\s*\(\s*SSO_Session_Exception\s*\$e\s*\).*?is_ssl\(\)/s';
-		$this->assertMatchesRegularExpression(
-			$pattern,
+		$this->assertStringContainsString(
+			'$this->handle_main_site_logged_in_user($response_type);',
 			$source,
-			'handle_server() must check is_ssl() in SSO_Session_Exception handler'
+			'handle_server() must delegate logged-in main-site users to the cookie-less SSO handler'
 		);
 	}
 
@@ -1526,17 +1531,17 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test handle_server source uses 303 redirect status.
+	 * Test handle_server source uses 302 redirect status.
 	 */
-	public function test_handle_server_source_uses_303_status(): void {
+	public function test_handle_server_source_uses_302_status(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
 		$this->assertStringContainsString(
-			'303',
+			"wp_safe_redirect(\$denial_url, 302, 'WP-Ultimo-SSO');",
 			$source,
-			'handle_server() must use 303 redirect status'
+			'handle_server() must use a 302 redirect for anonymous SSO denial handoff'
 		);
 	}
 
@@ -1556,17 +1561,17 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test handle_server source includes sso_error in redirect args on error.
+	 * Test handle_server source includes invalid SSO verification in redirect args.
 	 */
-	public function test_handle_server_source_includes_sso_error(): void {
+	public function test_handle_server_source_includes_invalid_sso_verify(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
 		$this->assertStringContainsString(
-			"'sso_error'",
+			"'sso_verify', 'invalid'",
 			$source,
-			'handle_server() must include sso_error in redirect args on error'
+			'handle_server() must include sso_verify=invalid in anonymous denial redirects'
 		);
 	}
 
@@ -1601,17 +1606,17 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test handle_server source catches generic Throwable.
+	 * Test handle_server source handles missing broker URLs.
 	 */
-	public function test_handle_server_source_catches_generic_throwable(): void {
+	public function test_handle_server_source_handles_missing_broker_url(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
 		$this->assertStringContainsString(
-			'catch (\Throwable $th)',
+			'empty($broker_url)',
 			$source,
-			'handle_server() must catch generic Throwable'
+			'handle_server() must explicitly handle malformed grants without a broker URL'
 		);
 	}
 
@@ -1912,7 +1917,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 			function ($location) use (&$redirect_url) {
 				$redirect_url = $location;
 				// Throw to interrupt before exit().
-				throw new \RuntimeException('redirect_intercepted:' . $location);
+				throw new \RuntimeException('redirect_intercepted:' . esc_url_raw($location));
 			},
 			1
 		);
@@ -1920,7 +1925,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		try {
 			$sso->determine_current_user(0);
 		} catch (\RuntimeException $e) {
-			// Expected — we threw from the wp_redirect filter.
+			$this->assertStringStartsWith('redirect_intercepted:', $e->getMessage());
 		}
 
 		// Reset.
@@ -1985,7 +1990,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		try {
 			$sso->handle_auth_redirect();
 		} catch (\RuntimeException $e) {
-			// Expected — we threw from the wp_redirect filter.
+			$this->assertSame('redirect_intercepted', $e->getMessage());
 		}
 
 		restore_current_blog();
@@ -1998,39 +2003,25 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// handle_server — nocache_headers + attach path (lines 433-457)
+	// handle_server — anonymous denial and logged-in handoff paths.
 	// ------------------------------------------------------------------
 
 	/**
-	 * Test handle_server executes nocache_headers and server->attach() before exit.
+	 * Test handle_server redirects anonymous requests with invalid verification.
 	 *
 	 * Uses wp_redirect filter to throw an exception before exit() in the redirect path.
 	 */
-	public function test_handle_server_executes_attach_before_exit(): void {
+	public function test_handle_server_redirects_anonymous_request_with_invalid_verify(): void {
 		$sso = SSO::get_instance();
 
-		$attach_called = false;
-		$mock_server   = $this->createMock(\WP_Ultimo\SSO\Jasny\Server\Server::class);
-		$mock_server->method('attach')->willReturnCallback(
-			function () use (&$attach_called) {
-				$attach_called = true;
-				return 'test-verify-code';
-			}
-		);
-
-		add_filter(
-			'wu_sso_get_server',
-			function () use ($mock_server) {
-				return $mock_server;
-			}
-		);
-
-		$_GET['return_url'] = 'https://example.com/page';
+		$_REQUEST['return_url'] = home_url('/page');
 
 		// Use wp_redirect filter to throw an exception before exit().
+		$redirect_url = null;
 		add_filter(
 			'wp_redirect',
-			function ($location) {
+			function ($location) use (&$redirect_url) {
+				$redirect_url = $location;
 				throw new \RuntimeException('redirect_intercepted');
 			},
 			1
@@ -2039,26 +2030,25 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		try {
 			$sso->handle_server('redirect');
 		} catch (\RuntimeException $e) {
-			// Expected — we threw from the wp_redirect filter.
+			$this->assertSame('redirect_intercepted', $e->getMessage());
 		}
 
-		unset($_GET['return_url']);
+		unset($_REQUEST['return_url']);
 
-		$this->assertTrue($attach_called, 'handle_server() must call server->attach() before redirect');
+		$this->assertNotNull($redirect_url, 'handle_server() must redirect anonymous SSO grant requests back to the broker');
+		$this->assertStringContainsString('sso_verify=invalid', $redirect_url);
 	}
 
 	/**
-	 * Test handle_server with SSO_Session_Exception on non-SSL executes before exit.
+	 * Test handle_server does not attach anonymous sessions before redirecting.
 	 *
 	 * Uses wp_redirect filter to throw an exception before exit().
 	 */
-	public function test_handle_server_session_exception_non_ssl_executes(): void {
+	public function test_handle_server_anonymous_redirect_does_not_attach(): void {
 		$sso = SSO::get_instance();
 
 		$mock_server = $this->createMock(\WP_Ultimo\SSO\Jasny\Server\Server::class);
-		$mock_server->method('attach')->willThrowException(
-			new \WP_Ultimo\SSO\Exception\SSO_Session_Exception('Session error', 401)
-		);
+		$mock_server->expects($this->never())->method('attach');
 
 		add_filter(
 			'wu_sso_get_server',
@@ -2067,7 +2057,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 			}
 		);
 
-		$_GET['return_url'] = 'https://example.com/page';
+		$_REQUEST['return_url'] = home_url('/page');
 
 		$redirect_url = null;
 		add_filter(
@@ -2082,41 +2072,40 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		try {
 			$sso->handle_server('redirect');
 		} catch (\RuntimeException $e) {
-			// Expected.
+			$this->assertSame('redirect_intercepted', $e->getMessage());
 		}
 
-		unset($_GET['return_url']);
+		unset($_REQUEST['return_url']);
 
-		// On non-SSL, the exception sets verification_code to 'must-redirect'.
-		// The redirect URL may vary based on test environment state.
-		$this->assertTrue(true, 'handle_server() SSO_Session_Exception non-SSL path executed');
+		$this->assertNotNull($redirect_url, 'handle_server() must redirect anonymous requests without attaching a server session');
 	}
 
 	/**
-	 * Test handle_server with generic Throwable executes before exit.
+	 * Test handle_server redirects logged-in users with a cookie-less token.
 	 *
 	 * Uses wp_redirect filter to throw an exception before exit().
 	 */
-	public function test_handle_server_generic_throwable_executes(): void {
+	public function test_handle_server_redirects_logged_in_user_with_cookie_less_token(): void {
 		$sso = SSO::get_instance();
 
-		$mock_server = $this->createMock(\WP_Ultimo\SSO\Jasny\Server\Server::class);
-		$mock_server->method('attach')->willThrowException(
-			new \RuntimeException('Generic error', 500)
-		);
+		$user_id = self::factory()->user->create();
+		wp_set_current_user($user_id);
+
+		$_REQUEST['return_url'] = 'https://customer.example.net/page';
 
 		add_filter(
-			'wu_sso_get_server',
-			function () use ($mock_server) {
-				return $mock_server;
+			'allowed_redirect_hosts',
+			function ($hosts) {
+				$hosts[] = 'customer.example.net';
+				return $hosts;
 			}
 		);
 
-		$_GET['return_url'] = 'https://example.com/page';
-
+		$redirect_url = null;
 		add_filter(
 			'wp_redirect',
-			function ($location) {
+			function ($location) use (&$redirect_url) {
+				$redirect_url = $location;
 				throw new \RuntimeException('redirect_intercepted');
 			},
 			1
@@ -2125,13 +2114,14 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		try {
 			$sso->handle_server('redirect');
 		} catch (\RuntimeException $e) {
-			// Expected.
+			$this->assertSame('redirect_intercepted', $e->getMessage());
 		}
 
-		unset($_GET['return_url']);
+		wp_set_current_user(0);
+		unset($_REQUEST['return_url']);
 
-		// The generic Throwable handler sets error and redirects.
-		$this->assertTrue(true, 'handle_server() generic Throwable path executed');
+		$this->assertNotNull($redirect_url, 'handle_server() must redirect logged-in users back to the broker');
+		$this->assertStringContainsString('wu_sso_token=', $redirect_url);
 	}
 
 	// ------------------------------------------------------------------
@@ -2166,7 +2156,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		add_filter(
 			'wp_redirect',
 			function ($location) {
-				throw new \RuntimeException('redirect_intercepted');
+				throw new \RuntimeException('redirect_intercepted:' . esc_url_raw($location));
 			},
 			1
 		);
@@ -2174,7 +2164,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		try {
 			$sso->handle_broker('redirect');
 		} catch (\RuntimeException $e) {
-			// Expected.
+			$this->assertInstanceOf(\RuntimeException::class, $e);
 		}
 
 		restore_current_blog();
@@ -2227,7 +2217,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		add_filter(
 			'wp_redirect',
 			function ($location) {
-				throw new \RuntimeException('redirect_intercepted');
+				throw new \RuntimeException('redirect_intercepted:' . esc_url_raw($location));
 			},
 			1
 		);
@@ -2235,7 +2225,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		try {
 			$sso->handle_broker('redirect');
 		} catch (\RuntimeException $e) {
-			// Expected.
+			$this->assertStringStartsWith('redirect_intercepted:', $e->getMessage());
 		}
 
 		restore_current_blog();
@@ -2279,7 +2269,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		add_filter(
 			'wp_redirect',
 			function ($location) {
-				throw new \RuntimeException('redirect_intercepted');
+				throw new \RuntimeException('redirect_intercepted:' . esc_url_raw($location));
 			},
 			1
 		);
@@ -2287,7 +2277,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		try {
 			$sso->handle_broker('redirect');
 		} catch (\RuntimeException $e) {
-			// Expected.
+			$this->assertStringStartsWith('redirect_intercepted:', $e->getMessage());
 		}
 
 		restore_current_blog();
