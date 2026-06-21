@@ -72,10 +72,26 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		delete_site_transient('wu_paypal_rest_access_token_sandbox');
 		delete_site_transient('wu_paypal_rest_access_token_live');
 
-		// Make wp_send_json_* use wp_die() (throwable) instead of die (not catchable)
+		// Make wp_send_json_* use wp_die() (throwable) instead of die (not catchable).
 		add_filter('wp_doing_ajax', '__return_true');
+		add_filter(
+			'wp_die_ajax_handler',
+			function () {
+				return function ($message) {
+					// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Test die handler rethrows the raw wp_die message.
+					throw new \WPDieException((string) $message);
+				};
+			},
+			1
+		);
+
+		$this->delegate_standalone_ajax_mocks_to_wordpress();
 
 		$this->handler = PayPal_OAuth_Handler::get_instance();
+
+		$reflection     = new \ReflectionClass($this->handler);
+		$test_mode_prop = $reflection->getProperty('test_mode');
+		$test_mode_prop->setValue($this->handler, true);
 	}
 
 	/**
@@ -87,6 +103,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		remove_all_filters('pre_http_request');
 		remove_all_filters('wp_redirect');
 		remove_all_filters('wp_doing_ajax');
+		remove_all_filters('wp_die_ajax_handler');
 
 		delete_site_transient('wu_paypal_oauth_enabled');
 		delete_site_transient('wu_paypal_oauth_notice');
@@ -101,6 +118,69 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		wp_set_current_user(0);
 
 		parent::tearDown();
+	}
+
+	/**
+	 * Set the AJAX nonce used by the PayPal OAuth endpoints.
+	 *
+	 * @param string|null $sandbox_mode Optional sandbox mode POST value.
+	 * @return void
+	 */
+	private function set_ajax_nonce(?string $sandbox_mode = null): void {
+
+		$nonce = wp_create_nonce('wu_paypal_oauth');
+
+		$_POST['nonce']    = $nonce;
+		$_REQUEST['nonce'] = $nonce;
+
+		if (null !== $sandbox_mode) {
+			$_POST['sandbox_mode'] = $sandbox_mode;
+		}
+	}
+
+	/**
+	 * Delegate namespaced standalone AJAX mocks back to WordPress when loaded.
+	 *
+	 * The standalone OAuth test file defines namespaced mock functions in this
+	 * namespace. When PHPUnit loads that file before this integration test, the
+	 * production class resolves unqualified calls like wp_send_json_error() to the
+	 * namespaced mock, whose fallback uses raw exit. Delegate only the AJAX-related
+	 * mocks needed here so wp_send_json_* remains interceptable through wp_die().
+	 *
+	 * @return void
+	 */
+	private function delegate_standalone_ajax_mocks_to_wordpress(): void {
+
+		$standalone_class = __NAMESPACE__ . '\\PayPal_OAuth_Handler_Standalone_Test';
+
+		if (! class_exists($standalone_class, false)) {
+			return;
+		}
+
+		$reflection = new \ReflectionClass($standalone_class);
+
+		if (! $reflection->hasProperty('mock_functions')) {
+			return;
+		}
+
+		$property = $reflection->getProperty('mock_functions');
+		$property->setAccessible(true);
+
+		$mock_functions = (array) $property->getValue();
+
+		$mock_functions['check_ajax_referer'] = static function ($action, $query_arg = false) {
+			return \check_ajax_referer($action, $query_arg);
+		};
+
+		$mock_functions['current_user_can'] = static function ($capability) {
+			return \current_user_can($capability);
+		};
+
+		$mock_functions['wp_send_json_error'] = static function ($data = null, $status_code = null) {
+			return \wp_send_json_error($data, $status_code);
+		};
+
+		$property->setValue(null, $mock_functions);
 	}
 
 	// =========================================================================
@@ -317,6 +397,8 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 	 */
 	public function test_init_registers_hooks(): void {
 
+		add_filter('wu_paypal_oauth_enabled', '__return_true');
+
 		$this->handler->init();
 
 		$this->assertNotFalse(has_action('wp_ajax_wu_paypal_connect', [$this->handler, 'ajax_initiate_oauth']));
@@ -452,7 +534,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/status') !== false) {
 					return new \WP_Error('http_request_failed', 'Connection refused');
 				}
@@ -481,10 +563,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/status') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(['oauth_enabled' => true]),
 						'headers'  => [],
 						'cookies'  => [],
@@ -516,10 +601,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/status') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(['oauth_enabled' => false]),
 						'headers'  => [],
 						'cookies'  => [],
@@ -680,7 +768,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/verify') !== false) {
 					return new \WP_Error('http_request_failed', 'Connection refused');
 				}
@@ -705,10 +793,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/verify') !== false) {
 					return [
-						'response' => ['code' => 400, 'message' => 'Bad Request'],
+						'response' => [
+							'code'    => 400,
+							'message' => 'Bad Request',
+						],
 						'body'     => wp_json_encode(['error' => 'Invalid tracking ID']),
 						'headers'  => [],
 						'cookies'  => [],
@@ -738,10 +829,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/verify') !== false) {
 					return [
-						'response' => ['code' => 500, 'message' => 'Internal Server Error'],
+						'response' => [
+							'code'    => 500,
+							'message' => 'Internal Server Error',
+						],
 						'body'     => wp_json_encode([]),
 						'headers'  => [],
 						'cookies'  => [],
@@ -776,10 +870,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( $merchant_data ) {
+			function ($preempt, $args, $url) use ($merchant_data) {
 				if (strpos($url, '/oauth/verify') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode($merchant_data),
 						'headers'  => [],
 						'cookies'  => [],
@@ -922,7 +1019,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/verify') !== false) {
 					return new \WP_Error('http_request_failed', 'Connection refused');
 				}
@@ -969,10 +1066,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/verify') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(
 							[
 								'paymentsReceivable' => true,
@@ -993,8 +1093,8 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		// Throw WPDieException on redirect to prevent bare exit() from terminating the process
 		add_filter(
 			'wp_redirect',
-			function ( $location ) {
-				throw new \WPDieException('redirect:' . $location);
+			function ($location) {
+				throw new \WPDieException('redirect:' . esc_url_raw((string) $location));
 			}
 		);
 
@@ -1040,10 +1140,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/verify') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(['paymentsReceivable' => true]),
 						'headers'  => [],
 						'cookies'  => [],
@@ -1058,15 +1161,15 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'wp_redirect',
-			function ( $location ) {
-				throw new \WPDieException('redirect:' . $location);
+			function ($location) {
+				throw new \WPDieException('redirect:' . esc_url_raw((string) $location));
 			}
 		);
 
 		try {
 			$this->handler->handle_oauth_return();
 		} catch (\WPDieException $e) {
-			// Expected
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 
 		$this->assertEquals('LIVE_MERCHANT_SAVE', wu_get_setting('paypal_rest_live_merchant_id'));
@@ -1100,10 +1203,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/verify') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(
 							[
 								'paymentsReceivable' => true,
@@ -1123,15 +1229,15 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'wp_redirect',
-			function ( $location ) {
-				throw new \WPDieException('redirect:' . $location);
+			function ($location) {
+				throw new \WPDieException('redirect:' . esc_url_raw((string) $location));
 			}
 		);
 
 		try {
 			$this->handler->handle_oauth_return();
 		} catch (\WPDieException $e) {
-			// Expected
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 
 		$this->assertEquals(true, wu_get_setting('paypal_rest_sandbox_payments_receivable'));
@@ -1151,12 +1257,11 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		wp_set_current_user($user_id);
 		grant_super_admin($user_id);
 
-		$_POST['nonce'] = wp_create_nonce('wu_paypal_oauth');
-		$_REQUEST['nonce'] = $_POST['nonce'];
+		$this->set_ajax_nonce();
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/init') !== false) {
 					return new \WP_Error('http_request_failed', 'Connection refused');
 				}
@@ -1170,7 +1275,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		try {
 			$this->handler->ajax_initiate_oauth();
 		} catch (\WPDieException $e) {
-			// Expected — wp_send_json_error calls wp_die
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 		$output = ob_get_clean();
 
@@ -1192,7 +1297,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		grant_super_admin($user_id);
 
 		// No nonce set
-		$_POST = [];
+		$_POST    = [];
 		$_REQUEST = [];
 
 		$this->expectException(\WPDieException::class);
@@ -1210,7 +1315,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		grant_super_admin($user_id);
 
 		// No nonce set
-		$_POST = [];
+		$_POST    = [];
 		$_REQUEST = [];
 
 		$this->expectException(\WPDieException::class);
@@ -1227,15 +1332,17 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		wp_set_current_user($user_id);
 		grant_super_admin($user_id);
 
-		$_POST['nonce'] = wp_create_nonce('wu_paypal_oauth');
-		$_REQUEST['nonce'] = $_POST['nonce'];
+		$this->set_ajax_nonce();
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/init') !== false) {
 					return [
-						'response' => ['code' => 500, 'message' => 'Internal Server Error'],
+						'response' => [
+							'code'    => 500,
+							'message' => 'Internal Server Error',
+						],
 						'body'     => wp_json_encode(['error' => 'Proxy unavailable']),
 						'headers'  => [],
 						'cookies'  => [],
@@ -1252,7 +1359,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		try {
 			$this->handler->ajax_initiate_oauth();
 		} catch (\WPDieException $e) {
-			// Expected
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 		$output = ob_get_clean();
 
@@ -1273,15 +1380,17 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		wp_set_current_user($user_id);
 		grant_super_admin($user_id);
 
-		$_POST['nonce'] = wp_create_nonce('wu_paypal_oauth');
-		$_REQUEST['nonce'] = $_POST['nonce'];
+		$this->set_ajax_nonce();
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/init') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(['trackingId' => 'TRACK123']), // No actionUrl
 						'headers'  => [],
 						'cookies'  => [],
@@ -1298,7 +1407,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		try {
 			$this->handler->ajax_initiate_oauth();
 		} catch (\WPDieException $e) {
-			// Expected
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 		$output = ob_get_clean();
 
@@ -1319,18 +1428,19 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		wp_set_current_user($user_id);
 		grant_super_admin($user_id);
 
-		$_POST['nonce']        = wp_create_nonce('wu_paypal_oauth');
-		$_REQUEST['nonce']     = $_POST['nonce'];
-		$_POST['sandbox_mode'] = '1';
+		$this->set_ajax_nonce('1');
 
 		$tracking_id = 'TRACK_' . uniqid();
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( $tracking_id ) {
+			function ($preempt, $args, $url) use ($tracking_id) {
 				if (strpos($url, '/oauth/init') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(
 							[
 								'actionUrl'  => 'https://paypal.com/connect?token=abc',
@@ -1352,7 +1462,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		try {
 			$this->handler->ajax_initiate_oauth();
 		} catch (\WPDieException $e) {
-			// Expected — wp_send_json_success calls wp_die
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 		$output = ob_get_clean();
 
@@ -1381,18 +1491,19 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		wp_set_current_user($user_id);
 		grant_super_admin($user_id);
 
-		$_POST['nonce']        = wp_create_nonce('wu_paypal_oauth');
-		$_REQUEST['nonce']     = $_POST['nonce'];
-		$_POST['sandbox_mode'] = '0'; // Live mode
+		$this->set_ajax_nonce('0'); // Live mode.
 
 		$tracking_id = 'TRACK_LIVE_' . uniqid();
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( $tracking_id ) {
+			function ($preempt, $args, $url) use ($tracking_id) {
 				if (strpos($url, '/oauth/init') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(
 							[
 								'actionUrl'  => 'https://paypal.com/connect?token=xyz',
@@ -1414,7 +1525,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		try {
 			$this->handler->ajax_initiate_oauth();
 		} catch (\WPDieException $e) {
-			// Expected
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 		ob_get_clean();
 
@@ -1449,15 +1560,17 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		set_site_transient('wu_paypal_rest_access_token_sandbox', 'TOKEN123', HOUR_IN_SECONDS);
 		set_site_transient('wu_paypal_rest_access_token_live', 'LIVE_TOKEN', HOUR_IN_SECONDS);
 
-		$_POST['nonce'] = wp_create_nonce('wu_paypal_oauth');
-		$_REQUEST['nonce'] = $_POST['nonce'];
+		$this->set_ajax_nonce();
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/deauthorize') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => '',
 						'headers'  => [],
 						'cookies'  => [],
@@ -1474,7 +1587,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		try {
 			$this->handler->ajax_disconnect();
 		} catch (\WPDieException $e) {
-			// Expected — wp_send_json_success calls wp_die
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 		$output = ob_get_clean();
 
@@ -1508,15 +1621,17 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		wu_save_setting('paypal_rest_sandbox_webhook_id', 'WH-SANDBOX-123');
 		wu_save_setting('paypal_rest_live_webhook_id', 'WH-LIVE-456');
 
-		$_POST['nonce'] = wp_create_nonce('wu_paypal_oauth');
-		$_REQUEST['nonce'] = $_POST['nonce'];
+		$this->set_ajax_nonce();
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/deauthorize') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => '',
 						'headers'  => [],
 						'cookies'  => [],
@@ -1533,7 +1648,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		try {
 			$this->handler->ajax_disconnect();
 		} catch (\WPDieException $e) {
-			// Expected
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 		ob_get_clean();
 
@@ -1575,10 +1690,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		// Mock successful merchant verification
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/verify') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(['paymentsReceivable' => true]),
 						'headers'  => [],
 						'cookies'  => [],
@@ -1595,7 +1713,9 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		$gateway_called = false;
 		add_filter(
 			'wu_get_gateway',
-			function ( $gateway ) use ( &$gateway_called ) {
+			function ($gateway) use (&$gateway_called) {
+				unset($gateway);
+
 				$gateway_called = true;
 				// Return null to simulate gateway not found (webhook install will fail gracefully)
 				return null;
@@ -1605,15 +1725,15 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		// Intercept redirect
 		add_filter(
 			'wp_redirect',
-			function ( $location ) {
-				throw new \WPDieException('redirect:' . $location);
+			function ($location) {
+				throw new \WPDieException('redirect:' . esc_url_raw((string) $location));
 			}
 		);
 
 		try {
 			$this->handler->handle_oauth_return();
 		} catch (\WPDieException $e) {
-			// Expected
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 
 		// Verify gateway was attempted to be retrieved for webhook installation
@@ -1635,14 +1755,15 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		wu_save_setting('paypal_rest_sandbox_webhook_id', 'WH-SANDBOX-DELETE');
 		wu_save_setting('paypal_rest_live_webhook_id', 'WH-LIVE-DELETE');
 
-		$_POST['nonce'] = wp_create_nonce('wu_paypal_oauth');
-		$_REQUEST['nonce'] = $_POST['nonce'];
+		$this->set_ajax_nonce();
 
 		// Track if gateway was called for webhook deletion
 		$gateway_calls = 0;
 		add_filter(
 			'wu_get_gateway',
-			function ( $gateway ) use ( &$gateway_calls ) {
+			function ($gateway) use (&$gateway_calls) {
+				unset($gateway);
+
 				$gateway_calls++;
 				// Return null to simulate gateway not found
 				return null;
@@ -1652,10 +1773,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		// Mock deauthorize request
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/deauthorize') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => '',
 						'headers'  => [],
 						'cookies'  => [],
@@ -1672,7 +1796,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		try {
 			$this->handler->ajax_disconnect();
 		} catch (\WPDieException $e) {
-			// Expected
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 		ob_get_clean();
 
@@ -1712,10 +1836,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		// Mock successful verification
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/verify') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(['paymentsReceivable' => true]),
 						'headers'  => [],
 						'cookies'  => [],
@@ -1730,15 +1857,15 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'wp_redirect',
-			function ( $location ) {
-				throw new \WPDieException('redirect:' . $location);
+			function ($location) {
+				throw new \WPDieException('redirect:' . esc_url_raw((string) $location));
 			}
 		);
 
 		try {
 			$this->handler->handle_oauth_return();
 		} catch (\WPDieException $e) {
-			// Expected
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 
 		// Verify merchant ID was saved but email is empty
@@ -1755,18 +1882,20 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		wp_set_current_user($user_id);
 		grant_super_admin($user_id);
 
-		$_POST['nonce'] = wp_create_nonce('wu_paypal_oauth');
-		$_REQUEST['nonce'] = $_POST['nonce'];
+		$this->set_ajax_nonce();
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/init') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(
 							[
-								'actionUrl'  => 'https://paypal.com/connect',
+								'actionUrl' => 'https://paypal.com/connect',
 								// trackingId is missing/empty
 							]
 						),
@@ -1785,7 +1914,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		try {
 			$this->handler->ajax_initiate_oauth();
 		} catch (\WPDieException $e) {
-			// Expected
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 		$output = ob_get_clean();
 
@@ -1827,10 +1956,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		// Mock verification with minimal response (no status fields)
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/oauth/verify') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode([]), // Empty response
 						'headers'  => [],
 						'cookies'  => [],
@@ -1845,21 +1977,21 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'wp_redirect',
-			function ( $location ) {
-				throw new \WPDieException('redirect:' . $location);
+			function ($location) {
+				throw new \WPDieException('redirect:' . esc_url_raw((string) $location));
 			}
 		);
 
 		try {
 			$this->handler->handle_oauth_return();
 		} catch (\WPDieException $e) {
-			// Expected
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 
-		// Verify basic fields were saved but optional status fields were not
+		// Verify basic fields were saved and optional status fields default to enabled.
 		$this->assertEquals('MERCHANT_MIN_STATUS', wu_get_setting('paypal_rest_sandbox_merchant_id'));
-		$this->assertEmpty(wu_get_setting('paypal_rest_sandbox_payments_receivable'));
-		$this->assertEmpty(wu_get_setting('paypal_rest_sandbox_email_confirmed'));
+		$this->assertTrue(wu_get_setting('paypal_rest_sandbox_payments_receivable'));
+		$this->assertTrue(wu_get_setting('paypal_rest_sandbox_email_confirmed'));
 	}
 
 	/**
@@ -1873,10 +2005,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/status') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => '', // Empty body
 						'headers'  => [],
 						'cookies'  => [],
@@ -1906,10 +2041,13 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if (strpos($url, '/status') !== false) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => '{invalid json', // Malformed JSON
 						'headers'  => [],
 						'cookies'  => [],
@@ -1937,11 +2075,14 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$captured_body ) {
+			function ($preempt, $args, $url) use (&$captured_body) {
 				if (strpos($url, '/oauth/verify') !== false) {
 					$captured_body = json_decode($args['body'], true);
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(['paymentsReceivable' => true]),
 						'headers'  => [],
 						'cookies'  => [],
@@ -1955,7 +2096,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		);
 
 		$reflection = new \ReflectionClass($this->handler);
-		$method = $reflection->getMethod('verify_merchant_via_proxy');
+		$method     = $reflection->getMethod('verify_merchant_via_proxy');
 
 		// Test with test_mode = true (default)
 		$method->invoke($this->handler, 'MERCHANT123', 'TRACKING456');
@@ -1984,19 +2125,20 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		wp_set_current_user($user_id);
 		grant_super_admin($user_id);
 
-		$_POST['nonce'] = wp_create_nonce('wu_paypal_oauth');
-		$_REQUEST['nonce'] = $_POST['nonce'];
-		$_POST['sandbox_mode'] = '0'; // Live mode
+		$this->set_ajax_nonce('0'); // Live mode.
 
 		$captured_body = null;
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$captured_body ) {
+			function ($preempt, $args, $url) use (&$captured_body) {
 				if (strpos($url, '/oauth/init') !== false) {
 					$captured_body = json_decode($args['body'], true);
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(
 							[
 								'actionUrl'  => 'https://paypal.com/connect',
@@ -2018,7 +2160,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		try {
 			$this->handler->ajax_initiate_oauth();
 		} catch (\WPDieException $e) {
-			// Expected
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 		ob_get_clean();
 
@@ -2039,22 +2181,24 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		wp_set_current_user($user_id);
 		grant_super_admin($user_id);
 
-		$_POST['nonce'] = wp_create_nonce('wu_paypal_oauth');
-		$_REQUEST['nonce'] = $_POST['nonce'];
+		$this->set_ajax_nonce();
 
-		$captured_body = null;
+		$captured_body      = null;
 		$deauthorize_called = false;
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$captured_body, &$deauthorize_called ) {
+			function ($preempt, $args, $url) use (&$captured_body, &$deauthorize_called) {
 				if (strpos($url, '/deauthorize') !== false) {
 					$deauthorize_called = true;
-					$captured_body = json_decode($args['body'], true);
+					$captured_body      = json_decode($args['body'], true);
 					// Verify it's non-blocking
 					$this->assertFalse($args['blocking']);
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => '',
 						'headers'  => [],
 						'cookies'  => [],
@@ -2071,7 +2215,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		try {
 			$this->handler->ajax_disconnect();
 		} catch (\WPDieException $e) {
-			// Expected
+			$this->assertInstanceOf(\WPDieException::class, $e);
 		}
 		ob_get_clean();
 

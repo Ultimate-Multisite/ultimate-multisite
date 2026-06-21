@@ -573,8 +573,8 @@ class Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 * default_handler() calls wp_safe_redirect() to the next section URL.
 	 *
 	 * wp_safe_redirect() in the test environment triggers a "headers already sent"
-	 * PHP error and then calls exit. We verify the redirect target by intercepting
-	 * the wp_redirect filter, which fires before the header is sent.
+	 * PHP error and then default_handler() calls exit. We verify the redirect
+	 * target by throwing from the wp_redirect filter before the exit statement.
 	 */
 	public function test_default_handler_redirects_to_next_section(): void {
 		$_GET['step'] = 'step-one';
@@ -585,17 +585,18 @@ class Wizard_Admin_Page_Test extends WP_UnitTestCase {
 			'wp_redirect',
 			function ($location) use (&$redirect_url) {
 				$redirect_url = $location;
-				// Return false to prevent the actual redirect (and the headers-sent error).
-				return false;
+
+				throw new \RuntimeException('redirect_intercepted');
 			}
 		);
 
-		// default_handler calls wp_safe_redirect() which calls wp_redirect().
-		// With the filter returning false, wp_redirect() returns false and does
-		// NOT call exit, so the method returns normally.
-		$this->page->default_handler();
-
-		remove_all_filters('wp_redirect');
+		try {
+			$this->page->default_handler();
+		} catch (\RuntimeException $e) {
+			$this->assertSame('redirect_intercepted', $e->getMessage());
+		} finally {
+			remove_all_filters('wp_redirect');
+		}
 
 		$this->assertNotNull($redirect_url, 'wp_redirect should have been called');
 		$this->assertStringContainsString('step=step-two', $redirect_url);

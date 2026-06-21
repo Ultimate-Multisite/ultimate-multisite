@@ -1103,7 +1103,13 @@ class PayPal_Gateway extends Base_PayPal_Gateway {
 						wu_do_event('payment_failed', $payload);
 					}
 
-					die('Subscription payment failed');
+					wp_die(
+						esc_html__('Subscription payment failed', 'ultimate-multisite'),
+						'',
+						[
+							'response' => 200,
+						]
+					);
 				} elseif ('pending' === strtolower((string) $posted['payment_status'])) {
 
 					// Recurring payment pending (such as echeck).
@@ -1111,7 +1117,13 @@ class PayPal_Gateway extends Base_PayPal_Gateway {
 					// translators: %1$s: Transaction ID, %2$s: Pending reason
 					$membership->add_note(['text' => sprintf(__('Transaction ID %1$s is pending in PayPal for reason: %2$s', 'ultimate-multisite'), $posted['txn_id'], $pending_reason)]);
 
-					die('Subscription payment pending');
+					wp_die(
+						esc_html__('Subscription payment pending', 'ultimate-multisite'),
+						'',
+						[
+							'response' => 200,
+						]
+					);
 				}
 
 				$payment_data['transaction_type'] = 'renewal';

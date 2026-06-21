@@ -42,12 +42,112 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 			$_REQUEST['dry-run'],
 			$_REQUEST['step'],
 			$_REQUEST['nonce'],
+			$_REQUEST['_wpnonce'],
 			$_GET['action'],
 			$_GET['nonce'],
 			$_GET['_wpnonce']
 		);
 
 		parent::tearDown();
+	}
+
+	/**
+	 * Install an AJAX die handler so wp_send_json_* does not stop PHPUnit.
+	 *
+	 * @return callable
+	 */
+	private function install_ajax_die_handler(): callable {
+
+		add_filter('wp_doing_ajax', '__return_true');
+
+		$handler = function () {
+			return function ($message) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Test die handler rethrows the raw wp_die message.
+				throw new \WPAjaxDieContinueException((string) $message);
+			};
+		};
+
+		add_filter('wp_die_ajax_handler', $handler, 1);
+
+		return $handler;
+	}
+
+	/**
+	 * Remove an AJAX die handler installed by install_ajax_die_handler().
+	 *
+	 * @param callable $handler The handler returned by install_ajax_die_handler().
+	 * @return void
+	 */
+	private function remove_ajax_die_handler(callable $handler): void {
+
+		remove_filter('wp_doing_ajax', '__return_true');
+		remove_filter('wp_die_ajax_handler', $handler, 1);
+	}
+
+	/**
+	 * Capture and decode a wp_send_json_* response from an AJAX handler.
+	 *
+	 * @param callable $callback AJAX handler callback.
+	 * @return array
+	 */
+	private function capture_json_response(callable $callback): array {
+
+		$handler          = $this->install_ajax_die_handler();
+		$exception_caught = false;
+		$output           = '';
+
+		ob_start();
+
+		try {
+			$callback();
+		} catch (\WPAjaxDieContinueException $e) {
+			$exception_caught = true;
+		} finally {
+			$output = ob_get_clean();
+			$this->remove_ajax_die_handler($handler);
+		}
+
+		$this->assertTrue($exception_caught, 'wp_send_json_* must terminate through wp_die in AJAX context.');
+
+		$json_start  = strpos($output, '{"success"');
+		$json_output = false === $json_start ? $output : substr($output, $json_start);
+		$decoded     = json_decode($json_output, true);
+
+		$this->assertIsArray($decoded, 'Response must be valid JSON: ' . $output);
+
+		return $decoded;
+	}
+
+	/**
+	 * Capture a wp_safe_redirect() target before the handler exits.
+	 *
+	 * @param callable $callback Redirecting handler callback.
+	 * @return string
+	 */
+	private function capture_redirect(callable $callback): string {
+
+		$redirect_url = null;
+
+		add_filter(
+			'wp_redirect',
+			function ($location) use (&$redirect_url) {
+				$redirect_url = $location;
+
+				throw new \RuntimeException('redirect_intercepted');
+			}
+		);
+
+		try {
+			$callback();
+		} catch (\RuntimeException $e) {
+			$this->assertSame('redirect_intercepted', $e->getMessage());
+		} finally {
+			remove_all_filters('wp_redirect');
+		}
+
+		$this->assertNotNull($redirect_url, 'wp_redirect should have been called');
+
+		return $redirect_url;
 	}
 
 	// -------------------------------------------------------------------------
@@ -357,17 +457,33 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	public function test_setup_install_sends_json_error_without_permission(): void {
+
 		wp_set_current_user(0);
-		$this->expectException(\WPAjaxDieStopException::class);
-		$this->page->setup_install();
+
+		$response = $this->capture_json_response(
+			function () {
+				$this->page->setup_install();
+			}
+		);
+
+		$this->assertFalse($response['success']);
 	}
 
 	public function test_setup_install_with_permission_sends_json_success(): void {
+
 		$user_id = $this->factory->user->create(['role' => 'administrator']);
 		wp_set_current_user($user_id);
 		grant_super_admin($user_id);
-		$this->expectException(\WPAjaxDieStopException::class);
-		$this->page->setup_install();
+
+		$_REQUEST['_wpnonce'] = wp_create_nonce('wu_setup_install');
+
+		$response = $this->capture_json_response(
+			function () {
+				$this->page->setup_install();
+			}
+		);
+
+		$this->assertTrue($response['success']);
 	}
 
 	// -------------------------------------------------------------------------
@@ -375,8 +491,12 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	public function test_handle_checks_redirects(): void {
-		$this->expectException(\WPDieException::class);
-		$this->page->handle_checks();
+
+		$this->capture_redirect(
+			function () {
+				$this->page->handle_checks();
+			}
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -390,15 +510,25 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	public function test_handle_save_settings_your_company_step_redirects(): void {
+
 		$_REQUEST['step'] = 'your-company';
-		$this->expectException(\WPDieException::class);
-		$this->page->handle_save_settings();
+
+		$this->capture_redirect(
+			function () {
+				$this->page->handle_save_settings();
+			}
+		);
 	}
 
 	public function test_handle_save_settings_payment_gateways_step_redirects(): void {
+
 		$_REQUEST['step'] = 'payment-gateways';
-		$this->expectException(\WPDieException::class);
-		$this->page->handle_save_settings();
+
+		$this->capture_redirect(
+			function () {
+				$this->page->handle_save_settings();
+			}
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -406,14 +536,23 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	public function test_handle_migration_redirects(): void {
-		$this->expectException(\WPDieException::class);
-		$this->page->handle_migration();
+
+		$this->capture_redirect(
+			function () {
+				$this->page->handle_migration();
+			}
+		);
 	}
 
 	public function test_handle_migration_no_dry_run_redirects(): void {
+
 		$_REQUEST['dry-run'] = '0';
-		$this->expectException(\WPDieException::class);
-		$this->page->handle_migration();
+
+		$this->capture_redirect(
+			function () {
+				$this->page->handle_migration();
+			}
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -421,6 +560,20 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	public function test_section_test_outputs_content(): void {
+
+		$reflection = new \ReflectionClass($this->page);
+		$property   = $reflection->getProperty('integration');
+		$property->setAccessible(true);
+		$property->setValue(
+			$this->page,
+			new class() {
+				public function get_title(): string {
+
+					return 'Test Integration';
+				}
+			}
+		);
+
 		ob_start();
 		$this->page->section_test();
 		$output = ob_get_clean();
@@ -498,8 +651,13 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 		// Capability check fires before nonce check, so no nonce needed to
 		// isolate this path — an unauthenticated user is rejected immediately.
 		wp_set_current_user(0);
-		$this->expectException(\WPAjaxDieStopException::class);
-		$this->page->ajax_network_activate();
-	}
 
+		$response = $this->capture_json_response(
+			function () {
+				$this->page->ajax_network_activate();
+			}
+		);
+
+		$this->assertFalse($response['success']);
+	}
 }

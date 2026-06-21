@@ -39,6 +39,7 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 
 		unset(
 			$_REQUEST['installer'],
+			$_REQUEST['_wpnonce'],
 			$_REQUEST['subdomain_install'],
 			$_REQUEST['sitename'],
 			$_REQUEST['email'],
@@ -49,6 +50,73 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 		delete_transient(\WP_Ultimo\Installers\Multisite_Network_Installer::CONFIG_TRANSIENT);
 
 		parent::tearDown();
+	}
+
+	/**
+	 * Install an AJAX die handler so wp_send_json_* does not stop PHPUnit.
+	 *
+	 * @return callable
+	 */
+	private function install_ajax_die_handler(): callable {
+
+		add_filter('wp_doing_ajax', '__return_true');
+
+		$handler = function () {
+			return function ($message) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Test die handler rethrows the raw wp_die message.
+				throw new \WPAjaxDieContinueException((string) $message);
+			};
+		};
+
+		add_filter('wp_die_ajax_handler', $handler, 1);
+
+		return $handler;
+	}
+
+	/**
+	 * Remove an AJAX die handler installed by install_ajax_die_handler().
+	 *
+	 * @param callable $handler The handler returned by install_ajax_die_handler().
+	 * @return void
+	 */
+	private function remove_ajax_die_handler(callable $handler): void {
+
+		remove_filter('wp_doing_ajax', '__return_true');
+		remove_filter('wp_die_ajax_handler', $handler, 1);
+	}
+
+	/**
+	 * Capture and decode a wp_send_json_* response from an AJAX handler.
+	 *
+	 * @param callable $callback AJAX handler callback.
+	 * @return array
+	 */
+	private function capture_json_response(callable $callback): array {
+
+		$handler          = $this->install_ajax_die_handler();
+		$exception_caught = false;
+		$output           = '';
+
+		ob_start();
+
+		try {
+			$callback();
+		} catch (\WPAjaxDieContinueException $e) {
+			$exception_caught = true;
+		} finally {
+			$output = ob_get_clean();
+			$this->remove_ajax_die_handler($handler);
+		}
+
+		$this->assertTrue($exception_caught, 'wp_send_json_* must terminate through wp_die in AJAX context.');
+
+		$json_start  = strpos($output, '{"success"');
+		$json_output = false === $json_start ? $output : substr($output, $json_start);
+		$decoded     = json_decode($json_output, true);
+
+		$this->assertIsArray($decoded, 'Response must be valid JSON: ' . $output);
+
+		return $decoded;
 	}
 
 	// -------------------------------------------------------------------------
@@ -470,25 +538,10 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 		// Ensure no user is logged in (no manage_options capability).
 		wp_set_current_user(0);
 
-		// Capture JSON output.
-		ob_start();
-		try {
-			$this->page->setup_install();
-		} catch (\WPDieException $e) {
-			// wp_send_json_error calls wp_die in test context.
-		}
-		$output = ob_get_clean();
+		$response = $this->capture_json_response(fn() => $this->page->setup_install());
 
-		// The response should be a JSON error.
-		if (! empty($output)) {
-			$decoded = json_decode($output, true);
-			if (is_array($decoded)) {
-				$this->assertFalse($decoded['success']);
-			}
-		}
-
-		// Verify the method did not proceed to installer logic.
-		$this->assertTrue(true, 'setup_install() handled permission check without fatal error');
+		$this->assertFalse($response['success']);
+		$this->assertSame('not-allowed', $response['data'][0]['code']);
 	}
 
 	/**
@@ -502,6 +555,7 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 		grant_super_admin($user_id);
 
 		$_REQUEST['installer'] = 'nonexistent_step_xyz';
+		$_REQUEST['_wpnonce'] = wp_create_nonce('wu_setup_install');
 
 		ob_start();
 		$this->page->setup_install();
@@ -511,7 +565,7 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 		$this->assertEmpty($output);
 
 		wp_set_current_user(0);
-		unset($_REQUEST['installer']);
+		unset($_REQUEST['installer'], $_REQUEST['_wpnonce']);
 	}
 
 	// -------------------------------------------------------------------------
@@ -546,16 +600,20 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['sitename']          = 'Test Network';
 		$_REQUEST['email']             = 'admin@example.com';
 
-		// Intercept wp_safe_redirect to prevent exit.
-		add_filter('wp_redirect', '__return_false');
+		$redirect_filter = static function () {
+			throw new \RuntimeException('redirect_intercepted');
+		};
+
+		add_filter('wp_redirect', $redirect_filter);
 
 		try {
 			$this->page->handle_configure();
-		} catch (\Exception $e) {
-			// Catch any exit() call wrapped as exception in test context.
+			$this->fail('handle_configure() should redirect after saving the transient.');
+		} catch (\RuntimeException $e) {
+			$this->assertSame('redirect_intercepted', $e->getMessage());
+		} finally {
+			remove_filter('wp_redirect', $redirect_filter);
 		}
-
-		remove_filter('wp_redirect', '__return_false');
 
 		$stored = get_transient(\WP_Ultimo\Installers\Multisite_Network_Installer::CONFIG_TRANSIENT);
 
@@ -588,15 +646,20 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['sitename']          = 'My Network';
 		$_REQUEST['email']             = 'test@example.com';
 
-		add_filter('wp_redirect', '__return_false');
+		$redirect_filter = static function () {
+			throw new \RuntimeException('redirect_intercepted');
+		};
+
+		add_filter('wp_redirect', $redirect_filter);
 
 		try {
 			$this->page->handle_configure();
-		} catch (\Exception $e) {
-			// Catch exit() in test context.
+			$this->fail('handle_configure() should redirect after saving the transient.');
+		} catch (\RuntimeException $e) {
+			$this->assertSame('redirect_intercepted', $e->getMessage());
+		} finally {
+			remove_filter('wp_redirect', $redirect_filter);
 		}
-
-		remove_filter('wp_redirect', '__return_false');
 
 		$stored = get_transient(\WP_Ultimo\Installers\Multisite_Network_Installer::CONFIG_TRANSIENT);
 

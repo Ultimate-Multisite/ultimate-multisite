@@ -43,6 +43,71 @@ class API_Test extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * Install an AJAX die handler so wp_send_json() does not stop PHPUnit.
+	 *
+	 * @return callable
+	 */
+	private function install_ajax_die_handler(): callable {
+
+		add_filter('wp_doing_ajax', '__return_true');
+
+		$handler = function () {
+			return function ($message) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Test die handler rethrows the raw wp_die message.
+				throw new \WPAjaxDieContinueException((string) $message);
+			};
+		};
+
+		add_filter('wp_die_ajax_handler', $handler, 1);
+
+		return $handler;
+	}
+
+	/**
+	 * Remove an AJAX die handler installed by install_ajax_die_handler().
+	 *
+	 * @param callable $handler The handler returned by install_ajax_die_handler().
+	 * @return void
+	 */
+	private function remove_ajax_die_handler(callable $handler): void {
+
+		remove_filter('wp_doing_ajax', '__return_true');
+		remove_filter('wp_die_ajax_handler', $handler, 1);
+	}
+
+	/**
+	 * Capture and decode a wp_send_json() response from an AJAX handler.
+	 *
+	 * @param callable $callback AJAX handler callback.
+	 * @return array
+	 */
+	private function capture_json_response(callable $callback): array {
+
+		$handler          = $this->install_ajax_die_handler();
+		$exception_caught = false;
+		$output           = '';
+
+		ob_start();
+
+		try {
+			$callback();
+		} catch (\WPAjaxDieContinueException $e) {
+			$exception_caught = true;
+		} finally {
+			$output = ob_get_clean();
+			$this->remove_ajax_die_handler($handler);
+		}
+
+		$this->assertTrue($exception_caught, 'wp_send_json() must terminate through wp_die in AJAX context.');
+
+		$decoded = json_decode($output, true);
+
+		$this->assertIsArray($decoded, 'Response must be valid JSON: ' . $output);
+
+		return $decoded;
+	}
+
 	// -------------------------------------------------------------------------
 	// Singleton
 	// -------------------------------------------------------------------------
@@ -361,7 +426,10 @@ class API_Test extends WP_UnitTestCase {
 		add_filter(
 			'wu_log_add',
 			function ($message, $handle) use (&$log_entries) {
-				$log_entries[] = ['handle' => $handle, 'message' => $message];
+				$log_entries[] = [
+					'handle'  => $handle,
+					'message' => $message,
+				];
 				return $message;
 			},
 			10,
@@ -712,7 +780,7 @@ class API_Test extends WP_UnitTestCase {
 
 		$this->setExpectedIncorrectUsage('register_rest_route');
 
-		$action_fired    = false;
+		$action_fired      = false;
 		$received_instance = null;
 		add_action(
 			'wu_register_rest_routes',
@@ -816,35 +884,22 @@ class API_Test extends WP_UnitTestCase {
 	}
 
 	// -------------------------------------------------------------------------
-	// auth() — output-buffered to prevent wp_send_json from terminating
+	// auth()
 	// -------------------------------------------------------------------------
 
 	/**
 	 * Test auth endpoint sends JSON with success key.
 	 *
-	 * wp_send_json calls wp_die which in test environments throws a WPDieException.
+	 * The wp_send_json() function calls wp_die() which in test environments throws a WPDieException.
 	 */
 	public function test_auth_sends_json_response(): void {
 
 		$request = new WP_REST_Request('GET', '/wu/v2/auth');
 
-		ob_start();
-		try {
-			$this->api->auth($request);
-		} catch (\WPDieException $e) {
-			// Expected — wp_send_json calls wp_die in test environments.
-		}
-		$output = ob_get_clean();
+		$decoded = $this->capture_json_response(fn() => $this->api->auth($request));
 
-		if (! empty($output)) {
-			$decoded = json_decode($output, true);
-			$this->assertIsArray($decoded);
-			$this->assertArrayHasKey('success', $decoded);
-			$this->assertTrue($decoded['success']);
-		} else {
-			// wp_send_json may have been intercepted — verify no fatal occurred.
-			$this->assertTrue(true);
-		}
+		$this->assertArrayHasKey('success', $decoded);
+		$this->assertTrue($decoded['success']);
 	}
 
 	/**
@@ -854,21 +909,10 @@ class API_Test extends WP_UnitTestCase {
 
 		$request = new WP_REST_Request('GET', '/wu/v2/auth');
 
-		ob_start();
-		try {
-			$this->api->auth($request);
-		} catch (\WPDieException $e) {
-			// Expected.
-		}
-		$output = ob_get_clean();
+		$decoded = $this->capture_json_response(fn() => $this->api->auth($request));
 
-		if (! empty($output)) {
-			$decoded = json_decode($output, true);
-			$this->assertArrayHasKey('label', $decoded);
-			$this->assertArrayHasKey('message', $decoded);
-		} else {
-			$this->assertTrue(true);
-		}
+		$this->assertArrayHasKey('label', $decoded);
+		$this->assertArrayHasKey('message', $decoded);
 	}
 
 	// -------------------------------------------------------------------------

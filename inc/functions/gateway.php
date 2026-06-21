@@ -79,12 +79,12 @@ function wu_get_gateway($id, $subscription = null) { // phpcs:ignore Generic.Cod
 	$gateway = Gateway_Manager::get_instance()->get_gateway($id);
 
 	if ( ! $gateway) {
-		return false;
+		return apply_filters('wu_get_gateway', false, $id, $subscription);
 	}
 
 	$gateway_class = new $gateway['class_name']();
 
-	return $gateway_class;
+	return apply_filters('wu_get_gateway', $gateway_class, $id, $subscription);
 }
 
 /**

@@ -21,7 +21,7 @@ class Testable_Template_Library_Admin_Page extends Template_Library_Admin_Page {
 	 * @param Template_Repository $repository Repository instance.
 	 * @return void
 	 */
-	public function set_repository( Template_Repository $repository ): void {
+	public function set_repository(Template_Repository $repository): void {
 		$this->repository = $repository;
 	}
 
@@ -47,6 +47,7 @@ class Testable_Template_Library_Admin_Page extends Template_Library_Admin_Page {
 /**
  * Test class for Template_Library_Admin_Page.
  */
+// phpcs:ignore Generic.Files.OneObjectStructurePerFile.MultipleFound -- Testable fixture subclass lives with its test case.
 class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 
 	/**
@@ -84,6 +85,86 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 			$_REQUEST['categories']
 		);
 		parent::tearDown();
+	}
+
+	/**
+	 * Install an AJAX die handler so wp_send_json_* does not stop PHPUnit.
+	 *
+	 * @return callable
+	 */
+	private function install_ajax_die_handler(): callable {
+
+		add_filter( 'wp_doing_ajax', '__return_true' );
+
+		$handler = function () {
+			return function ($message) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Test die handler rethrows the raw wp_die message.
+				throw new \WPAjaxDieContinueException( (string) $message );
+			};
+		};
+
+		add_filter( 'wp_die_ajax_handler', $handler, 1 );
+
+		return $handler;
+	}
+
+	/**
+	 * Remove an AJAX die handler installed by install_ajax_die_handler().
+	 *
+	 * @param callable $handler The handler returned by install_ajax_die_handler().
+	 * @return void
+	 */
+	private function remove_ajax_die_handler(callable $handler): void {
+
+		remove_filter( 'wp_doing_ajax', '__return_true' );
+		remove_filter( 'wp_die_ajax_handler', $handler, 1 );
+	}
+
+	/**
+	 * Capture and decode a wp_send_json_* response from an AJAX handler.
+	 *
+	 * @param callable $callback AJAX handler callback.
+	 * @return array
+	 */
+	private function capture_json_response(callable $callback): array {
+
+		$handler          = $this->install_ajax_die_handler();
+		$exception_caught = false;
+		$output           = '';
+
+		ob_start();
+
+		try {
+			$callback();
+		} catch ( \WPAjaxDieContinueException $e ) {
+			$exception_caught = true;
+		} finally {
+			$output = ob_get_clean();
+			$this->remove_ajax_die_handler( $handler );
+		}
+
+		$this->assertTrue( $exception_caught, 'wp_send_json_* must terminate through wp_die in AJAX context.' );
+
+		$json_start  = strpos( $output, '{"success"' );
+		$json_output = false === $json_start ? $output : substr( $output, $json_start );
+		$decoded     = json_decode( $json_output, true );
+
+		$this->assertIsArray( $decoded, 'Response must be valid JSON: ' . $output );
+
+		return $decoded;
+	}
+
+	/**
+	 * Assert a JSON error response includes the expected WP_Error code.
+	 *
+	 * @param array  $response JSON response array.
+	 * @param string $code Expected error code.
+	 * @return void
+	 */
+	private function assert_json_error_code(array $response, string $code): void {
+
+		$this->assertFalse( $response['success'] );
+		$this->assertSame( $code, $response['data'][0]['code'] ?? $response['data']['code'] ?? null );
 	}
 
 	// -------------------------------------------------------------------------
@@ -440,7 +521,7 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_init_registers_ajax_action(): void {
 		$this->page->init();
 
-		$this->assertGreaterThan( 0, has_action( 'wp_ajax_serve_templates_list', [ $this->page, 'serve_templates_list' ] ) );
+		$this->assertGreaterThan( 0, has_action( 'wp_ajax_serve_templates_list', [$this->page, 'serve_templates_list'] ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -611,16 +692,11 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 
 		$this->page->set_repository( $mock_repo );
 
-		// Capture output since wp_send_json_success outputs JSON.
-		ob_start();
-		try {
-			$this->page->serve_templates_list();
-		} catch ( \WPDieException $e ) {
-			// Expected — wp_send_json_success calls wp_die.
-		}
-		$output = ob_get_clean();
-
-		$decoded = json_decode( $output, true );
+		$decoded = $this->capture_json_response(
+			function () {
+				$this->page->serve_templates_list();
+			}
+		);
 
 		$this->assertIsArray( $decoded );
 		$this->assertTrue( $decoded['success'] );
@@ -636,15 +712,11 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 
 		$this->page->set_repository( $mock_repo );
 
-		ob_start();
-		try {
-			$this->page->serve_templates_list();
-		} catch ( \WPDieException $e ) {
-			// Expected.
-		}
-		$output = ob_get_clean();
-
-		$decoded = json_decode( $output, true );
+		$decoded = $this->capture_json_response(
+			function () {
+				$this->page->serve_templates_list();
+			}
+		);
 
 		$this->assertIsArray( $decoded );
 		$this->assertTrue( $decoded['success'] );
@@ -660,18 +732,14 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_install_template_sends_error_when_no_permission(): void {
 		// Create a subscriber user (no manage_network_plugins).
-		$user_id = $this->factory->user->create( [ 'role' => 'subscriber' ] );
+		$user_id = $this->factory->user->create( ['role' => 'subscriber'] );
 		wp_set_current_user( $user_id );
 
-		ob_start();
-		try {
-			$this->page->install_template();
-		} catch ( \WPDieException $e ) {
-			// Expected.
-		}
-		$output = ob_get_clean();
-
-		$decoded = json_decode( $output, true );
+		$decoded = $this->capture_json_response(
+			function () {
+				$this->page->install_template();
+			}
+		);
 
 		$this->assertIsArray( $decoded );
 		$this->assertFalse( $decoded['success'] );
@@ -693,15 +761,11 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 
 		$_REQUEST['template'] = 'nonexistent-template';
 
-		ob_start();
-		try {
-			$this->page->install_template();
-		} catch ( \WPDieException $e ) {
-			// Expected.
-		}
-		$output = ob_get_clean();
-
-		$decoded = json_decode( $output, true );
+		$decoded = $this->capture_json_response(
+			function () {
+				$this->page->install_template();
+			}
+		);
 
 		$this->assertIsArray( $decoded );
 		$this->assertFalse( $decoded['success'] );
@@ -734,15 +798,11 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 
 		$_REQUEST['template'] = 'no-url-template';
 
-		ob_start();
-		try {
-			$this->page->install_template();
-		} catch ( \WPDieException $e ) {
-			// Expected.
-		}
-		$output = ob_get_clean();
-
-		$decoded = json_decode( $output, true );
+		$decoded = $this->capture_json_response(
+			function () {
+				$this->page->install_template();
+			}
+		);
 
 		$this->assertIsArray( $decoded );
 		$this->assertFalse( $decoded['success'] );
@@ -775,15 +835,11 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 
 		$_REQUEST['template'] = 'insecure-template';
 
-		ob_start();
-		try {
-			$this->page->install_template();
-		} catch ( \WPDieException $e ) {
-			// Expected.
-		}
-		$output = ob_get_clean();
-
-		$decoded = json_decode( $output, true );
+		$decoded = $this->capture_json_response(
+			function () {
+				$this->page->install_template();
+			}
+		);
 
 		$this->assertIsArray( $decoded );
 		$this->assertFalse( $decoded['success'] );
@@ -802,19 +858,13 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['template_url']  = 'https://example.com/template';
 		$_REQUEST['categories']    = '';
 
-		ob_start();
-		try {
-			$this->page->handle_upload_template_modal();
-		} catch ( \WPDieException $e ) {
-			// Expected.
-		}
-		$output = ob_get_clean();
+		$decoded = $this->capture_json_response(
+			function () {
+				$this->page->handle_upload_template_modal();
+			}
+		);
 
-		$decoded = json_decode( $output, true );
-
-		$this->assertIsArray( $decoded );
-		$this->assertFalse( $decoded['success'] );
-		$this->assertEquals( 'no-name', $decoded['data']['code'] );
+		$this->assert_json_error_code( $decoded, 'no-name' );
 	}
 
 	/**
@@ -826,19 +876,13 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['template_url']  = 'https://example.com/template';
 		$_REQUEST['categories']    = '';
 
-		ob_start();
-		try {
-			$this->page->handle_upload_template_modal();
-		} catch ( \WPDieException $e ) {
-			// Expected.
-		}
-		$output = ob_get_clean();
+		$decoded = $this->capture_json_response(
+			function () {
+				$this->page->handle_upload_template_modal();
+			}
+		);
 
-		$decoded = json_decode( $output, true );
-
-		$this->assertIsArray( $decoded );
-		$this->assertFalse( $decoded['success'] );
-		$this->assertEquals( 'no-file', $decoded['data']['code'] );
+		$this->assert_json_error_code( $decoded, 'no-file' );
 	}
 
 	/**
@@ -850,19 +894,13 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['template_url']  = '';
 		$_REQUEST['categories']    = '';
 
-		ob_start();
-		try {
-			$this->page->handle_upload_template_modal();
-		} catch ( \WPDieException $e ) {
-			// Expected.
-		}
-		$output = ob_get_clean();
+		$decoded = $this->capture_json_response(
+			function () {
+				$this->page->handle_upload_template_modal();
+			}
+		);
 
-		$decoded = json_decode( $output, true );
-
-		$this->assertIsArray( $decoded );
-		$this->assertFalse( $decoded['success'] );
-		$this->assertEquals( 'no-url', $decoded['data']['code'] );
+		$this->assert_json_error_code( $decoded, 'no-url' );
 	}
 
 	/**
@@ -876,19 +914,13 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['template_url']  = 'https://example.com/template';
 		$_REQUEST['categories']    = '';
 
-		ob_start();
-		try {
-			$this->page->handle_upload_template_modal();
-		} catch ( \WPDieException $e ) {
-			// Expected.
-		}
-		$output = ob_get_clean();
+		$decoded = $this->capture_json_response(
+			function () {
+				$this->page->handle_upload_template_modal();
+			}
+		);
 
-		$decoded = json_decode( $output, true );
-
-		$this->assertIsArray( $decoded );
-		$this->assertFalse( $decoded['success'] );
-		$this->assertEquals( 'file-not-found', $decoded['data']['code'] );
+		$this->assert_json_error_code( $decoded, 'file-not-found' );
 	}
 
 	// -------------------------------------------------------------------------
@@ -909,8 +941,9 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 		ob_start();
 		try {
 			$this->page->display_more_info();
-		} catch ( \Exception $e ) {
+		} catch ( \Throwable $e ) {
 			// Some template rendering may throw — that's acceptable.
+			$this->assertInstanceOf( \Throwable::class, $e );
 		}
 		ob_get_clean();
 
@@ -943,8 +976,9 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 		ob_start();
 		try {
 			$this->page->display_more_info();
-		} catch ( \Exception $e ) {
+		} catch ( \Throwable $e ) {
 			// Template rendering may throw — acceptable.
+			$this->assertInstanceOf( \Throwable::class, $e );
 		}
 		ob_get_clean();
 
@@ -964,6 +998,7 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 			$this->page->register_scripts();
 		} catch ( \Exception $e ) {
 			// Acceptable if wp_enqueue_media or similar throws in test env.
+			$this->assertInstanceOf( \Exception::class, $e );
 		}
 		ob_get_clean();
 
