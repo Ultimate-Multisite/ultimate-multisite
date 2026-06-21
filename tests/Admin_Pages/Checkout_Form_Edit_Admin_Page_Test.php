@@ -50,6 +50,71 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		parent::tearDown();
 	}
 
+	/**
+	 * Install an AJAX die handler so wp_send_json_* does not stop PHPUnit.
+	 *
+	 * @return callable
+	 */
+	private function install_ajax_die_handler(): callable {
+
+		add_filter('wp_doing_ajax', '__return_true');
+
+		$handler = function () {
+			return function ($message) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Test die handler rethrows the raw wp_die message.
+				throw new \WPAjaxDieContinueException((string) $message);
+			};
+		};
+
+		add_filter('wp_die_ajax_handler', $handler, 1);
+
+		return $handler;
+	}
+
+	/**
+	 * Remove an AJAX die handler installed by install_ajax_die_handler().
+	 *
+	 * @param callable $handler The handler returned by install_ajax_die_handler().
+	 * @return void
+	 */
+	private function remove_ajax_die_handler(callable $handler): void {
+
+		remove_filter('wp_doing_ajax', '__return_true');
+		remove_filter('wp_die_ajax_handler', $handler, 1);
+	}
+
+	/**
+	 * Capture and decode a wp_send_json_* response from an AJAX handler.
+	 *
+	 * @param callable $callback AJAX handler callback.
+	 * @return array
+	 */
+	private function capture_json_response(callable $callback): array {
+
+		$handler          = $this->install_ajax_die_handler();
+		$exception_caught = false;
+		$output           = '';
+
+		ob_start();
+
+		try {
+			$callback();
+		} catch (\WPAjaxDieContinueException $e) {
+			$exception_caught = true;
+		} finally {
+			$output = ob_get_clean();
+			$this->remove_ajax_die_handler($handler);
+		}
+
+		$this->assertTrue($exception_caught, 'wp_send_json_* must terminate through wp_die in AJAX context.');
+
+		$decoded = json_decode($output, true);
+
+		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
+
+		return $decoded;
+	}
+
 	// -------------------------------------------------------------------------
 	// get_title
 	// -------------------------------------------------------------------------
@@ -654,17 +719,10 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_handle_add_new_form_step_modal_sends_error_when_form_not_found(): void {
 		$_REQUEST['checkout_form'] = 'nonexistent-form-slug-xyz';
 
-		// Capture JSON output
-		ob_start();
-		try {
+		$decoded = $this->capture_json_response(function () {
 			$this->page->handle_add_new_form_step_modal();
-		} catch (\WPDieException $e) {
-			// wp_send_json_error calls wp_die
-		}
-		$output = ob_get_clean();
+		});
 
-		$decoded = json_decode($output, true);
-		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
 		$this->assertArrayHasKey('success', $decoded);
 		$this->assertFalse($decoded['success']);
 	}
@@ -682,16 +740,10 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['classes']       = '';
 		$_REQUEST['logged']        = 'always';
 
-		ob_start();
-		try {
+		$decoded = $this->capture_json_response(function () {
 			$this->page->handle_add_new_form_step_modal();
-		} catch (\WPDieException $e) {
-			// wp_send_json_success calls wp_die
-		}
-		$output = ob_get_clean();
+		});
 
-		$decoded = json_decode($output, true);
-		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
 		$this->assertArrayHasKey('success', $decoded);
 		$this->assertTrue($decoded['success']);
 		$this->assertArrayHasKey('send', $decoded['data']);
@@ -708,16 +760,10 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_handle_add_new_form_field_modal_sends_error_when_form_not_found(): void {
 		$_REQUEST['checkout_form'] = 'nonexistent-form-slug-xyz';
 
-		ob_start();
-		try {
+		$decoded = $this->capture_json_response(function () {
 			$this->page->handle_add_new_form_field_modal();
-		} catch (\WPDieException $e) {
-			// wp_send_json_error calls wp_die
-		}
-		$output = ob_get_clean();
+		});
 
-		$decoded = json_decode($output, true);
-		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
 		$this->assertArrayHasKey('success', $decoded);
 		$this->assertFalse($decoded['success']);
 	}
@@ -739,16 +785,10 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['label']         = 'Test Field';
 		$_REQUEST['from_request']  = false;
 
-		ob_start();
-		try {
+		$decoded = $this->capture_json_response(function () {
 			$this->page->handle_add_new_form_field_modal();
-		} catch (\WPDieException $e) {
-			// wp_send_json_success calls wp_die
-		}
-		$output = ob_get_clean();
+		});
 
-		$decoded = json_decode($output, true);
-		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
 		$this->assertArrayHasKey('success', $decoded);
 		$this->assertTrue($decoded['success']);
 		$this->assertArrayHasKey('send', $decoded['data']);
@@ -760,7 +800,16 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_handle_add_new_form_field_modal_auto_generates_id(): void {
 		$field_types = $this->page->field_types();
-		$type_key    = array_key_first($field_types);
+		$type_key    = array_key_first(
+			array_filter(
+				$field_types,
+				function ($field_type) {
+					return ! isset($field_type['force_attributes']['id']);
+				}
+			)
+		);
+
+		$this->assertNotNull($type_key, 'A field type without a forced id is required to test auto-generated IDs.');
 
 		$_REQUEST['checkout_form'] = $this->checkout_form->get_slug();
 		$_REQUEST['type']          = $type_key;
@@ -770,16 +819,10 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['label']         = 'Auto ID Field';
 		$_REQUEST['from_request']  = false;
 
-		ob_start();
-		try {
+		$decoded = $this->capture_json_response(function () {
 			$this->page->handle_add_new_form_field_modal();
-		} catch (\WPDieException $e) {
-			// expected
-		}
-		$output = ob_get_clean();
+		});
 
-		$decoded = json_decode($output, true);
-		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
 		$this->assertArrayHasKey('success', $decoded);
 		$this->assertTrue($decoded['success']);
 		$this->assertArrayHasKey('data', $decoded);
@@ -801,16 +844,10 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['form_id']  = 99999;
 		$_REQUEST['settings'] = ['some' => 'settings'];
 
-		ob_start();
-		try {
+		$decoded = $this->capture_json_response(function () {
 			$this->page->save_editor_session();
-		} catch (\WPDieException $e) {
-			// expected
-		}
-		$output = ob_get_clean();
+		});
 
-		$decoded = json_decode($output, true);
-		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
 		$this->assertArrayHasKey('success', $decoded);
 		$this->assertFalse($decoded['success']);
 	}
@@ -822,16 +859,10 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['form_id']  = $this->checkout_form->get_id();
 		$_REQUEST['settings'] = [];
 
-		ob_start();
-		try {
+		$decoded = $this->capture_json_response(function () {
 			$this->page->save_editor_session();
-		} catch (\WPDieException $e) {
-			// expected
-		}
-		$output = ob_get_clean();
+		});
 
-		$decoded = json_decode($output, true);
-		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
 		$this->assertArrayHasKey('success', $decoded);
 		$this->assertFalse($decoded['success']);
 	}
@@ -853,16 +884,10 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			],
 		];
 
-		ob_start();
-		try {
+		$decoded = $this->capture_json_response(function () {
 			$this->page->save_editor_session();
-		} catch (\WPDieException $e) {
-			// expected
-		}
-		$output = ob_get_clean();
+		});
 
-		$decoded = json_decode($output, true);
-		$this->assertNotNull($decoded, 'Response must be valid JSON: ' . $output);
 		$this->assertArrayHasKey('success', $decoded);
 		$this->assertTrue($decoded['success']);
 	}
@@ -957,21 +982,33 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * handle_save clears allowed_countries when restrict_by_country is not set.
 	 */
 	public function test_handle_save_clears_allowed_countries_when_not_restricted(): void {
-		$_REQUEST['id']              = $this->checkout_form->get_id();
-		$this->page->object          = $this->checkout_form;
+		$_REQUEST['id']               = $this->checkout_form->get_id();
+		$this->page->object           = $this->checkout_form;
 		$_POST['restrict_by_country'] = '';
 		$_POST['allowed_countries']   = ['US', 'CA'];
 
 		// handle_save calls parent which may redirect — capture output
+		$buffer_level = ob_get_level();
+
 		ob_start();
+
 		try {
 			$this->page->handle_save();
 		} catch (\Exception $e) {
+			unset($e);
 			// Redirects or wp_die calls are expected
+		} finally {
+			while (ob_get_level() > $buffer_level) {
+				ob_end_clean();
+			}
+
+			while (ob_get_level() < $buffer_level) {
+				ob_start();
+			}
 		}
-		ob_get_clean();
 
 		// After handle_save, allowed_countries should be cleared
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Test asserts handle_save mutates request data.
 		$this->assertEmpty($_POST['allowed_countries'] ?? []);
 	}
 
@@ -982,18 +1019,36 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['id']     = $this->checkout_form->get_id();
 		$this->page->object = $this->checkout_form;
 
-		$settings        = [['id' => 'checkout', 'name' => 'Checkout', 'fields' => []]];
+		$settings           = [
+			[
+				'id'     => 'checkout',
+				'name'   => 'Checkout',
+				'fields' => [],
+			],
+		];
 		$_POST['_settings'] = wp_slash(wp_json_encode($settings));
 
+		$buffer_level = ob_get_level();
+
 		ob_start();
+
 		try {
 			$this->page->handle_save();
 		} catch (\Exception $e) {
+			unset($e);
 			// expected
+		} finally {
+			while (ob_get_level() > $buffer_level) {
+				ob_end_clean();
+			}
+
+			while (ob_get_level() < $buffer_level) {
+				ob_start();
+			}
 		}
-		ob_get_clean();
 
 		// _settings should be unset after processing
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Test asserts handle_save mutates request data.
 		$this->assertArrayNotHasKey('_settings', $_POST);
 	}
 
@@ -1228,6 +1283,8 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * register_widgets runs without errors when object is set.
 	 */
 	public function test_register_widgets_runs_without_errors(): void {
+		set_current_screen('dashboard-network');
+
 		$_REQUEST['id']     = $this->checkout_form->get_id();
 		$this->page->object = $this->checkout_form;
 
