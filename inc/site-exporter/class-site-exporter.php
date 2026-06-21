@@ -154,6 +154,8 @@ final class Site_Exporter {
 		if (defined('WP_CLI') && WP_CLI) {
 			call_user_func(['WP_CLI', 'add_command'], 'wp-ultimo import-network', [$this, 'wp_cli_import_network']);
 			call_user_func(['WP_CLI', 'add_command'], 'wu import-network', [$this, 'wp_cli_import_network']);
+			call_user_func(['WP_CLI', 'add_command'], 'wp-ultimo promote-main-site', [$this, 'wp_cli_promote_main_site']);
+			call_user_func(['WP_CLI', 'add_command'], 'wu promote-main-site', [$this, 'wp_cli_promote_main_site']);
 		}
 
 		// Authenticated file download handler (GH#1010)
@@ -282,6 +284,21 @@ final class Site_Exporter {
 			'<a href="%s">%s</a>',
 			esc_url($export_url),
 			__('Export', 'ultimate-multisite')
+		);
+
+		$promote_url = add_query_arg(
+			[
+				'page'    => 'wu-site-export',
+				'site_id' => $blog_id,
+				'action'  => 'promote_main_site',
+			],
+			network_admin_url('sites.php')
+		);
+
+		$actions['promote_main_site'] = sprintf(
+			'<a href="%s">%s</a>',
+			esc_url($promote_url),
+			__('Promote to Main Site', 'ultimate-multisite')
 		);
 
 		return $actions;
@@ -730,6 +747,8 @@ final class Site_Exporter {
 
 			<?php if ('export' === $action && $site_id) : ?>
 				<?php $this->render_export_form($site_id); ?>
+			<?php elseif ('promote_main_site' === $action && $site_id) : ?>
+				<?php $this->render_promote_main_site_form($site_id); ?>
 			<?php else : ?>
 				<?php $this->render_export_import_dashboard($exports, $pending_exports, $pending_imports); ?>
 			<?php endif; ?>
@@ -822,6 +841,86 @@ final class Site_Exporter {
 				<p class="submit">
 					<input type="submit" class="button button-primary" value="<?php esc_attr_e('Export Site', 'ultimate-multisite'); ?>">
 					<a href="<?php echo esc_url(network_admin_url('sites.php?page=wu-site-export')); ?>" class="button"><?php esc_html_e('Cancel', 'ultimate-multisite'); ?></a>
+				</p>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the confirmation form for promoting a subsite into the main site.
+	 *
+	 * @since 2.5.1
+	 *
+	 * @param int $site_id Source site ID.
+	 * @return void
+	 */
+	private function render_promote_main_site_form(int $site_id): void {
+
+		$blog_details = get_blog_details($site_id);
+
+		if (! $blog_details) {
+			wp_die(esc_html__('Site not found.', 'ultimate-multisite'));
+		}
+
+		if (is_main_site($site_id)) {
+			wp_die(esc_html__('The current main site cannot be promoted into itself.', 'ultimate-multisite'));
+		}
+
+		$promote_url = wp_nonce_url(
+			add_query_arg(
+				[
+					'page'    => 'wu-site-export',
+					'action'  => 'do_promote_main_site',
+					'site_id' => $site_id,
+				],
+				network_admin_url('sites.php')
+			),
+			'wu_promote_main_site_' . $site_id
+		);
+
+		?>
+		<div class="card" style="max-width: 700px;">
+			<h2><?php esc_html_e('Promote Subsite to Main Site', 'ultimate-multisite'); ?></h2>
+
+			<div class="notice notice-warning inline" style="margin: 0 0 15px 0;">
+				<p><strong><?php esc_html_e('Warning:', 'ultimate-multisite'); ?></strong> <?php esc_html_e('This will overwrite the current main site content with the selected subsite content.', 'ultimate-multisite'); ?></p>
+			</div>
+
+			<p>
+				<?php
+				printf(
+					/* translators: 1: site name, 2: site URL */
+					esc_html__('Selected source site: %1$s (%2$s)', 'ultimate-multisite'),
+					'<strong>' . esc_html($blog_details->blogname) . '</strong>',
+					esc_html($blog_details->siteurl)
+				);
+				?>
+			</p>
+
+			<ul class="ul-disc">
+				<li><?php esc_html_e('The current main site and source subsite will be exported before any destructive copy runs.', 'ultimate-multisite'); ?></li>
+				<li><?php esc_html_e('The source subsite will not be deleted or archived by default.', 'ultimate-multisite'); ?></li>
+				<li><?php esc_html_e('The WordPress main site ID and bootstrap constants remain unchanged.', 'ultimate-multisite'); ?></li>
+				<li><?php esc_html_e('Source URLs and upload paths will be rewritten to the current main-site URL and uploads location.', 'ultimate-multisite'); ?></li>
+			</ul>
+
+			<form method="post" action="<?php echo esc_url($promote_url); ?>">
+				<table class="form-table">
+					<tr>
+						<th scope="row"><?php esc_html_e('Main Site Title', 'ultimate-multisite'); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="preserve_main_title" value="1" checked>
+								<?php esc_html_e('Keep the current main site title after promotion', 'ultimate-multisite'); ?>
+							</label>
+						</td>
+					</tr>
+				</table>
+
+				<p class="submit">
+					<input type="submit" class="button button-primary" value="<?php esc_attr_e('Promote to Main Site', 'ultimate-multisite'); ?>">
+					<a href="<?php echo esc_url(network_admin_url('sites.php')); ?>" class="button"><?php esc_html_e('Cancel', 'ultimate-multisite'); ?></a>
 				</p>
 			</form>
 		</div>
@@ -1083,6 +1182,59 @@ final class Site_Exporter {
 			exit;
 		}
 
+		// Handle main-site promotion.
+		if ('do_promote_main_site' === $action) {
+			$site_id = absint(wu_request('site_id', 0));
+
+			if (! is_multisite()) {
+				wp_die(esc_html__('Promoting a subsite to the main site requires WordPress multisite.', 'ultimate-multisite'));
+			}
+
+			if (! $site_id || ! wp_verify_nonce(wu_request('_wpnonce'), 'wu_promote_main_site_' . $site_id)) {
+				wp_die(esc_html__('Security check failed.', 'ultimate-multisite'));
+			}
+
+			if (! current_user_can('manage_network')) {
+				wp_die(esc_html__('You do not have permission to promote sites.', 'ultimate-multisite'));
+			}
+
+			$result = Main_Site_Promoter::get_instance()->promote(
+				$site_id,
+				[
+					'preserve_main_title' => ! empty($_POST['preserve_main_title']),
+				]
+			);
+
+			if (is_wp_error($result)) {
+				wp_safe_redirect(
+					add_query_arg(
+						[
+							'page'    => 'wu-site-export',
+							'message' => 'promote_main_site_error',
+							'error'   => rawurlencode($result->get_error_message()),
+						],
+						$base_url
+					)
+				);
+				exit;
+			}
+
+			$backup_exports = $result['backup_exports'] ?? [];
+
+			wp_safe_redirect(
+				add_query_arg(
+					[
+						'page'          => 'wu-site-export',
+						'message'       => 'promote_main_site_complete',
+						'source_backup' => rawurlencode((string) ($backup_exports['source'] ?? '')),
+						'main_backup'   => rawurlencode((string) ($backup_exports['main_site'] ?? '')),
+					],
+					$base_url
+				)
+			);
+			exit;
+		}
+
 		// Handle delete
 		if ('delete' === $action) {
 			$file = wu_request('file', '');
@@ -1233,6 +1385,26 @@ final class Site_Exporter {
 				];
 				$error_text     = $error_messages[ $error ] ?? __('An error occurred during import.', 'ultimate-multisite');
 				echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($error_text) . '</p></div>';
+				break;
+			case 'promote_main_site_complete':
+				$main_backup   = sanitize_file_name(rawurldecode(wu_request('main_backup', '')));
+				$source_backup = sanitize_file_name(rawurldecode(wu_request('source_backup', '')));
+				$backup_text   = array_filter([$main_backup, $source_backup]);
+				$notice        = __('Subsite promoted to the main site successfully. The original source subsite was left intact.', 'ultimate-multisite');
+
+				if ($backup_text) {
+					$notice .= ' ' . sprintf(
+						/* translators: %s backup export filenames. */
+						__('Backups created: %s', 'ultimate-multisite'),
+						implode(', ', $backup_text)
+					);
+				}
+
+				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($notice) . '</p></div>';
+				break;
+			case 'promote_main_site_error':
+				$error = rawurldecode(wu_request('error', ''));
+				echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($error ?: __('The subsite could not be promoted to the main site.', 'ultimate-multisite')) . '</p></div>';
 				break;
 		}
 	}
@@ -2759,6 +2931,74 @@ final class Site_Exporter {
 		}
 
 		call_user_func(['WP_CLI', 'success'], __('Network import completed.', 'ultimate-multisite'));
+	}
+
+	/**
+	 * WP-CLI wrapper for promoting a subsite into the main site.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <source-blog-id>
+	 * : Blog ID of the subsite to copy into the current main site.
+	 *
+	 * [--yes]
+	 * : Confirm the destructive overwrite of the current main site.
+	 *
+	 * [--force]
+	 * : Allow archived, spam, or deleted source/main sites.
+	 *
+	 * [--skip-backup]
+	 * : Skip the required backup exports. Intended only for controlled tests.
+	 *
+	 * [--source-title]
+	 * : Replace the main site's title with the source subsite title.
+	 *
+	 * @since 2.5.1
+	 *
+	 * @param array $args       Positional CLI arguments.
+	 * @param array $assoc_args Associative CLI arguments.
+	 * @return void
+	 */
+	public function wp_cli_promote_main_site(array $args, array $assoc_args): void {
+
+		$source_blog_id = absint($args[0] ?? 0);
+
+		if (! $source_blog_id) {
+			call_user_func(['WP_CLI', 'error'], __('A source blog ID is required.', 'ultimate-multisite'));
+		}
+
+		if (empty($assoc_args['yes'])) {
+			call_user_func(['WP_CLI', 'error'], __('This command overwrites the current main site. Re-run with --yes to confirm.', 'ultimate-multisite'));
+		}
+
+		$result = Main_Site_Promoter::get_instance()->promote(
+			$source_blog_id,
+			[
+				'force'               => ! empty($assoc_args['force']),
+				'backup'              => empty($assoc_args['skip-backup']),
+				'preserve_main_title' => empty($assoc_args['source-title']),
+			]
+		);
+
+		if (is_wp_error($result)) {
+			call_user_func(['WP_CLI', 'error'], $result->get_error_message());
+		}
+
+		$backup_exports = $result['backup_exports'] ?? [];
+
+		if ($backup_exports) {
+			call_user_func(
+				['WP_CLI', 'line'],
+				sprintf(
+					/* translators: 1: main-site backup filename, 2: source-site backup filename. */
+					__('Backups created. Main site: %1$s Source site: %2$s', 'ultimate-multisite'),
+					(string) ($backup_exports['main_site'] ?? ''),
+					(string) ($backup_exports['source'] ?? '')
+				)
+			);
+		}
+
+		call_user_func(['WP_CLI', 'success'], __('Subsite promoted to the main site. The source subsite was left intact.', 'ultimate-multisite'));
 	}
 
 	/**
