@@ -115,7 +115,7 @@
         "rakit/validation": "dev-master#ff003a35cdf5030a5f2482299f4c93f344a35b29",
         "ifsnop/mysqldump-php": "^2.12",
         "mpdf/mpdf": "^8.2.0",
-        "remotelyliving/php-dns": "^4.3.0",
+        "remotelyliving/php-dns": "4.3.0",
         "nyholm/psr7": "^1.8.0",
         "scssphp/scssphp": "^1.11.1",
         "cweagans/composer-patches": "^1.7",
