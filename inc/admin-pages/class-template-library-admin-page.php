@@ -364,6 +364,10 @@ class Template_Library_Admin_Page extends Wizard_Admin_Page {
 
 		$template = $this->get_template($template_slug);
 
+		if ( ! $template) {
+			return;
+		}
+
 		wu_get_template(
 			'template-library/details',
 			[

@@ -128,21 +128,20 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 
 		$redirect_url = null;
 
-		add_filter(
-			'wp_redirect',
-			function ($location) use (&$redirect_url) {
-				$redirect_url = $location;
+		$redirect_filter = function ($location) use (&$redirect_url) {
+			$redirect_url = $location;
 
-				throw new \RuntimeException('redirect_intercepted');
-			}
-		);
+			throw new \RuntimeException('redirect_intercepted');
+		};
+
+		add_filter('wp_redirect', $redirect_filter);
 
 		try {
 			$callback();
 		} catch (\RuntimeException $e) {
 			$this->assertSame('redirect_intercepted', $e->getMessage());
 		} finally {
-			remove_all_filters('wp_redirect');
+			remove_filter('wp_redirect', $redirect_filter);
 		}
 
 		$this->assertNotNull($redirect_url, 'wp_redirect should have been called');
@@ -477,13 +476,17 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 
 		$_REQUEST['_wpnonce'] = wp_create_nonce('wu_setup_install');
 
-		$response = $this->capture_json_response(
-			function () {
-				$this->page->setup_install();
-			}
-		);
+		try {
+			$response = $this->capture_json_response(
+				function () {
+					$this->page->setup_install();
+				}
+			);
 
-		$this->assertTrue($response['success']);
+			$this->assertTrue($response['success']);
+		} finally {
+			wp_set_current_user(0);
+		}
 	}
 
 	// -------------------------------------------------------------------------

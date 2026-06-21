@@ -30,7 +30,7 @@ function wu_get_template($view, $args = [], $default_view = false) {
 	 */
 	$args = apply_filters('wp_ultimo_render_vars', $args, $view, $default_view);
 
-	$template = wu_path("views/$view.php");
+	$template_path = wu_path("views/$view.php");
 
 	// Make passed variables available
 	if (is_array($args)) {
@@ -61,15 +61,15 @@ function wu_get_template($view, $args = [], $default_view = false) {
 	* Only allow template for emails and signup for now
 	*/
 	if (preg_match('/(' . implode('\/?|', $replaceable_views) . '\/?)\w+/', $view)) {
-		$template = apply_filters('wu_view_override', $template, $view, $default_view);
+		$template_path = apply_filters('wu_view_override', $template_path, $view, $default_view);
 	}
 
-	if ( ! file_exists($template) && $default_view) {
-		$template = wu_path("views/$default_view.php");
+	if ( ! file_exists($template_path) && $default_view) {
+		$template_path = wu_path("views/$default_view.php");
 	}
 
 	// Load our view
-	include $template;
+	include $template_path;
 }
 
 /**
@@ -109,4 +109,3 @@ function wu_resolve_template_string($value, $context = null): string {
 
 	return '';
 }
-

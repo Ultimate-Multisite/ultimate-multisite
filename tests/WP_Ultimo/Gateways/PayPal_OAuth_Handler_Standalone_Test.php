@@ -611,8 +611,12 @@ function wp_send_json_error($data = null, $status_code = null) {
 	if (function_exists('\\wp_send_json_error')) {
 		return \wp_send_json_error($data, $status_code);
 	}
-	echo wp_json_encode([
+	$encoder = function_exists('\\wp_json_encode') ? '\\wp_json_encode' : 'json_encode';
+
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Test fallback emits a JSON response body like wp_send_json_error().
+	echo $encoder([
 		'success' => false,
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Encoded as part of the JSON response body above.
 		'data'    => $data,
 	]);
 	exit;

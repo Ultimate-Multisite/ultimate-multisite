@@ -494,7 +494,7 @@ class Customer_List_Admin_Page_Test extends WP_UnitTestCase {
 			$this->assertArrayHasKey('redirect_url', $response['data']);
 			$this->assertStringContainsString('wp-ultimo-edit-customer', $response['data']['redirect_url']);
 		} else {
-			$this->assertIsArray($response['data']);
+			$this->assertFalse($response['success']);
 		}
 	}
 }

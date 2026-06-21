@@ -939,13 +939,12 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['template'] = 'nonexistent-slug';
 
 		ob_start();
+
 		try {
 			$this->page->display_more_info();
-		} catch ( \Throwable $e ) {
-			// Some template rendering may throw — that's acceptable.
-			$this->assertInstanceOf( \Throwable::class, $e );
+		} finally {
+			ob_get_clean();
 		}
-		ob_get_clean();
 
 		$this->assertTrue( true );
 	}
@@ -974,13 +973,12 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['template'] = 'found-template';
 
 		ob_start();
+
 		try {
 			$this->page->display_more_info();
-		} catch ( \Throwable $e ) {
-			// Template rendering may throw — acceptable.
-			$this->assertInstanceOf( \Throwable::class, $e );
+		} finally {
+			ob_get_clean();
 		}
-		ob_get_clean();
 
 		$this->assertTrue( true );
 	}
@@ -994,13 +992,12 @@ class Template_Library_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_register_scripts_does_not_throw(): void {
 		ob_start();
+
 		try {
 			$this->page->register_scripts();
-		} catch ( \Exception $e ) {
-			// Acceptable if wp_enqueue_media or similar throws in test env.
-			$this->assertInstanceOf( \Exception::class, $e );
+		} finally {
+			ob_get_clean();
 		}
-		ob_get_clean();
 
 		$this->assertTrue( true );
 	}

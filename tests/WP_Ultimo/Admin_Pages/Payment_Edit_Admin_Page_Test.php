@@ -1033,9 +1033,10 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['payment_id'] = 999999;
 		$_POST['payment_id']    = 999999;
 
-		$this->expectException(\Error::class);
+		$response = $this->capture_json_response(fn() => $this->page->handle_edit_line_item_modal());
 
-		$this->page->handle_edit_line_item_modal();
+		$this->assertFalse($response['success']);
+		$this->assertSame('not-found', $response['data'][0]['code']);
 	}
 
 	// -------------------------------------------------------------------------
