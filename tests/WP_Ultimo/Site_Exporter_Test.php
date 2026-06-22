@@ -70,6 +70,78 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 
 		wp_clear_scheduled_hook('wu_import_site');
 		wp_clear_scheduled_hook('wu_import_network');
+
+		$this->clear_pending_import_transients('site');
+		$this->clear_pending_import_transients('network');
+	}
+
+	/**
+	 * Clear pending import transients for the given import type.
+	 *
+	 * The scheduling tests create pending imports directly so maybe_run_imports()
+	 * remains responsible for scheduling the cron hook. Clean every matching
+	 * transient, not only hashes created by the current test, so full-suite runs
+	 * cannot inherit pending imports from a previous test failure.
+	 *
+	 * @param string $type Import type. Accepts site or network.
+	 */
+	private function clear_pending_import_transients(string $type): void {
+
+		global $wpdb;
+
+		if (! in_array($type, ['site', 'network'], true)) {
+			return;
+		}
+
+		if (is_multisite()) {
+			$table      = "{$wpdb->base_prefix}sitemeta";
+			$key_column = 'meta_key';
+			$like       = $wpdb->esc_like("_site_transient_wu_pending_{$type}_import_") . '%';
+		} else {
+			$table      = "{$wpdb->base_prefix}options";
+			$key_column = 'option_name';
+			$like       = $wpdb->esc_like("_transient_wu_pending_{$type}_import_") . '%';
+		}
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table and column are selected from known WordPress schema names.
+		$keys = $wpdb->get_col($wpdb->prepare("SELECT {$key_column} FROM {$table} WHERE {$key_column} LIKE %s", $like));
+
+		foreach ($keys as $key) {
+			$transient = preg_replace('/^_(site_)?transient_/', '', $key);
+
+			if (is_string($transient)) {
+				wu_exporter_delete_transient($transient);
+			}
+		}
+	}
+
+	/**
+	 * Assert an import hook is scheduled with the expected cron event shape.
+	 *
+	 * @param string $hook Import cron hook.
+	 * @return int Scheduled timestamp.
+	 */
+	private function assert_scheduled_import_event(string $hook): int {
+
+		$scheduled = wp_next_scheduled($hook);
+
+		$this->assertNotFalse($scheduled, "{$hook} must be scheduled after maybe_run_imports()");
+		$this->assertGreaterThan(0, $scheduled, 'Scheduled timestamp must be a positive Unix timestamp');
+
+		$cron = _get_cron_array();
+
+		$this->assertIsArray($cron);
+		$this->assertArrayHasKey($scheduled, $cron);
+		$this->assertArrayHasKey($hook, $cron[ $scheduled ]);
+		$this->assertArrayHasKey(md5(serialize([])), $cron[ $scheduled ][ $hook ]); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Mirrors WordPress cron event key generation.
+
+		$event = $cron[ $scheduled ][ $hook ][ md5(serialize([])) ]; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Mirrors WordPress cron event key generation.
+
+		$this->assertSame('wu_site_every_minute', $event['schedule']);
+		$this->assertSame([], $event['args']);
+		$this->assertSame(60, $event['interval']);
+
+		return $scheduled;
 	}
 
 	/**
@@ -201,10 +273,7 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 
 		$this->exporter->maybe_run_imports();
 
-		$scheduled = wp_next_scheduled('wu_import_site');
-
-		$this->assertNotFalse($scheduled, 'wu_import_site must be scheduled after maybe_run_imports()');
-		$this->assertGreaterThan(0, $scheduled, 'Scheduled timestamp must be a positive Unix timestamp');
+		$this->assert_scheduled_import_event('wu_import_site');
 		$this->assertFalse(wp_next_scheduled('wu_import_network'), 'wu_import_network must not be scheduled for a site import');
 	}
 
@@ -217,10 +286,7 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 
 		$this->exporter->maybe_run_imports();
 
-		$scheduled = wp_next_scheduled('wu_import_network');
-
-		$this->assertNotFalse($scheduled, 'wu_import_network must be scheduled after maybe_run_imports()');
-		$this->assertGreaterThan(0, $scheduled, 'Scheduled timestamp must be a positive Unix timestamp');
+		$this->assert_scheduled_import_event('wu_import_network');
 		$this->assertFalse(wp_next_scheduled('wu_import_site'), 'wu_import_site must not be scheduled for a network import');
 	}
 
