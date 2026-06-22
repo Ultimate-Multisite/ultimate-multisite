@@ -123,9 +123,9 @@ class Site_Test extends \WP_UnitTestCase {
 
 		// Test field constraints
 		$this->assertStringContainsString('required', $validation_rules['title'], 'Title should be required.');
-		$this->assertStringContainsString('required', $validation_rules['customer_id'], 'Customer ID should be required.');
 		$this->assertStringContainsString('integer', $validation_rules['customer_id'], 'Customer ID should be integer.');
-		$this->assertStringContainsString('min:2', $validation_rules['description'], 'Description should have minimum length.');
+		$this->assertStringContainsString('default:', $validation_rules['customer_id'], 'Customer ID should be optional for regular WordPress subsites.');
+		$this->assertStringContainsString('default:', $validation_rules['description'], 'Description should be optional metadata.');
 	}
 
 	/**
@@ -135,15 +135,16 @@ class Site_Test extends \WP_UnitTestCase {
 		$test_domain = 'test-example.com';
 		$test_path   = '/test-path';
 
-		$this->site->set_domain($test_domain);
-		$this->site->set_path($test_path);
+		$site = new Site();
+		$site->set_domain($test_domain);
+		$site->set_path($test_path);
 
-		$this->assertEquals($test_domain, $this->site->get_domain(), 'Domain should be set and retrieved correctly.');
-		$this->assertEquals($test_path, $this->site->get_path(), 'Path should be set and retrieved correctly.');
+		$this->assertEquals($test_domain, $site->get_domain(), 'Domain should be set and retrieved correctly.');
+		$this->assertEquals($test_path, $site->get_path(), 'Path should be set and retrieved correctly.');
 
 		// Test URL generation
 		$expected_url = set_url_scheme(esc_url(sprintf($test_domain . '/' . trim($test_path, '/'))));
-		$this->assertEquals($expected_url, $this->site->get_site_url(), 'Site URL should be generated correctly.');
+		$this->assertEquals($expected_url, $site->get_site_url(), 'Unsaved site URL should be generated from domain and path.');
 	}
 
 	/**
@@ -300,16 +301,17 @@ class Site_Test extends \WP_UnitTestCase {
 		$domain = 'test-site.com';
 		$path   = '/my-site';
 
-		$this->site->set_domain($domain);
-		$this->site->set_path($path);
+		$site = new Site();
+		$site->set_domain($domain);
+		$site->set_path($path);
 
 		// Test site URL
-		$site_url     = $this->site->get_site_url();
+		$site_url     = $site->get_site_url();
 		$expected_url = set_url_scheme(esc_url(sprintf($domain . '/' . trim($path, '/'))));
-		$this->assertEquals($expected_url, $site_url, 'Site URL should be generated correctly.');
+		$this->assertEquals($expected_url, $site_url, 'Unsaved site URL should be generated correctly.');
 
 		// Test active site URL (without mapped domain)
-		$active_url = $this->site->get_active_site_url();
+		$active_url = $site->get_active_site_url();
 		$this->assertEquals($expected_url, $active_url, 'Active site URL should match site URL when no mapping exists.');
 	}
 

@@ -1669,8 +1669,8 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 
 		$site = new \WP_Ultimo\Models\Site();
 
-		// Default is 1
-		$this->assertEquals(1, $site->get_site_id());
+		// Unsaved sites defer network selection to save() instead of hard-coding network 1.
+		$this->assertEquals(0, $site->get_site_id());
 
 		$site->set_site_id(2);
 		$this->assertEquals(2, $site->get_site_id());

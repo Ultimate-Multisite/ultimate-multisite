@@ -604,8 +604,8 @@ class Domain_Test extends WP_UnitTestCase {
 		$domain = new Domain();
 		$rules  = $domain->validation_rules();
 
-		$this->assertStringContainsString('required', $rules['stage']);
 		$this->assertStringContainsString('in:', $rules['stage']);
+		$this->assertStringContainsString('default:checking-dns', $rules['stage']);
 		$this->assertStringContainsString('checking-dns', $rules['stage']);
 		$this->assertStringContainsString('done', $rules['stage']);
 		$this->assertStringContainsString('failed', $rules['stage']);

@@ -15,8 +15,26 @@ if ( ! isset( $_SERVER['REMOTE_ADDR'] ) ) {
 	$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
 }
 
+// WordPress multisite site-creation and URL helpers expect a host-like web
+// request environment. Keep it deterministic for CLI-based PHPUnit runs.
+if ( ! isset( $_SERVER['HTTP_HOST'] ) ) {
+	$_SERVER['HTTP_HOST'] = 'example.org';
+}
+
+if ( ! isset( $_SERVER['SERVER_NAME'] ) ) {
+	$_SERVER['SERVER_NAME'] = 'example.org';
+}
+
+if ( ! isset( $_SERVER['REQUEST_URI'] ) ) {
+	$_SERVER['REQUEST_URI'] = '/';
+}
+
 if ( ! $_tests_dir ) {
-	$_tests_dir = rtrim(sys_get_temp_dir(), '/\\') . '/wordpress-tests-lib';
+	if ( file_exists('/tmp/wordpress-tests-lib/includes/functions.php') ) {
+		$_tests_dir = '/tmp/wordpress-tests-lib';
+	} else {
+		$_tests_dir = rtrim(sys_get_temp_dir(), '/\\') . '/wordpress-tests-lib';
+	}
 }
 
 // Forward custom PHPUnit Polyfills configuration to PHPUnit bootstrap file.
