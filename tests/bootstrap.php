@@ -87,6 +87,8 @@ if ( ! function_exists('wc_get_order')) {
 	 * @return object|false
 	 */
 	function wc_get_order($order_id) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset($order_id);
+
 		if ( ! isset($GLOBALS['_wu_test_wc_order_email'])) {
 			return false;
 		}
