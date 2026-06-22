@@ -669,12 +669,17 @@ class ImportCommand extends MUMigrationBase {
 			$installed_themes = get_theme_root();
 
 			foreach ( $themes as $theme ) {
+				if ( $theme->isDot() ) {
+					continue;
+				}
+
 				if ( $theme->isDir() ) {
 					$fullPluginPath = $themes_dir . '/' . $theme->getFilename();
+					$destThemePath = $installed_themes . '/' . $theme->getFilename();
 
-					if ( ! file_exists($installed_themes . '/' . $theme->getFilename()) ) {
+					if ( ! file_exists($destThemePath) ) {
 						WP_CLI::log(sprintf(__('Moving %s to themes folder'), $theme->getFilename()));
-						rename($fullPluginPath, $installed_themes . '/' . $theme->getFilename());
+						Helpers\move_folder($fullPluginPath, $destThemePath);
 
 						Helpers\runcommand('theme enable', [$theme->getFilename()]);
 					}

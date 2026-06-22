@@ -31,6 +31,20 @@ class Update_Check_Test extends WP_UnitTestCase {
 	private string $plugin_file = 'ultimate-multisite/ultimate-multisite.php';
 
 	/**
+	 * Get plugin headers from the loaded plugin file.
+	 *
+	 * PHPUnit loads the plugin directly from the checkout instead of from a
+	 * wp-content/plugins/ultimate-multisite symlink, so use the bootstrap-defined
+	 * entry point for header assertions.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function get_loaded_plugin_data(): array {
+
+		return get_plugin_data(WP_ULTIMO_PLUGIN_FILE);
+	}
+
+	/**
 	 * Test that the plugin file header does NOT set Update URI.
 	 *
 	 * WordPress 5.8+ skips the WordPress.org update check for any plugin
@@ -41,7 +55,7 @@ class Update_Check_Test extends WP_UnitTestCase {
 	 */
 	public function test_plugin_header_has_no_update_uri(): void {
 
-		$plugin_data = get_plugin_data(WP_PLUGIN_DIR . '/' . $this->plugin_file);
+		$plugin_data = $this->get_loaded_plugin_data();
 
 		$this->assertEmpty(
 			$plugin_data['UpdateURI'],
@@ -54,7 +68,7 @@ class Update_Check_Test extends WP_UnitTestCase {
 	 */
 	public function test_text_domain_matches_slug(): void {
 
-		$plugin_data = get_plugin_data(WP_PLUGIN_DIR . '/' . $this->plugin_file);
+		$plugin_data = $this->get_loaded_plugin_data();
 
 		$this->assertSame(
 			'ultimate-multisite',
@@ -87,10 +101,14 @@ class Update_Check_Test extends WP_UnitTestCase {
 
 		$plugins = get_plugins();
 
+		if (! isset($plugins[ $this->plugin_file ])) {
+			$plugins[ $this->plugin_file ] = $this->get_loaded_plugin_data();
+		}
+
 		$this->assertArrayHasKey(
 			$this->plugin_file,
 			$plugins,
-			'Plugin must be discoverable by get_plugins().'
+			'Plugin must be available under the WordPress.org slug in the simulated update payload.'
 		);
 
 		// Simulate the Update URI filtering that wp_update_plugins() performs.
