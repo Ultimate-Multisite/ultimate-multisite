@@ -796,7 +796,7 @@ class Site_Duplicator {
 					ON src_post.ID = src.post_id
 			INNER JOIN {$to_prefix}posts tgt
 					ON tgt.post_type = src_post.post_type
-					AND (tgt.ID = src.post_id OR tgt.post_title = src_post.post_title)
+					AND tgt.ID = src.post_id
 			WHERE NOT EXISTS (
 				SELECT 1 FROM {$to_prefix}postmeta tpm
 				WHERE tpm.post_id = tgt.ID
@@ -855,7 +855,7 @@ class Site_Duplicator {
 						AND src_post.post_type = 'nav_menu_item'
 				INNER JOIN {$to_prefix}posts tgt
 						ON tgt.post_type = src_post.post_type
-						AND (tgt.ID = src.post_id OR tgt.post_title = src_post.post_title)
+						AND tgt.ID = src.post_id
 				WHERE src.meta_key IN ({$placeholders})
 				  AND NOT EXISTS (
 					  SELECT 1 FROM {$to_prefix}postmeta tpm
@@ -903,7 +903,7 @@ class Site_Duplicator {
 					AND src_post.post_type = 'attachment'
 			INNER JOIN {$to_prefix}posts tgt
 					ON tgt.post_type = src_post.post_type
-					AND (tgt.ID = src.post_id OR tgt.post_title = src_post.post_title)
+					AND tgt.ID = src.post_id
 			WHERE NOT EXISTS (
 				SELECT 1 FROM {$to_prefix}postmeta tpm
 				WHERE tpm.post_id = tgt.ID
@@ -950,7 +950,7 @@ class Site_Duplicator {
 						ON src_post.ID = src.post_id
 				INNER JOIN {$to_prefix}posts tgt
 						ON tgt.post_type = src_post.post_type
-						AND (tgt.ID = src.post_id OR tgt.post_title = src_post.post_title)
+						AND tgt.ID = src.post_id
 				WHERE src.meta_key LIKE %s
 				  AND NOT EXISTS (
 					  SELECT 1 FROM {$to_prefix}postmeta tpm
