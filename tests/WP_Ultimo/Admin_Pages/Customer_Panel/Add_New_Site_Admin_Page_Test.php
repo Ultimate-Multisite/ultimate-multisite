@@ -60,10 +60,12 @@ class Add_New_Site_Admin_Page_Test extends WP_UnitTestCase {
 				$this->customer = wu_get_customer_by_user_id($user->ID);
 			}
 
-			if (!$this->customer || is_wp_error($this->customer)) {
+			if (! $this->customer || is_wp_error($this->customer)) {
 				$this->fail('Could not create test customer');
 			}
 		}
+
+		wp_set_current_user($this->customer->get_user_id());
 
 		// Create a membership.
 		$this->membership = wu_create_membership(
@@ -234,7 +236,7 @@ class Add_New_Site_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * get_title returns 'Add New Site'.
+	 * Get_title returns 'Add New Site'.
 	 */
 	public function test_get_title(): void {
 
@@ -249,7 +251,7 @@ class Add_New_Site_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * get_menu_title returns 'Add New Site'.
+	 * Get_menu_title returns 'Add New Site'.
 	 */
 	public function test_get_menu_title(): void {
 
@@ -264,7 +266,7 @@ class Add_New_Site_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * get_submenu_title returns 'Add New Site'.
+	 * Get_submenu_title returns 'Add New Site'.
 	 */
 	public function test_get_submenu_title(): void {
 
@@ -279,7 +281,7 @@ class Add_New_Site_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * page_loaded sets customer.
+	 * Page_loaded sets customer.
 	 */
 	public function test_page_loaded(): void {
 
@@ -305,7 +307,7 @@ class Add_New_Site_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * hooks() does not throw.
+	 * Hooks() does not throw.
 	 */
 	public function test_hooks_does_not_throw(): void {
 
@@ -319,7 +321,7 @@ class Add_New_Site_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * force_screen_options() returns early when screen id doesn't match.
+	 * Force_screen_options() returns early when screen id doesn't match.
 	 */
 	public function test_force_screen_options_wrong_screen(): void {
 
@@ -331,7 +333,7 @@ class Add_New_Site_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * force_screen_options() adds screen option when screen id matches.
+	 * Force_screen_options() adds screen option when screen id matches.
 	 */
 	public function test_force_screen_options_correct_screen(): void {
 
@@ -347,7 +349,7 @@ class Add_New_Site_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * screen_options() does not throw.
+	 * Screen_options() does not throw.
 	 */
 	public function test_screen_options_does_not_throw(): void {
 
@@ -361,7 +363,7 @@ class Add_New_Site_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * register_widgets() does not throw when called with a valid screen.
+	 * Register_widgets() does not throw when called with a valid screen.
 	 */
 	public function test_register_widgets_does_not_throw(): void {
 
@@ -377,7 +379,7 @@ class Add_New_Site_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * output() renders without throwing.
+	 * Output() renders without throwing.
 	 */
 	public function test_output_renders(): void {
 

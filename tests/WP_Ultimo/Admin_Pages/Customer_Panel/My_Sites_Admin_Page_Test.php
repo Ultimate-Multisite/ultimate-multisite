@@ -60,10 +60,12 @@ class My_Sites_Admin_Page_Test extends WP_UnitTestCase {
 				$this->customer = wu_get_customer_by_user_id($user->ID);
 			}
 
-			if (!$this->customer || is_wp_error($this->customer)) {
+			if (! $this->customer || is_wp_error($this->customer)) {
 				$this->fail('Could not create test customer');
 			}
 		}
+
+		wp_set_current_user($this->customer->get_user_id());
 
 		// Create a membership.
 		$this->membership = wu_create_membership(
@@ -210,7 +212,7 @@ class My_Sites_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * get_title returns 'My Sites'.
+	 * Get_title returns 'My Sites'.
 	 */
 	public function test_get_title(): void {
 
@@ -225,7 +227,7 @@ class My_Sites_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * get_menu_title returns 'My Sites'.
+	 * Get_menu_title returns 'My Sites'.
 	 */
 	public function test_get_menu_title(): void {
 
@@ -240,7 +242,7 @@ class My_Sites_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * get_submenu_title returns 'My Sites'.
+	 * Get_submenu_title returns 'My Sites'.
 	 */
 	public function test_get_submenu_title(): void {
 
@@ -255,7 +257,7 @@ class My_Sites_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * page_loaded sets customer.
+	 * Page_loaded sets customer.
 	 */
 	public function test_page_loaded(): void {
 
@@ -281,7 +283,7 @@ class My_Sites_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * hooks() does not throw.
+	 * Hooks() does not throw.
 	 */
 	public function test_hooks_does_not_throw(): void {
 
@@ -295,7 +297,7 @@ class My_Sites_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * unset_default_my_sites_menu() does not throw.
+	 * Unset_default_my_sites_menu() does not throw.
 	 */
 	public function test_unset_default_my_sites_menu_does_not_throw(): void {
 
@@ -309,15 +311,22 @@ class My_Sites_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * change_my_sites_link() returns early when my-sites node is empty.
+	 * Change_my_sites_link() returns early when my-sites node is empty.
 	 */
 	public function test_change_my_sites_link_no_node(): void {
 
-		global $wp_admin_bar;
+		$wp_admin_bar = new class() {
 
-		if (!$wp_admin_bar) {
-			$wp_admin_bar = new \WP_Admin_Bar();
-		}
+			public function get_node($id) {
+
+				return null;
+			}
+
+			public function add_node($node): void {
+
+				throw new \RuntimeException('add_node should not be called when the my-sites node is missing.');
+			}
+		};
 
 		$this->page->change_my_sites_link($wp_admin_bar);
 
@@ -329,7 +338,7 @@ class My_Sites_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * force_screen_options() returns early when screen id doesn't match.
+	 * Force_screen_options() returns early when screen id doesn't match.
 	 */
 	public function test_force_screen_options_wrong_screen(): void {
 
@@ -341,7 +350,7 @@ class My_Sites_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * force_screen_options() adds screen option when screen id matches.
+	 * Force_screen_options() adds screen option when screen id matches.
 	 */
 	public function test_force_screen_options_correct_screen(): void {
 
@@ -357,7 +366,7 @@ class My_Sites_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * screen_options() does not throw.
+	 * Screen_options() does not throw.
 	 */
 	public function test_screen_options_does_not_throw(): void {
 
@@ -371,7 +380,7 @@ class My_Sites_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * register_widgets() does not throw when called with a valid screen.
+	 * Register_widgets() does not throw when called with a valid screen.
 	 */
 	public function test_register_widgets_does_not_throw(): void {
 
@@ -387,7 +396,7 @@ class My_Sites_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * output() renders without throwing.
+	 * Output() renders without throwing.
 	 */
 	public function test_output_renders(): void {
 

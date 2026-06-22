@@ -66,9 +66,9 @@ function wu_get_site_by_hash($hash) {
  *
  * @since 2.5.0
  *
- * @param string       $search      The search term.
- * @param array|false  $blog_id__in Optional array of blog IDs to restrict the search to.
- * @param int          $limit       Maximum number of IDs to return.
+ * @param string      $search      The search term.
+ * @param array|false $blog_id__in Optional array of blog IDs to restrict the search to.
+ * @param int         $limit       Maximum number of IDs to return.
  * @return int[]
  */
 function wu_get_sites_extra_ids_for_search($search, $blog_id__in = false, $limit = 100) {
@@ -230,6 +230,34 @@ function wu_create_site($site_data) {
 
 	$network_domain = $current_site->domain;
 
+	$existing_site_data = [];
+
+	if ( ! empty($site_data['blog_id'])) {
+		$existing_site = get_site((int) $site_data['blog_id']);
+
+		if ($existing_site) {
+			$details = get_blog_details((int) $site_data['blog_id']);
+
+			$existing_site_data = [
+				'site_id'      => (int) $existing_site->network_id,
+				'domain'       => $existing_site->domain,
+				'path'         => $existing_site->path,
+				'registered'   => $existing_site->registered,
+				'last_updated' => $existing_site->last_updated,
+				'public'       => (bool) $existing_site->public,
+				'archived'     => (bool) $existing_site->archived,
+				'mature'       => (bool) $existing_site->mature,
+				'spam'         => (bool) $existing_site->spam,
+				'deleted'      => (bool) $existing_site->deleted,
+				'lang_id'      => (int) $existing_site->lang_id,
+			];
+
+			if ($details && isset($details->blogname)) {
+				$existing_site_data['title'] = $details->blogname;
+			}
+		}
+	}
+
 	// Mode-aware domain/path normalisation. When the caller passes a path
 	// but no explicit domain (or only the network root domain) on a
 	// subdomain multisite install, the path is meaningless — WordPress
@@ -250,8 +278,8 @@ function wu_create_site($site_data) {
 	$domain_supplied           = '' !== $normalized_input_domain && $normalized_input_domain !== $normalized_network_domain;
 
 	if (is_multisite() && apply_filters('wu_is_subdomain_install', is_subdomain_install()) && $path_supplied && ! $domain_supplied) {
-		$raw_slug             = trim((string) $site_data['path'], '/');
-		$slug                 = sanitize_title_with_dashes(wu_clean($raw_slug));
+		$raw_slug = trim((string) $site_data['path'], '/');
+		$slug     = sanitize_title_with_dashes(wu_clean($raw_slug));
 
 		if ('' === $slug) {
 			return new \WP_Error(
@@ -260,23 +288,26 @@ function wu_create_site($site_data) {
 			);
 		}
 
-		$bare_network_domain  = preg_replace('/^www\./i', '', (string) $network_domain);
-		$site_data['domain']  = "{$slug}.{$bare_network_domain}";
-		$site_data['path']    = '/';
+		$bare_network_domain = preg_replace('/^www\./i', '', (string) $network_domain);
+		$site_data['domain'] = "{$slug}.{$bare_network_domain}";
+		$site_data['path']   = '/';
 	}
 
 	$site_data = wp_parse_args(
 		$site_data,
-		[
-			'domain'                => $network_domain,
-			'path'                  => '/',
-			'title'                 => false,
-			'type'                  => false,
-			'template_id'           => false,
-			'featured_image_id'     => 0,
-			'duplication_arguments' => false,
-			'public'                => true,
-		]
+		array_merge(
+			[
+				'domain'                => $network_domain,
+				'path'                  => '/',
+				'title'                 => false,
+				'type'                  => false,
+				'template_id'           => false,
+				'featured_image_id'     => 0,
+				'duplication_arguments' => false,
+				'public'                => true,
+			],
+			$existing_site_data
+		)
 	);
 
 	$site = new \WP_Ultimo\Models\Site($site_data);
