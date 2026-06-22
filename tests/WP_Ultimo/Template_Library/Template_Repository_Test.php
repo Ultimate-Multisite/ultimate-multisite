@@ -46,12 +46,13 @@ class Template_Repository_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test get_template returns null for unknown slug.
+	 * Test get_template returns WP_Error for unknown slug.
 	 */
-	public function test_get_template_returns_null_for_unknown(): void {
+	public function test_get_template_returns_error_for_unknown(): void {
 		$result = $this->repository->get_template('nonexistent-template-slug-xyz');
 
-		$this->assertNull($result);
+		$this->assertWPError($result);
+		$this->assertSame('template_not_found', $result->get_error_code());
 	}
 
 	/**

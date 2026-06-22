@@ -396,6 +396,10 @@ class Ajax_Test extends WP_UnitTestCase {
 
 		$this->reset_settings_with_empty_sections();
 
+		$user_id = self::factory()->user->create( [ 'role' => 'administrator' ] );
+		grant_super_admin( $user_id );
+		wp_set_current_user( $user_id );
+
 		$_REQUEST['model'] = 'all';
 		$_REQUEST['query'] = [ 'search' => 'zzz_no_match_xyz' ];
 
