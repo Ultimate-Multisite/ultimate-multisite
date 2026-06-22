@@ -215,6 +215,7 @@ trait Limitable {
 			} catch (\Throwable $exception) {
 
 				// Silence is golden.
+				$module = [];
 			}
 
 			$module['enabled'] = $object_limitations->{$limitation_id}->handle_enabled();

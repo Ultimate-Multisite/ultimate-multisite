@@ -213,6 +213,35 @@ class Limitations implements \JsonSerializable {
 	}
 
 	/**
+	 * Returns all user role quotas.
+	 *
+	 * Older integrations call this method through limitable models. The current
+	 * customer-user-role limitation stores a single role instead of per-role
+	 * quotas, so keep the compatibility API array-shaped without inventing quota
+	 * values.
+	 *
+	 * @since 2.0.0
+	 * @return array
+	 */
+	public function get_user_role_quotas() {
+
+		return [];
+	}
+
+	/**
+	 * Returns the customer roles allowed by these limitations.
+	 *
+	 * @since 2.0.0
+	 * @return array
+	 */
+	public function get_allowed_user_roles() {
+
+		$role = $this->customer_user_role->get_limit();
+
+		return empty($role) ? [] : [$role];
+	}
+
+	/**
 	 * Merges limitations from other entities.
 	 *
 	 * This is what we use to combine different limitations from
