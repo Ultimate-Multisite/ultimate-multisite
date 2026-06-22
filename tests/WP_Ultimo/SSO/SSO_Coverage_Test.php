@@ -1241,34 +1241,74 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	 * Test get_sso_action detects SSO path in REQUEST_URI.
 	 */
 	public function test_get_sso_action_detects_sso_path_in_request_uri(): void {
+		unset($_REQUEST['sso'], $_REQUEST['sso-grant'], $_REQUEST['sso_verify']);
+
+		$previous_request_uri = $_SERVER['REQUEST_URI'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- Test restores the exact previous server global.
+		$previous_http_host   = $_SERVER['HTTP_HOST'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- Test restores the exact previous server global.
+
 		$_SERVER['REQUEST_URI'] = '/sso';
+		$_SERVER['HTTP_HOST']   = 'example.org';
 
-		$sso = SSO::get_instance();
+		try {
+			$sso = SSO::get_instance();
 
-		$ref    = new \ReflectionClass($sso);
-		$method = $ref->getMethod('get_sso_action');
-		$method->setAccessible(true);
+			$ref    = new \ReflectionClass($sso);
+			$method = $ref->getMethod('get_sso_action');
+			$method->setAccessible(true);
 
-		$result = $method->invoke($sso);
+			$result = $method->invoke($sso);
 
-		$this->assertSame('/sso', $result);
+			$this->assertSame('/sso', $result);
+		} finally {
+			if (null === $previous_request_uri) {
+				unset($_SERVER['REQUEST_URI']);
+			} else {
+				$_SERVER['REQUEST_URI'] = $previous_request_uri;
+			}
+
+			if (null === $previous_http_host) {
+				unset($_SERVER['HTTP_HOST']);
+			} else {
+				$_SERVER['HTTP_HOST'] = $previous_http_host;
+			}
+		}
 	}
 
 	/**
 	 * Test get_sso_action detects sso-grant path in REQUEST_URI.
 	 */
 	public function test_get_sso_action_detects_sso_grant_path_in_request_uri(): void {
+		unset($_REQUEST['sso'], $_REQUEST['sso-grant'], $_REQUEST['sso_verify']);
+
+		$previous_request_uri = $_SERVER['REQUEST_URI'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- Test restores the exact previous server global.
+		$previous_http_host   = $_SERVER['HTTP_HOST'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- Test restores the exact previous server global.
+
 		$_SERVER['REQUEST_URI'] = '/sso-grant';
+		$_SERVER['HTTP_HOST']   = 'example.org';
 
-		$sso = SSO::get_instance();
+		try {
+			$sso = SSO::get_instance();
 
-		$ref    = new \ReflectionClass($sso);
-		$method = $ref->getMethod('get_sso_action');
-		$method->setAccessible(true);
+			$ref    = new \ReflectionClass($sso);
+			$method = $ref->getMethod('get_sso_action');
+			$method->setAccessible(true);
 
-		$result = $method->invoke($sso);
+			$result = $method->invoke($sso);
 
-		$this->assertSame('/sso-grant', $result);
+			$this->assertSame('/sso-grant', $result);
+		} finally {
+			if (null === $previous_request_uri) {
+				unset($_SERVER['REQUEST_URI']);
+			} else {
+				$_SERVER['REQUEST_URI'] = $previous_request_uri;
+			}
+
+			if (null === $previous_http_host) {
+				unset($_SERVER['HTTP_HOST']);
+			} else {
+				$_SERVER['HTTP_HOST'] = $previous_http_host;
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------

@@ -7,6 +7,8 @@
 
 namespace WP_Ultimo\SSO;
 
+// phpcs:disable WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Tests inspect local source files.
+
 /**
  * Unit tests for SSO class.
  *
@@ -1178,9 +1180,9 @@ class SSO_Test extends \WP_UnitTestCase {
 		);
 
 		$this->assertMatchesRegularExpression(
-			'/wp_safe_redirect\s*\(\s*\$denial_url\s*,\s*302\s*,\s*[\'"]WP-Ultimo-SSO[\'"]\s*\)\s*;\s*exit\s*;/s',
+			'/wp_safe_redirect\s*\(\s*\$denial_url\s*,\s*303\s*,\s*[\'"]WP-Ultimo-SSO[\'"]\s*\)\s*;\s*exit\s*;/s',
 			$body,
-			'handle_server() not-logged-in non-JSONP branch must call wp_safe_redirect( $denial_url, 302, \'WP-Ultimo-SSO\' ); exit; after building the denial URL.'
+			'handle_server() not-logged-in non-JSONP branch must call wp_safe_redirect( $denial_url, 303, \'WP-Ultimo-SSO\' ); exit; after building the denial URL.'
 		);
 
 		// Must NOT force wp-login.php on anonymous visitors — broker
