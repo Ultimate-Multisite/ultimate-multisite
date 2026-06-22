@@ -288,6 +288,9 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 
 		self::$membership->delete_meta(Membership::META_DISCOUNT_CODE);
 		self::$membership->delete_meta(Membership::META_VERIFIED_PAYMENT_DISCOUNT);
+
+		$cleanup_saved = self::$membership->save();
+		$this->assertNotWPError($cleanup_saved);
 	}
 
 	/**
