@@ -486,7 +486,7 @@ class System_Info_Admin_Page extends Base_Admin_Page {
 					'wp_post_revisions'      => [
 						'tooltip' => '',
 						'title'   => 'WP Options Transients',
-						'value'   => defined('WP_POST_REVISIONS') ? WP_POST_REVISIONS ?: __('Disabled', 'ultimate-multisite') : __('Not set', 'ultimate-multisite'),
+						'value'   => defined('WP_POST_REVISIONS') ? constant('WP_POST_REVISIONS') ?: __('Disabled', 'ultimate-multisite') : __('Not set', 'ultimate-multisite'),
 					],
 					'disable_wp_cron'        => [
 						'tooltip' => '',
@@ -743,6 +743,10 @@ class System_Info_Admin_Page extends Base_Admin_Page {
 		$settings = \WP_Ultimo\Settings::get_instance();
 
 		foreach ($settings->get_all() as $setting => $value) {
+			if (is_array($value)) {
+				continue;
+			}
+
 			$add = true;
 
 			foreach ($exclude as $ex) {

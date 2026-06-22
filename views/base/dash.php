@@ -6,6 +6,8 @@
  */
 defined('ABSPATH') || exit;
 
+$page_title = $page_title ?? (isset($page) && method_exists($page, 'get_title') ? $page->get_title() : '');
+
 ?>
 <div id="wp-ultimo-wrap" class="<?php wu_wrap_use_container(); ?> wrap wu-styling">
 	<h1 class="wp-heading-inline">

@@ -52,23 +52,25 @@ class Network_Usage_Columns_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test add_plugins_column adds a 'sites' column.
+	 * Test add_plugins_column adds the usage column used by WordPress.
 	 */
 	public function test_add_plugins_column(): void {
 		$columns = $this->columns->add_plugins_column([]);
 
 		$this->assertIsArray($columns);
-		$this->assertArrayHasKey('sites', $columns);
+		$this->assertArrayHasKey('active_blogs', $columns);
+		$this->assertSame('Usage', $columns['active_blogs']);
 	}
 
 	/**
-	 * Test add_themes_column adds a 'sites' column.
+	 * Test add_themes_column adds the usage column used by WordPress.
 	 */
 	public function test_add_themes_column(): void {
 		$columns = $this->columns->add_themes_column([]);
 
 		$this->assertIsArray($columns);
-		$this->assertArrayHasKey('sites', $columns);
+		$this->assertArrayHasKey('active_blogs', $columns);
+		$this->assertStringContainsString('Usage', $columns['active_blogs']);
 	}
 
 	/**
