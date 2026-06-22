@@ -8,7 +8,6 @@
 namespace WP_Ultimo\Admin_Pages;
 
 use WP_UnitTestCase;
-use WP_Ultimo\Faker;
 use WP_Ultimo\Models\Event;
 
 /**
@@ -35,10 +34,24 @@ class Event_View_Admin_Page_Test extends WP_UnitTestCase {
 
 		parent::setUp();
 
-		$faker = new Faker();
-		$faker->generate_fake_events(1);
+		$this->event = \wu_create_event(
+			[
+				'severity'    => Event::SEVERITY_INFO,
+				'initiator'   => 'system',
+				'author_id'   => 1,
+				'object_id'   => 6,
+				'object_type' => 'customer',
+				'slug'        => 'created',
+				'payload'     => [
+					'key'       => 'status',
+					'old_value' => 'none',
+					'new_value' => 'created',
+				],
+			]
+		);
 
-		$this->event = current($faker->get_fake_data_generated('events'));
+		$this->assertInstanceOf(Event::class, $this->event);
+		$this->assertGreaterThan(0, $this->event->get_id());
 
 		$this->page = new Event_View_Admin_Page();
 	}
