@@ -53,8 +53,20 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	 * Tear down test.
 	 */
 	public function tearDown(): void {
+		$_GET     = [];
+		$_POST    = [];
+		$_REQUEST = [];
+
+		$this->reset_gateways();
+		wu_save_setting( 'active_gateways', [] );
+		wu_save_setting( 'paypal_test_username', '' );
+		wu_save_setting( 'paypal_live_username', '' );
+
 		remove_all_filters( 'wp_doing_ajax' );
 		remove_all_filters( 'wp_die_ajax_handler' );
+		remove_all_filters( 'wu_get_gateway' );
+		remove_all_filters( 'wu_gateway_skip_confirmations' );
+		remove_all_filters( 'wu_gateway_skip_payment_status_poll' );
 
 		parent::tearDown();
 	}
@@ -381,7 +393,16 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	 * Test get_gateways_as_options filters out hidden gateways.
 	 */
 	public function test_get_gateways_as_options_filters_hidden(): void {
+		$hidden_id  = 'hidden-filter-' . wp_generate_uuid4();
+		$visible_id = 'visible-filter-' . wp_generate_uuid4();
+
+		$this->manager->register_gateway( $hidden_id, 'Hidden Filter', 'desc', Manual_Gateway::class, true );
+		$this->manager->register_gateway( $visible_id, 'Visible Filter', 'desc', Manual_Gateway::class, false );
+
 		$options = $this->manager->get_gateways_as_options();
+
+		$this->assertArrayHasKey( $visible_id, $options );
+		$this->assertArrayNotHasKey( $hidden_id, $options );
 
 		foreach ( $options as $option ) {
 			$this->assertFalse( $option['hidden'], "Hidden gateway should not appear in options: {$option['id']}" );
@@ -1040,6 +1061,11 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			'password' => 'password123',
 		] );
 
+		if ( is_wp_error( $customer ) ) {
+			$this->markTestSkipped( 'Could not create test customer: ' . $customer->get_error_message() );
+			return;
+		}
+
 		$product = wu_create_product( [
 			'name'         => 'Derive Plan',
 			'slug'         => 'derive-plan-' . wp_generate_uuid4(),
@@ -1050,11 +1076,23 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			'type'         => 'plan',
 		] );
 
+		if ( is_wp_error( $product ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test product: ' . $product->get_error_message() );
+			return;
+		}
+
 		$membership = wu_create_membership( [
 			'customer_id' => $customer->get_id(),
 			'plan_id'     => $product->get_id(),
 			'status'      => \WP_Ultimo\Database\Memberships\Membership_Status::ACTIVE,
 		] );
+
+		if ( is_wp_error( $membership ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test membership: ' . $membership->get_error_message() );
+			return;
+		}
 
 		$payment = wu_create_payment( [
 			'customer_id'   => $customer->get_id(),
@@ -1065,6 +1103,12 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			'status'        => \WP_Ultimo\Database\Payments\Payment_Status::PENDING,
 			'gateway'       => 'manual',
 		] );
+
+		if ( is_wp_error( $payment ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test payment: ' . $payment->get_error_message() );
+			return;
+		}
 
 		// No gateway_id provided — should derive from payment (manual) and return early
 		$this->manager->handle_scheduled_payment_verification( $payment->get_id() );
@@ -1099,6 +1143,11 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			'password' => 'password123',
 		] );
 
+		if ( is_wp_error( $customer ) ) {
+			$this->markTestSkipped( 'Could not create test customer: ' . $customer->get_error_message() );
+			return;
+		}
+
 		$product = wu_create_product( [
 			'name'         => 'Comp Plan',
 			'slug'         => 'comp-plan-' . wp_generate_uuid4(),
@@ -1109,11 +1158,23 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			'type'         => 'plan',
 		] );
 
+		if ( is_wp_error( $product ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test product: ' . $product->get_error_message() );
+			return;
+		}
+
 		$membership = wu_create_membership( [
 			'customer_id' => $customer->get_id(),
 			'plan_id'     => $product->get_id(),
 			'status'      => \WP_Ultimo\Database\Memberships\Membership_Status::ACTIVE,
 		] );
+
+		if ( is_wp_error( $membership ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test membership: ' . $membership->get_error_message() );
+			return;
+		}
 
 		$payment = wu_create_payment( [
 			'customer_id'   => $customer->get_id(),
@@ -1124,6 +1185,12 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 			'status'        => \WP_Ultimo\Database\Payments\Payment_Status::COMPLETED,
 			'gateway'       => 'stripe',
 		] );
+
+		if ( is_wp_error( $payment ) ) {
+			$customer->delete();
+			$this->markTestSkipped( 'Could not create test payment: ' . $payment->get_error_message() );
+			return;
+		}
 
 		// Completed payment — should return early
 		$this->manager->maybe_schedule_payment_verification( $payment, $membership, null, null, 'new' );

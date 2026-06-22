@@ -102,6 +102,7 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 		remove_all_filters('wu_paypal_oauth_enabled');
 		remove_all_filters('pre_http_request');
 		remove_all_filters('wp_redirect');
+		remove_all_filters('wu_get_gateway');
 		remove_all_filters('wp_doing_ajax');
 		remove_all_filters('wp_die_ajax_handler');
 
@@ -178,6 +179,10 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 
 		$mock_functions['wp_send_json_error'] = static function ($data = null, $status_code = null) {
 			return \wp_send_json_error($data, $status_code);
+		};
+
+		$mock_functions['wp_send_json_success'] = static function ($data = null, $status_code = null) {
+			return \wp_send_json_success($data, $status_code);
 		};
 
 		$property->setValue(null, $mock_functions);
