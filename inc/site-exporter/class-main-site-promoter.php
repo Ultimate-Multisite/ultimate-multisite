@@ -72,6 +72,7 @@ class Main_Site_Promoter {
 
 		$main_site_id = wu_get_main_site_id();
 		$main_url     = get_site_url($main_site_id);
+		$main_title   = get_blog_option($main_site_id, 'blogname');
 		$source_url   = get_site_url($source_blog_id);
 		$source_title = get_blog_option($source_blog_id, 'blogname');
 		$backups      = [];
@@ -118,7 +119,7 @@ class Main_Site_Promoter {
 				return new \WP_Error('main_site_promotion_failed', __('The source site could not be copied into the main site.', 'ultimate-multisite'));
 			}
 
-			$this->restore_main_identity($main_site_id, $main_url, $source_title, (bool) $args['preserve_main_title']);
+			$this->restore_main_identity($main_site_id, $main_url, $main_title, $source_title, (bool) $args['preserve_main_title']);
 
 			wp_cache_flush();
 			clean_blog_cache($main_site_id);
@@ -270,18 +271,19 @@ class Main_Site_Promoter {
 	 *
 	 * @param int    $main_site_id        Main site blog ID.
 	 * @param string $main_url            Main site URL.
+	 * @param string $main_title          Original main site title.
 	 * @param string $source_title        Source site title.
-	 * @param bool   $preserve_main_title Whether to preserve the current main title.
+	 * @param bool   $preserve_main_title Whether to preserve the original main title.
 	 * @return void
 	 */
-	private function restore_main_identity($main_site_id, $main_url, $source_title, $preserve_main_title) {
+	private function restore_main_identity($main_site_id, $main_url, $main_title, $source_title, $preserve_main_title) {
 
 		update_blog_option($main_site_id, 'home', $main_url);
 		update_blog_option($main_site_id, 'siteurl', $main_url);
 
-		if (! $preserve_main_title) {
-			update_blog_option($main_site_id, 'blogname', $source_title);
-		}
+		$title_to_use = $preserve_main_title ? $main_title : $source_title;
+
+		update_blog_option($main_site_id, 'blogname', $title_to_use);
 	}
 
 	/**

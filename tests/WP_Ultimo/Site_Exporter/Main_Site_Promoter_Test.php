@@ -187,6 +187,81 @@ class Main_Site_Promoter_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Main title identity is restored when requested after the copy step rewrites it.
+	 */
+	public function test_promote_restores_original_main_title_when_preserved(): void {
+
+		$main_site_id        = wu_get_main_site_id();
+		$original_main_title = get_blog_option($main_site_id, 'blogname');
+		$main_title          = 'Original Main Title';
+		$source_title        = 'Copied Source Title';
+
+		update_blog_option($main_site_id, 'blogname', $main_title);
+		update_blog_option($this->source_blog_id, 'blogname', $source_title);
+
+		$override_filter = function () use ($main_site_id, $source_title) {
+			update_blog_option($main_site_id, 'blogname', $source_title);
+
+			return true;
+		};
+
+		add_filter('wu_main_site_promoter_override_site', $override_filter);
+
+		try {
+			$result = Main_Site_Promoter::get_instance()->promote(
+				$this->source_blog_id,
+				[
+					'backup'              => false,
+					'preserve_main_title' => true,
+				]
+			);
+
+			$this->assertIsArray($result);
+			$this->assertSame($main_title, get_blog_option($main_site_id, 'blogname'));
+		} finally {
+			remove_filter('wu_main_site_promoter_override_site', $override_filter);
+			update_blog_option($main_site_id, 'blogname', $original_main_title);
+		}
+	}
+
+	/**
+	 * Source title is applied when the main title should not be preserved.
+	 */
+	public function test_promote_uses_source_title_when_main_title_not_preserved(): void {
+
+		$main_site_id        = wu_get_main_site_id();
+		$original_main_title = get_blog_option($main_site_id, 'blogname');
+		$source_title        = 'Copied Source Title';
+
+		update_blog_option($main_site_id, 'blogname', 'Original Main Title');
+		update_blog_option($this->source_blog_id, 'blogname', $source_title);
+
+		$override_filter = function () use ($main_site_id) {
+			update_blog_option($main_site_id, 'blogname', 'Temporary Copied Title');
+
+			return true;
+		};
+
+		add_filter('wu_main_site_promoter_override_site', $override_filter);
+
+		try {
+			$result = Main_Site_Promoter::get_instance()->promote(
+				$this->source_blog_id,
+				[
+					'backup'              => false,
+					'preserve_main_title' => false,
+				]
+			);
+
+			$this->assertIsArray($result);
+			$this->assertSame($source_title, get_blog_option($main_site_id, 'blogname'));
+		} finally {
+			remove_filter('wu_main_site_promoter_override_site', $override_filter);
+			update_blog_option($main_site_id, 'blogname', $original_main_title);
+		}
+	}
+
+	/**
 	 * The caller's blog context is restored after promotion.
 	 */
 	public function test_promote_restores_caller_blog_context(): void {
