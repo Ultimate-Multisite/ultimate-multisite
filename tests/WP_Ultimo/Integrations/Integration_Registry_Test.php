@@ -56,7 +56,31 @@ class Integration_Registry_Test extends WP_UnitTestCase {
 
 	public function test_each_integration_has_domain_mapping_capability(): void {
 
+		$domain_mapping_integrations = [
+			'closte',
+			'cloudways',
+			'runcloud',
+			'cpanel',
+			'serverpilot',
+			'gridpane',
+			'cloudflare',
+			'hestia',
+			'enhance',
+			'plesk',
+			'rocket',
+			'wpengine',
+			'wpmudev',
+			'bunnynet',
+			'laravel-forge',
+			'cyberpanel',
+			'hostinger',
+		];
+
 		foreach ($this->registry->get_all() as $integration) {
+			if ( ! in_array($integration->get_id(), $domain_mapping_integrations, true)) {
+				continue;
+			}
+
 			$capabilities = $this->registry->get_capabilities($integration->get_id());
 
 			$found = false;
@@ -70,6 +94,26 @@ class Integration_Registry_Test extends WP_UnitTestCase {
 			}
 
 			$this->assertTrue($found, sprintf('Integration %s missing domain-mapping capability', $integration->get_id()));
+		}
+	}
+
+	public function test_email_integrations_have_transactional_email_capability(): void {
+
+		$email_integrations = ['amazon-ses', 'oracle-oci'];
+
+		foreach ($email_integrations as $integration_id) {
+			$capabilities = $this->registry->get_capabilities($integration_id);
+			$found        = false;
+
+			foreach ($capabilities as $module) {
+				if ($module->get_capability_id() === 'transactional-email') {
+					$found = true;
+
+					break;
+				}
+			}
+
+			$this->assertTrue($found, sprintf('Integration %s missing transactional-email capability', $integration_id));
 		}
 	}
 

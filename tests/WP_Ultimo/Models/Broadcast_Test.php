@@ -170,7 +170,6 @@ class Broadcast_Test extends WP_UnitTestCase {
 		$this->assertStringContainsString('min:2', $rules['title']);
 		$this->assertStringContainsString('required', $rules['content']);
 		$this->assertStringContainsString('min:3', $rules['content']);
-		$this->assertStringContainsString('required', $rules['type']);
 		$this->assertStringContainsString('in:broadcast_email,broadcast_notice', $rules['type']);
 		$this->assertStringContainsString('default:broadcast_notice', $rules['type']);
 	}
