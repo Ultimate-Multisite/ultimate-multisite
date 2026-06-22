@@ -171,18 +171,24 @@ endif;
  * This late-priority filter falls back to the logged_in cookie (path /) so that
  * the user is correctly identified on any subsite's wp-admin.
  */
-add_filter('determine_current_user', function ($user_id) {
+add_filter(
+	'determine_current_user',
+	function ($user_id) {
 
-	if ($user_id || ! is_multisite()) {
-		return $user_id;
-	}
+		if ($user_id || ! is_multisite()) {
+			return $user_id;
+		}
 
-	if ( ! defined('LOGGED_IN_COOKIE') || empty($_COOKIE[LOGGED_IN_COOKIE])) {
-		return $user_id;
-	}
+		if ( ! defined('LOGGED_IN_COOKIE') || empty($_COOKIE[ LOGGED_IN_COOKIE ])) {
+			return $user_id;
+		}
 
-	return wp_validate_auth_cookie($_COOKIE[LOGGED_IN_COOKIE], 'logged_in');
-}, 30);
+		$logged_in_cookie = sanitize_text_field(wp_unslash($_COOKIE[ LOGGED_IN_COOKIE ]));
+
+		return wp_validate_auth_cookie($logged_in_cookie, 'logged_in');
+	},
+	30
+);
 
 if ( ! function_exists('auth_redirect') ) :
 	/**
