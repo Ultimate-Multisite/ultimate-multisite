@@ -790,17 +790,22 @@ class Site_Duplicator {
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 		$wpdb->query(
 			"INSERT INTO {$to_prefix}postmeta (post_id, meta_key, meta_value)
-			SELECT src.post_id, src.meta_key, src.meta_value
+			SELECT tgt.ID, src.meta_key, src.meta_value
 			FROM {$from_prefix}postmeta src
+			INNER JOIN {$from_prefix}posts src_post
+					ON src_post.ID = src.post_id
 			INNER JOIN {$to_prefix}posts tgt
-					ON tgt.ID = src.post_id
+					ON tgt.post_type = src_post.post_type
+					AND (tgt.ID = src.post_id OR tgt.post_title = src_post.post_title)
 			WHERE NOT EXISTS (
 				SELECT 1 FROM {$to_prefix}postmeta tpm
-				WHERE tpm.post_id = src.post_id
+				WHERE tpm.post_id = tgt.ID
 				  AND tpm.meta_key = src.meta_key
 			)"
 		);
 		// phpcs:enable
+
+		wp_cache_flush();
 	}
 
 	/**
@@ -843,21 +848,26 @@ class Site_Duplicator {
 		$wpdb->query(
 			$wpdb->prepare(
 				"INSERT INTO {$to_prefix}postmeta (post_id, meta_key, meta_value)
-				SELECT src.post_id, src.meta_key, src.meta_value
+				SELECT tgt.ID, src.meta_key, src.meta_value
 				FROM {$from_prefix}postmeta src
+				INNER JOIN {$from_prefix}posts src_post
+						ON src_post.ID = src.post_id
+						AND src_post.post_type = 'nav_menu_item'
 				INNER JOIN {$to_prefix}posts tgt
-						ON tgt.ID = src.post_id
-						AND tgt.post_type = 'nav_menu_item'
+						ON tgt.post_type = src_post.post_type
+						AND (tgt.ID = src.post_id OR tgt.post_title = src_post.post_title)
 				WHERE src.meta_key IN ({$placeholders})
 				  AND NOT EXISTS (
 					  SELECT 1 FROM {$to_prefix}postmeta tpm
-					  WHERE tpm.post_id = src.post_id
+					  WHERE tpm.post_id = tgt.ID
 						AND tpm.meta_key = src.meta_key
 					  )", // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 				...$meta_keys
 			)
 		);
 		// phpcs:enable
+
+		wp_cache_flush();
 	}
 
 	/**
@@ -886,18 +896,23 @@ class Site_Duplicator {
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query(
 			"INSERT INTO {$to_prefix}postmeta (post_id, meta_key, meta_value)
-			SELECT src.post_id, src.meta_key, src.meta_value
+			SELECT tgt.ID, src.meta_key, src.meta_value
 			FROM {$from_prefix}postmeta src
+			INNER JOIN {$from_prefix}posts src_post
+					ON src_post.ID = src.post_id
+					AND src_post.post_type = 'attachment'
 			INNER JOIN {$to_prefix}posts tgt
-					ON tgt.ID = src.post_id
-					AND tgt.post_type = 'attachment'
+					ON tgt.post_type = src_post.post_type
+					AND (tgt.ID = src.post_id OR tgt.post_title = src_post.post_title)
 			WHERE NOT EXISTS (
 				SELECT 1 FROM {$to_prefix}postmeta tpm
-				WHERE tpm.post_id = src.post_id
+				WHERE tpm.post_id = tgt.ID
 				  AND tpm.meta_key = src.meta_key
 			)"
 		);
 		// phpcs:enable
+
+		wp_cache_flush();
 	}
 
 	/**
@@ -929,20 +944,25 @@ class Site_Duplicator {
 		$wpdb->query(
 			$wpdb->prepare(
 				"INSERT INTO {$to_prefix}postmeta (post_id, meta_key, meta_value)
-				SELECT src.post_id, src.meta_key, src.meta_value
+				SELECT tgt.ID, src.meta_key, src.meta_value
 				FROM {$from_prefix}postmeta src
+				INNER JOIN {$from_prefix}posts src_post
+						ON src_post.ID = src.post_id
 				INNER JOIN {$to_prefix}posts tgt
-						ON tgt.ID = src.post_id
+						ON tgt.post_type = src_post.post_type
+						AND (tgt.ID = src.post_id OR tgt.post_title = src_post.post_title)
 				WHERE src.meta_key LIKE %s
 				  AND NOT EXISTS (
 					  SELECT 1 FROM {$to_prefix}postmeta tpm
-					  WHERE tpm.post_id = src.post_id
+					  WHERE tpm.post_id = tgt.ID
 						AND tpm.meta_key = src.meta_key
 				  )",
 				$like_pattern
 			)
 		);
 		// phpcs:enable
+
+		wp_cache_flush();
 	}
 
 	/**

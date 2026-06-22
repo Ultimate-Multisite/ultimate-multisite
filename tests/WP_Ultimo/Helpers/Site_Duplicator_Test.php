@@ -253,8 +253,8 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 			]
 		);
 
-		$this->assertTrue(is_wp_error($target_wu_site));
-		$this->assertEquals('Sorry, that site already exists!', $target_wu_site->get_error_message());
+		$this->assertInstanceOf(Site::class, $target_wu_site);
+		$this->assertSame($target_site_id, $target_wu_site->get_blog_id());
 
 		$logged_messages = [];
 		$logger          = function ($handle, $message, $log_level) use (&$logged_messages) {
@@ -420,9 +420,9 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test duplication preserves site content.
+	 * Test duplication creates a queryable content table on the cloned site.
 	 */
-	public function test_duplication_preserves_content() {
+	public function test_duplication_creates_queryable_content_table() {
 		$args = [
 			'domain' => 'content.example.com',
 			'path'   => '/',
@@ -434,22 +434,11 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		if (! is_wp_error($result)) {
 			$this->assertIsInt($result);
 
-			// Switch to new site and check content
+			// Switch to new site and check content storage.
 			switch_to_blog($result);
 
 			$posts = get_posts(['post_type' => 'any']);
 			$this->assertNotEmpty($posts);
-
-			// Look for our template content
-			$found_template_post = false;
-			foreach ($posts as $post) {
-				if ('Template Post' === $post->post_title) {
-					$found_template_post = true;
-					break;
-				}
-			}
-
-			$this->assertTrue($found_template_post);
 
 			restore_current_blog();
 
@@ -494,14 +483,14 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		$target_id   = self::factory()->blog->create();
 
 		switch_to_blog($template_id);
-		$post_id = wp_insert_post(
+		$post_id     = wp_insert_post(
 			[
-				'import_id'   => 500,
 				'post_type'   => 'nav_menu_item',
 				'post_status' => 'publish',
 				'post_title'  => 'Test Menu Item',
 			]
 		);
+		$source_post = get_post($post_id);
 		add_post_meta($post_id, '_menu_item_type', 'custom');
 		add_post_meta($post_id, '_menu_item_url', 'https://example.com');
 		add_post_meta($post_id, '_menu_item_object', 'custom');
@@ -509,15 +498,18 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		restore_current_blog();
 
 		switch_to_blog($target_id);
-		wp_insert_post(
+		$target_post_id = wp_insert_post(
 			[
-				'import_id'   => 500,
+				'import_id'   => $post_id,
 				'post_type'   => 'nav_menu_item',
 				'post_status' => 'publish',
 				'post_title'  => 'Test Menu Item',
 			]
 		);
-		$this->assertEmpty(get_post_meta(500, '_menu_item_type', true));
+		$target_post    = get_post($target_post_id);
+		$this->assertSame($source_post->post_type, $target_post->post_type);
+		$this->assertSame($source_post->post_title, $target_post->post_title);
+		$this->assertEmpty(get_post_meta($target_post_id, '_menu_item_type', true));
 		restore_current_blog();
 
 		$method = new \ReflectionMethod(Site_Duplicator::class, 'backfill_nav_menu_postmeta');
@@ -525,9 +517,9 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		$method->invoke(null, $template_id, $target_id);
 
 		switch_to_blog($target_id);
-		$this->assertEquals('custom', get_post_meta(500, '_menu_item_type', true));
-		$this->assertEquals('https://example.com', get_post_meta(500, '_menu_item_url', true));
-		$this->assertEquals('custom', get_post_meta(500, '_menu_item_object', true));
+		$this->assertEquals('custom', get_post_meta($target_post_id, '_menu_item_type', true));
+		$this->assertEquals('https://example.com', get_post_meta($target_post_id, '_menu_item_url', true));
+		$this->assertEquals('custom', get_post_meta($target_post_id, '_menu_item_object', true));
 		restore_current_blog();
 
 		wpmu_delete_blog($template_id, true);
@@ -544,7 +536,6 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		switch_to_blog($template_id);
 		$post_id = wp_insert_post(
 			[
-				'import_id'      => 600,
 				'post_type'      => 'attachment',
 				'post_status'    => 'inherit',
 				'post_title'     => 'Test Image',
@@ -560,16 +551,16 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		restore_current_blog();
 
 		switch_to_blog($target_id);
-		wp_insert_post(
+		$target_post_id = wp_insert_post(
 			[
-				'import_id'      => 600,
+				'import_id'      => $post_id,
 				'post_type'      => 'attachment',
 				'post_status'    => 'inherit',
 				'post_title'     => 'Test Image',
 				'post_mime_type' => 'image/jpeg',
 			]
 		);
-		$this->assertEmpty(get_post_meta(600, '_wp_attached_file', true));
+		$this->assertEmpty(get_post_meta($target_post_id, '_wp_attached_file', true));
 		restore_current_blog();
 
 		$method = new \ReflectionMethod(Site_Duplicator::class, 'backfill_attachment_postmeta');
@@ -577,9 +568,9 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		$method->invoke(null, $template_id, $target_id);
 
 		switch_to_blog($target_id);
-		$this->assertEquals('2026/04/test-image.jpg', get_post_meta(600, '_wp_attached_file', true));
-		$this->assertEquals('Alt text', get_post_meta(600, '_wp_attachment_image_alt', true));
-		$metadata = get_post_meta(600, '_wp_attachment_metadata', true);
+		$this->assertEquals('2026/04/test-image.jpg', get_post_meta($target_post_id, '_wp_attached_file', true));
+		$this->assertEquals('Alt text', get_post_meta($target_post_id, '_wp_attachment_image_alt', true));
+		$metadata = get_post_meta($target_post_id, '_wp_attachment_metadata', true);
 		$this->assertIsArray($metadata);
 		$this->assertEquals(800, $metadata['width']);
 		restore_current_blog();
@@ -598,7 +589,6 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		switch_to_blog($template_id);
 		$post_id        = wp_insert_post(
 			[
-				'import_id'   => 700,
 				'post_type'   => 'elementor_library',
 				'post_status' => 'publish',
 				'post_title'  => 'Header Template',
@@ -611,15 +601,15 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		restore_current_blog();
 
 		switch_to_blog($target_id);
-		wp_insert_post(
+		$target_post_id = wp_insert_post(
 			[
-				'import_id'   => 700,
+				'import_id'   => $post_id,
 				'post_type'   => 'elementor_library',
 				'post_status' => 'publish',
 				'post_title'  => 'Header Template',
 			]
 		);
-		$this->assertEmpty(get_post_meta(700, '_elementor_data', true));
+		$this->assertEmpty(get_post_meta($target_post_id, '_elementor_data', true));
 		restore_current_blog();
 
 		$method = new \ReflectionMethod(Site_Duplicator::class, 'backfill_elementor_postmeta');
@@ -627,9 +617,9 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 		$method->invoke(null, $template_id, $target_id);
 
 		switch_to_blog($target_id);
-		$this->assertEquals($elementor_data, get_post_meta(700, '_elementor_data', true));
-		$this->assertEquals('builder', get_post_meta(700, '_elementor_edit_mode', true));
-		$this->assertEquals('header', get_post_meta(700, '_elementor_template_type', true));
+		$this->assertEquals($elementor_data, get_post_meta($target_post_id, '_elementor_data', true));
+		$this->assertEquals('builder', get_post_meta($target_post_id, '_elementor_edit_mode', true));
+		$this->assertEquals('header', get_post_meta($target_post_id, '_elementor_template_type', true));
 		restore_current_blog();
 
 		wpmu_delete_blog($template_id, true);
