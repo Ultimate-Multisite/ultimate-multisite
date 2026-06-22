@@ -13,6 +13,7 @@ use WP_Ultimo\Models\Membership;
 use WP_Ultimo\Models\Customer;
 use WP_Ultimo\Models\Product;
 use WP_Ultimo\Database\Memberships\Membership_Status;
+use WP_Ultimo\Tests\Ajax_JSON_Test_Trait;
 
 /**
  * Test Membership Manager functionality.
@@ -20,6 +21,7 @@ use WP_Ultimo\Database\Memberships\Membership_Status;
 class Membership_Manager_Test extends \WP_UnitTestCase {
 
 	use Manager_Test_Trait;
+	use Ajax_JSON_Test_Trait;
 
 	/**
 	 * Test customer.
@@ -128,38 +130,6 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Install an AJAX die handler so wp_send_json() does not stop PHPUnit.
-	 *
-	 * @return callable The installed handler.
-	 */
-	private function install_ajax_die_handler(): callable {
-
-		add_filter('wp_doing_ajax', '__return_true');
-
-		$handler = function () {
-			return function ($message) {
-				throw new \WPAjaxDieContinueException(esc_html((string) $message));
-			};
-		};
-
-		add_filter('wp_die_ajax_handler', $handler, 1);
-
-		return $handler;
-	}
-
-	/**
-	 * Remove the AJAX die handler.
-	 *
-	 * @param callable $handler The handler returned by install_ajax_die_handler().
-	 * @return void
-	 */
-	private function remove_ajax_die_handler(callable $handler): void {
-
-		remove_filter('wp_doing_ajax', '__return_true');
-		remove_filter('wp_die_ajax_handler', $handler, 1);
-	}
-
-	/**
 	 * Call the pending-site poll handler and capture its JSON response.
 	 *
 	 * @param Membership $membership Membership to poll.
@@ -167,26 +137,16 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 	 */
 	private function call_check_pending_site_created(Membership $membership): array {
 
-		$handler = $this->install_ajax_die_handler();
-		$manager = $this->get_manager_instance();
-
 		$_REQUEST['membership_hash'] = $membership->get_hash();
 
-		ob_start();
-
-		try {
+		$response = $this->capture_ajax_json_response(function () {
+			$manager = $this->get_manager_instance();
 			$manager->check_pending_site_created();
-		} catch (\WPAjaxDieContinueException $exception) {
-			// Expected: wp_send_json() terminates via wp_die() in AJAX context.
-			unset($exception);
-		}
-
-		$output = ob_get_clean();
+		});
 
 		unset($_REQUEST['membership_hash']);
-		$this->remove_ajax_die_handler($handler);
 
-		return json_decode($output, true);
+		return $response['decoded'];
 	}
 
 	// ========================================================================

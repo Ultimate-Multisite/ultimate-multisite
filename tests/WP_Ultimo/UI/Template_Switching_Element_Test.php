@@ -14,6 +14,7 @@
 namespace WP_Ultimo\UI;
 
 use WP_UnitTestCase;
+use WP_Ultimo\Tests\Ajax_JSON_Test_Trait;
 
 /**
  * Test class for Template_Switching_Element AJAX flow.
@@ -21,6 +22,8 @@ use WP_UnitTestCase;
  * @group ajax
  */
 class Template_Switching_Element_Test extends WP_UnitTestCase {
+
+	use Ajax_JSON_Test_Trait;
 
 	/**
 	 * Set up.
@@ -59,61 +62,19 @@ class Template_Switching_Element_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Install AJAX die handler so wp_send_json_* don't kill PHPUnit.
-	 *
-	 * @return callable The installed handler.
-	 */
-	private function install_ajax_die_handler(): callable {
-
-		add_filter( 'wp_doing_ajax', '__return_true' );
-
-		$handler = function () {
-			return function ($message) {
-				throw new \WPAjaxDieContinueException( esc_html( (string) $message ) );
-			};
-		};
-
-		add_filter( 'wp_die_ajax_handler', $handler, 1 );
-
-		return $handler;
-	}
-
-	/**
-	 * Remove the AJAX die handler.
-	 *
-	 * @param callable $handler The handler returned by install_ajax_die_handler().
-	 */
-	private function remove_ajax_die_handler(callable $handler): void {
-
-		remove_filter( 'wp_doing_ajax', '__return_true' );
-		remove_filter( 'wp_die_ajax_handler', $handler, 1 );
-	}
-
-	/**
 	 * Call switch_template() inside an AJAX context, capturing JSON output.
 	 *
 	 * @return array{output: string, exception: bool}
 	 */
 	private function call_switch_template(): array {
 
-		$handler          = $this->install_ajax_die_handler();
-		$exception_caught = false;
-
-		ob_start();
-
-		try {
+		$response = $this->capture_ajax_json_response(function () {
 			Template_Switching_Element::get_instance()->switch_template();
-		} catch ( \WPAjaxDieContinueException $e ) {
-			$exception_caught = true;
-		}
-
-		$output = ob_get_clean();
-
-		$this->remove_ajax_die_handler( $handler );
+		});
 
 		return [
-			'output'    => $output,
-			'exception' => $exception_caught,
+			'output'    => $response['output'],
+			'exception' => $response['exception'],
 		];
 	}
 
