@@ -21,11 +21,21 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	private Domain_Mapping $domain_mapping;
 
 	/**
+	 * HTTP_HOST value captured before each test mutates the request context.
+	 *
+	 * @var string|null
+	 */
+	private ?string $previous_http_host = null;
+
+	/**
 	 * Set up test fixtures.
 	 */
 	public function set_up(): void {
 
 		parent::set_up();
+
+		$this->previous_http_host = isset($_SERVER['HTTP_HOST']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST'])) : null;
+
 		$this->domain_mapping = Domain_Mapping::get_instance();
 
 		// Ensure the wpdb table reference is initialised so Domain::get_by_domain()
@@ -35,6 +45,20 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 		// Reset current_mapping and original_url for test isolation.
 		$this->domain_mapping->current_mapping = null;
 		$this->domain_mapping->original_url    = null;
+	}
+
+	/**
+	 * Restore request globals after tests that exercise alternate mapped hosts.
+	 */
+	public function tear_down(): void {
+
+		if (null === $this->previous_http_host) {
+			unset($_SERVER['HTTP_HOST']);
+		} else {
+			$_SERVER['HTTP_HOST'] = $this->previous_http_host;
+		}
+
+		parent::tear_down();
 	}
 
 	// ----------------------------------------------------------------
@@ -527,7 +551,7 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	/**
 	 * Test replace_url with a host-less (relative) URL returns it unchanged.
 	 *
-	 * parse_url('/foo', PHP_URL_HOST) returns null. Without a host guard,
+	 * Parse_url('/foo', PHP_URL_HOST) returns null. Without a host guard,
 	 * preg_quote(null, '#') triggers a PHP 8.1 deprecation notice.
 	 */
 	public function test_replace_url_relative_url_returns_original(): void {
@@ -875,7 +899,7 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	/**
 	 * Test startup registers allowed_redirect_hosts filter when called explicitly.
 	 *
-	 * startup() does not register allowed_redirect_hosts directly; init() does.
+	 * Startup() does not register allowed_redirect_hosts directly; init() does.
 	 * This test verifies that after calling add_filter manually, has_filter works.
 	 */
 	public function test_allowed_redirect_hosts_filter_can_be_registered(): void {
