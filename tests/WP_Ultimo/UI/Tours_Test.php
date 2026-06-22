@@ -416,15 +416,14 @@ class Tours_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test enqueue_scripts uses wp_add_inline_script on 'underscore', not wu-admin.
+	 * Test enqueue_scripts prints the tour bootstrap data directly.
 	 *
-	 * Regression test for GH#707: wu_tours was localized onto wu-admin which is
-	 * not enqueued on the network dashboard, causing a ReferenceError. The fix
-	 * uses wp_add_inline_script on 'underscore' (always present in WP admin).
+	 * Regression test for GH#707: module scripts cannot be localized via
+	 * wp_localize_script(), and in_admin_footer is too late for attaching inline
+	 * data to head scripts. The current contract prints the bootstrap data in the
+	 * footer before the wu-tours module is enqueued.
 	 */
-	public function test_enqueue_scripts_inlines_data_on_underscore_not_wu_admin(): void {
-
-		global $wp_scripts;
+	public function test_enqueue_scripts_prints_inline_bootstrap_data(): void {
 
 		$instance = $this->get_instance();
 
@@ -446,20 +445,17 @@ class Tours_Test extends WP_UnitTestCase {
 			],
 		]);
 
+		ob_start();
 		$instance->enqueue_scripts();
+		$output = ob_get_clean();
 
-		// 'underscore' must be enqueued.
-		$this->assertTrue(wp_script_is('underscore', 'enqueued'), 'underscore should be enqueued');
-
-		// Inline data must be attached to 'underscore', not 'wu-admin'.
-		$inline_data = $wp_scripts->get_data('underscore', 'after');
-		$this->assertNotEmpty($inline_data, 'Inline script data should be attached to underscore');
-
-		$inline_str = is_array($inline_data) ? implode('', $inline_data) : (string) $inline_data;
-		$this->assertStringContainsString('wu_tours', $inline_str, 'wu_tours should be defined in inline script');
-		$this->assertStringContainsString('wu_tours_vars', $inline_str, 'wu_tours_vars should be defined in inline script');
+		$this->assertStringContainsString('id="wu-tours-data"', $output, 'Inline script data should be printed in the footer.');
+		$this->assertStringContainsString('wu_tours', $output, 'wu_tours should be defined in inline script');
+		$this->assertStringContainsString('wu_tours_vars', $output, 'wu_tours_vars should be defined in inline script');
+		$this->assertTrue(wp_style_is('shepherd', 'enqueued'), 'shepherd style should be enqueued');
 
 		// wu-admin must NOT have wu_tours localized onto it.
+		global $wp_scripts;
 		$wu_admin_data = $wp_scripts->get_data('wu-admin', 'data');
 		$this->assertStringNotContainsString('wu_tours', (string) $wu_admin_data, 'wu_tours must not be localized onto wu-admin');
 

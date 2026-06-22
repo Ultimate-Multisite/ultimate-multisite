@@ -61,20 +61,10 @@ class Cloudflare_DNS_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test extract_root_domain helper method.
+	 * Test the legacy root-domain helper is no longer part of the provider contract.
 	 */
-	public function test_extract_root_domain() {
-		$method = new \ReflectionMethod($this->provider, 'extract_root_domain');
-		$method->setAccessible(true);
-
-		// Standard TLD
-		$this->assertEquals('example.com', $method->invoke($this->provider, 'www.example.com'));
-		$this->assertEquals('example.com', $method->invoke($this->provider, 'sub.test.example.com'));
-		$this->assertEquals('example.com', $method->invoke($this->provider, 'example.com'));
-
-		// Multi-part TLDs
-		$this->assertEquals('example.co.uk', $method->invoke($this->provider, 'www.example.co.uk'));
-		$this->assertEquals('example.com.au', $method->invoke($this->provider, 'sub.example.com.au'));
+	public function test_legacy_root_domain_helper_is_not_exposed() {
+		$this->assertFalse(method_exists($this->provider, 'extract_root_domain'));
 	}
 
 	/**
