@@ -1664,10 +1664,8 @@ class Cart_Test extends WP_UnitTestCase {
 		]);
 
 		$breakthrough = $cart->get_tax_breakthrough();
-		// All tax rates should be 0 when taxes are disabled
-		foreach ($breakthrough as $rate => $total) {
-			$this->assertEquals(0.0, $total);
-		}
+
+		$this->assertSame([], $breakthrough, 'Tax breakthrough should be empty when no tax line items exist.');
 	}
 
 	/**

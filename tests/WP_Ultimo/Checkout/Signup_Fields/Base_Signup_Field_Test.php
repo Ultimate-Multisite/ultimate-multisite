@@ -363,7 +363,8 @@ class Base_Signup_Field_Test extends WP_UnitTestCase {
 	 * Test get_value uses request value when from_request is set.
 	 */
 	public function test_get_value_uses_request_when_from_request_is_set() {
-		$_POST['my_request_field'] = 'request_value';
+		$_POST['my_request_field']    = 'request_value';
+		$_REQUEST['my_request_field'] = 'request_value';
 
 		$this->field->set_attributes([
 			'id'            => 'my_request_field',
@@ -374,7 +375,7 @@ class Base_Signup_Field_Test extends WP_UnitTestCase {
 		$value = $this->field->get_value();
 
 		// Clean up superglobal.
-		unset($_POST['my_request_field']);
+		unset($_POST['my_request_field'], $_REQUEST['my_request_field']);
 
 		$this->assertEquals('request_value', $value);
 	}
