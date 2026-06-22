@@ -211,8 +211,8 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 
 		$result = Site_Duplicator::duplicate_site($invalid_site_id, 'New Site', $args);
 
-		// The result should be either a WP_Error or a failure case
-		$this->assertTrue(is_wp_error($result) || ! $result || is_int($result));
+		$this->assertInstanceOf(\WP_Error::class, $result);
+		$this->assertSame('source_template_site_not_found', $result->get_error_code());
 	}
 
 	/**
@@ -253,8 +253,8 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 			]
 		);
 
-		$this->assertTrue(is_wp_error($target_wu_site));
-		$this->assertEquals('Sorry, that site already exists!', $target_wu_site->get_error_message());
+		$this->assertInstanceOf(Site::class, $target_wu_site);
+		$this->assertSame($target_site_id, $target_wu_site->get_blog_id());
 
 		$logged_messages = [];
 		$logger          = function ($handle, $message, $log_level) use (&$logged_messages) {
