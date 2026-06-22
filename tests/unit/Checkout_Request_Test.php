@@ -7,7 +7,7 @@ final class Checkout_Request_Test extends TestCase {
         // Ensure empty string in request overrides any default/session value
         $_REQUEST['discount_code'] = '';
 
-        $checkout = new \WP_Ultimo\Checkout\Checkout();
+        $checkout = \WP_Ultimo\Checkout\Checkout::get_instance();
 
         $value = $checkout->request_or_session('discount_code', 'DEFAULT');
 
@@ -25,7 +25,7 @@ final class Checkout_Request_Test extends TestCase {
      */
     public function test_checkout_variables_always_has_discount_code_string(): void {
 
-        $checkout = new \WP_Ultimo\Checkout\Checkout();
+        $checkout = \WP_Ultimo\Checkout\Checkout::get_instance();
 
         $vars = $checkout->get_checkout_variables();
 

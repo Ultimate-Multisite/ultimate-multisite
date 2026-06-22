@@ -65,19 +65,20 @@ class Checkout_Form_List_Table_Test extends WP_UnitTestCase {
 		$this->assertIsArray( $columns );
 		$this->assertArrayHasKey( 'cb', $columns );
 		$this->assertArrayHasKey( 'name', $columns );
+		$this->assertArrayHasKey( 'active', $columns );
 		$this->assertArrayHasKey( 'slug', $columns );
 		$this->assertArrayHasKey( 'steps', $columns );
 		$this->assertArrayHasKey( 'id', $columns );
 	}
 
 	/**
-	 * Test get_columns returns 5 columns.
+	 * Test get_columns returns 6 columns.
 	 */
-	public function test_get_columns_returns_five_columns(): void {
+	public function test_get_columns_returns_six_columns(): void {
 
 		$columns = $this->table->get_columns();
 
-		$this->assertCount( 5, $columns );
+		$this->assertCount( 6, $columns );
 	}
 
 	// =========================================================================

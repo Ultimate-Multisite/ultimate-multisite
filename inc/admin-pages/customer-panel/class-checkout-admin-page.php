@@ -166,9 +166,10 @@ class Checkout_Admin_Page extends \WP_Ultimo\Admin_Pages\Base_Customer_Facing_Ad
 		wu_get_template(
 			'base/centered',
 			[
-				'screen'  => get_current_screen(),
-				'page'    => $this,
-				'content' => '[wu_checkout slug="wu-checkout"]',
+				'screen'     => get_current_screen(),
+				'page'       => $this,
+				'page_title' => $this->get_title(),
+				'content'    => '[wu_checkout slug="wu-checkout"]',
 			]
 		);
 	}

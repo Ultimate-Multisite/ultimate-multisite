@@ -202,6 +202,7 @@ class Signup_Field_Site_Url_Test extends WP_UnitTestCase {
 			'display_field_attachments' => false,
 			'enable_domain_selection'   => true,
 			'available_domains'         => "example.com\nexample.org",
+			'available_domains_multi'   => "example.com\nexample.org",
 		];
 
 		$this->field->set_attributes($attributes);
