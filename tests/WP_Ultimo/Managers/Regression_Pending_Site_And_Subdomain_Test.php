@@ -34,12 +34,15 @@ defined('ABSPATH') || exit;
 
 use WP_UnitTestCase;
 use WP_Ultimo\Models\Site;
+use WP_Ultimo\Tests\Ajax_JSON_Test_Trait;
 
 /**
  * Regression coverage for the pending-site stale-flag reset (BUG 4) and the
  * subdomain enqueue guard (BUG 5).
  */
 class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
+
+	use Ajax_JSON_Test_Trait;
 
 	/**
 	 * Membership manager under test (BUG 4).
@@ -145,42 +148,6 @@ class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
 		return $membership;
 	}
 
-	/**
-	 * Invoke an AJAX handler, capturing the JSON wp_send_json output.
-	 *
-	 * @param callable $ajax_handler The handler to run.
-	 * @return array The decoded JSON payload.
-	 */
-	private function capture_ajax_json(callable $ajax_handler): array {
-
-		add_filter('wp_doing_ajax', '__return_true');
-
-		$die_handler = function () {
-			return function ($message) {
-				throw new \WPAjaxDieContinueException(esc_html((string) $message));
-			};
-		};
-		add_filter('wp_die_ajax_handler', $die_handler, 1);
-
-		ob_start();
-
-		try {
-			$ajax_handler();
-		} catch (\WPAjaxDieContinueException $e) {
-			// wp_send_json() called wp_die() — expected.
-			unset($e);
-		}
-
-		$output = ob_get_clean();
-
-		remove_filter('wp_doing_ajax', '__return_true');
-		remove_filter('wp_die_ajax_handler', $die_handler, 1);
-
-		$decoded = json_decode($output, true);
-
-		return is_array($decoded) ? $decoded : [];
-	}
-
 	// =========================================================================
 	// BUG 4 — stale publishing flag unblocks the overlay
 	// Exercises: Membership_Manager::check_pending_site_created()
@@ -209,11 +176,12 @@ class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
 		$_REQUEST['membership_hash'] = $membership->get_hash();
 		$_GET['membership_hash']     = $membership->get_hash();
 
-		$payload = $this->capture_ajax_json(
+		$response = $this->capture_ajax_json_response(
 			function () {
 				$this->membership_manager->check_pending_site_created();
 			}
 		);
+		$payload  = $response['decoded'];
 
 		unset($_REQUEST['membership_hash'], $_GET['membership_hash']);
 
@@ -249,11 +217,12 @@ class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
 		$_REQUEST['membership_hash'] = $membership->get_hash();
 		$_GET['membership_hash']     = $membership->get_hash();
 
-		$payload = $this->capture_ajax_json(
+		$response = $this->capture_ajax_json_response(
 			function () {
 				$this->membership_manager->check_pending_site_created();
 			}
 		);
+		$payload  = $response['decoded'];
 
 		unset($_REQUEST['membership_hash'], $_GET['membership_hash']);
 
