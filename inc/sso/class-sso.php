@@ -619,7 +619,7 @@ class SSO {
 
 		$denial_url = add_query_arg('sso_verify', 'invalid', $broker_url);
 
-		wp_safe_redirect($denial_url, 302, 'WP-Ultimo-SSO');
+		wp_safe_redirect($denial_url, 303, 'WP-Ultimo-SSO');
 		exit;
 	}
 
@@ -661,7 +661,7 @@ class SSO {
 		$url = $this->add_cookie_less_sso_token($return_url, get_current_user_id());
 		$url = add_query_arg('redirect_to', $redirect_to, $url);
 
-		wp_safe_redirect($url, 302, 'WP-Ultimo-SSO');
+		wp_safe_redirect($url, 303, 'WP-Ultimo-SSO');
 		exit;
 	}
 

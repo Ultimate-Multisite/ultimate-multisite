@@ -10,6 +10,8 @@
 
 namespace WP_Ultimo\SSO;
 
+// phpcs:disable WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Tests inspect local source files.
+
 /**
  * Extended unit tests for SSO class.
  *
@@ -369,7 +371,7 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 	/**
 	 * Test get_sso_action source detects sso query param (not 'done').
 	 *
-	 * handle_requests() calls header() when an SSO action is detected,
+	 * The handle_requests() method calls header() when an SSO action is detected,
 	 * which cannot be tested directly in the unit test environment.
 	 * We verify the source code logic instead.
 	 */
@@ -378,7 +380,7 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
-		// get_sso_action checks $_REQUEST[$sso_path] !== 'done'
+		// The SSO action parser must treat any non-done SSO query value as active.
 		$this->assertMatchesRegularExpression(
 			"/input\(\s*\\\$sso_path\s*,\s*'done'\s*\)\s*!==\s*'done'/",
 			$source,
@@ -1245,7 +1247,7 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 	/**
 	 * Test handle_requests source fires the correct action for sso path.
 	 *
-	 * handle_requests() calls header() when an SSO action is detected,
+	 * The handle_requests() method calls header() when an SSO action is detected,
 	 * which cannot be tested directly in the unit test environment.
 	 * We verify the source code fires the correct action.
 	 */
@@ -1601,4 +1603,3 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 		$this->assertNotEmpty($secret);
 	}
 }
-

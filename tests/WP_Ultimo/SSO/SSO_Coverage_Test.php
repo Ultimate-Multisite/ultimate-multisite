@@ -1531,17 +1531,17 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test handle_server source uses 302 redirect status.
+	 * Test handle_server source uses 303 redirect status.
 	 */
-	public function test_handle_server_source_uses_302_status(): void {
+	public function test_handle_server_source_uses_303_status(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
 		$this->assertStringContainsString(
-			"wp_safe_redirect(\$denial_url, 302, 'WP-Ultimo-SSO');",
+			"wp_safe_redirect(\$denial_url, 303, 'WP-Ultimo-SSO');",
 			$source,
-			'handle_server() must use a 302 redirect for anonymous SSO denial handoff'
+			'handle_server() must use a 303 redirect for anonymous SSO denial handoff'
 		);
 	}
 
