@@ -87,7 +87,7 @@ class Debug_Admin_Page extends Base_Admin_Page {
 			[$this, 'render_debug_pages'],
 			get_current_screen()->id,
 			'normal',
-			null
+			'default'
 		);
 	}
 
@@ -163,6 +163,7 @@ class Debug_Admin_Page extends Base_Admin_Page {
 			'base/dash',
 			[
 				'page'              => $this,
+				'page_title'        => $this->get_title(),
 				'screen'            => get_current_screen(),
 				'has_full_position' => false,
 			]

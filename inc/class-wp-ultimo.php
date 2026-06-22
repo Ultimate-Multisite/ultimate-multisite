@@ -485,11 +485,11 @@ final class WP_Ultimo {
 		require_once wu_path('inc/functions/danger.php');
 
 		/*
-		 * Admin helper functions
+		 * Admin helper functions used by admin templates.
 		 */
-		if (is_admin()) {
-			require_once wu_path('inc/functions/admin.php');
+		require_once wu_path('inc/functions/admin.php');
 
+		if (is_admin()) {
 			/*
 			 * Configuration Checker for multisite setup issues
 			 */

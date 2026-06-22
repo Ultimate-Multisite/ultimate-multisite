@@ -30,6 +30,11 @@ class View_Logs_Admin_Page_Test extends WP_UnitTestCase {
 	protected function setUp(): void {
 
 		parent::setUp();
+
+		$user_id = self::factory()->user->create(['role' => 'administrator']);
+		grant_super_admin($user_id);
+		wp_set_current_user($user_id);
+
 		$this->page = new View_Logs_Admin_Page();
 	}
 
@@ -202,7 +207,7 @@ class View_Logs_Admin_Page_Test extends WP_UnitTestCase {
 
 		$this->assertGreaterThan(
 			0,
-			has_action('wp_ajax_wu_handle_view_logs', [$this->page, 'handle_view_logs'])
+			has_action('wp_ajax_wu_handle_view_logs', [$this->page, 'ajax_handle_view_logs'])
 		);
 	}
 

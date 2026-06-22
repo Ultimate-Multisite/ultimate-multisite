@@ -80,7 +80,18 @@ class View_Logs_Admin_Page extends Edit_Admin_Page {
 	 */
 	public function init(): void {
 
-		add_action('wp_ajax_wu_handle_view_logs', [$this, 'handle_view_logs']);
+		add_action('wp_ajax_wu_handle_view_logs', [$this, 'ajax_handle_view_logs']);
+	}
+
+	/**
+	 * Handles the AJAX request for viewing logs.
+	 *
+	 * @since 2.5.2
+	 * @return void
+	 */
+	public function ajax_handle_view_logs(): void {
+
+		$this->handle_view_logs();
 	}
 
 	/**
@@ -180,7 +191,15 @@ class View_Logs_Admin_Page extends Edit_Admin_Page {
 			$real_file   = realpath((string) $file);
 			$real_folder = realpath($logs_folder);
 
-			if (false === $real_file || false === $real_folder || ! str_starts_with($real_file, trailingslashit($real_folder))) {
+			if (false === $real_folder) {
+				wp_die(esc_html__('You can only view Ultimate Multisite log files.', 'ultimate-multisite'), 403);
+			}
+
+			if (false === $real_file) {
+				$real_file = trailingslashit(realpath(dirname((string) $file)) ?: '') . basename((string) $file);
+			}
+
+			if ( ! str_starts_with($real_file, trailingslashit($real_folder))) {
 				wp_die(esc_html__('You can only view Ultimate Multisite log files.', 'ultimate-multisite'), 403);
 			}
 
@@ -195,7 +214,7 @@ class View_Logs_Admin_Page extends Edit_Admin_Page {
 
 		$default_content = wu_request('return_ascii', 'yes') === 'yes' ? wu_get_template_contents('events/ascii-badge') : __('No log entries found.', 'ultimate-multisite');
 
-		$contents = $file && file_exists($file) ? file_get_contents($file) : $default_content;
+		$contents = $file && file_exists($file) ? file_get_contents($file) : $default_content; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reads a verified local log file, not a remote URL.
 
 		$response = [
 			'file'      => $file,

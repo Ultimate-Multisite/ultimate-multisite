@@ -765,10 +765,12 @@ class Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_render_installation_steps_returns_string(): void {
 		$steps = [
 			'step-a' => [
-				'name'   => 'Step A',
-				'action' => 'do_something',
-				'status' => 'pending',
-				'done'   => false,
+				'title'       => 'Step A',
+				'description' => 'Install step A.',
+				'pending'     => 'Pending',
+				'action'      => 'do_something',
+				'status'      => 'pending',
+				'done'        => false,
 			],
 		];
 
@@ -783,10 +785,12 @@ class Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_render_installation_steps_accepts_checks_false(): void {
 		$steps = [
 			'step-b' => [
-				'name'   => 'Step B',
-				'action' => 'do_other',
-				'status' => 'pending',
-				'done'   => true,
+				'title'       => 'Step B',
+				'description' => 'Install step B.',
+				'pending'     => 'Pending',
+				'action'      => 'do_other',
+				'status'      => 'pending',
+				'done'        => true,
 			],
 		];
 
