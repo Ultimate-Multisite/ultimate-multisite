@@ -39,11 +39,8 @@
 }
 
 /* Mobile responsive styles for checkout form editor.
- * These rules are also injected via wp_add_inline_style() from
- * Checkout_Form_Edit_Admin_Page::register_scripts() so they ship to users
- * loading the minified stylesheet (production). Keep both copies in sync;
- * the inline copy is the authoritative one for end users until the next
- * release rebuilds checkout-editor.min.css. */
+ * Production users load the rebuilt checkout-editor.min.css, so keep these
+ * rules in source CSS only and do not duplicate them via wp_add_inline_style(). */
 @media screen and (max-width: 782px) {
 
   /* Stack the top header bar vertically */

@@ -432,6 +432,10 @@ class Tours_Test extends WP_UnitTestCase {
 			wp_register_script('underscore', false, [], '1.0.0', false);
 		}
 
+		// Mirror the real admin lifecycle: assets are registered on admin_enqueue_scripts
+		// before enqueue_scripts() runs in the footer.
+		$instance->register_scripts();
+
 		// Inject a tour so enqueue_scripts() proceeds.
 		$reflection = new \ReflectionClass($instance);
 		$prop       = $reflection->getProperty('tours');

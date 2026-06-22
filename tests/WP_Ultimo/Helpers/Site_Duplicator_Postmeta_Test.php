@@ -511,6 +511,38 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		restore_current_blog();
 	}
 
+	/**
+	 * Test that matching titles alone do not receive unrelated postmeta.
+	 */
+	public function test_all_postmeta_catch_all_does_not_match_by_title() {
+		switch_to_blog($this->from_blog_id);
+		$source_id = self::factory()->post->create(
+			[
+				'post_type'  => 'post',
+				'post_title' => 'Duplicate title',
+			]
+		);
+		update_post_meta($source_id, '_source_only_meta', 'source-value');
+		restore_current_blog();
+
+		switch_to_blog($this->to_blog_id);
+		$target_id = self::factory()->post->create(
+			[
+				'import_id'  => $source_id + 100,
+				'post_type'  => 'post',
+				'post_title' => 'Duplicate title',
+			]
+		);
+		restore_current_blog();
+
+		Testable_Site_Duplicator::backfill_all_postmeta($this->from_blog_id, $this->to_blog_id);
+
+		switch_to_blog($this->to_blog_id);
+		$this->assertNotSame($source_id, $target_id);
+		$this->assertEmpty(get_post_meta($target_id, '_source_only_meta', true));
+		restore_current_blog();
+	}
+
 	// =========================================================================
 	// Bug 1 — backfill_kit_settings
 	// =========================================================================

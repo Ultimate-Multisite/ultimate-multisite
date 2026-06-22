@@ -2029,9 +2029,9 @@ class Site extends Base_Model implements Limitable, Notable {
 					);
 				}
 
-				if ($saved && $this->get_public()) {
+				if ( ! is_wp_error($saved) && is_numeric($saved) && $this->get_public()) {
 					$profile_stage = microtime(true);
-					$site_id       = $saved;
+					$site_id       = (int) $saved;
 
 					wp_update_site(
 						$site_id,
@@ -2040,7 +2040,7 @@ class Site extends Base_Model implements Limitable, Notable {
 						]
 					);
 					$this->profile_sovereign_provisioning_stage(
-						(int) $saved,
+						$site_id,
 						'um_site.save_wp_update_site_public',
 						microtime(true) - $profile_stage
 					);
@@ -2258,7 +2258,7 @@ class Site extends Base_Model implements Limitable, Notable {
 		 * @param bool       $is_new If this object is a new one.
 		 */
 		$profile_stage = microtime(true);
-		do_action('wu_model_post_save', $this->model, $data, $data_unserialized, $this, $new); // @phpstan-ignore-line
+		do_action('wu_model_post_save', $this->model, $data, $data_unserialized, $this, $new);
 
 		/**
 		 * Fires after an object is stored into the database.
