@@ -1037,6 +1037,7 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		$this->assertFalse($response['success']);
 		$this->assertSame('not-found', $response['data'][0]['code']);
+		$this->assertSame('Payment not found.', $response['data'][0]['message']);
 	}
 
 	// -------------------------------------------------------------------------
