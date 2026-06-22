@@ -319,4 +319,34 @@ class Site_Functions_Extended_Test extends WP_UnitTestCase {
 		$this->assertWPError($result);
 		$this->assertEquals('invalid_site_path', $result->get_error_code());
 	}
+
+	/**
+	 * Test wu_create_site preserves existing WordPress site URL data.
+	 */
+	public function test_create_site_with_existing_blog_id_uses_existing_domain_and_path(): void {
+
+		$blog_id = self::factory()->blog->create(
+			[
+				'title' => 'Existing Fixture Site',
+			]
+		);
+
+		$this->assertNotWPError($blog_id);
+
+		$wp_site = get_site($blog_id);
+
+		$this->assertInstanceOf(\WP_Site::class, $wp_site);
+
+		$site = wu_create_site(
+			[
+				'blog_id' => $blog_id,
+				'type'    => 'customer_owned',
+			]
+		);
+
+		$this->assertNotWPError($site);
+		$this->assertInstanceOf(\WP_Ultimo\Models\Site::class, $site);
+		$this->assertSame($wp_site->domain, $site->get_domain());
+		$this->assertSame($wp_site->path, $site->get_path());
+	}
 }

@@ -257,6 +257,7 @@ class Add_New_Site_Admin_Page extends Base_Customer_Facing_Admin_Page {
 		wu_get_template(
 			'base/dash',
 			[
+				'page_title'        => $this->get_title(),
 				'screen'            => get_current_screen(),
 				'page'              => $this,
 				'has_full_position' => false,

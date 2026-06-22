@@ -60,10 +60,12 @@ class Account_Admin_Page_Test extends WP_UnitTestCase {
 				$this->customer = wu_get_customer_by_user_id($user->ID);
 			}
 
-			if (!$this->customer || is_wp_error($this->customer)) {
+			if (! $this->customer || is_wp_error($this->customer)) {
 				$this->fail('Could not create test customer');
 			}
 		}
+
+		wp_set_current_user($this->customer->get_user_id());
 
 		// Create a membership.
 		$this->membership = wu_create_membership(
@@ -210,7 +212,7 @@ class Account_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * get_title returns 'Account'.
+	 * Get_title returns 'Account'.
 	 */
 	public function test_get_title(): void {
 
@@ -225,7 +227,7 @@ class Account_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * get_menu_title returns 'Account'.
+	 * Get_menu_title returns 'Account'.
 	 */
 	public function test_get_menu_title(): void {
 
@@ -240,7 +242,7 @@ class Account_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * get_submenu_title returns 'Account'.
+	 * Get_submenu_title returns 'Account'.
 	 */
 	public function test_get_submenu_title(): void {
 
@@ -255,7 +257,7 @@ class Account_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * page_loaded sets current_site and current_membership.
+	 * Page_loaded sets current_site and current_membership.
 	 */
 	public function test_page_loaded(): void {
 
@@ -277,7 +279,7 @@ class Account_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * hooks() does not throw.
+	 * Hooks() does not throw.
 	 */
 	public function test_hooks_does_not_throw(): void {
 
@@ -291,7 +293,7 @@ class Account_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * screen_options() does not throw.
+	 * Screen_options() does not throw.
 	 */
 	public function test_screen_options_does_not_throw(): void {
 
@@ -305,7 +307,7 @@ class Account_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * register_widgets() does not throw when called with a valid screen.
+	 * Register_widgets() does not throw when called with a valid screen.
 	 */
 	public function test_register_widgets_does_not_throw(): void {
 
@@ -321,7 +323,7 @@ class Account_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * output() renders without throwing.
+	 * Output() renders without throwing.
 	 */
 	public function test_output_renders(): void {
 
@@ -339,7 +341,7 @@ class Account_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * add_notices() with no updated query param does nothing.
+	 * Add_notices() with no updated query param does nothing.
 	 */
 	public function test_add_notices_no_update_param(): void {
 
@@ -353,11 +355,12 @@ class Account_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * add_notices() with payment_method update type adds notice.
+	 * Add_notices() with payment_method update type adds notice.
 	 */
 	public function test_add_notices_payment_method_update(): void {
 
-		$_GET['updated'] = 'payment_method';
+		$_GET['updated']     = 'payment_method';
+		$_REQUEST['updated'] = 'payment_method';
 
 		$reflection = new \ReflectionClass($this->page);
 		$method     = $reflection->getMethod('add_notices');
@@ -368,15 +371,16 @@ class Account_Admin_Page_Test extends WP_UnitTestCase {
 		$notices = \WP_Ultimo()->notices->get_notices('admin');
 		$this->assertNotEmpty($notices);
 
-		unset($_GET['updated']);
+		unset($_GET['updated'], $_REQUEST['updated']);
 	}
 
 	/**
-	 * add_notices() with generic update type adds notice.
+	 * Add_notices() with generic update type adds notice.
 	 */
 	public function test_add_notices_generic_update(): void {
 
-		$_GET['updated'] = 'profile';
+		$_GET['updated']     = 'profile';
+		$_REQUEST['updated'] = 'profile';
 
 		$reflection = new \ReflectionClass($this->page);
 		$method     = $reflection->getMethod('add_notices');
@@ -387,6 +391,6 @@ class Account_Admin_Page_Test extends WP_UnitTestCase {
 		$notices = \WP_Ultimo()->notices->get_notices('admin');
 		$this->assertNotEmpty($notices);
 
-		unset($_GET['updated']);
+		unset($_GET['updated'], $_REQUEST['updated']);
 	}
 }
