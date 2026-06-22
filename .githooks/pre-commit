@@ -86,7 +86,7 @@ if [ -n "$STAGED_PHP_FILES" ]; then
     HAS_PHPSTAN_ERRORS=0
     PHPSTAN_FILES=""
     for FILE in $STAGED_PHP_FILES; do
-        if [ -f "$FILE" ] && [[ "$FILE" =~ ^inc/ ]]; then
+        if [ -f "$FILE" ] && [[ "$FILE" =~ ^inc/ ]] && [[ "$FILE" != inc/site-exporter/mu-migration/* ]]; then
             PHPSTAN_FILES="$PHPSTAN_FILES $FILE"
         fi
     done

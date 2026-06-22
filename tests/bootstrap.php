@@ -42,6 +42,27 @@ function _manually_load_plugin() {
 
 tests_add_filter('muplugins_loaded', '_manually_load_plugin');
 
+/**
+ * Minimal WP-CLI stubs for tests that load command classes in a web context.
+ */
+if ( ! class_exists('WP_CLI_Command')) {
+	eval('class WP_CLI_Command {}'); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- PHPUnit-only stub for an optional WP-CLI base class.
+}
+
+if ( ! class_exists('WP_CLI')) {
+	// phpcs:ignore Squiz.PHP.Eval.Discouraged -- PHPUnit-only stub for the optional WP-CLI facade.
+	eval(
+		'class WP_CLI {'
+		. 'public static function add_command() {}'
+		. 'public static function line() {}'
+		. 'public static function log() {}'
+		. 'public static function success() {}'
+		. 'public static function warning() {}'
+		. 'public static function error($message) { throw new RuntimeException((string) $message); }'
+		. '}'
+	);
+}
+
 // Start up the WP testing environment.
 require "{$_tests_dir}/includes/bootstrap.php";
 
@@ -66,6 +87,8 @@ if ( ! function_exists('wc_get_order')) {
 	 * @return object|false
 	 */
 	function wc_get_order($order_id) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		unset($order_id);
+
 		if ( ! isset($GLOBALS['_wu_test_wc_order_email'])) {
 			return false;
 		}
