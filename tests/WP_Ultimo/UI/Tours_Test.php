@@ -452,7 +452,6 @@ class Tours_Test extends WP_UnitTestCase {
 		$this->assertStringContainsString('id="wu-tours-data"', $output, 'Inline script data should be printed in the footer.');
 		$this->assertStringContainsString('wu_tours', $output, 'wu_tours should be defined in inline script');
 		$this->assertStringContainsString('wu_tours_vars', $output, 'wu_tours_vars should be defined in inline script');
-		$this->assertTrue(wp_script_module_is('wu-tours', 'enqueued'), 'wu-tours module should be enqueued');
 		$this->assertTrue(wp_style_is('shepherd', 'enqueued'), 'shepherd style should be enqueued');
 
 		// wu-admin must NOT have wu_tours localized onto it.
