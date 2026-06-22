@@ -2,18 +2,19 @@
 /**
  * Tests for the main-site promotion service.
  *
- * @package WP_Ultimo\Tests\Site_Exporter
+ * @package WP_Ultimo\Site_Exporter
+ * @subpackage Tests
  */
 
-namespace WP_Ultimo\Tests\Site_Exporter;
+namespace WP_Ultimo\Site_Exporter;
 
-use WP_Ultimo\Site_Exporter\Main_Site_Promoter;
 use WP_UnitTestCase;
 
 /**
  * Test class for Main_Site_Promoter.
  *
- * @package WP_Ultimo\Tests\Site_Exporter
+ * @package WP_Ultimo\Site_Exporter
+ * @subpackage Tests
  * @since 2.5.1
  */
 class Main_Site_Promoter_Test extends WP_UnitTestCase {
