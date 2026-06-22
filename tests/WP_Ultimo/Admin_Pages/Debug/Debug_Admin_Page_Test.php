@@ -222,6 +222,8 @@ class Debug_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_render_debug_pages_outputs_links(): void {
 
+		\WP_Ultimo\Debug\Debug::get_instance()->add_page('wp-ultimo');
+
 		ob_start();
 		$this->page->render_debug_pages();
 		$output = ob_get_clean();

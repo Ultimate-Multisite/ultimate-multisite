@@ -37,6 +37,7 @@ class Base_Customer_Facing_Admin_Page_Test extends WP_UnitTestCase {
 			protected $type = 'toplevel';
 
 			protected $supported_panels = [
+				'admin_menu'         => 'manage_options',
 				'network_admin_menu' => 'manage_network',
 			];
 
@@ -457,7 +458,7 @@ class Base_Customer_Facing_Admin_Page_Test extends WP_UnitTestCase {
 		$this->page->render_edit_page();
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString('Page & Menu Title', $output);
+		$this->assertStringContainsString('Page &amp; Menu Title', $output);
 	}
 
 	// -------------------------------------------------------------------------
