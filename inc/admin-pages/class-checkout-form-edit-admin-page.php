@@ -1358,42 +1358,6 @@ class Checkout_Form_Edit_Admin_Page extends Edit_Admin_Page {
 		wp_enqueue_script('wu-checkout-form-editor');
 
 		wp_enqueue_style('wu-checkout-form-editor', wu_get_asset('checkout-editor.css', 'css'), [], wu_get_version());
-
-		/*
-		 * Inline mobile rules. Shipped via wp_add_inline_style so they reach
-		 * users loading checkout-editor.min.css (which is regenerated only at
-		 * release time) without hand-editing the minified asset on feature
-		 * branches. Keep this block in sync with the @media block in
-		 * assets/css/checkout-editor.css.
-		 */
-		wp_add_inline_style(
-			'wu-checkout-form-editor',
-			'@media screen and (max-width:782px){'
-				. '#wu-checkout-editor-app .postbox>.wu-flex.wu-items-center{flex-direction:column;gap:8px}'
-				. '#wu-checkout-editor-app .postbox>.wu-flex.wu-items-center>div{width:100%!important;text-align:center}'
-				. '#wu-checkout-editor-app .postbox>.wu-flex.wu-items-center>div:last-child{text-align:center}'
-				. '#wu-checkout-editor-app .postbox>.wu-flex.wu-items-center>div ul{justify-content:center}'
-				. '#wu-checkout-editor-app .column-order{display:none!important}'
-				. '#wu-checkout-editor-app .column-move{display:none!important}'
-				. '#wu-checkout-editor-app tr.is-expanded td.column-type,'
-				. '#wu-checkout-editor-app tr.is-expanded td.column-slug,'
-				. '#wu-checkout-editor-app tr.is-expanded td.column-move{position:relative!important;display:block!important;width:auto!important;padding:6px 12px!important;text-align:left!important}'
-				. '#wu-checkout-editor-app tr.is-expanded td.column-type::before,'
-				. '#wu-checkout-editor-app tr.is-expanded td.column-slug::before,'
-				. '#wu-checkout-editor-app tr.is-expanded td.column-move::before{position:static!important;display:block!important;float:none!important;width:auto!important;padding:0 0 4px 0!important;overflow:visible!important;white-space:normal!important;text-overflow:clip!important;font-weight:600;text-align:left!important}'
-				. '#wu-checkout-editor-app tr.is-expanded td.column-move{display:none!important}'
-				. '#wu-checkout-editor-app .wu-bg-gray-100 ul{flex-direction:column;align-items:center}'
-				. '#wu-checkout-editor-app .wu-bg-gray-100 ul li{margin-left:0!important;margin-bottom:4px}'
-				// WUBox modal: cap width at 100vw and reset inline negative margins so the
-				// field-type selector and per-field edit forms fit phones. The same rule
-				// lives in assets/css/admin.css for the next release rebuild.
-				. '#WUB_window,#WUB_ajaxContent{width:100vw!important;max-width:100vw!important;height:100%!important;margin-top:0!important;margin-left:0!important;top:0!important;left:0!important;border-radius:0!important}'
-				// "Add new Field" tile grid: drop from 4 columns to 2 so labels like
-				// "PASSWORD", "TEMPLATES", "DOMAIN SELECTION" stay readable. The grid uses
-				// wu-w-1/4 (25%) which becomes ~24vw on phones — too narrow for label text.
-				. '#WUB_ajaxContent ul[data-wu-app="add_checkout_form_field"] .wu-w-1\/4{width:50%!important}'
-			. '}'
-		);
 	}
 
 	/**
