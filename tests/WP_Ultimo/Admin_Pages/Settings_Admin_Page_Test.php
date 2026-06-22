@@ -513,6 +513,8 @@ class Settings_Admin_Page_Test extends WP_UnitTestCase {
 			$this->assertSame('redirect_intercepted', $e->getMessage());
 		} finally {
 			remove_filter('wp_redirect', $redirect_filter);
+			$user->remove_cap('wu_edit_settings');
+			revoke_super_admin($user_id);
 			wp_set_current_user(0);
 		}
 
