@@ -14,6 +14,8 @@ use WP_Ultimo\Models\Product;
 use WP_Ultimo\Database\Memberships\Membership_Status;
 use WP_Ultimo\Checkout\Cart;
 
+// phpcs:disable Generic.Files.OneObjectStructurePerFile.MultipleFound -- Test file includes a small testable subclass for protected method access.
+
 /**
  * Testable subclass that exposes protected methods for testing.
  */
@@ -64,6 +66,13 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	private $product;
 
 	/**
+	 * Redirect captured by the test redirect interceptor.
+	 *
+	 * @var string|null
+	 */
+	private $redirect_url;
+
+	/**
 	 * Set up test fixtures.
 	 */
 	protected function setUp(): void {
@@ -77,6 +86,8 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			]
 		);
 
+		$this->assertIsInt($user_id, 'The customer WordPress user fixture must be created.');
+
 		// Create customer directly.
 		$this->customer = new Customer(
 			[
@@ -86,7 +97,10 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			]
 		);
 		$this->customer->set_skip_validation(true);
-		$this->customer->save();
+		$customer_saved = $this->customer->save();
+
+		$this->assertNotWPError($customer_saved, 'The customer fixture must be saved.');
+		$this->assertGreaterThan(0, $this->customer->get_id(), 'The customer fixture must have a persisted ID.');
 
 		// Create product directly.
 		$this->product = new Product(
@@ -105,30 +119,36 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			]
 		);
 		$this->product->set_skip_validation(true);
-		$this->product->save();
+		$product_saved = $this->product->save();
+
+		$this->assertNotWPError($product_saved, 'The product fixture must be saved.');
+		$this->assertGreaterThan(0, $this->product->get_id(), 'The product fixture must have a persisted ID.');
 
 		// Create a membership tied to the customer and product.
-		$this->membership = new Membership(
+		$this->membership = wu_create_membership(
 			[
-				'customer_id'    => $this->customer->get_id(),
-				'user_id'        => $user_id,
-				'plan_id'        => $this->product->get_id(),
-				'status'         => Membership_Status::ACTIVE,
-				'amount'         => 29.99,
-				'initial_amount' => 29.99,
-				'duration'       => 1,
-				'duration_unit'  => 'month',
-				'recurring'      => true,
-				'auto_renew'     => true,
-				'currency'       => 'USD',
-				'gateway'        => '',
-				'date_created'   => gmdate('Y-m-d H:i:s'),
-				'date_modified'  => gmdate('Y-m-d H:i:s'),
+				'customer_id'     => $this->customer->get_id(),
+				'user_id'         => $user_id,
+				'plan_id'         => $this->product->get_id(),
+				'status'          => Membership_Status::ACTIVE,
+				'amount'          => 29.99,
+				'initial_amount'  => 29.99,
+				'duration'        => 1,
+				'duration_unit'   => 'month',
+				'recurring'       => true,
+				'auto_renew'      => true,
+				'currency'        => 'USD',
+				'gateway'         => '',
+				'date_created'    => gmdate('Y-m-d H:i:s'),
+				'date_modified'   => gmdate('Y-m-d H:i:s'),
 				'date_expiration' => gmdate('Y-m-d H:i:s', strtotime('+30 days')),
+				'skip_validation' => true,
 			]
 		);
-		$this->membership->set_skip_validation(true);
-		$this->membership->save();
+
+		$this->assertNotWPError($this->membership, 'The membership fixture must be saved.');
+		$this->assertInstanceOf(Membership::class, $this->membership, 'The membership fixture must be a model instance.');
+		$this->assertGreaterThan(0, $this->membership->get_id(), 'The membership fixture must have a persisted ID.');
 
 		$this->page = new Testable_Membership_Edit_Admin_Page();
 
@@ -163,8 +183,67 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		);
 
 		$this->clear_notices();
+		remove_all_filters('wp_redirect');
 
 		parent::tearDown();
+	}
+
+	/**
+	 * Install a redirect interceptor that prevents headers from being sent.
+	 *
+	 * @return void
+	 */
+	private function install_redirect_interceptor(): void {
+		$this->redirect_url = null;
+
+		add_filter(
+			'wp_redirect',
+			function ($location) {
+				$this->redirect_url = $location;
+
+				throw new \RuntimeException('redirect_intercepted');
+			}
+		);
+	}
+
+	/**
+	 * Assert that the callback attempted a WordPress redirect.
+	 *
+	 * @param callable $callback Callback expected to redirect.
+	 * @return void
+	 */
+	private function assert_redirected(callable $callback): void {
+		$buffer_level = ob_get_level();
+
+		$this->install_redirect_interceptor();
+
+		try {
+			$callback();
+		} catch (\RuntimeException $e) {
+			$this->assertSame('redirect_intercepted', $e->getMessage());
+		} finally {
+			while (ob_get_level() > $buffer_level) {
+				ob_end_clean();
+			}
+
+			remove_all_filters('wp_redirect');
+		}
+
+		$this->assertNotNull($this->redirect_url, 'wp_redirect should have been called.');
+	}
+
+	/**
+	 * Add a scheduled swap fixture and assert it is readable before notice tests.
+	 *
+	 * @param int $swap_time Unix timestamp for the scheduled swap date.
+	 * @return void
+	 */
+	private function schedule_swap_fixture(int $swap_time): void {
+		$cart   = new Cart([]);
+		$result = $this->membership->schedule_swap($cart, gmdate('Y-m-d H:i:s', $swap_time));
+
+		$this->assertNotWPError($result, 'The scheduled swap fixture must be created.');
+		$this->assertNotFalse($this->membership->get_scheduled_swap(), 'The scheduled swap fixture must be readable.');
 	}
 
 	/**
@@ -544,8 +623,7 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_object_with_preview_swap_sets_flag_and_notice(): void {
 		$swap_time = strtotime('+100 days');
-		$cart      = new Cart([]);
-		$this->membership->schedule_swap($cart, gmdate('Y-m-d H:i:s', $swap_time));
+		$this->schedule_swap_fixture($swap_time);
 
 		$page = new Testable_Membership_Edit_Admin_Page();
 
@@ -607,8 +685,7 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_add_swap_notices_adds_warning_when_swap_scheduled(): void {
 		$swap_time = strtotime('+100 days');
-		$cart      = new Cart([]);
-		$this->membership->schedule_swap($cart, gmdate('Y-m-d H:i:s', $swap_time));
+		$this->schedule_swap_fixture($swap_time);
 
 		$this->page->object = $this->membership;
 
@@ -628,15 +705,15 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_add_swap_notices_message_contains_date(): void {
 		$swap_time = strtotime('+100 days');
-		$cart      = new Cart([]);
-		$this->membership->schedule_swap($cart, gmdate('Y-m-d H:i:s', $swap_time));
+		$this->schedule_swap_fixture($swap_time);
 
 		$this->page->object = $this->membership;
 
 		$this->page->public_add_swap_notices();
 
 		$notices = \WP_Ultimo()->notices->get_notices('network-admin');
-		$notice  = array_shift($notices);
+		$this->assertNotEmpty($notices, 'A scheduled swap warning notice must be registered before reading its message.');
+		$notice = array_shift($notices);
 
 		$this->assertStringContainsString(gmdate(get_option('date_format'), $swap_time), $notice['message']);
 	}
@@ -646,8 +723,7 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_add_swap_notices_skips_when_preview_swap_param(): void {
 		$swap_time = strtotime('+100 days');
-		$cart      = new Cart([]);
-		$this->membership->schedule_swap($cart, gmdate('Y-m-d H:i:s', $swap_time));
+		$this->schedule_swap_fixture($swap_time);
 
 		$this->page->object = $this->membership;
 
@@ -664,15 +740,15 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_add_swap_notices_has_preview_action(): void {
 		$swap_time = strtotime('+100 days');
-		$cart      = new Cart([]);
-		$this->membership->schedule_swap($cart, gmdate('Y-m-d H:i:s', $swap_time));
+		$this->schedule_swap_fixture($swap_time);
 
 		$this->page->object = $this->membership;
 
 		$this->page->public_add_swap_notices();
 
 		$notices = \WP_Ultimo()->notices->get_notices('network-admin');
-		$notice  = array_shift($notices);
+		$this->assertNotEmpty($notices, 'A scheduled swap warning notice must be registered before reading its actions.');
+		$notice = array_shift($notices);
 
 		$this->assertArrayHasKey('preview', $notice['actions']);
 	}
@@ -709,8 +785,7 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_page_loaded_calls_add_swap_notices(): void {
 		$swap_time = strtotime('+100 days');
-		$cart      = new Cart([]);
-		$this->membership->schedule_swap($cart, gmdate('Y-m-d H:i:s', $swap_time));
+		$this->schedule_swap_fixture($swap_time);
 
 		$_REQUEST['id'] = $this->membership->get_id();
 
@@ -818,38 +893,9 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_register_widgets_with_locked_membership(): void {
 		set_current_screen('dashboard-network');
 
-		$mock_membership = $this->createMock(Membership::class);
-		$mock_membership->method('is_locked')->willReturn(true);
-		$mock_membership->method('get_status')->willReturn('active');
-		$mock_membership->method('get_status_label')->willReturn('Active');
-		$mock_membership->method('get_status_class')->willReturn('wu-text-green-600');
-		$mock_membership->method('get_hash')->willReturn('abc123');
-		$mock_membership->method('get_total_grossed')->willReturn(100.0);
-		$mock_membership->method('get_currency')->willReturn('USD');
-		$mock_membership->method('get_gateway')->willReturn('');
-		$mock_membership->method('get_gateway_customer_id')->willReturn('');
-		$mock_membership->method('get_gateway_subscription_id')->willReturn('');
-		$mock_membership->method('get_customer_id')->willReturn(1);
-		$mock_membership->method('get_customer')->willReturn(null);
-		$mock_membership->method('get_plan_id')->willReturn(0);
-		$mock_membership->method('get_billing_address')->willReturn(new \WP_Ultimo\Objects\Billing_Address());
-		$mock_membership->method('is_recurring')->willReturn(false);
-		$mock_membership->method('should_auto_renew')->willReturn(false);
-		$mock_membership->method('get_amount')->willReturn(0.0);
-		$mock_membership->method('get_initial_amount')->willReturn(0.0);
-		$mock_membership->method('get_duration')->willReturn(1);
-		$mock_membership->method('get_duration_unit')->willReturn('month');
-		$mock_membership->method('get_billing_cycles')->willReturn(0);
-		$mock_membership->method('get_times_billed')->willReturn(0);
-		$mock_membership->method('get_date_expiration')->willReturn(null);
-		$mock_membership->method('get_date_renewed')->willReturn(null);
-		$mock_membership->method('get_date_trial_end')->willReturn(null);
-		$mock_membership->method('get_date_cancellation')->willReturn(null);
-		$mock_membership->method('is_lifetime')->willReturn(false);
-		$mock_membership->method('get_cancellation_reason')->willReturn('');
-		$mock_membership->method('get_id')->willReturn(1);
+		$this->membership->lock();
 
-		$this->page->object = $mock_membership;
+		$this->page->object = $this->membership;
 		$this->page->edit   = true;
 
 		$this->page->register_widgets();
@@ -866,6 +912,7 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		set_current_screen('dashboard-network');
 
 		$screen_id = get_current_screen()->id;
+		unset($wp_meta_boxes[ $screen_id ]);
 
 		$reflection = new \ReflectionClass($this->page);
 		$property   = $reflection->getProperty('is_swap_preview');
@@ -899,38 +946,9 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_register_widgets_with_lifetime_membership(): void {
 		set_current_screen('dashboard-network');
 
-		$mock_membership = $this->createMock(Membership::class);
-		$mock_membership->method('is_locked')->willReturn(false);
-		$mock_membership->method('get_status')->willReturn('active');
-		$mock_membership->method('get_status_label')->willReturn('Active');
-		$mock_membership->method('get_status_class')->willReturn('wu-text-green-600');
-		$mock_membership->method('get_hash')->willReturn('abc123');
-		$mock_membership->method('get_total_grossed')->willReturn(100.0);
-		$mock_membership->method('get_currency')->willReturn('USD');
-		$mock_membership->method('get_gateway')->willReturn('');
-		$mock_membership->method('get_gateway_customer_id')->willReturn('');
-		$mock_membership->method('get_gateway_subscription_id')->willReturn('');
-		$mock_membership->method('get_customer_id')->willReturn(1);
-		$mock_membership->method('get_customer')->willReturn(null);
-		$mock_membership->method('get_plan_id')->willReturn(0);
-		$mock_membership->method('get_billing_address')->willReturn(new \WP_Ultimo\Objects\Billing_Address());
-		$mock_membership->method('is_recurring')->willReturn(false);
-		$mock_membership->method('should_auto_renew')->willReturn(false);
-		$mock_membership->method('get_amount')->willReturn(0.0);
-		$mock_membership->method('get_initial_amount')->willReturn(0.0);
-		$mock_membership->method('get_duration')->willReturn(1);
-		$mock_membership->method('get_duration_unit')->willReturn('month');
-		$mock_membership->method('get_billing_cycles')->willReturn(0);
-		$mock_membership->method('get_times_billed')->willReturn(0);
-		$mock_membership->method('get_date_expiration')->willReturn(null);
-		$mock_membership->method('get_date_renewed')->willReturn(null);
-		$mock_membership->method('get_date_trial_end')->willReturn(null);
-		$mock_membership->method('get_date_cancellation')->willReturn(null);
-		$mock_membership->method('is_lifetime')->willReturn(true);
-		$mock_membership->method('get_cancellation_reason')->willReturn('');
-		$mock_membership->method('get_id')->willReturn(1);
+		$this->membership->set_date_expiration(null);
 
-		$this->page->object = $mock_membership;
+		$this->page->object = $this->membership;
 		$this->page->edit   = true;
 
 		$this->page->register_widgets();
@@ -944,38 +962,11 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_register_widgets_with_gateway(): void {
 		set_current_screen('dashboard-network');
 
-		$mock_membership = $this->createMock(Membership::class);
-		$mock_membership->method('is_locked')->willReturn(false);
-		$mock_membership->method('get_status')->willReturn('active');
-		$mock_membership->method('get_status_label')->willReturn('Active');
-		$mock_membership->method('get_status_class')->willReturn('wu-text-green-600');
-		$mock_membership->method('get_hash')->willReturn('abc123');
-		$mock_membership->method('get_total_grossed')->willReturn(100.0);
-		$mock_membership->method('get_currency')->willReturn('USD');
-		$mock_membership->method('get_gateway')->willReturn('manual');
-		$mock_membership->method('get_gateway_customer_id')->willReturn('cus_123');
-		$mock_membership->method('get_gateway_subscription_id')->willReturn('sub_123');
-		$mock_membership->method('get_customer_id')->willReturn(1);
-		$mock_membership->method('get_customer')->willReturn(null);
-		$mock_membership->method('get_plan_id')->willReturn(0);
-		$mock_membership->method('get_billing_address')->willReturn(new \WP_Ultimo\Objects\Billing_Address());
-		$mock_membership->method('is_recurring')->willReturn(true);
-		$mock_membership->method('should_auto_renew')->willReturn(true);
-		$mock_membership->method('get_amount')->willReturn(99.0);
-		$mock_membership->method('get_initial_amount')->willReturn(99.0);
-		$mock_membership->method('get_duration')->willReturn(1);
-		$mock_membership->method('get_duration_unit')->willReturn('month');
-		$mock_membership->method('get_billing_cycles')->willReturn(0);
-		$mock_membership->method('get_times_billed')->willReturn(3);
-		$mock_membership->method('get_date_expiration')->willReturn('2030-01-01 00:00:00');
-		$mock_membership->method('get_date_renewed')->willReturn('2025-01-01 00:00:00');
-		$mock_membership->method('get_date_trial_end')->willReturn(null);
-		$mock_membership->method('get_date_cancellation')->willReturn(null);
-		$mock_membership->method('is_lifetime')->willReturn(false);
-		$mock_membership->method('get_cancellation_reason')->willReturn('');
-		$mock_membership->method('get_id')->willReturn(1);
+		$this->membership->set_gateway('manual');
+		$this->membership->set_gateway_customer_id('cus_123');
+		$this->membership->set_gateway_subscription_id('sub_123');
 
-		$this->page->object = $mock_membership;
+		$this->page->object = $this->membership;
 		$this->page->edit   = true;
 
 		$this->page->register_widgets();
@@ -1006,7 +997,10 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_payments_query_filter_preserves_existing_args(): void {
 		$this->page->object = $this->membership;
 
-		$args   = ['existing_key' => 'existing_value', 'number' => 10];
+		$args   = [
+			'existing_key' => 'existing_value',
+			'number'       => 10,
+		];
 		$result = $this->page->payments_query_filter($args);
 
 		$this->assertEquals('existing_value', $result['existing_key']);
@@ -1131,7 +1125,10 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_events_query_filter_merges_with_existing_args(): void {
 		$this->page->object = $this->membership;
 
-		$args   = ['existing_key' => 'existing_value', 'number' => 5];
+		$args   = [
+			'existing_key' => 'existing_value',
+			'number'       => 5,
+		];
 		$result = $this->page->events_query_filter($args);
 
 		$this->assertEquals('existing_value', $result['existing_key']);
@@ -1165,8 +1162,14 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		unset($_POST['auto_renew'], $_REQUEST['auto_renew']);
 
+		$buffer_level = ob_get_level();
 		$this->page->handle_save();
 
+		while (ob_get_level() > $buffer_level) {
+			ob_end_clean();
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Test asserts handle_save() normalizes the raw request value.
 		$this->assertFalse($_POST['auto_renew']);
 	}
 
@@ -1217,7 +1220,6 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		$mock_membership = $this->createMock(Membership::class);
 		$mock_membership->method('get_billing_address')->willReturn($mock_billing_address);
-		$mock_membership->method('set_billing_address')->willReturn(null);
 		// Expect set_date_expiration(null) to be called exactly once — proves routing to handle_convert_to_lifetime().
 		$mock_membership->expects($this->once())
 			->method('set_date_expiration')
@@ -1245,7 +1247,6 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		$mock_membership = $this->createMock(Membership::class);
 		$mock_membership->method('get_billing_address')->willReturn($mock_billing_address);
-		$mock_membership->method('set_billing_address')->willReturn(null);
 		$mock_membership->method('save')->willReturn(new \WP_Error('test', 'Error'));
 		$mock_membership->expects($this->once())->method('delete_scheduled_swap');
 
@@ -1256,9 +1257,7 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$property->setAccessible(true);
 		$property->setValue($this->page, true);
 
-		ob_start();
-		$this->page->handle_save();
-		ob_end_clean();
+		$this->assert_redirected(fn() => $this->page->handle_save());
 	}
 
 	// -------------------------------------------------------------------------
@@ -1270,7 +1269,6 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_handle_convert_to_lifetime_returns_false_on_save_error(): void {
 		$mock_membership = $this->createMock(Membership::class);
-		$mock_membership->method('set_date_expiration')->willReturn(null);
 		$mock_membership->method('save')->willReturn(new \WP_Error('test_error', 'Save failed'));
 		$mock_membership->method('get_id')->willReturn(1);
 
@@ -1286,7 +1284,6 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_handle_convert_to_lifetime_adds_error_notice_on_failure(): void {
 		$mock_membership = $this->createMock(Membership::class);
-		$mock_membership->method('set_date_expiration')->willReturn(null);
 		$mock_membership->method('save')->willReturn(new \WP_Error('test_error', 'Save failed'));
 		$mock_membership->method('get_id')->willReturn(1);
 
@@ -1308,9 +1305,7 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$this->page->object = $this->membership;
 		$this->page->edit   = true;
 
-		$result = $this->page->public_handle_convert_to_lifetime();
-
-		$this->assertTrue($result);
+		$this->assert_redirected(fn() => $this->page->public_handle_convert_to_lifetime());
 
 		// Reload from DB to verify.
 		$reloaded = wu_get_membership($this->membership->get_id());
@@ -1481,8 +1476,8 @@ class Membership_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$reloaded = wu_get_membership($this->membership->get_id());
 		$this->assertNotFalse($reloaded, 'Membership must still exist after product add.');
 
-		$all_products    = $reloaded->get_all_products();
-		$product_ids     = array_map(fn($entry) => $entry['product']->get_id(), $all_products);
+		$all_products = $reloaded->get_all_products();
+		$product_ids  = array_map(fn($entry) => $entry['product']->get_id(), $all_products);
 		$this->assertContains($product->get_id(), $product_ids, 'The added product must be present on the reloaded membership.');
 	}
 
