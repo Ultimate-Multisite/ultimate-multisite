@@ -149,6 +149,28 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 		return $redirect_url;
 	}
 
+	public function test_capture_redirect_preserves_existing_wp_redirect_filters(): void {
+
+		$existing_filter = static function ($location) {
+			return $location;
+		};
+
+		add_filter('wp_redirect', $existing_filter, 20);
+
+		try {
+			$redirect_url = $this->capture_redirect(
+				static function () {
+					wp_safe_redirect(network_admin_url('admin.php?page=wp-ultimo-setup'));
+				}
+			);
+
+			$this->assertStringContainsString('admin.php?page=wp-ultimo-setup', $redirect_url);
+			$this->assertSame(20, has_filter('wp_redirect', $existing_filter));
+		} finally {
+			remove_filter('wp_redirect', $existing_filter, 20);
+		}
+	}
+
 	// -------------------------------------------------------------------------
 	// Page properties
 	// -------------------------------------------------------------------------
