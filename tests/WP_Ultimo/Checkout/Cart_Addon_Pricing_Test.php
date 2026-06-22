@@ -12,7 +12,6 @@ namespace WP_Ultimo\Checkout;
 use WP_Ultimo\Models\Customer;
 use WP_Ultimo\Models\Membership;
 use WP_Ultimo\Models\Product;
-use WP_Ultimo\Models\Discount_Code;
 use WP_Ultimo\Database\Memberships\Membership_Status;
 use WP_UnitTestCase;
 
@@ -57,11 +56,39 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 	private static Membership $membership;
 
 	/**
-	 * Test discount code.
+	 * Create a customer with a user ID that is not already present in stale custom tables.
 	 *
-	 * @var Discount_Code
+	 * @param int $suffix Unique suffix for generated user data.
+	 * @return Customer
 	 */
-	private static Discount_Code $discount_code;
+	private static function create_available_customer($suffix) {
+
+		$last_error = '';
+
+		for ( $attempt = 0; $attempt < 20; $attempt++ ) {
+			$user_id = self::factory()->user->create(
+				array(
+					'user_login' => 'testuser_addon_pricing_' . $suffix . '_' . $attempt,
+					'user_email' => 'addon_pricing_' . $suffix . '_' . $attempt . '@example.com',
+					'user_pass'  => 'password123',
+				)
+			);
+
+			$customer = wu_create_customer(
+				array(
+					'user_id' => $user_id,
+				)
+			);
+
+			if ( ! is_wp_error($customer) ) {
+				return $customer;
+			}
+
+			$last_error = $customer->get_error_message();
+		}
+
+		self::fail('Failed to create test customer with an unused user ID: ' . $last_error);
+	}
 
 	/**
 	 * Set up test fixtures before running tests.
@@ -72,24 +99,15 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 	public static function set_up_before_class() {
 		parent::set_up_before_class();
 
-		// Create a test customer.
-		self::$customer = wu_create_customer(
-			array(
-				'username' => 'testuser_addon_pricing',
-				'email'    => 'addon_pricing@example.com',
-				'password' => 'password123',
-			)
-		);
+		$suffix = wp_rand(100000, 999999);
 
-		if ( is_wp_error(self::$customer) ) {
-			self::fail('Failed to create test customer');
-		}
+		self::$customer = self::create_available_customer($suffix);
 
 		// Create a plan product (€90/month).
-		self::$plan = wu_create_product(
+		$plan = wu_create_product(
 			array(
 				'name'          => 'Test Plan',
-				'slug'          => 'test-plan-addon-pricing',
+				'slug'          => 'test-plan-addon-pricing-' . $suffix,
 				'amount'        => 90.00,
 				'duration'      => 1,
 				'duration_unit' => 'month',
@@ -102,15 +120,17 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 			)
 		);
 
-		if ( is_wp_error(self::$plan) ) {
-			self::fail('Failed to create test plan');
+		if ( is_wp_error($plan) ) {
+			self::fail('Failed to create test plan: ' . $plan->get_error_message());
 		}
 
+		self::$plan = $plan;
+
 		// Create an addon product (€5).
-		self::$addon = wu_create_product(
+		$addon = wu_create_product(
 			array(
 				'name'          => 'Test Addon',
-				'slug'          => 'test-addon-service',
+				'slug'          => 'test-addon-service-' . $suffix,
 				'amount'        => 5.00,
 				'duration'      => 1,
 				'duration_unit' => 'month',
@@ -123,39 +143,14 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 			)
 		);
 
-		if ( is_wp_error(self::$addon) ) {
-			self::fail('Failed to create test addon');
+		if ( is_wp_error($addon) ) {
+			self::fail('Failed to create test addon: ' . $addon->get_error_message());
 		}
 
-		// Create a discount code (10% off, applies to renewals).
-		$discount_code_result = wu_create_discount_code(
-			array(
-				'name'              => 'Test Discount',
-				'code'              => 'TEST10',
-				'value'             => 10,
-				'type'              => 'percentage',
-				'uses'              => 0,
-				'max_uses'          => 100,
-				'apply_to_renewals' => true,
-			)
-		);
-
-		if ( is_wp_error($discount_code_result) ) {
-			self::fail('Failed to create test discount code: ' . $discount_code_result->get_error_message());
-		}
-
-		// Reload the discount code from DB to ensure all fields (including apply_to_renewals)
-		// reflect the persisted values. This avoids relying on the in-memory object which may
-		// have been modified by the validation layer during save().
-		$saved_discount_code = wu_get_discount_code_by_code('TEST10');
-		if ( ! $saved_discount_code ) {
-			self::fail('Discount code TEST10 was not saved to the database');
-		}
-
-		self::$discount_code = $saved_discount_code;
+		self::$addon = $addon;
 
 		// Create an active membership for the customer.
-		self::$membership = wu_create_membership(
+		$membership = wu_create_membership(
 			array(
 				'customer_id'     => self::$customer->get_id(),
 				'plan_id'         => self::$plan->get_id(),
@@ -172,19 +167,11 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 			)
 		);
 
-		if ( is_wp_error(self::$membership) ) {
-			self::fail('Failed to create test membership');
+		if ( is_wp_error($membership) ) {
+			self::fail('Failed to create test membership: ' . $membership->get_error_message());
 		}
 
-		// Set the discount code on the membership.
-		// Note: wu_create_membership() uses shortcode_atts() which strips unknown keys,
-		// so 'discount_code' must be set separately after creation.
-		// We use set_discount_code() with the object and save() to persist it reliably
-		// across all PHP versions. Storing the object directly avoids a DB lookup via
-		// wu_get_discount_code_by_code() which may fail if the discount_codes table
-		// is not yet registered in $wpdb at the time of the lookup.
-		self::$membership->set_discount_code(self::$discount_code);
-		self::$membership->save();
+		self::$membership = $membership;
 	}
 
 	/**
@@ -274,6 +261,26 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 	 * Expected: The membership's discount code (10% off) should be applied to the addon.
 	 */
 	public function test_addon_applies_existing_discount_code() {
+		$discount_code_value = 'TEST10' . wp_rand(100000, 999999);
+		$discount_code       = wu_create_discount_code(
+			array(
+				'name'              => 'Test Discount',
+				'code'              => $discount_code_value,
+				'value'             => 10,
+				'type'              => 'percentage',
+				'uses'              => 0,
+				'max_uses'          => 100,
+				'apply_to_renewals' => true,
+			)
+		);
+
+		$this->assertNotWPError($discount_code);
+
+		self::$membership->set_discount_code($discount_code);
+		$saved = self::$membership->save();
+
+		$this->assertNotWPError($saved);
+
 		$cart = new Cart(
 			array(
 				'customer_id'   => self::$customer->get_id(),
@@ -285,7 +292,7 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 		// The cart should have the discount code from the membership.
 		$discount_code = $cart->get_discount_code();
 		$this->assertNotNull($discount_code, 'Discount code should be applied');
-		$this->assertEquals('TEST10', $discount_code->get_code(), 'Should be the membership discount code');
+		$this->assertEquals($discount_code_value, $discount_code->get_code(), 'Should be the membership discount code');
 
 		// The addon should have a discount applied (10% off €5 = €0.50).
 		$line_items      = $cart->get_line_items();
@@ -300,6 +307,12 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 		$this->assertNotNull($addon_line_item, 'Addon line item should exist');
 		$this->assertEquals(0.50, $addon_line_item->get_discount_total(), 'Discount should be €0.50 (10% of €5)');
 		$this->assertEquals(4.50, $addon_line_item->get_total(), 'Addon total should be €4.50 after discount');
+
+		self::$membership->delete_meta(Membership::META_DISCOUNT_CODE);
+		self::$membership->delete_meta(Membership::META_VERIFIED_PAYMENT_DISCOUNT);
+
+		$cleanup_saved = self::$membership->save();
+		$this->assertNotWPError($cleanup_saved);
 	}
 
 	/**
@@ -357,7 +370,7 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 		$upgraded_plan = wu_create_product(
 			array(
 				'name'          => 'Premium Plan',
-				'slug'          => 'premium-plan-addon-test',
+				'slug'          => 'premium-plan-addon-test-' . wp_rand(100000, 999999),
 				'amount'        => 150.00,
 				'duration'      => 1,
 				'duration_unit' => 'month',
@@ -369,6 +382,8 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 				'active'        => true,
 			)
 		);
+
+		$this->assertNotWPError($upgraded_plan);
 
 		$cart = new Cart(
 			array(
@@ -404,7 +419,7 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 		$addon_with_fee = wu_create_product(
 			array(
 				'name'          => 'Addon with Fee',
-				'slug'          => 'addon-with-setup-fee',
+				'slug'          => 'addon-with-setup-fee-' . wp_rand(100000, 999999),
 				'amount'        => 10.00,
 				'duration'      => 1,
 				'duration_unit' => 'month',
@@ -416,6 +431,8 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 				'active'        => true,
 			)
 		);
+
+		$this->assertNotWPError($addon_with_fee);
 
 		$cart = new Cart(
 			array(
@@ -452,11 +469,22 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 	 * @return void
 	 */
 	public static function tear_down_after_class() {
-		self::$membership->delete();
-		self::$addon->delete();
-		self::$plan->delete();
-		self::$discount_code->delete();
-		self::$customer->delete();
+		if ( isset(self::$membership) ) {
+			self::$membership->delete();
+		}
+
+		if ( isset(self::$addon) ) {
+			self::$addon->delete();
+		}
+
+		if ( isset(self::$plan) ) {
+			self::$plan->delete();
+		}
+
+		if ( isset(self::$customer) ) {
+			self::$customer->delete();
+		}
+
 		parent::tear_down_after_class();
 	}
 }

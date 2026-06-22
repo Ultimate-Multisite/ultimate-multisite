@@ -203,7 +203,7 @@ function wu_get_login_url($path = false): string {
  */
 function wu_multiple_memberships_enabled() {
 
-	return wu_get_setting('enable_multiple_memberships', true);
+	return (bool) wu_get_setting('enable_multiple_memberships', true);
 }
 
 /**
