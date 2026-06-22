@@ -56,6 +56,41 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 	private static Membership $membership;
 
 	/**
+	 * Create a customer with a user ID that is not already present in stale custom tables.
+	 *
+	 * @param int $suffix Unique suffix for generated user data.
+	 * @return Customer
+	 */
+	private static function create_available_customer($suffix) {
+
+		$last_error = '';
+
+		for ( $attempt = 0; $attempt < 20; $attempt++ ) {
+			$user_id = self::factory()->user->create(
+				array(
+					'user_login' => 'testuser_addon_pricing_' . $suffix . '_' . $attempt,
+					'user_email' => 'addon_pricing_' . $suffix . '_' . $attempt . '@example.com',
+					'user_pass'  => 'password123',
+				)
+			);
+
+			$customer = wu_create_customer(
+				array(
+					'user_id' => $user_id,
+				)
+			);
+
+			if ( ! is_wp_error($customer) ) {
+				return $customer;
+			}
+
+			$last_error = $customer->get_error_message();
+		}
+
+		self::fail('Failed to create test customer with an unused user ID: ' . $last_error);
+	}
+
+	/**
 	 * Set up test fixtures before running tests.
 	 *
 	 * @since 2.0.12
@@ -66,20 +101,7 @@ class Cart_Addon_Pricing_Test extends WP_UnitTestCase {
 
 		$suffix = wp_rand(100000, 999999);
 
-		// Create a test customer.
-		$customer = wu_create_customer(
-			array(
-				'username' => 'testuser_addon_pricing_' . $suffix,
-				'email'    => 'addon_pricing_' . $suffix . '@example.com',
-				'password' => 'password123',
-			)
-		);
-
-		if ( is_wp_error($customer) ) {
-			self::fail('Failed to create test customer: ' . $customer->get_error_message());
-		}
-
-		self::$customer = $customer;
+		self::$customer = self::create_available_customer($suffix);
 
 		// Create a plan product (€90/month).
 		$plan = wu_create_product(
