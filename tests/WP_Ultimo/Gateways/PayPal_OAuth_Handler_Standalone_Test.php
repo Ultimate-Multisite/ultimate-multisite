@@ -561,6 +561,25 @@ class PayPal_OAuth_Handler_Standalone_Test extends TestCase {
 		// Call the method
 		$this->handler->ajax_disconnect();
 	}
+
+	/**
+	 * Test standalone JSON error encoding remains available without WordPress helpers.
+	 */
+	public function test_json_error_encoder_matches_php_json_encoding(): void {
+
+		$payload = [
+			'success' => false,
+			'data'    => [
+				'message' => 'Standalone fallback',
+			],
+		];
+
+		$this->assertSame(
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- The standalone fallback intentionally verifies parity with PHP's native encoder.
+			json_encode($payload),
+			paypal_oauth_json_encode($payload)
+		);
+	}
 }
 
 // Mock WordPress functions.
@@ -611,15 +630,26 @@ function wp_send_json_error($data = null, $status_code = null) {
 	if (function_exists('\\wp_send_json_error')) {
 		return \wp_send_json_error($data, $status_code);
 	}
-	$encoder = function_exists('\\wp_json_encode') ? '\\wp_json_encode' : 'json_encode';
 
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Test fallback emits a JSON response body like wp_send_json_error().
-	echo $encoder([
+	echo paypal_oauth_json_encode([
 		'success' => false,
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Encoded as part of the JSON response body above.
 		'data'    => $data,
 	]);
 	exit;
+}
+
+/**
+ * Encode standalone JSON responses without requiring WordPress helpers.
+ *
+ * @param mixed $data Data to encode.
+ * @return string|false
+ */
+function paypal_oauth_json_encode($data) {
+	$encoder = function_exists('\\wp_json_encode') ? '\\wp_json_encode' : 'json_encode';
+
+	return $encoder($data);
 }
 
 // Mock WP_Error class if not available.
