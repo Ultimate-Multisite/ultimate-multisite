@@ -1,4 +1,6 @@
 <?php
+// phpcs:disable Generic.Files.OneObjectStructurePerFile.MultipleFound -- Test doubles live with the abstract gateway test fixture.
+
 /**
  * Tests for Base_Gateway class.
  *
@@ -55,20 +57,44 @@ class Base_Gateway_Test extends WP_UnitTestCase {
 	protected function setUp(): void {
 		parent::setUp();
 
-		// Only create full fixtures for tests that need them
-		// Other tests will create their own minimal fixtures
+		$this->reset_gateway_manager_state();
+		$this->create_full_fixtures();
+	}
+
+	/**
+	 * Tear down test fixtures.
+	 */
+	protected function tearDown(): void {
+		$this->reset_gateway_manager_state();
+		remove_all_filters('wu_get_gateway');
+
+		parent::tearDown();
+	}
+
+	/**
+	 * Reset Gateway_Manager registered gateway state between tests.
+	 */
+	private function reset_gateway_manager_state(): void {
+		$gateway_manager = \WP_Ultimo\Managers\Gateway_Manager::get_instance();
+		$reflection      = new \ReflectionClass($gateway_manager);
+
+		foreach (['registered_gateways', 'auto_renewable_gateways'] as $property_name) {
+			$property = $reflection->getProperty($property_name);
+			$property->setValue($gateway_manager, []);
+		}
 	}
 
 	/**
 	 * Create full test fixtures (customer, product, membership, payment, cart, gateway).
 	 */
 	private function create_full_fixtures(): void {
-		// Create test user
-		$user_id = self::factory()->user->create();
+		$uuid = wp_generate_uuid4();
 
 		// Create customer
 		$this->customer = wu_create_customer([
-			'user_id'            => $user_id,
+			'username'           => 'base-gateway-' . $uuid,
+			'email'              => 'base-gateway-' . $uuid . '@example.com',
+			'password'           => 'password123',
 			'email_verification' => 'none',
 		]);
 
@@ -146,7 +172,7 @@ class Base_Gateway_Test extends WP_UnitTestCase {
 	 */
 	public function test_constructor_with_order(): void {
 		$this->create_full_fixtures();
-		
+
 		$this->assertInstanceOf(Test_Gateway::class, $this->gateway);
 		$this->assertTrue($this->gateway->init_called);
 	}
@@ -156,7 +182,7 @@ class Base_Gateway_Test extends WP_UnitTestCase {
 	 */
 	public function test_set_order(): void {
 		$this->create_full_fixtures();
-		
+
 		$gateway = new Test_Gateway();
 		$gateway->set_order($this->cart);
 
@@ -269,30 +295,13 @@ class Base_Gateway_Test extends WP_UnitTestCase {
 	 * Test get_public_title returns registered gateway title.
 	 */
 	public function test_get_public_title(): void {
-		// Mock wu_get_gateways to return our test gateway
 		$gateway_manager = \WP_Ultimo\Managers\Gateway_Manager::get_instance();
-		
-		// Register the gateway temporarily
-		add_filter('wu_gateways', function ($gateways) {
-			$gateways['test'] = [
-				'title' => 'Test Payment Gateway',
-				'class' => Test_Gateway::class,
-			];
-			return $gateways;
-		}, 10);
 
-		// Force re-initialization of gateways
-		$reflection = new \ReflectionClass($gateway_manager);
-		$property   = $reflection->getProperty('gateways');
-		$property->setAccessible(true);
-		$property->setValue($gateway_manager, null);
+		$gateway_manager->register_gateway('test', 'Test Payment Gateway', 'desc', Test_Gateway::class);
 
 		$title = $this->gateway->get_public_title();
 
 		$this->assertEquals('Test Payment Gateway', $title);
-
-		// Clean up
-		remove_all_filters('wu_gateways', 10);
 	}
 
 	/**
@@ -420,7 +429,7 @@ class Base_Gateway_Test extends WP_UnitTestCase {
 	 * Test get_saved_swap retrieves cart.
 	 */
 	public function test_get_saved_swap(): void {
-		$swap_id = $this->gateway->save_swap($this->cart);
+		$swap_id   = $this->gateway->save_swap($this->cart);
 		$retrieved = $this->gateway->get_saved_swap($swap_id);
 
 		$this->assertInstanceOf(\WP_Ultimo\Checkout\Cart::class, $retrieved);
@@ -519,7 +528,7 @@ class Base_Gateway_Test extends WP_UnitTestCase {
 
 		$this->assertTrue($result);
 		$this->assertEquals('', $this->membership->get_gateway());
-		$this->assertFalse($this->membership->get_auto_renew());
+		$this->assertFalse($this->membership->should_auto_renew());
 	}
 
 	/**
@@ -820,8 +829,8 @@ class Test_Gateway_Unregistered extends Test_Gateway {
 	 * Constructor.
 	 */
 	public function __construct() {
-		$this->id = 'test-unregistered';
 		parent::__construct();
+		$this->id = 'test-unregistered';
 	}
 }
 
