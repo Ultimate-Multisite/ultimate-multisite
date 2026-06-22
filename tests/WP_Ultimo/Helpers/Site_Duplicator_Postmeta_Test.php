@@ -188,7 +188,10 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 
 		// Mirror the post to the target (simulating MUCD copy).
 		switch_to_blog($this->to_blog_id);
-		self::factory()->post->create(['import_id' => $regular_post_id, 'post_type' => 'post']);
+		self::factory()->post->create([
+			'import_id' => $regular_post_id,
+			'post_type' => 'post',
+		]);
 		restore_current_blog();
 
 		Testable_Site_Duplicator::backfill_nav_menu_postmeta($this->from_blog_id, $this->to_blog_id);
@@ -249,7 +252,10 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		restore_current_blog();
 
 		switch_to_blog($this->to_blog_id);
-		self::factory()->post->create(['import_id' => $page_id, 'post_type' => 'page']);
+		self::factory()->post->create([
+			'import_id' => $page_id,
+			'post_type' => 'page',
+		]);
 		restore_current_blog();
 
 		Testable_Site_Duplicator::backfill_attachment_postmeta($this->from_blog_id, $this->to_blog_id);
@@ -293,7 +299,7 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 			]
 		);
 		update_post_meta($page_id, '_elementor_data', '[{"elType":"section"}]');
-		update_post_meta($page_id, '_elementor_page_settings', serialize(['layout' => 'full-width']));
+		update_post_meta($page_id, '_elementor_page_settings', ['layout' => 'full-width']);
 		update_post_meta($page_id, '_elementor_edit_mode', 'builder');
 		restore_current_blog();
 
@@ -461,6 +467,38 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		// No meta should exist on the target for the orphan post.
 		switch_to_blog($this->to_blog_id);
 		$this->assertEmpty(get_post_meta($orphan_id, '_orphan_meta', true));
+		restore_current_blog();
+	}
+
+	/**
+	 * Test that matching titles alone do not receive unrelated postmeta.
+	 */
+	public function test_all_postmeta_catch_all_does_not_match_by_title() {
+		switch_to_blog($this->from_blog_id);
+		$source_id = self::factory()->post->create(
+			[
+				'post_type'  => 'post',
+				'post_title' => 'Duplicate title',
+			]
+		);
+		update_post_meta($source_id, '_source_only_meta', 'source-value');
+		restore_current_blog();
+
+		switch_to_blog($this->to_blog_id);
+		$target_id = self::factory()->post->create(
+			[
+				'import_id'  => $source_id + 100,
+				'post_type'  => 'post',
+				'post_title' => 'Duplicate title',
+			]
+		);
+		restore_current_blog();
+
+		Testable_Site_Duplicator::backfill_all_postmeta($this->from_blog_id, $this->to_blog_id);
+
+		switch_to_blog($this->to_blog_id);
+		$this->assertNotSame($source_id, $target_id);
+		$this->assertEmpty(get_post_meta($target_id, '_source_only_meta', true));
 		restore_current_blog();
 	}
 
@@ -714,14 +752,18 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		switch_to_blog($real_template_id);
 		$real_kit_id = self::factory()->post->create(
 			[
-				'post_type' => 'elementor_library',
+				'post_type'  => 'elementor_library',
 				'post_title' => 'Real Kit',
 			]
 		);
 		update_option('elementor_active_kit', $real_kit_id);
 		update_post_meta($real_kit_id, '_elementor_page_settings', [
 			'system_colors' => [
-				['_id' => 'primary', 'color' => '#FF0000', 'title' => 'Red'],
+				[
+					'_id'   => 'primary',
+					'color' => '#FF0000',
+					'title' => 'Red',
+				],
 			],
 		]);
 		restore_current_blog();
@@ -734,7 +776,7 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		self::factory()->post->create(
 			[
 				'import_id'  => $real_kit_id,
-				'post_type' => 'elementor_library',
+				'post_type'  => 'elementor_library',
 				'post_title' => 'Real Kit',
 			]
 		);
@@ -798,7 +840,7 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 
 		// The code should only override when meta_template > 0.
 		$this->assertStringContainsString(
-			'$meta_template > 0',
+			'0 < $meta_template',
 			$source,
 			'wu_template_id resolution must only override when meta value is positive'
 		);
@@ -821,9 +863,9 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		);
 
 		$this->assertStringContainsString(
-			"'from_site_id' => \$args->from_site_id",
+			"'from_site_id' => \$template_site_id",
 			$source,
-			'wu_duplicate_site action must pass from_site_id in args'
+			'wu_duplicate_site action must pass resolved from_site_id in args'
 		);
 	}
 
@@ -908,7 +950,7 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		switch_to_blog($this->from_blog_id);
 		$this->from_nav_item_id = self::factory()->post->create(
 			[
-				'post_type' => 'nav_menu_item',
+				'post_type'  => 'nav_menu_item',
 				'post_title' => 'About Page',
 			]
 		);
@@ -927,7 +969,7 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		$this->to_nav_item_id = self::factory()->post->create(
 			[
 				'import_id'  => $this->from_nav_item_id,
-				'post_type' => 'nav_menu_item',
+				'post_type'  => 'nav_menu_item',
 				'post_title' => 'About Page',
 			]
 		);
@@ -942,12 +984,15 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		switch_to_blog($this->from_blog_id);
 		$this->from_attachment_id = self::factory()->post->create(
 			[
-				'post_type' => 'attachment',
+				'post_type'  => 'attachment',
 				'post_title' => 'logo.png',
 			]
 		);
 		update_post_meta($this->from_attachment_id, '_wp_attached_file', '2024/01/logo.png');
-		update_post_meta($this->from_attachment_id, '_wp_attachment_metadata', serialize(['width' => 200, 'height' => 60]));
+		update_post_meta($this->from_attachment_id, '_wp_attachment_metadata', [
+			'width'  => 200,
+			'height' => 60,
+		]);
 		update_post_meta($this->from_attachment_id, '_wp_attachment_image_alt', 'Site Logo');
 		restore_current_blog();
 
@@ -955,7 +1000,7 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		$this->to_attachment_id = self::factory()->post->create(
 			[
 				'import_id'  => $this->from_attachment_id,
-				'post_type' => 'attachment',
+				'post_type'  => 'attachment',
 				'post_title' => 'logo.png',
 			]
 		);
@@ -970,12 +1015,12 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		switch_to_blog($this->from_blog_id);
 		$this->from_elementor_post_id = self::factory()->post->create(
 			[
-				'post_type' => 'elementor_library',
+				'post_type'  => 'elementor_library',
 				'post_title' => 'Custom Header',
 			]
 		);
 		update_post_meta($this->from_elementor_post_id, '_elementor_data', '[{"elType":"section","elements":[]}]');
-		update_post_meta($this->from_elementor_post_id, '_elementor_page_settings', serialize(['template' => 'header']));
+		update_post_meta($this->from_elementor_post_id, '_elementor_page_settings', ['template' => 'header']);
 		update_post_meta($this->from_elementor_post_id, '_elementor_edit_mode', 'builder');
 		update_post_meta($this->from_elementor_post_id, '_elementor_template_type', 'header');
 		restore_current_blog();
@@ -984,7 +1029,7 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		self::factory()->post->create(
 			[
 				'import_id'  => $this->from_elementor_post_id,
-				'post_type' => 'elementor_library',
+				'post_type'  => 'elementor_library',
 				'post_title' => 'Custom Header',
 			]
 		);
@@ -997,17 +1042,36 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 	 */
 	private function setup_kit_data() {
 		$kit_settings = [
-			'system_colors' => [
-				['_id' => 'primary', 'color' => '#EAC7C7', 'title' => 'Primary'],
-				['_id' => 'secondary', 'color' => '#ED6363', 'title' => 'Secondary'],
+			'system_colors'     => [
+				[
+					'_id'   => 'primary',
+					'color' => '#EAC7C7',
+					'title' => 'Primary',
+				],
+				[
+					'_id'   => 'secondary',
+					'color' => '#ED6363',
+					'title' => 'Secondary',
+				],
 			],
-			'custom_colors' => [
-				['_id' => 'brand', 'color' => '#1A1A2E', 'title' => 'Brand'],
+			'custom_colors'     => [
+				[
+					'_id'   => 'brand',
+					'color' => '#1A1A2E',
+					'title' => 'Brand',
+				],
 			],
 			'system_typography' => [
-				['_id' => 'primary', 'typography_font_family' => 'Roboto', 'typography_font_weight' => '600'],
+				[
+					'_id'                    => 'primary',
+					'typography_font_family' => 'Roboto',
+					'typography_font_weight' => '600',
+				],
 			],
-			'container_width' => ['size' => 1140, 'unit' => 'px'],
+			'container_width'   => [
+				'size' => 1140,
+				'unit' => 'px',
+			],
 		];
 
 		$kit_data = '[{"elType":"section","elements":[{"elType":"widget"}]}]';
@@ -1016,7 +1080,7 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		switch_to_blog($this->from_blog_id);
 		$this->kit_post_id = self::factory()->post->create(
 			[
-				'post_type' => 'elementor_library',
+				'post_type'  => 'elementor_library',
 				'post_title' => 'Elementor Kit',
 			]
 		);
@@ -1031,7 +1095,7 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 		self::factory()->post->create(
 			[
 				'import_id'  => $this->kit_post_id,
-				'post_type' => 'elementor_library',
+				'post_type'  => 'elementor_library',
 				'post_title' => 'Elementor Kit',
 			]
 		);
@@ -1120,6 +1184,7 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
  * Site_Duplicator uses protected static methods, which cannot be called
  * directly from tests. This subclass makes them public.
  */
+// phpcs:ignore Generic.Files.OneObjectStructurePerFile.MultipleFound -- Test helper exposes protected methods.
 class Testable_Site_Duplicator extends Site_Duplicator {
 
 	/**
