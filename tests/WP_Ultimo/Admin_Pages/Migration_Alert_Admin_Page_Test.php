@@ -114,7 +114,7 @@ class Migration_Alert_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * get_logo returns a string.
+	 * Get_logo returns a string.
 	 */
 	public function test_get_logo_returns_string(): void {
 
@@ -124,7 +124,7 @@ class Migration_Alert_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * get_logo returns non-empty string.
+	 * Get_logo returns non-empty string.
 	 */
 	public function test_get_logo_non_empty(): void {
 
@@ -134,7 +134,7 @@ class Migration_Alert_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * get_logo contains logo.webp.
+	 * Get_logo contains logo.webp.
 	 */
 	public function test_get_logo_contains_logo_webp(): void {
 
@@ -148,7 +148,7 @@ class Migration_Alert_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * get_title returns Migration.
+	 * Get_title returns Migration.
 	 */
 	public function test_get_title(): void {
 
@@ -163,7 +163,7 @@ class Migration_Alert_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * get_menu_title returns string.
+	 * Get_menu_title returns string.
 	 */
 	public function test_get_menu_title_returns_string(): void {
 
@@ -173,7 +173,7 @@ class Migration_Alert_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * get_menu_title contains Ultimate Multisite.
+	 * Get_menu_title contains Ultimate Multisite.
 	 */
 	public function test_get_menu_title_contains_ultimate_multisite(): void {
 
@@ -187,7 +187,7 @@ class Migration_Alert_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * get_sections returns an array.
+	 * Get_sections returns an array.
 	 */
 	public function test_get_sections_returns_array(): void {
 
@@ -197,7 +197,7 @@ class Migration_Alert_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * get_sections contains alert section.
+	 * Get_sections contains alert section.
 	 */
 	public function test_get_sections_contains_alert(): void {
 
@@ -207,7 +207,7 @@ class Migration_Alert_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * get_sections alert has required keys.
+	 * Get_sections alert has required keys.
 	 */
 	public function test_get_sections_alert_has_required_keys(): void {
 
@@ -219,7 +219,7 @@ class Migration_Alert_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * get_sections alert title is Alert!.
+	 * Get_sections alert title is Alert!.
 	 */
 	public function test_get_sections_alert_title(): void {
 
@@ -233,7 +233,7 @@ class Migration_Alert_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * section_alert outputs HTML.
+	 * Section_alert outputs HTML.
 	 */
 	public function test_section_alert_outputs_html(): void {
 
@@ -251,7 +251,7 @@ class Migration_Alert_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * handle_proceed deletes network options and redirects.
+	 * Handle_proceed deletes network options and redirects.
 	 */
 	public function test_handle_proceed_deletes_options_and_redirects(): void {
 
