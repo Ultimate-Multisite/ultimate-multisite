@@ -248,7 +248,7 @@ final class API_Schema_Test extends TestCase {
 	public function test_checkout_form_create_template_enum(): void {
 		$schema = $this->load_schema('checkout-form-create.php');
 		$this->assertArrayHasKey('template', $schema);
-		$this->assertSame(['blank', 'single-step', 'multi-step'], $schema['template']['enum']);
+		$this->assertSame(['blank', 'single-step', 'multi-step', 'simple'], $schema['template']['enum']);
 	}
 
 	/**
@@ -305,7 +305,7 @@ final class API_Schema_Test extends TestCase {
 	public function test_checkout_form_update_template_enum(): void {
 		$schema = $this->load_schema('checkout-form-update.php');
 		$this->assertArrayHasKey('template', $schema);
-		$this->assertSame(['blank', 'single-step', 'multi-step'], $schema['template']['enum']);
+		$this->assertSame(['blank', 'single-step', 'multi-step', 'simple'], $schema['template']['enum']);
 	}
 
 	// =========================================================================
