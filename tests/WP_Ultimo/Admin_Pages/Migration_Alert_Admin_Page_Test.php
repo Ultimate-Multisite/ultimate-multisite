@@ -259,9 +259,28 @@ class Migration_Alert_Admin_Page_Test extends WP_UnitTestCase {
 		update_network_option(null, \WP_Ultimo::NETWORK_OPTION_SETUP_FINISHED, true);
 		update_network_option(null, 'wu_is_migration_done', true);
 
-		// Expect redirect exception.
-		$this->expectException(\WPDieException::class);
+		$redirect_url = null;
 
-		$this->page->handle_proceed();
+		add_filter(
+			'wp_redirect',
+			function ($location) use (&$redirect_url) {
+				$redirect_url = $location;
+
+				throw new \RuntimeException('redirect_intercepted');
+			}
+		);
+
+		try {
+			$this->page->handle_proceed();
+		} catch (\RuntimeException $e) {
+			$this->assertSame('redirect_intercepted', $e->getMessage());
+		} finally {
+			remove_all_filters('wp_redirect');
+		}
+
+		$this->assertFalse(get_network_option(null, \WP_Ultimo::NETWORK_OPTION_SETUP_FINISHED));
+		$this->assertFalse(get_network_option(null, 'wu_is_migration_done'));
+		$this->assertNotNull($redirect_url, 'wp_redirect should have been called');
+		$this->assertStringContainsString('wp-ultimo-setup', $redirect_url);
 	}
 }
