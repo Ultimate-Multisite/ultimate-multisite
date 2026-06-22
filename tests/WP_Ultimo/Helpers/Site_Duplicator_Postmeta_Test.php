@@ -445,6 +445,47 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test that title fallback copies meta only when the target title is unique.
+	 */
+	public function test_all_postmeta_title_fallback_requires_unique_target_title() {
+		// Create a source post with an ID that will not exist on the target.
+		switch_to_blog($this->from_blog_id);
+		$page_id = self::factory()->post->create(
+			[
+				'import_id'  => 900001,
+				'post_type'  => 'page',
+				'post_title' => 'Ambiguous title fallback page',
+			]
+		);
+		update_post_meta($page_id, '_custom_field', 'source-value');
+		restore_current_blog();
+
+		// Create two target posts with the same type and title.
+		switch_to_blog($this->to_blog_id);
+		$first_target_id  = self::factory()->post->create(
+			[
+				'post_type'  => 'page',
+				'post_title' => 'Ambiguous title fallback page',
+			]
+		);
+		$second_target_id = self::factory()->post->create(
+			[
+				'post_type'  => 'page',
+				'post_title' => 'Ambiguous title fallback page',
+			]
+		);
+		restore_current_blog();
+
+		Testable_Site_Duplicator::backfill_all_postmeta($this->from_blog_id, $this->to_blog_id);
+
+		// Ambiguous title matches must not receive source metadata.
+		switch_to_blog($this->to_blog_id);
+		$this->assertEmpty(get_post_meta($first_target_id, '_custom_field', true));
+		$this->assertEmpty(get_post_meta($second_target_id, '_custom_field', true));
+		restore_current_blog();
+	}
+
+	/**
 	 * Test that backfill_all_postmeta only copies meta for posts that exist in target.
 	 */
 	public function test_all_postmeta_catch_all_skips_orphaned_posts() {
