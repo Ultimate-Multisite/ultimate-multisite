@@ -62,16 +62,15 @@ class Interface_Notable_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test get_notes returns array or empty for unsaved model.
+	 * Test get_notes returns an empty array for unsaved model.
 	 */
-	public function test_get_notes_returns_array_or_empty_for_unsaved(): void {
+	public function test_get_notes_returns_empty_array_for_unsaved(): void {
 
 		$customer = new Customer();
 
-		// Unsaved model — meta not available, should return null or empty.
 		$notes = $customer->get_notes();
 
-		$this->assertTrue(is_array($notes) || is_null($notes));
+		$this->assertSame([], $notes, 'Unsaved models have no meta row and should expose no notes.');
 	}
 
 	/**

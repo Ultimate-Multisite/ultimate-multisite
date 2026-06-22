@@ -35,6 +35,12 @@ trait Notable {
 	public function get_notes() {
 
 		if (null === $this->notes) {
+			if ( ! $this->get_id()) {
+				$this->notes = [];
+
+				return $this->notes;
+			}
+
 			$this->notes = get_metadata($this->get_meta_data_table_name(), $this->get_id(), 'wu_note', false);
 		}
 
