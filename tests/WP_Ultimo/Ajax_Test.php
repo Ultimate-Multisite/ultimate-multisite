@@ -396,9 +396,12 @@ class Ajax_Test extends WP_UnitTestCase {
 
 		$this->reset_settings_with_empty_sections();
 
-		$user_id = self::factory()->user->create( [ 'role' => 'administrator' ] );
-		grant_super_admin( $user_id );
-		wp_set_current_user( $user_id );
+		$grant_manage_network = static function ( array $allcaps ): array {
+			$allcaps['manage_network'] = true;
+
+			return $allcaps;
+		};
+		add_filter( 'user_has_cap', $grant_manage_network );
 
 		$_REQUEST['model'] = 'all';
 		$_REQUEST['query'] = [ 'search' => 'zzz_no_match_xyz' ];
@@ -418,15 +421,18 @@ class Ajax_Test extends WP_UnitTestCase {
 			}
 		);
 
-		$this->call_in_ajax_context(
-			function () {
-				$this->ajax->search_models();
-			}
-		);
+		try {
+			$this->call_in_ajax_context(
+				function () {
+					$this->ajax->search_models();
+				}
+			);
 
-		$this->assertTrue( $fired );
-
-		unset( $_REQUEST['model'], $_REQUEST['query'] );
+			$this->assertTrue( $fired );
+		} finally {
+			remove_filter( 'user_has_cap', $grant_manage_network );
+			unset( $_REQUEST['model'], $_REQUEST['query'] );
+		}
 	}
 
 	/**
