@@ -129,6 +129,10 @@ class PayPal_OAuth_Handler_Test extends WP_UnitTestCase {
 	 */
 	private function set_ajax_nonce(?string $sandbox_mode = null): void {
 
+		if (defined('REST_REQUEST') && REST_REQUEST) {
+			$this->setExpectedIncorrectUsage('wp_send_json');
+		}
+
 		$nonce = wp_create_nonce('wu_paypal_oauth');
 
 		$_POST['nonce']    = $nonce;

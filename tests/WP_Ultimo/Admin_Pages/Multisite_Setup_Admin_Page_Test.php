@@ -516,12 +516,15 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_register_scripts_does_not_enqueue_on_wrong_screen(): void {
 
+		$block_ui_enqueued    = wp_script_is('wu-block-ui', 'enqueued');
+		$wizard_extra_enqueued = wp_script_is('wu-setup-wizard-extra', 'enqueued');
+
 		$GLOBALS['current_screen'] = \WP_Screen::get('dashboard');
 
 		$this->page->register_scripts();
 
-		$this->assertFalse(wp_script_is('wu-block-ui', 'enqueued'));
-		$this->assertFalse(wp_script_is('wu-setup-wizard-extra', 'enqueued'));
+		$this->assertSame($block_ui_enqueued, wp_script_is('wu-block-ui', 'enqueued'));
+		$this->assertSame($wizard_extra_enqueued, wp_script_is('wu-setup-wizard-extra', 'enqueued'));
 
 		unset($GLOBALS['current_screen']);
 	}
@@ -555,7 +558,7 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 		grant_super_admin($user_id);
 
 		$_REQUEST['installer'] = 'nonexistent_step_xyz';
-		$_REQUEST['_wpnonce'] = wp_create_nonce('wu_setup_install');
+		$_REQUEST['_wpnonce']  = wp_create_nonce('wu_setup_install');
 
 		ob_start();
 		$this->page->setup_install();

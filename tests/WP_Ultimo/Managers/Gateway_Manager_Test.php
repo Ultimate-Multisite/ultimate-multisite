@@ -105,6 +105,10 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 	 * @param string   $message  Assertion message.
 	 */
 	private function assert_json_response_dies(callable $callback, string $message): void {
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			$this->setExpectedIncorrectUsage( 'wp_send_json' );
+		}
+
 		$ob_level_before  = ob_get_level();
 		$exception_thrown = false;
 
@@ -1724,6 +1728,10 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 		$exception_thrown = false;
 
 		try {
+			if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+				$this->setExpectedIncorrectUsage( 'wp_send_json' );
+			}
+
 			$this->manager->ajax_check_payment_status();
 		} catch ( \WPDieException $e ) {
 			$exception_thrown = true;
@@ -1749,6 +1757,10 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 		$exception_thrown = false;
 
 		try {
+			if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+				$this->setExpectedIncorrectUsage( 'wp_send_json' );
+			}
+
 			$this->manager->ajax_check_payment_status();
 		} catch ( \WPDieException $e ) {
 			$exception_thrown = true;
@@ -1829,6 +1841,10 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 		$exception_thrown = false;
 
 		try {
+			if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+				$this->setExpectedIncorrectUsage( 'wp_send_json' );
+			}
+
 			$this->manager->ajax_check_payment_status();
 		} catch ( \WPDieException $e ) {
 			$exception_thrown = true;
@@ -1917,6 +1933,10 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 		$exception_thrown = false;
 
 		try {
+			if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+				$this->setExpectedIncorrectUsage( 'wp_send_json' );
+			}
+
 			$this->manager->ajax_check_payment_status();
 		} catch ( \WPDieException $e ) {
 			$exception_thrown = true;
@@ -2005,6 +2025,10 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 		$exception_thrown = false;
 
 		try {
+			if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+				$this->setExpectedIncorrectUsage( 'wp_send_json' );
+			}
+
 			$this->manager->ajax_check_payment_status();
 		} catch ( \WPDieException $e ) {
 			$exception_thrown = true;
@@ -2094,6 +2118,10 @@ class Gateway_Manager_Test extends WP_UnitTestCase {
 		$exception_thrown = false;
 
 		try {
+			if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+				$this->setExpectedIncorrectUsage( 'wp_send_json' );
+			}
+
 			$this->manager->ajax_check_payment_status();
 		} catch ( \WPDieException $e ) {
 			$exception_thrown = true;

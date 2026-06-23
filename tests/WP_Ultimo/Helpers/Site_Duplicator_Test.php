@@ -45,11 +45,17 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 			$this->markTestSkipped('Site duplication tests require multisite');
 		}
 
+		global $wpdb;
+
+		$wpdb->query("TRUNCATE TABLE {$wpdb->prefix}wu_customers"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+		$customer_uid = uniqid('site-duplicator-', false);
+
 		// Create test customer
 		$this->customer = wu_create_customer(
 			[
-				'username' => 'testuser',
-				'email'    => 'test@example.com',
+				'username' => $customer_uid,
+				'email'    => $customer_uid . '@example.com',
 				'password' => 'password123',
 			]
 		);

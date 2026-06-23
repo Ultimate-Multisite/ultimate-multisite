@@ -25,6 +25,27 @@ class Template_Repository_Test extends WP_UnitTestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		$this->repository = new Template_Repository();
+
+		$reflection = new \ReflectionClass($this->repository);
+		$templates  = $reflection->getProperty('templates');
+
+		$templates->setValue(
+			$this->repository,
+			[
+				[
+					'slug'          => 'test-template',
+					'name'          => 'Test Template',
+					'description'   => 'Template used by repository tests.',
+					'industry_type' => 'test',
+					'categories'    => [
+						[
+							'slug' => 'test-category',
+							'name' => 'Test Category',
+						],
+					],
+				],
+			]
+		);
 	}
 
 	/**

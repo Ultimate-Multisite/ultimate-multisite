@@ -48,6 +48,10 @@ class Membership_Line_Item_List_Table extends Product_List_Table {
 
 		$membership = wu_get_membership(wu_request('id'));
 
+		if ( ! $membership) {
+			return $count ? 0 : [];
+		}
+
 		$products = $membership->get_all_products();
 
 		if ($count) {

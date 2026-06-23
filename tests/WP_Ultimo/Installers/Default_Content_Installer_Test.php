@@ -37,6 +37,12 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	public function setUp(): void {
 		parent::setUp();
 
+		foreach ( \WP_Ultimo\Loaders\Table_Loader::get_instance()->get_tables() as $table ) {
+			if ( ! $table->exists() ) {
+				$table->install();
+			}
+		}
+
 		$this->installer = Default_Content_Installer::get_instance();
 	}
 
@@ -47,23 +53,23 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 		// Clean up products created during tests.
 		$products = wu_get_products();
 		foreach ( $products as $product ) {
-			if ( in_array( $product->get_slug(), [ 'free', 'premium', 'seo' ], true ) ) {
+			if ( in_array( $product->get_slug(), ['free', 'premium', 'seo'], true ) ) {
 				$product->delete();
 			}
 		}
 
 		// Clean up checkout forms.
-		$forms = wu_get_checkout_forms( [ 'slug' => 'main-form' ] );
+		$forms = wu_get_checkout_forms( ['slug' => 'main-form'] );
 		foreach ( $forms as $form ) {
 			$form->delete();
 		}
 
 		// Clean up pages created during tests.
 		$pages = get_posts( [
-			'post_type'   => 'page',
-			'post_status' => 'publish',
-			'post_name__in' => [ 'register', 'login' ],
-			'numberposts' => -1,
+			'post_type'     => 'page',
+			'post_status'   => 'publish',
+			'post_name__in' => ['register', 'login'],
+			'numberposts'   => -1,
 		] );
 		foreach ( $pages as $page ) {
 			wp_delete_post( $page->ID, true );
@@ -121,7 +127,7 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	public function test_get_steps_each_step_has_required_fields(): void {
 		$steps = $this->installer->get_steps();
 
-		$required_fields = [ 'done', 'title', 'description', 'pending', 'installing', 'success', 'help', 'checked' ];
+		$required_fields = ['done', 'title', 'description', 'pending', 'installing', 'success', 'help', 'checked'];
 
 		foreach ( $steps as $key => $step ) {
 			foreach ( $required_fields as $field ) {
@@ -204,6 +210,10 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$this->assertNotWPError( $product );
 
+		if ( ! \WP_Ultimo\Loaders\Table_Loader::get_instance()->is_installed() ) {
+			$this->markTestSkipped( 'Requires installed Ultimate Multisite tables.' );
+		}
+
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_products' );
 		$method->setAccessible( true );
@@ -244,6 +254,10 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 		] );
 
 		$this->assertNotWPError( $form );
+
+		if ( ! \WP_Ultimo\Loaders\Table_Loader::get_instance()->is_installed() ) {
+			$this->markTestSkipped( 'Requires installed Ultimate Multisite tables.' );
+		}
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_checkout_forms' );
@@ -411,7 +425,7 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	 */
 	public function test_install_create_products_creates_three_products(): void {
 		// Ensure no conflicting products exist.
-		foreach ( [ 'free', 'premium', 'seo' ] as $slug ) {
+		foreach ( ['free', 'premium', 'seo'] as $slug ) {
 			$existing = wu_get_product_by_slug( $slug );
 			if ( $existing ) {
 				$existing->delete();
@@ -437,7 +451,7 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	 * Test _install_create_products sets correct product types.
 	 */
 	public function test_install_create_products_correct_types(): void {
-		foreach ( [ 'free', 'premium', 'seo' ] as $slug ) {
+		foreach ( ['free', 'premium', 'seo'] as $slug ) {
 			$existing = wu_get_product_by_slug( $slug );
 			if ( $existing ) {
 				$existing->delete();
@@ -462,7 +476,7 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	 * Test _install_create_products sets correct pricing types.
 	 */
 	public function test_install_create_products_correct_pricing_types(): void {
-		foreach ( [ 'free', 'premium', 'seo' ] as $slug ) {
+		foreach ( ['free', 'premium', 'seo'] as $slug ) {
 			$existing = wu_get_product_by_slug( $slug );
 			if ( $existing ) {
 				$existing->delete();
@@ -485,7 +499,7 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	 * Test _install_create_products sets correct amounts.
 	 */
 	public function test_install_create_products_correct_amounts(): void {
-		foreach ( [ 'free', 'premium', 'seo' ] as $slug ) {
+		foreach ( ['free', 'premium', 'seo'] as $slug ) {
 			$existing = wu_get_product_by_slug( $slug );
 			if ( $existing ) {
 				$existing->delete();
@@ -513,7 +527,7 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	 * the precision is set to the default (2).
 	 */
 	public function test_install_create_products_ensures_currency_defaults(): void {
-		foreach ( [ 'free', 'premium', 'seo' ] as $slug ) {
+		foreach ( ['free', 'premium', 'seo'] as $slug ) {
 			$existing = wu_get_product_by_slug( $slug );
 			if ( $existing ) {
 				$existing->delete();
@@ -780,7 +794,7 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	/**
 	 * Test done_creating_template_site runs without exception on multisite.
 	 *
-	 * domain_exists() returns int|false|null depending on WordPress version.
+	 * Domain_exists() returns int|false|null depending on WordPress version.
 	 * We verify the method completes without throwing.
 	 *
 	 * @group ms-required

@@ -30,7 +30,17 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 	 * @return int Blog ID.
 	 */
 	protected function create_test_blog(array $args = []): int {
-		$blog_id = self::factory()->blog->create($args);
+		$suppress_domain_record = static function () {
+			return false;
+		};
+
+		add_filter('wu_should_create_domain_record_for_site', $suppress_domain_record);
+
+		try {
+			$blog_id = self::factory()->blog->create($args);
+		} finally {
+			remove_filter('wu_should_create_domain_record_for_site', $suppress_domain_record);
+		}
 
 		if (is_wp_error($blog_id)) {
 			$this->markTestSkipped('Could not create test blog: ' . $blog_id->get_error_message());
