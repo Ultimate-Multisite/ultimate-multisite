@@ -197,6 +197,10 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	 * Test done_creating_products returns true when plans exist.
 	 */
 	public function test_done_creating_products_true_when_plans_exist(): void {
+		if ( ! \WP_Ultimo\Loaders\Table_Loader::get_instance()->is_installed() ) {
+			$this->markTestSkipped( 'Requires installed Ultimate Multisite tables.' );
+		}
+
 		// Create a plan.
 		$product = wu_create_product( [
 			'name'         => 'Test Plan',
@@ -209,10 +213,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 		] );
 
 		$this->assertNotWPError( $product );
-
-		if ( ! \WP_Ultimo\Loaders\Table_Loader::get_instance()->is_installed() ) {
-			$this->markTestSkipped( 'Requires installed Ultimate Multisite tables.' );
-		}
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_products' );
@@ -248,16 +248,16 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	 * Test done_creating_checkout_forms returns true after creating a form.
 	 */
 	public function test_done_creating_checkout_forms_true_after_create(): void {
+		if ( ! \WP_Ultimo\Loaders\Table_Loader::get_instance()->is_installed() ) {
+			$this->markTestSkipped( 'Requires installed Ultimate Multisite tables.' );
+		}
+
 		$form = wu_create_checkout_form( [
 			'name' => 'Test Form',
 			'slug' => 'test-form-done-check',
 		] );
 
 		$this->assertNotWPError( $form );
-
-		if ( ! \WP_Ultimo\Loaders\Table_Loader::get_instance()->is_installed() ) {
-			$this->markTestSkipped( 'Requires installed Ultimate Multisite tables.' );
-		}
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_checkout_forms' );
