@@ -173,6 +173,17 @@ class Site_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test wu_normalize_sites_list filters missing sites.
+	 */
+	public function test_normalize_sites_list_filters_missing_sites(): void {
+		$sites = wu_normalize_sites_list([get_current_blog_id(), 999999, false]);
+
+		$this->assertCount(1, $sites);
+		$this->assertInstanceOf(\WP_Ultimo\Models\Site::class, $sites[0]);
+		$this->assertSame(get_current_blog_id(), $sites[0]->get_id());
+	}
+
+	/**
 	 * Test wu_get_site_by_hash with invalid hash returns false.
 	 */
 	public function test_get_site_by_hash_invalid(): void {

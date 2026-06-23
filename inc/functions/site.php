@@ -44,6 +44,44 @@ function wu_get_site($id) {
 }
 
 /**
+ * Normalizes a mixed site list to existing site model instances.
+ *
+ * @since 2.13.2
+ *
+ * @param array $sites List of site IDs or site model instances.
+ * @return \WP_Ultimo\Models\Site[]
+ */
+function wu_normalize_sites_list($sites) {
+
+	if ( ! is_array($sites)) {
+		return [];
+	}
+
+	$sites = array_map(
+		static function ($site) {
+
+			if ($site instanceof \WP_Ultimo\Models\Site) {
+				return $site;
+			}
+
+			if (is_scalar($site)) {
+				return wu_get_site((int) $site);
+			}
+
+			return false;
+		},
+		$sites
+	);
+
+	return array_values(
+		array_filter(
+			$sites,
+			static fn($site) => $site instanceof \WP_Ultimo\Models\Site
+		)
+	);
+}
+
+/**
  * Gets a site based on the hash.
  *
  * @since 2.0.0
