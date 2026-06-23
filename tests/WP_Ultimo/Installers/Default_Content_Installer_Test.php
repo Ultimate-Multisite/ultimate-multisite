@@ -8,6 +8,7 @@
 namespace WP_Ultimo\Tests\Installers;
 
 use WP_Ultimo\Installers\Default_Content_Installer;
+use WP_Ultimo\Loaders\Table_Loader;
 
 /**
  * Unit tests for Default_Content_Installer.
@@ -81,6 +82,15 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 		wu_save_setting( 'enable_custom_login_page', 0 );
 
 		parent::tearDown();
+	}
+
+	/**
+	 * Skips tests that need Ultimate Multisite database tables.
+	 */
+	protected function skip_unless_tables_installed(): void {
+		if ( ! Table_Loader::get_instance()->is_installed() ) {
+			$this->markTestSkipped( 'Requires installed Ultimate Multisite tables.' );
+		}
 	}
 
 	// -----------------------------------------------------------------------
@@ -197,9 +207,7 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	 * Test done_creating_products returns true when plans exist.
 	 */
 	public function test_done_creating_products_true_when_plans_exist(): void {
-		if ( ! \WP_Ultimo\Loaders\Table_Loader::get_instance()->is_installed() ) {
-			$this->markTestSkipped( 'Requires installed Ultimate Multisite tables.' );
-		}
+		$this->skip_unless_tables_installed();
 
 		// Create a plan.
 		$product = wu_create_product( [
@@ -248,9 +256,7 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	 * Test done_creating_checkout_forms returns true after creating a form.
 	 */
 	public function test_done_creating_checkout_forms_true_after_create(): void {
-		if ( ! \WP_Ultimo\Loaders\Table_Loader::get_instance()->is_installed() ) {
-			$this->markTestSkipped( 'Requires installed Ultimate Multisite tables.' );
-		}
+		$this->skip_unless_tables_installed();
 
 		$form = wu_create_checkout_form( [
 			'name' => 'Test Form',
