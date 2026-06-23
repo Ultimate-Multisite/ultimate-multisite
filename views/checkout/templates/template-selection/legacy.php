@@ -25,7 +25,7 @@ if ( ! $should_display ) {
 	return;
 }
 /** @var \WP_Ultimo\Models\Site[] $sites */
-$sites = array_map('wu_get_site', $sites ?? []);
+$sites = wu_normalize_sites_list($sites ?? []);
 
 $categories ??= [];
 

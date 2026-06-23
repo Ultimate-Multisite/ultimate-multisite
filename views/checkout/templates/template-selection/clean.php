@@ -26,7 +26,7 @@ if (isset($should_display) && ! $should_display) {
 	return;
 }
 
-$sites = array_map('wu_get_site', $sites ?? []);
+$sites = wu_normalize_sites_list($sites ?? []);
 
 $categories ??= [];
 
