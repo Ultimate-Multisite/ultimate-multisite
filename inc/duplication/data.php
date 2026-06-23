@@ -110,6 +110,10 @@ if ( ! class_exists('MUCD_Data') ) {
 				$from_site_table = self::do_sql_query($sql_query, 'col');
 			}
 
+			if (empty($from_site_table)) {
+				$from_site_table = self::get_existing_blog_tables($from_site_id);
+			}
+
 			$tables_to_ignore = [
 				'actionscheduler_actions',
 				'actionscheduler_claims',
@@ -141,7 +145,7 @@ if ( ! class_exists('MUCD_Data') ) {
 				self::do_sql_query($create_statement_sql);
 
 				// Populate database with data from source table
-				self::do_sql_query('INSERT `' . $table_name . '` SELECT * FROM `' . $schema . '`.`' . $table . '`');
+				self::do_sql_query('INSERT `' . $table_name . '` SELECT * FROM `' . $table . '`');
 
 				$wpdb->get_results('SET foreign_key_checks = 1'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			}
@@ -168,6 +172,41 @@ if ( ! class_exists('MUCD_Data') ) {
 			}
 
 			return $default_tables;
+		}
+
+		/**
+		 * Get source blog tables that exist on the current database connection.
+		 *
+		 * WordPress PHPUnit uses temporary per-blog tables for multisite fixtures.
+		 * Those tables can be described and copied in the current connection, but
+		 * they do not appear in INFORMATION_SCHEMA or SHOW TABLES. Falling back to
+		 * the canonical WordPress blog table list keeps duplication working in tests
+		 * while preserving the INFORMATION_SCHEMA path for production custom tables.
+		 *
+		 * @since 2.5.1
+		 *
+		 * @param int $site_id Source site ID.
+		 * @return array Existing source blog table names.
+		 */
+		private static function get_existing_blog_tables($site_id) {
+
+			global $wpdb;
+
+			$tables   = [];
+			$site_id  = (int) $site_id;
+			$blog_set = $wpdb->tables('blog', true, $site_id);
+
+			foreach ($blog_set as $table_name) {
+				$suppress_errors = $wpdb->suppress_errors();
+				$exists          = (bool) $wpdb->get_results('DESCRIBE `' . $table_name . '`'); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Table names cannot be bound and temporary PHPUnit tables are intentionally probed.
+				$wpdb->suppress_errors($suppress_errors);
+
+				if ($exists) {
+					$tables[] = $table_name;
+				}
+			}
+
+			return $tables;
 		}
 
 
