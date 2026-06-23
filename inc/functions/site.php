@@ -64,7 +64,10 @@ function wu_normalize_sites_list($sites) {
 				return $site;
 			}
 
-			if (is_scalar($site)) {
+			if (
+				(is_int($site) && 0 < $site)
+				|| (is_string($site) && 1 === preg_match('/^[1-9]\d*$/', $site))
+			) {
 				return wu_get_site((int) $site);
 			}
 

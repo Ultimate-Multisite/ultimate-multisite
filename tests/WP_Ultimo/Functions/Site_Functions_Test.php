@@ -184,6 +184,15 @@ class Site_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test wu_normalize_sites_list rejects non-integer scalar site identifiers.
+	 */
+	public function test_normalize_sites_list_rejects_non_integer_scalar_site_ids(): void {
+		$sites = wu_normalize_sites_list([true, 1.5, '1.5', 'site-1', '0', 0, -1]);
+
+		$this->assertSame([], $sites);
+	}
+
+	/**
 	 * Test wu_get_site_by_hash with invalid hash returns false.
 	 */
 	public function test_get_site_by_hash_invalid(): void {
