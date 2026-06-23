@@ -88,6 +88,10 @@ function wu_get_broadcast_targets($broadcast_id, $type) {
 
 	$object = \WP_Ultimo\Models\Broadcast::get_by_id($broadcast_id);
 
+	if ( ! $object) {
+		return [];
+	}
+
 	$targets = $object->get_message_targets();
 
 	if (is_array($targets[ $type ])) {

@@ -55,6 +55,10 @@ trait Ajax_JSON_Test_Trait {
 	 */
 	protected function capture_ajax_json_response(callable $ajax_handler): array {
 
+		if (defined('REST_REQUEST') && REST_REQUEST) {
+			$this->setExpectedIncorrectUsage('wp_send_json');
+		}
+
 		$handler          = $this->install_ajax_json_die_handler();
 		$exception_caught = false;
 

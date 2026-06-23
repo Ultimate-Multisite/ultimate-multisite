@@ -55,10 +55,16 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 	public function setUp(): void {
 		parent::setUp();
 
+		global $wpdb;
+
+		$wpdb->query("TRUNCATE TABLE {$wpdb->prefix}wu_customers"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+		$customer_uid = 'testmember' . wp_rand();
+
 		$this->customer = wu_create_customer(
 			[
-				'username' => 'testmember' . wp_rand(),
-				'email'    => 'testmember' . wp_rand() . '@example.com',
+				'username' => $customer_uid,
+				'email'    => $customer_uid . '@example.com',
 				'password' => 'password123',
 			]
 		);
