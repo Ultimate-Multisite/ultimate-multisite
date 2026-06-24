@@ -71,9 +71,9 @@ class Nav_Menu_Subsite_Links_Test extends WP_UnitTestCase {
 	 * Test filter_menu_item_urls passes through items unchanged when no subsite items.
 	 */
 	public function test_filter_menu_item_urls_passthrough(): void {
-		$item       = new \stdClass();
-		$item->ID   = 1;
-		$item->url  = 'https://example.com';
+		$item          = new \stdClass();
+		$item->ID      = 1;
+		$item->url     = 'https://example.com';
 		$item->classes = [];
 
 		$items  = [$item];

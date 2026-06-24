@@ -972,6 +972,20 @@ class SSO_Test extends \WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	/**
+	 * Test broker session array access reads stored values and returns null for missing keys.
+	 */
+	public function test_broker_session_array_access_reads_values_and_missing_keys(): void {
+		$session = new Jasny\Broker\Session();
+
+		$session['wu_sso_test_token'] = 'test-token';
+
+		$this->assertSame('test-token', $session['wu_sso_test_token']);
+		$this->assertNull($session['wu_sso_missing_token']);
+
+		unset($session['wu_sso_test_token']);
+	}
+
+	/**
 	 * Test session handler isActive returns false by default.
 	 */
 	public function test_session_handler_is_active_returns_false(): void {
