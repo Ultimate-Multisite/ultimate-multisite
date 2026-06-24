@@ -149,6 +149,61 @@ class Email extends Post_Base_Model {
 	protected $schedule;
 
 	/**
+	 * Scheduled send hour offset.
+	 *
+	 * This mirrors the validation key used when normalizing email data. The
+	 * persisted value continues to live in email meta.
+	 *
+	 * @since 2.5.2
+	 * @var string
+	 */
+	protected $send_hours = '';
+
+	/**
+	 * Scheduled send day offset.
+	 *
+	 * This mirrors the validation key used when normalizing email data. The
+	 * persisted value continues to live in email meta.
+	 *
+	 * @since 2.5.2
+	 * @var int|string
+	 */
+	protected $send_days = '';
+
+	/**
+	 * Whether the email uses a custom sender.
+	 *
+	 * This mirrors the validation key used when normalizing email data. The
+	 * persisted value continues to live in email meta.
+	 *
+	 * @since 2.5.2
+	 * @var bool
+	 */
+	protected $custom_sender = 0;
+
+	/**
+	 * Custom sender display name.
+	 *
+	 * This mirrors the validation key used when normalizing email data. The
+	 * persisted value continues to live in email meta.
+	 *
+	 * @since 2.5.2
+	 * @var string
+	 */
+	protected $custom_sender_name = '';
+
+	/**
+	 * Custom sender email address.
+	 *
+	 * This mirrors the validation key used when normalizing email data. The
+	 * persisted value continues to live in email meta.
+	 *
+	 * @since 2.5.2
+	 * @var string
+	 */
+	protected $custom_sender_email = '';
+
+	/**
 	 * If we should send this to a customer or to the network admin.
 	 *
 	 * Can be either 'customer' or 'admin'.
