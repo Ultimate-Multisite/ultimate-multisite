@@ -226,9 +226,9 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 
 		$fired = false;
 
-		add_action('wu_magic_link_invalid_token', function ($reason) use (&$fired) {
+		add_action('wu_magic_link_invalid_token', function () use (&$fired) {
 			$fired = true;
-		});
+		}, 10, 0);
 
 		$ref->invoke($instance, 'test reason');
 

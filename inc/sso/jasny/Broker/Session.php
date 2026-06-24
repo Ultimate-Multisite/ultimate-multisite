@@ -41,7 +41,7 @@ class Session implements \ArrayAccess {
 	/**
 	 * @inheritDoc
 	 */
-	public function offsetGet($name) {
+	public function offsetGet(mixed $name): mixed {
 		return $_SESSION[ $name ] ?? null;
 	}
 

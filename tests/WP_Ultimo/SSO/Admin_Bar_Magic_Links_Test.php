@@ -51,6 +51,10 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 		// Ensure no user is logged in.
 		wp_set_current_user(0);
 
+		if ( ! class_exists('\WP_Admin_Bar') ) {
+			require_once ABSPATH . WPINC . '/class-wp-admin-bar.php';
+		}
+
 		$admin_bar = new \WP_Admin_Bar();
 		$this->magic_links->modify_my_sites_menu($admin_bar);
 
