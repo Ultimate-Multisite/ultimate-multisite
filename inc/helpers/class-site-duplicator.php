@@ -58,10 +58,17 @@ class Site_Duplicator {
 	 */
 	public static function duplicate_site($from_site_id, $title, $args = []) {
 
-		$args['from_site_id'] = $from_site_id;
-		$args['title']        = $title;
+		$from_site = get_site($from_site_id);
 
-		$duplicate_site = self::process_duplication($args);
+		if ( ! $from_site) {
+			// translators: %d is the source template site ID.
+			$duplicate_site = new \WP_Error('source_template_site_not_found', sprintf(__('Source template site %d not found. Cannot duplicate site.', 'ultimate-multisite'), $from_site_id));
+		} else {
+			$args['from_site_id'] = $from_site_id;
+			$args['title']        = $title;
+
+			$duplicate_site = self::process_duplication($args);
+		}
 
 		if (is_wp_error($duplicate_site)) {
 
