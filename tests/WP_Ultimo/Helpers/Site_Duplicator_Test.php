@@ -217,8 +217,8 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 
 		$result = Site_Duplicator::duplicate_site($invalid_site_id, 'New Site', $args);
 
-		// The result should be either a WP_Error or a failure case
-		$this->assertTrue(is_wp_error($result) || ! $result || is_int($result));
+		$this->assertInstanceOf(\WP_Error::class, $result);
+		$this->assertSame('source_template_site_not_found', $result->get_error_code());
 	}
 
 	/**
