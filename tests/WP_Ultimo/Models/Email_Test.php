@@ -37,7 +37,7 @@ class Email_Test extends \WP_UnitTestCase {
 	public function test_email_creation(): void {
 		$this->assertInstanceOf(Email::class, $this->email, 'Email should be an instance of Email class.');
 		$this->assertEquals('Test Email', $this->email->get_title(), 'Email should have a title.');
-		$this->assertEquals('Test email content', trim(strip_tags($this->email->get_content())), 'Email should have content.');
+		$this->assertEquals('Test email content', trim(wp_strip_all_tags($this->email->get_content())), 'Email should have content.');
 		$this->assertEquals('system_email', $this->email->get_type(), 'Email should have correct type.');
 		$this->assertEquals('publish', $this->email->get_status(), 'Email should have correct status.');
 	}
@@ -114,8 +114,8 @@ class Email_Test extends \WP_UnitTestCase {
 	 * Test email scheduling.
 	 */
 	public function test_email_scheduling(): void {
-		// Test schedule type - skip due to meta caching issues
-//		$this->markTestSkipped('Skipping schedule type test due to meta caching issues in test environment');
+		// Test schedule type - skip due to meta caching issues.
+		// $this->markTestSkipped('Skipping schedule type test due to meta caching issues in test environment');
 
 		// Test schedule time
 		$hours = 24;
@@ -167,6 +167,70 @@ class Email_Test extends \WP_UnitTestCase {
 		$result = $email->save();
 
 		$this->assertInstanceOf(\WP_Error::class, $result, 'Save should return WP_Error when validation fails.');
+	}
+
+	/**
+	 * Test validating schedule and sender fields does not create dynamic properties.
+	 */
+	public function test_validate_schedule_and_sender_fields_without_dynamic_property_deprecations(): void {
+		$email = new Email();
+		$email->set_title('Validation Email');
+		$email->set_content('Validation content');
+		$email->set_type('system_email');
+		$email->set_event('user_registration');
+		$email->set_slug('validation-email');
+		$email->set_target('admin');
+		$email->set_status('publish');
+		$email->set_send_hours('03:15');
+		$email->set_send_days(2);
+		$email->set_custom_sender(true);
+		$email->set_custom_sender_name('Custom Sender');
+		$email->set_custom_sender_email('sender@example.com');
+
+		$deprecations = [];
+
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler -- Test intentionally captures PHP deprecations.
+		set_error_handler(
+			static function ($errno, $errstr) use (&$deprecations) {
+				if (E_DEPRECATED === $errno && str_contains($errstr, 'Creation of dynamic property WP_Ultimo\\Models\\Email')) {
+					$deprecations[] = $errstr;
+
+					return true;
+				}
+
+				return false;
+			}
+		);
+
+		try {
+			$result = $email->validate();
+		} finally {
+			restore_error_handler();
+		}
+
+		$this->assertTrue($result, 'Email validation should pass.');
+		$this->assertEmpty($deprecations, 'Email validation should not create dynamic property deprecations.');
+
+		$public_properties = get_object_vars($email);
+		$this->assertArrayNotHasKey('send_hours', $public_properties, 'send_hours should not be a dynamic public property.');
+		$this->assertArrayNotHasKey('send_days', $public_properties, 'send_days should not be a dynamic public property.');
+		$this->assertArrayNotHasKey('custom_sender', $public_properties, 'custom_sender should not be a dynamic public property.');
+		$this->assertArrayNotHasKey('custom_sender_name', $public_properties, 'custom_sender_name should not be a dynamic public property.');
+		$this->assertArrayNotHasKey('custom_sender_email', $public_properties, 'custom_sender_email should not be a dynamic public property.');
+
+		$reflection = new \ReflectionClass($email);
+		$property   = $reflection->getProperty('meta');
+
+		if (PHP_VERSION_ID < 80100) {
+			$property->setAccessible(true);
+		}
+
+		$meta = $property->getValue($email);
+		$this->assertEquals('03:15', $meta[ Email::META_SEND_HOURS ], 'Send hours meta should retain the setter value.');
+		$this->assertEquals(2, $meta[ Email::META_SEND_DAYS ], 'Send days meta should retain the setter value.');
+		$this->assertTrue($meta[ Email::META_CUSTOM_SENDER ], 'Custom sender meta should retain the setter value.');
+		$this->assertEquals('Custom Sender', $meta[ Email::META_CUSTOM_SENDER_NAME ], 'Custom sender name meta should retain the setter value.');
+		$this->assertEquals('sender@example.com', $meta[ Email::META_CUSTOM_SENDER_EMAIL ], 'Custom sender email meta should retain the setter value.');
 	}
 
 	/**
@@ -1377,7 +1441,10 @@ class Email_Test extends \WP_UnitTestCase {
 		$payload = [
 			'customer_id'         => 1,
 			'customer_user_email' => 'customer@example.com',
-			'customer_name'       => ['first' => 'John', 'last' => 'Doe'],
+			'customer_name'       => [
+				'first' => 'John',
+				'last'  => 'Doe',
+			],
 		];
 
 		$target_list = $this->email->get_target_list($payload);
@@ -1489,7 +1556,7 @@ class Email_Test extends \WP_UnitTestCase {
 	public function test_json_encode(): void {
 		$this->email->set_title('JSON Encode Test');
 
-		$json = json_encode($this->email);
+		$json = wp_json_encode($this->email);
 		$this->assertIsString($json, 'json_encode should return a string.');
 		$this->assertNotFalse($json, 'json_encode should not fail.');
 
@@ -1743,7 +1810,7 @@ class Email_Test extends \WP_UnitTestCase {
 	/**
 	 * Test that to_array() populates lazy-loaded meta properties (issue #469).
 	 *
-	 * event and schedule are only loaded from meta when their getter is first
+	 * Event and schedule are only loaded from meta when their getter is first
 	 * called. Without the to_array() override they remain null.
 	 */
 	public function test_to_array_includes_lazy_loaded_meta_properties(): void {
@@ -1761,5 +1828,4 @@ class Email_Test extends \WP_UnitTestCase {
 		$this->assertArrayHasKey('schedule', $array, 'to_array() must include schedule.');
 		$this->assertNotNull($array['schedule'], 'schedule must not be null in to_array() output.');
 	}
-
 }
