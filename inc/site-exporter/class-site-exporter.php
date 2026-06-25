@@ -3003,13 +3003,20 @@ final class Site_Exporter {
 
 		$base_path = wu_path('inc/site-exporter/mu-migration');
 
+		if (! class_exists('WP_CLI_Command') || ! class_exists('WP_CLI')) {
+			require_once $base_path . '/includes/wp-cli-polyfill.php';
+		}
+
 		require_once $base_path . '/includes/helpers.php';
-		require_once $base_path . '/includes/commands/class-mu-migration.php';
 		require_once $base_path . '/includes/commands/class-mu-migration-base.php';
 		require_once $base_path . '/includes/commands/class-mu-migration-export.php';
 		require_once $base_path . '/includes/commands/class-mu-migration-import.php';
 		require_once $base_path . '/includes/commands/class-mu-migration-posts.php';
 		require_once $base_path . '/includes/commands/class-mu-migration-users.php';
+
+		if (defined('WP_CLI') && WP_CLI) {
+			require_once $base_path . '/includes/commands/class-mu-migration.php';
+		}
 
 		if (file_exists($base_path . '/vendor/autoload.php')) {
 			require_once $base_path . '/vendor/autoload.php';
