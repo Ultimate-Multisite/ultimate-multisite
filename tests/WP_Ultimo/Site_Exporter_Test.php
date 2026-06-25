@@ -325,6 +325,30 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test site import command errors do not fatal in web context.
+	 */
+	public function test_handle_site_import_catches_wp_cli_polyfill_errors(): void {
+
+		$hash     = md5(uniqid('site-import-error-', true));
+		$zip_file = tempnam(sys_get_temp_dir(), 'wu_import_not_zip_');
+
+		if (false === $zip_file) {
+			$this->markTestSkipped('Unable to create temporary import fixture');
+		}
+
+		wu_exporter_set_transient("wu_pending_site_import_{$hash}", [$zip_file, [], $hash], 2 * HOUR_IN_SECONDS);
+
+		$this->pending_import_hashes[] = $hash;
+
+		try {
+			$this->assertFalse($this->exporter->handle_site_import(), 'Invalid imports should be handled gracefully without bubbling WP_CLI::error exceptions');
+			$this->assertEmpty(wu_exporter_get_pending_imports(), 'Failed imports should be removed from the pending queue');
+		} finally {
+			wp_delete_file($zip_file);
+		}
+	}
+
+	/**
 	 * Regression test for GH#1009 — circular dependency.
 	 *
 	 * The maybe_add_schedule() method must register wu_site_every_minute regardless of

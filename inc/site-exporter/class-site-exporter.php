@@ -2826,7 +2826,15 @@ final class Site_Exporter {
 
 		$start = microtime(true);
 
-		$command->all([$file_name], $args);
+		try {
+			$command->all([$file_name], $args);
+		} catch (\RuntimeException $exception) {
+			wu_exporter_delete_transient("wu_pending_site_import_{$hash}");
+
+			error_log($exception->getMessage()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Preserve import failure details for administrators instead of fataling in web/AJAX imports.
+
+			return false;
+		}
 
 		$time = microtime(true) - $start;
 
