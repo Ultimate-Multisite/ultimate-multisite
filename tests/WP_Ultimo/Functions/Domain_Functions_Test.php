@@ -98,6 +98,47 @@ class Domain_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test wu_is_same_domain handles multisite domains with ports.
+	 */
+	public function test_wu_is_same_domain_handles_domains_with_ports(): void {
+
+		global $current_blog, $current_site;
+
+		$original_blog_domain = $current_blog->domain;
+		$original_site_domain = $current_site->domain;
+		$original_http_host   = isset($_SERVER['HTTP_HOST']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST'])) : null;
+		$original_request_uri = isset($_SERVER['REQUEST_URI']) ? sanitize_url(wp_unslash($_SERVER['REQUEST_URI'])) : null;
+
+		$current_blog->domain   = 'local.test:8080';
+		$current_site->domain   = 'local.test:8080';
+		$_SERVER['HTTP_HOST']   = 'local.test:8080';
+		$_SERVER['REQUEST_URI'] = '/wp-admin/';
+
+		try {
+			$this->assertTrue(wu_is_same_domain());
+
+			$_SERVER['HTTP_HOST'] = 'local.test:9090';
+
+			$this->assertFalse(wu_is_same_domain());
+		} finally {
+			$current_blog->domain = $original_blog_domain;
+			$current_site->domain = $original_site_domain;
+
+			if (null === $original_http_host) {
+				unset($_SERVER['HTTP_HOST']);
+			} else {
+				$_SERVER['HTTP_HOST'] = $original_http_host;
+			}
+
+			if (null === $original_request_uri) {
+				unset($_SERVER['REQUEST_URI']);
+			} else {
+				$_SERVER['REQUEST_URI'] = $original_request_uri;
+			}
+		}
+	}
+
+	/**
 	 * Test wu_restore_original_url returns string.
 	 */
 	public function test_wu_restore_original_url_returns_string(): void {
