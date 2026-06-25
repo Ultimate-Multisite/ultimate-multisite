@@ -73,6 +73,36 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 
 		$this->clear_pending_import_transients('site');
 		$this->clear_pending_import_transients('network');
+		$this->clear_pending_export_transients();
+	}
+
+	/**
+	 * Clear pending site export transients created by tests.
+	 */
+	private function clear_pending_export_transients(): void {
+
+		global $wpdb;
+
+		if (is_multisite()) {
+			$table      = "{$wpdb->base_prefix}sitemeta";
+			$key_column = 'meta_key';
+			$like       = $wpdb->esc_like('_site_transient_wu_pending_site_export_') . '%';
+		} else {
+			$table      = "{$wpdb->base_prefix}options";
+			$key_column = 'option_name';
+			$like       = $wpdb->esc_like('_transient_wu_pending_site_export_') . '%';
+		}
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table and column are selected from known WordPress schema names.
+		$keys = $wpdb->get_col($wpdb->prepare("SELECT {$key_column} FROM {$table} WHERE {$key_column} LIKE %s", $like));
+
+		foreach ($keys as $key) {
+			$transient = preg_replace('/^_(site_)?transient_/', '', $key);
+
+			if (is_string($transient)) {
+				wu_exporter_delete_transient($transient);
+			}
+		}
 	}
 
 	/**
@@ -190,6 +220,90 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	public function test_singleton_returns_same_instance(): void {
 
 		$this->assertSame(Site_Exporter::get_instance(), Site_Exporter::get_instance());
+	}
+
+	/**
+	 * Test that main-site rows expose export without offering self-promotion.
+	 */
+	public function test_wp_sites_row_actions_include_main_site_export(): void {
+
+		$actions = $this->exporter->add_wp_sites_row_actions([], get_main_site_id());
+
+		$this->assertArrayHasKey('export', $actions, 'The WordPress main site must be exportable from Network Admin > Sites');
+		$this->assertArrayNotHasKey('promote_main_site', $actions, 'The WordPress main site must not offer Promote to Main Site');
+	}
+
+	/**
+	 * Test that subsite rows still expose both export and main-site promotion.
+	 */
+	public function test_wp_sites_row_actions_include_subsite_export_and_promotion(): void {
+
+		$blog_id = self::factory()->blog->create(['path' => '/exportable-subsite/']);
+
+		$actions = $this->exporter->add_wp_sites_row_actions([], $blog_id);
+
+		$this->assertArrayHasKey('export', $actions, 'Subsites must remain exportable from Network Admin > Sites');
+		$this->assertArrayHasKey('promote_main_site', $actions, 'Subsites must still offer Promote to Main Site');
+	}
+
+	/**
+	 * Test that bulk exports include the main site instead of silently skipping it.
+	 */
+	public function test_wp_sites_bulk_export_includes_main_site(): void {
+
+		if (! function_exists('wu_enqueue_async_action')) {
+			$this->markTestSkipped('wu_enqueue_async_action is not available in this environment');
+		}
+
+		$redirect_url = $this->exporter->handle_wp_sites_bulk_action('', 'export', [get_main_site_id()]);
+		$pending      = wu_exporter_get_pending();
+
+		$this->assertStringContainsString('bulk_exported=1', $redirect_url);
+		$this->assertNotEmpty($pending, 'Bulk exporting the main site must create a pending site export');
+		$this->assertSame(get_main_site_id(), (int) $pending[0]->options[0]);
+	}
+
+	/**
+	 * Test imported table parsing used to scope WP-CLI search-replace.
+	 */
+	public function test_imported_table_names_are_extracted_from_sql(): void {
+
+		$this->exporter->load_dependencies();
+
+		$sql_file = tempnam(sys_get_temp_dir(), 'wu_import_tables_');
+
+		if (false === $sql_file) {
+			$this->markTestSkipped('Unable to create temporary SQL file');
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Test fixture writes a local temporary SQL file.
+		file_put_contents(
+			$sql_file,
+			implode(
+				"\n",
+				[
+					'CREATE TABLE IF NOT EXISTS `wp_61_posts` (`ID` bigint);',
+					'INSERT INTO `wp_61_options` VALUES (1, "siteurl", "http://example.test", "yes");',
+					'LOCK TABLES `wp_61_postmeta` WRITE;',
+					'INSERT INTO `wp_61_options` VALUES (2, "fixture", "text mentioning CREATE TABLE `wp_61_not_a_table`", "yes");',
+					'INSERT INTO `wp_61_posts` VALUES (1);',
+				]
+			)
+		);
+
+		try {
+			$command    = new \TenUp\MU_Migration\Commands\ImportCommand();
+			$reflection = new \ReflectionMethod($command, 'get_imported_table_names');
+			$reflection->setAccessible(true);
+
+			$this->assertSame(
+				['wp_61_posts', 'wp_61_options', 'wp_61_postmeta'],
+				$reflection->invoke($command, $sql_file),
+				'Importer search-replace must be scoped to tables present in the imported SQL file'
+			);
+		} finally {
+			wp_delete_file($sql_file);
+		}
 	}
 
 	/**

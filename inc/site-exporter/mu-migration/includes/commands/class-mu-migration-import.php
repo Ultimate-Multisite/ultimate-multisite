@@ -306,41 +306,22 @@ class ImportCommand extends MUMigrationBase {
 			if ( ! empty($this->assoc_args['old_url']) && ! empty($this->assoc_args['new_url']) ) {
 				$this->log(__('Running search-replace', 'mu-migration'), $verbose);
 
-				$old_url = Helpers\parse_url_for_search_replace($this->assoc_args['old_url']);
-				$new_url = Helpers\parse_url_for_search_replace($this->assoc_args['new_url']);
+				$old_url         = Helpers\parse_url_for_search_replace($this->assoc_args['old_url']);
+				$new_url         = Helpers\parse_url_for_search_replace($this->assoc_args['new_url']);
+				$imported_tables = $this->get_imported_table_names($filename);
 
-				$search_replace = Helpers\launch_self(
-					'search-replace',
-					[
-						$old_url,
-						$new_url,
-					],
-					[],
-					false,
-					false,
-					['url' => $new_url]
-				);
-
-				if ( 0 === $search_replace ) {
-					$this->log(__('Search and Replace has been successfully executed', 'mu-migration'), $verbose);
-				}
-
-				$this->log(__('Running Search and Replace for uploads paths', 'mu-migration'), $verbose);
-
-				$from = $to = 'wp-content/uploads';
-
-				if ( isset($this->assoc_args['original_blog_id']) && $this->assoc_args['original_blog_id'] > 1 ) {
-					$from = 'wp-content/uploads/sites/' . (int) $this->assoc_args['original_blog_id'];
-				}
-
-				if ( $this->assoc_args['blog_id'] > 1 ) {
-					$to = 'wp-content/uploads/sites/' . (int) $this->assoc_args['blog_id'];
-				}
-
-				if ( $from && $to ) {
+				if ( empty($imported_tables) ) {
+					WP_CLI::warning(__('Could not determine imported tables; skipping search-replace to avoid changing unrelated network tables.', 'mu-migration'));
+				} else {
 					$search_replace = Helpers\launch_self(
 						'search-replace',
-						[$from , $to],
+						array_merge(
+							[
+								$old_url,
+								$new_url,
+							],
+							$imported_tables
+						),
 						[],
 						false,
 						false,
@@ -348,7 +329,34 @@ class ImportCommand extends MUMigrationBase {
 					);
 
 					if ( 0 === $search_replace ) {
-						$this->log(sprintf(__('Uploads paths have been successfully updated: %1$s -> %2$s', 'mu-migration'), $from, $to), $verbose);
+						$this->log(__('Search and Replace has been successfully executed', 'mu-migration'), $verbose);
+					}
+
+					$this->log(__('Running Search and Replace for uploads paths', 'mu-migration'), $verbose);
+
+					$from = $to = 'wp-content/uploads';
+
+					if ( isset($this->assoc_args['original_blog_id']) && $this->assoc_args['original_blog_id'] > 1 ) {
+						$from = 'wp-content/uploads/sites/' . (int) $this->assoc_args['original_blog_id'];
+					}
+
+					if ( $this->assoc_args['blog_id'] > 1 ) {
+						$to = 'wp-content/uploads/sites/' . (int) $this->assoc_args['blog_id'];
+					}
+
+					if ( $from && $to ) {
+						$search_replace = Helpers\launch_self(
+							'search-replace',
+							array_merge([$from, $to], $imported_tables),
+							[],
+							false,
+							false,
+							['url' => $new_url]
+						);
+
+						if ( 0 === $search_replace ) {
+							$this->log(sprintf(__('Uploads paths have been successfully updated: %1$s -> %2$s', 'mu-migration'), $from, $to), $verbose);
+						}
 					}
 				}
 			}
@@ -801,6 +809,37 @@ class ImportCommand extends MUMigrationBase {
 
 			rename($temp_filename, $filename);
 		}
+	}
+
+	/**
+	 * Get table names present in an imported SQL file.
+	 *
+	 * Used to scope WP-CLI search-replace to the newly imported site tables.
+	 * Without explicit table names, `wp search-replace` can scan every network
+	 * table and rewrite existing wp_blogs rows when importing a main-site export.
+	 *
+	 * @param string $filename SQL file path.
+	 * @return array<int,string>
+	 */
+	private function get_imported_table_names($filename) {
+
+		$handle = fopen($filename, 'r');
+
+		if ( false === $handle ) {
+			return [];
+		}
+
+		$tables = [];
+
+		while ( false !== ($line = fgets($handle)) ) {
+			if ( preg_match('/^\s*(?:CREATE TABLE(?: IF NOT EXISTS)?|INSERT INTO|LOCK TABLES)\s+`?([A-Za-z0-9_]+)`?/i', $line, $matches) ) {
+				$tables[$matches[1]] = true;
+			}
+		}
+
+		fclose($handle);
+
+		return array_keys($tables);
 	}
 
 	/**

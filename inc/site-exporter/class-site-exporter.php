@@ -252,10 +252,9 @@ final class Site_Exporter {
 	/**
 	 * Add export action link to WordPress Sites page rows.
 	 *
-	 * In multisite, the main site is excluded from the network Sites list because
-	 * it is exported through the regular admin Tools > Export & Import page.
-	 * In single-site installs this filter is never called (the network Sites page
-	 * does not exist), so the guard is multisite-specific.
+	 * In multisite, both the main site and subsites can be exported from the
+	 * network Sites list. The main site cannot be promoted into itself, so the
+	 * promotion action is only added for subsites.
 	 *
 	 * @since 2.5.0
 	 *
@@ -264,12 +263,6 @@ final class Site_Exporter {
 	 * @return array
 	 */
 	public function add_wp_sites_row_actions(array $actions, int $blog_id): array {
-
-		// In multisite, skip the main site — it is exported from the regular admin
-		// Tools > Export & Import page to avoid confusion in the network admin.
-		if ( is_multisite() && is_main_site($blog_id) ) {
-			return $actions;
-		}
 
 		$export_url = add_query_arg(
 			[
@@ -285,6 +278,10 @@ final class Site_Exporter {
 			esc_url($export_url),
 			__('Export', 'ultimate-multisite')
 		);
+
+		if (is_main_site($blog_id)) {
+			return $actions;
+		}
 
 		$promote_url = add_query_arg(
 			[
@@ -338,11 +335,6 @@ final class Site_Exporter {
 		$exported = 0;
 
 		foreach ($blog_ids as $blog_id) {
-			// Skip main site
-			if (is_main_site($blog_id)) {
-				continue;
-			}
-
 			wu_exporter_export($blog_id, ['uploads' => true], true);
 			++$exported;
 		}
