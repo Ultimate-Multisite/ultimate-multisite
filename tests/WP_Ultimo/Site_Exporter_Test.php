@@ -285,6 +285,7 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 					'CREATE TABLE IF NOT EXISTS `wp_61_posts` (`ID` bigint);',
 					'INSERT INTO `wp_61_options` VALUES (1, "siteurl", "http://example.test", "yes");',
 					'LOCK TABLES `wp_61_postmeta` WRITE;',
+					'INSERT INTO `wp_61_options` VALUES (2, "fixture", "text mentioning CREATE TABLE `wp_61_not_a_table`", "yes");',
 					'INSERT INTO `wp_61_posts` VALUES (1);',
 				]
 			)

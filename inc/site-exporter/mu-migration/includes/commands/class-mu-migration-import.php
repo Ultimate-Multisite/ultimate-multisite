@@ -823,19 +823,23 @@ class ImportCommand extends MUMigrationBase {
 	 */
 	private function get_imported_table_names($filename) {
 
-		$contents = file_get_contents($filename);
+		$handle = fopen($filename, 'r');
 
-		if ( ! is_string($contents) || '' === $contents ) {
+		if ( false === $handle ) {
 			return [];
 		}
 
-		preg_match_all('/(?:CREATE TABLE(?: IF NOT EXISTS)?|INSERT INTO|LOCK TABLES)\s+`?([A-Za-z0-9_]+)`?/i', $contents, $matches);
+		$tables = [];
 
-		if ( empty($matches[1]) ) {
-			return [];
+		while ( false !== ($line = fgets($handle)) ) {
+			if ( preg_match('/^\s*(?:CREATE TABLE(?: IF NOT EXISTS)?|INSERT INTO|LOCK TABLES)\s+`?([A-Za-z0-9_]+)`?/i', $line, $matches) ) {
+				$tables[$matches[1]] = true;
+			}
 		}
 
-		return array_values(array_unique($matches[1]));
+		fclose($handle);
+
+		return array_keys($tables);
 	}
 
 	/**
