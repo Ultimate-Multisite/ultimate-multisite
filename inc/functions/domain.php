@@ -161,6 +161,45 @@ function wu_with_sso($url) {
 }
 
 /**
+ * Normalizes a domain or URL for host comparisons.
+ *
+ * WordPress stores multisite domain values as host names, but local
+ * development domains may include a port (for example,
+ * local.test:8080). wp_parse_url( ..., PHP_URL_HOST ) drops that
+ * port from the current request URL, which makes same-origin admin requests
+ * look like mapped-domain requests and triggers an unnecessary SSO handoff.
+ *
+ * @since 2.0.11
+ *
+ * @param string $domain Domain or URL to normalize.
+ * @return string Normalized host, including the port when present.
+ */
+function wu_normalize_domain_for_comparison($domain) {
+
+	$domain = strtolower(trim((string) $domain));
+
+	if ('' === $domain) {
+		return '';
+	}
+
+	$url = false === strpos($domain, '://') ? 'http://' . ltrim($domain, '/') : $domain;
+
+	$parsed_url = wp_parse_url($url);
+
+	if (empty($parsed_url['host'])) {
+		return $domain;
+	}
+
+	$normalized_domain = strtolower((string) $parsed_url['host']);
+
+	if (isset($parsed_url['port'])) {
+		$normalized_domain .= ':' . absint($parsed_url['port']);
+	}
+
+	return $normalized_domain;
+}
+
+/**
  * Compares the current domain to the main network domain.
  *
  * @since 2.0.11
@@ -170,5 +209,9 @@ function wu_is_same_domain() {
 
 	global $current_blog, $current_site;
 
-	return wp_parse_url(wu_get_current_url(), PHP_URL_HOST) === $current_blog->domain && $current_blog->domain === $current_site->domain;
+	$current_domain = wu_normalize_domain_for_comparison(wu_get_current_url());
+	$blog_domain    = wu_normalize_domain_for_comparison($current_blog->domain ?? '');
+	$site_domain    = wu_normalize_domain_for_comparison($current_site->domain ?? '');
+
+	return $current_domain === $blog_domain && $blog_domain === $site_domain;
 }
