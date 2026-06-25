@@ -307,6 +307,48 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test MU-Migration export command classes load without WP-CLI in web context.
+	 */
+	public function test_mu_migration_export_commands_load_without_wp_cli_runtime(): void {
+
+		$repo_root = dirname(__DIR__, 2);
+		$script    = 'require ' . wp_json_encode($repo_root . '/inc/site-exporter/mu-migration/includes/wp-cli-polyfill.php', JSON_UNESCAPED_SLASHES) . ';'
+			. 'require ' . wp_json_encode($repo_root . '/inc/site-exporter/mu-migration/includes/helpers.php', JSON_UNESCAPED_SLASHES) . ';'
+			. 'require ' . wp_json_encode($repo_root . '/inc/site-exporter/mu-migration/includes/commands/class-mu-migration-base.php', JSON_UNESCAPED_SLASHES) . ';'
+			. 'require ' . wp_json_encode($repo_root . '/inc/site-exporter/mu-migration/includes/commands/class-mu-migration-export.php', JSON_UNESCAPED_SLASHES) . ';'
+			. 'echo class_exists("TenUp\\\\MU_Migration\\\\Commands\\\\ExportCommand") ? "ok" : "missing";';
+
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.system_calls_shell_exec -- Regression test isolates a PHP process without WP-CLI runtime classes.
+		$output = shell_exec(escapeshellarg(PHP_BINARY) . ' -r ' . escapeshellarg($script));
+
+		$this->assertSame('ok', trim((string) $output), 'MU-Migration export classes must load in web/AJAX context without WP_CLI_Command');
+	}
+
+	/**
+	 * Test site import command errors do not fatal in web context.
+	 */
+	public function test_handle_site_import_catches_wp_cli_polyfill_errors(): void {
+
+		$hash     = md5(uniqid('site-import-error-', true));
+		$zip_file = tempnam(sys_get_temp_dir(), 'wu_import_not_zip_');
+
+		if (false === $zip_file) {
+			$this->markTestSkipped('Unable to create temporary import fixture');
+		}
+
+		wu_exporter_set_transient("wu_pending_site_import_{$hash}", [$zip_file, [], $hash], 2 * HOUR_IN_SECONDS);
+
+		$this->pending_import_hashes[] = $hash;
+
+		try {
+			$this->assertFalse($this->exporter->handle_site_import(), 'Invalid imports should be handled gracefully without bubbling WP_CLI::error exceptions');
+			$this->assertEmpty(wu_exporter_get_pending_imports(), 'Failed imports should be removed from the pending queue');
+		} finally {
+			wp_delete_file($zip_file);
+		}
+	}
+
+	/**
 	 * Regression test for GH#1009 — circular dependency.
 	 *
 	 * The maybe_add_schedule() method must register wu_site_every_minute regardless of
