@@ -2121,7 +2121,12 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		$this->assertNotNull($redirect_url, 'handle_server() must redirect anonymous SSO grant requests back to the broker');
 		$this->assertStringContainsString('sso_verify=invalid', $redirect_url);
 		$this->assertStringContainsString('redirect_to=', $redirect_url);
-		$this->assertStringContainsString('/wp-admin/', $redirect_url);
+
+		$redirect_query = [];
+		parse_str(wp_parse_url($redirect_url, PHP_URL_QUERY) ?: '', $redirect_query);
+
+		$this->assertArrayHasKey('redirect_to', $redirect_query);
+		$this->assertStringContainsString('/wp-admin/', rawurldecode($redirect_query['redirect_to']));
 	}
 
 	/**
@@ -2314,7 +2319,12 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 
 		$this->assertNotNull($redirect_url, 'handle_broker() must redirect invalid admin SSO requests');
 		$this->assertStringContainsString('wp-login.php', $redirect_url);
-		$this->assertStringContainsString(rawurlencode($redirect_to), $redirect_url);
+
+		$redirect_query = [];
+		parse_str(wp_parse_url($redirect_url, PHP_URL_QUERY) ?: '', $redirect_query);
+
+		$this->assertArrayHasKey('redirect_to', $redirect_query);
+		$this->assertSame($redirect_to, rawurldecode($redirect_query['redirect_to']));
 		$this->assertStringNotContainsString($return_url . '?sso_verify=invalid', $redirect_url);
 	}
 
