@@ -7,7 +7,7 @@
         "issues": "https://github.com/10up/MU-Migration/issues"
     },
     "require": {
-       "alchemy/zippy": "0.4.8"
+       "alchemy/zippy": "^1.0"
     },
     "license": "MIT",
     "authors": [
@@ -20,6 +20,6 @@
     "files": [ "mu-migration.php" ]
   },
     "require-dev": {
-        "behat/behat": "~2.5"
+        "behat/behat": "^3.32"
     }
 }
