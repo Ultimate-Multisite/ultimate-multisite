@@ -103,7 +103,8 @@
     "shepherd.js": "^14.5.0"
   },
   "overrides": {
-    "@babel/core": "7.29.6"
+    "@babel/core": "7.29.6",
+    "glob": "^10.5.0"
   },
   "lint-staged": {
     "assets/js/**/*.js": [
