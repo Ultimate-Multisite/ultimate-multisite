@@ -9,6 +9,9 @@
     "require": {
        "alchemy/zippy": "^1.0"
     },
+    "conflict": {
+        "symfony/process": "<5.4.51"
+    },
     "license": "MIT",
     "authors": [
         {
