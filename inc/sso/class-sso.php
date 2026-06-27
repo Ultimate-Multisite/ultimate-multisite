@@ -617,7 +617,17 @@ class SSO {
 			exit;
 		}
 
-		$denial_url = add_query_arg('sso_verify', 'invalid', $broker_url);
+		$denial_args = [
+			'sso_verify' => 'invalid',
+		];
+
+		$redirect_to = $this->input('redirect_to', '');
+
+		if ( ! empty($redirect_to) && $this->is_admin_redirect_url($redirect_to)) {
+			$denial_args['redirect_to'] = $redirect_to;
+		}
+
+		$denial_url = add_query_arg($denial_args, $broker_url);
 
 		wp_safe_redirect($denial_url, 303, 'WP-Ultimo-SSO');
 		exit;
@@ -999,7 +1009,10 @@ class SSO {
 
 		if ( ! empty($return_url) ) {
 			$url = $this->add_cookie_less_sso_token($return_url, $user->ID);
-			return add_query_arg('redirect_to', $redirect_to, $url);
+
+			if ($return_url !== $url) {
+				return add_query_arg('redirect_to', $redirect_to, $url);
+			}
 		}
 
 		// Default: send to the subsite dashboard or main site admin.
@@ -1374,10 +1387,18 @@ class SSO {
 
 		if ($verify_code) {
 			if ('invalid' === $verify_code) {
-				setcookie('wu_sso_denied', '1', time() + 300, COOKIEPATH, COOKIE_DOMAIN);
+				if ( ! headers_sent()) {
+					setcookie('wu_sso_denied', '1', time() + 300, COOKIEPATH, COOKIE_DOMAIN);
+				}
+
 				$_COOKIE['wu_sso_denied'] = '1';
 
-				$return_url = $this->input('return_url', get_home_url());
+				$return_url  = $this->input('return_url', get_home_url());
+				$redirect_to = $this->input('redirect_to', '');
+
+				if ( ! empty($redirect_to) && $this->is_admin_redirect_url($redirect_to)) {
+					$return_url = wp_login_url($redirect_to, true);
+				}
 
 				wp_safe_redirect($return_url, 302, 'WP-Ultimo-SSO');
 
