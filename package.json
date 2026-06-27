@@ -102,6 +102,9 @@
     "apexcharts": "^5.2.0",
     "shepherd.js": "^14.5.0"
   },
+  "overrides": {
+    "@babel/core": "7.29.6"
+  },
   "lint-staged": {
     "assets/js/**/*.js": [
       "eslint --fix --ignore-pattern '*.min.js'"
