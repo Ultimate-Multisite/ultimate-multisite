@@ -105,7 +105,9 @@
   "overrides": {
     "@babel/core": "7.29.6",
     "glob": "^10.5.0",
-    "js-yaml": "4.3.0"
+    "js-yaml": "4.3.0",
+    "minimatch@^3": "3.1.4",
+    "minimatch@^9": "9.0.9"
   },
   "lint-staged": {
     "assets/js/**/*.js": [
