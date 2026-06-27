@@ -113,7 +113,8 @@
     "postcss": "8.5.10",
     "qs": "6.15.3",
     "simple-git": "3.36.0",
-    "shell-quote": "1.8.4"
+    "shell-quote": "1.8.4",
+    "uuid": "11.1.1"
   },
   "lint-staged": {
     "assets/js/**/*.js": [
