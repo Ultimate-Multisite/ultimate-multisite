@@ -110,7 +110,8 @@
     "minimatch@^9": "9.0.9",
     "picomatch@^2": "2.3.2",
     "picomatch@^4": "4.0.4",
-    "postcss": "8.5.10"
+    "postcss": "8.5.10",
+    "qs": "6.15.3"
   },
   "lint-staged": {
     "assets/js/**/*.js": [
