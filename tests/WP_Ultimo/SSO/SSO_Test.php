@@ -311,6 +311,25 @@ class SSO_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test same-domain SSO login redirects honour the requested admin URL directly.
+	 */
+	public function test_handle_login_redirect_uses_redirect_to_when_return_url_is_same_domain(): void {
+		$sso         = SSO::get_instance();
+		$user_id     = self::factory()->user->create();
+		$user        = get_user_by('id', $user_id);
+		$return_url  = home_url('/');
+		$redirect_to = admin_url();
+
+		$_REQUEST['return_url']  = $return_url;
+		$_REQUEST['redirect_to'] = $redirect_to;
+
+		$this->assertSame(
+			$redirect_to,
+			$sso->handle_login_redirect($redirect_to, $redirect_to, $user)
+		);
+	}
+
+	/**
 	 * Test broker /sso handoff URLs are not used as the post-token redirect target.
 	 */
 	public function test_get_sso_redirect_to_unwraps_broker_sso_handoff_redirect_to(): void {
@@ -1188,7 +1207,7 @@ class SSO_Test extends \WP_UnitTestCase {
 		// handle_broker can set wu_sso_denied on the broker domain
 		// and bounce the user back to their original page.
 		$this->assertMatchesRegularExpression(
-			'/add_query_arg\s*\(\s*[\'"]sso_verify[\'"]\s*,\s*[\'"]invalid[\'"]/s',
+			'/\$denial_args\s*=\s*\[.*?[\'"]sso_verify[\'"]\s*=>\s*[\'"]invalid[\'"].*?add_query_arg\s*\(\s*\$denial_args\s*,\s*\$broker_url\s*\)/s',
 			$body,
 			'handle_server() not-logged-in non-JSONP branch must append sso_verify=invalid to the broker URL so handle_broker can set wu_sso_denied and bounce the user back to the original page anonymously (instead of forcing wp-login.php).'
 		);

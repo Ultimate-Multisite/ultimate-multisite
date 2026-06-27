@@ -71,6 +71,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		unset($_REQUEST['action']);
 		unset($_REQUEST['loggedout']);
 		unset($_REQUEST['return_url']);
+		unset($_REQUEST['redirect_to']);
 		unset($_COOKIE['wu_sso_denied']);
 
 		parent::tearDown();
@@ -331,7 +332,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		);
 
 		$this->assertStringContainsString(
-			"\$denial_url = add_query_arg('sso_verify', 'invalid', \$broker_url);",
+			'$denial_url = add_query_arg($denial_args, $broker_url);',
 			$source,
 			'handle_server() must append sso_verify=invalid to anonymous SSO grant redirects'
 		);
@@ -1609,7 +1610,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		);
 
 		$this->assertStringContainsString(
-			"'sso_verify', 'invalid'",
+			"'sso_verify' => 'invalid'",
 			$source,
 			'handle_server() must include sso_verify=invalid in anonymous denial redirects'
 		);
@@ -2080,6 +2081,50 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test anonymous SSO denials preserve admin redirect targets for the broker.
+	 */
+	public function test_handle_server_anonymous_denial_preserves_admin_redirect_target(): void {
+		$sso = SSO::get_instance();
+
+		$redirect_to = 'https://customer.example.com/wp-admin/';
+
+		$_REQUEST['return_url']  = 'https://customer.example.com/';
+		$_REQUEST['redirect_to'] = $redirect_to;
+
+		$redirect_url = null;
+
+		add_filter(
+			'allowed_redirect_hosts',
+			function ($hosts) {
+				$hosts[] = 'customer.example.com';
+				return $hosts;
+			}
+		);
+
+		add_filter(
+			'wp_redirect',
+			function ($location) use (&$redirect_url) {
+				$redirect_url = $location;
+				throw new \RuntimeException('redirect_intercepted');
+			},
+			1
+		);
+
+		try {
+			$sso->handle_server('redirect');
+		} catch (\RuntimeException $e) {
+			$this->assertSame('redirect_intercepted', $e->getMessage());
+		}
+
+		unset($_REQUEST['return_url'], $_REQUEST['redirect_to']);
+
+		$this->assertNotNull($redirect_url, 'handle_server() must redirect anonymous SSO grant requests back to the broker');
+		$this->assertStringContainsString('sso_verify=invalid', $redirect_url);
+		$this->assertStringContainsString('redirect_to=', $redirect_url);
+		$this->assertStringContainsString('/wp-admin/', $redirect_url);
+	}
+
+	/**
 	 * Test handle_server does not attach anonymous sessions before redirecting.
 	 *
 	 * Uses wp_redirect filter to throw an exception before exit().
@@ -2221,6 +2266,56 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 			$source,
 			'handle_broker() must call setcookie() for wu_sso_denied when sso_verify is invalid'
 		);
+	}
+
+	/**
+	 * Test invalid SSO verification from an admin request falls back to the login form.
+	 */
+	public function test_handle_broker_invalid_verify_redirects_admin_target_to_login(): void {
+		$subsite_id = self::factory()->blog->create();
+		switch_to_blog($subsite_id);
+
+		$sso = SSO::get_instance();
+
+		$mock_broker = $this->createMock(SSO_Broker::class);
+		$mock_broker->method('isAttached')->willReturn(false);
+
+		add_filter(
+			'wu_sso_get_broker',
+			function () use ($mock_broker) {
+				return $mock_broker;
+			}
+		);
+
+		$return_url   = home_url('/');
+		$redirect_to  = admin_url();
+		$redirect_url = null;
+
+		$_REQUEST['sso_verify']  = 'invalid';
+		$_REQUEST['return_url']  = $return_url;
+		$_REQUEST['redirect_to'] = $redirect_to;
+
+		add_filter(
+			'wp_redirect',
+			function ($location) use (&$redirect_url) {
+				$redirect_url = $location;
+				throw new \RuntimeException('redirect_intercepted');
+			},
+			1
+		);
+
+		try {
+			$sso->handle_broker('redirect');
+		} catch (\RuntimeException $e) {
+			$this->assertSame('redirect_intercepted', $e->getMessage());
+		}
+
+		restore_current_blog();
+
+		$this->assertNotNull($redirect_url, 'handle_broker() must redirect invalid admin SSO requests');
+		$this->assertStringContainsString('wp-login.php', $redirect_url);
+		$this->assertStringContainsString(rawurlencode($redirect_to), $redirect_url);
+		$this->assertStringNotContainsString($return_url . '?sso_verify=invalid', $redirect_url);
 	}
 
 	/**
