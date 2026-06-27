@@ -20,6 +20,7 @@
     "files": [ "mu-migration.php" ]
   },
     "require-dev": {
-        "behat/behat": "^3.32"
+        "behat/behat": "^3.32",
+        "symfony/yaml": "^7.4"
     }
 }
