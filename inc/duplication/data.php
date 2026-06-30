@@ -114,17 +114,10 @@ if ( ! class_exists('MUCD_Data') ) {
 				$from_site_table = self::get_existing_blog_tables($from_site_id);
 			}
 
-			$tables_to_ignore = [
-				'actionscheduler_actions',
-				'actionscheduler_claims',
-				'actionscheduler_groups',
-				'actionscheduler_logs',
-			];
-
 			foreach ($from_site_table as $table) {
 				$table_base_name = substr((string) $table, $from_site_prefix_length);
 
-				if (in_array($table_base_name, $tables_to_ignore, true)) {
+				if ( ! self::should_copy_table($table, $table_base_name, $from_site_id, $to_site_id)) {
 					continue;
 				}
 
@@ -154,6 +147,207 @@ if ( ! class_exists('MUCD_Data') ) {
 			self::db_restore_data($to_site_id, $saved_options);
 
 			return $saved_options;
+		}
+
+		/**
+		 * Determine whether a source table should be copied to the duplicated site.
+		 *
+		 * Runtime-only tables are skipped by default because queues, logs, caches,
+		 * analytics, and sessions are regenerated on the destination site. Empty
+		 * optional/custom tables are also skipped to avoid spending most of the
+		 * duplication time cloning schemas with no template data. WordPress core
+		 * content/config tables are always copied because wpmu_create_blog() creates
+		 * destination defaults that must be replaced with template values.
+		 *
+		 * @since 2.5.1
+		 *
+		 * @param string $table           Full source table name.
+		 * @param string $table_base_name Source table name without blog prefix.
+		 * @param int    $from_site_id    Source site ID.
+		 * @param int    $to_site_id      Target site ID.
+		 * @return bool Whether the table should be copied.
+		 */
+		public static function should_copy_table($table, $table_base_name, $from_site_id, $to_site_id) {
+
+			$copy = true;
+
+			if (self::is_runtime_table($table_base_name)) {
+				$copy = false;
+			} elseif (self::should_skip_empty_table($table, $table_base_name, $from_site_id, $to_site_id)) {
+				$copy = false;
+			}
+
+			/**
+			 * Filter whether a source table should be copied during site duplication.
+			 *
+			 * Returning true forces a table to be copied; returning false skips it.
+			 * This preserves extension control over custom table duplication while
+			 * keeping the default path optimized for empty/runtime template tables.
+			 *
+			 * @since 2.5.1
+			 *
+			 * @param bool   $copy            Whether the table should be copied.
+			 * @param string $table           Full source table name.
+			 * @param string $table_base_name Source table name without blog prefix.
+			 * @param int    $from_site_id    Source site ID.
+			 * @param int    $to_site_id      Target site ID.
+			 */
+			return (bool) apply_filters('mucd_should_copy_table', $copy, $table, $table_base_name, $from_site_id, $to_site_id);
+		}
+
+		/**
+		 * Check whether a source table is runtime-only data that should not be cloned.
+		 *
+		 * @since 2.5.1
+		 *
+		 * @param string $table_base_name Source table name without blog prefix.
+		 * @return bool Whether the table is runtime-only.
+		 */
+		public static function is_runtime_table($table_base_name) {
+
+			$runtime_tables = [
+				'actionscheduler_actions',
+				'actionscheduler_claims',
+				'actionscheduler_groups',
+				'actionscheduler_logs',
+				'blc_filters',
+				'blc_instances',
+				'blc_links',
+				'blc_synch',
+				'ewwwio_images',
+				'icl_background_task',
+				'icl_translate_job',
+				'icl_translation_batches',
+				'litespeed_avatar',
+				'litespeed_img_optm',
+				'litespeed_img_optming',
+				'litespeed_url',
+				'litespeed_url_file',
+				'quform_entries',
+				'quform_entry_data',
+				'quform_entry_entry_labels',
+				'quform_entry_labels',
+				'redirection_404',
+				'redirection_logs',
+				'woocommerce_api_keys',
+				'woocommerce_downloadable_product_permissions',
+				'woocommerce_log',
+				'woocommerce_sessions',
+				'yoast_indexable',
+				'yoast_indexable_hierarchy',
+				'yoast_migrations',
+				'yoast_primary_term',
+				'yoast_seo_links',
+				'yoast_seo_meta',
+			];
+
+			/**
+			 * Filter runtime-only table base names skipped during site duplication.
+			 *
+			 * @since 2.5.1
+			 *
+			 * @param array $runtime_tables Runtime-only table base names.
+			 */
+			$runtime_tables = (array) apply_filters('mucd_runtime_tables_to_ignore', $runtime_tables);
+
+			return in_array($table_base_name, $runtime_tables, true);
+		}
+
+		/**
+		 * Determine whether an empty source table can be skipped.
+		 *
+		 * @since 2.5.1
+		 *
+		 * @param string $table           Full source table name.
+		 * @param string $table_base_name Source table name without blog prefix.
+		 * @param int    $from_site_id    Source site ID.
+		 * @param int    $to_site_id      Target site ID.
+		 * @return bool Whether the table should be skipped because it is empty.
+		 */
+		private static function should_skip_empty_table($table, $table_base_name, $from_site_id, $to_site_id) {
+
+			if ( ! self::skip_empty_tables($from_site_id, $to_site_id)) {
+				return false;
+			}
+
+			if (self::is_required_table($table_base_name)) {
+				return false;
+			}
+
+			return 0 === self::get_table_row_count($table);
+		}
+
+		/**
+		 * Check whether empty optional/custom tables should be skipped.
+		 *
+		 * @since 2.5.1
+		 *
+		 * @param int $from_site_id Source site ID.
+		 * @param int $to_site_id   Target site ID.
+		 * @return bool Whether empty optional/custom tables should be skipped.
+		 */
+		private static function skip_empty_tables($from_site_id, $to_site_id) {
+
+			/**
+			 * Filter whether empty optional/custom source tables are skipped.
+			 *
+			 * @since 2.5.1
+			 *
+			 * @param bool $skip_empty_tables Whether to skip empty optional tables.
+			 * @param int  $from_site_id      Source site ID.
+			 * @param int  $to_site_id        Target site ID.
+			 */
+			return (bool) apply_filters('mucd_skip_empty_tables', true, $from_site_id, $to_site_id);
+		}
+
+		/**
+		 * Check whether a table is required for a faithful template clone.
+		 *
+		 * @since 2.5.1
+		 *
+		 * @param string $table_base_name Source table name without blog prefix.
+		 * @return bool Whether the table should be copied even when empty.
+		 */
+		private static function is_required_table($table_base_name) {
+
+			$required_tables = [
+				'commentmeta',
+				'comments',
+				'links',
+				'options',
+				'postmeta',
+				'posts',
+				'term_relationships',
+				'term_taxonomy',
+				'termmeta',
+				'terms',
+			];
+
+			/**
+			 * Filter required table base names copied even when empty.
+			 *
+			 * @since 2.5.1
+			 *
+			 * @param array $required_tables Required table base names.
+			 */
+			$required_tables = (array) apply_filters('mucd_required_tables_to_copy', $required_tables);
+
+			return in_array($table_base_name, $required_tables, true);
+		}
+
+		/**
+		 * Count rows in a source table.
+		 *
+		 * @since 2.5.1
+		 *
+		 * @param string $table Full source table name.
+		 * @return int Source table row count.
+		 */
+		private static function get_table_row_count($table) {
+
+			$count = self::do_sql_query('SELECT COUNT(*) FROM `' . $table . '`', 'var', false);
+
+			return (int) $count;
 		}
 
 		/**

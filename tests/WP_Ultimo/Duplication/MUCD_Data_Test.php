@@ -630,6 +630,131 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test runtime-only tables are excluded from template copies by default.
+	 */
+	public function test_should_copy_table_skips_runtime_tables() {
+		global $wpdb;
+
+		$table = $wpdb->get_blog_prefix() . 'actionscheduler_actions';
+
+		$this->assertFalse(
+			\MUCD_Data::should_copy_table($table, 'actionscheduler_actions', get_current_blog_id(), 123)
+		);
+	}
+
+	/**
+	 * Test empty optional template tables are skipped by default.
+	 */
+	public function test_should_copy_table_skips_empty_optional_tables() {
+		global $wpdb;
+
+		$table = $wpdb->get_blog_prefix() . 'wu_empty_runtime_fixture';
+
+		$this->create_table_selection_fixture($table);
+
+		try {
+			$this->assertFalse(
+				\MUCD_Data::should_copy_table($table, 'wu_empty_runtime_fixture', get_current_blog_id(), 123)
+			);
+		} finally {
+			$this->drop_table_selection_fixture($table);
+		}
+	}
+
+	/**
+	 * Test non-empty optional template tables are still copied.
+	 */
+	public function test_should_copy_table_keeps_non_empty_optional_tables() {
+		global $wpdb;
+
+		$table = $wpdb->get_blog_prefix() . 'wu_non_empty_fixture';
+
+		$this->create_table_selection_fixture($table);
+		$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test fixture insert.
+			$table,
+			['value' => 'copy-me'],
+			['%s']
+		);
+
+		try {
+			$this->assertTrue(
+				\MUCD_Data::should_copy_table($table, 'wu_non_empty_fixture', get_current_blog_id(), 123)
+			);
+		} finally {
+			$this->drop_table_selection_fixture($table);
+		}
+	}
+
+	/**
+	 * Test required WordPress tables are copied even when empty.
+	 */
+	public function test_should_copy_table_keeps_required_tables_even_when_empty() {
+		global $wpdb;
+
+		$this->assertTrue(
+			\MUCD_Data::should_copy_table($wpdb->comments, 'comments', get_current_blog_id(), 123)
+		);
+	}
+
+	/**
+	 * Test filters can force-copy a table skipped by default.
+	 */
+	public function test_should_copy_table_filter_can_force_copy() {
+		global $wpdb;
+
+		$table = $wpdb->get_blog_prefix() . 'actionscheduler_actions';
+
+		$filter = function ($copy, $source_table, $table_base_name) use ($table) {
+			if ($table === $source_table && 'actionscheduler_actions' === $table_base_name) {
+				return true;
+			}
+
+			return $copy;
+		};
+
+		add_filter(
+			'mucd_should_copy_table',
+			$filter,
+			10,
+			3
+		);
+
+		try {
+			$this->assertTrue(
+				\MUCD_Data::should_copy_table($table, 'actionscheduler_actions', get_current_blog_id(), 123)
+			);
+		} finally {
+			remove_filter('mucd_should_copy_table', $filter, 10);
+		}
+	}
+
+	/**
+	 * Create a temporary table used by table-selection tests.
+	 *
+	 * @param string $table Table name.
+	 */
+	private function create_table_selection_fixture($table): void {
+		global $wpdb;
+
+		$this->drop_table_selection_fixture($table);
+
+		$wpdb->query( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test fixture table name cannot be bound.
+			"CREATE TABLE `{$table}` (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, value varchar(20) NOT NULL DEFAULT '', PRIMARY KEY  (id))"
+		);
+	}
+
+	/**
+	 * Drop a temporary table used by table-selection tests.
+	 *
+	 * @param string $table Table name.
+	 */
+	private function drop_table_selection_fixture($table): void {
+		global $wpdb;
+
+		$wpdb->query("DROP TABLE IF EXISTS `{$table}`"); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test fixture table name cannot be bound.
+	}
+
+	/**
 	 * Test that serialized boolean false (b:0;) is handled correctly.
 	 *
 	 * Ensures the unserialize safety check doesn't treat legitimate
