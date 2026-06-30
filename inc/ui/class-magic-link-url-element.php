@@ -316,7 +316,73 @@ class Magic_Link_Url_Element extends Base_Element {
 			return $current_site->get_id();
 		}
 
+		// On the main site, fall back to the logged-in customer's primary site.
+		$customer_site_id = $this->get_current_customer_site_id();
+
+		if ($customer_site_id) {
+			return $customer_site_id;
+		}
+
 		return null;
+	}
+
+	/**
+	 * Get the current customer's best site candidate for magic-link generation.
+	 *
+	 * @since 2.0.0
+	 * @return int|null The customer site ID or null if none is available.
+	 */
+	protected function get_current_customer_site_id(): ?int {
+
+		$customer = WP_Ultimo()->currents->get_customer();
+
+		if ( ! $customer) {
+			$customer = wu_get_current_customer();
+		}
+
+		if ( ! $customer) {
+			return null;
+		}
+
+		$primary_site_id = absint($customer->get_primary_site_id());
+		$primary_site    = $primary_site_id ? wu_get_site($primary_site_id) : false;
+
+		if ($this->is_customer_site_candidate($primary_site, $customer)) {
+			return $primary_site->get_id();
+		}
+
+		foreach ($customer->get_sites() as $site) {
+			if ($this->is_customer_site_candidate($site, $customer)) {
+				return $site->get_id();
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Check whether a site belongs to the current customer and can be linked.
+	 *
+	 * @since 2.0.0
+	 * @param mixed                      $site     Site candidate.
+	 * @param \WP_Ultimo\Models\Customer $customer Customer model.
+	 * @return bool True when the site can be used for magic-link generation.
+	 */
+	protected function is_customer_site_candidate($site, \WP_Ultimo\Models\Customer $customer): bool {
+
+		if ( ! $site instanceof \WP_Ultimo\Models\Site) {
+			return false;
+		}
+
+		if ( ! $site->get_id()) {
+			return false;
+		}
+
+		if ('customer_owned' !== $site->get_type()) {
+			return false;
+		}
+
+		return absint($site->get_customer_id()) === absint($customer->get_id()) && $site->is_customer_allowed($customer->get_id());
 	}
 
 	/**
