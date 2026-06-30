@@ -252,7 +252,42 @@ class Scripts_Test extends WP_UnitTestCase {
 		$this->assertNotFalse(has_action('init', [$this->scripts, 'register_default_styles']));
 		$this->assertNotFalse(has_action('admin_enqueue_scripts', [$this->scripts, 'enqueue_default_admin_styles']));
 		$this->assertNotFalse(has_action('admin_enqueue_scripts', [$this->scripts, 'enqueue_default_admin_scripts']));
+		$this->assertNotFalse(has_action('admin_head', [$this->scripts, 'print_wubox_early_click_guard']));
 		$this->assertNotFalse(has_filter('admin_body_class', [$this->scripts, 'add_body_class_container_boxed']));
+	}
+
+	/**
+	 * Test the wubox early click guard preserves queued clicks.
+	 */
+	public function test_wubox_early_click_guard_is_idempotent_and_preserves_queue(): void {
+
+		$reflection = new \ReflectionClass($this->scripts);
+		$method     = $reflection->getMethod('get_wubox_early_click_guard_script');
+
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		$script = $method->invoke($this->scripts);
+
+		$this->assertStringContainsString('window.__wuboxEarlyClicks=window.__wuboxEarlyClicks||[];', $script);
+		$this->assertStringContainsString('if(window.__wuboxEarlyClickHandler)return;', $script);
+		$this->assertStringContainsString("e.target.closest('.wubox')", $script);
+		$this->assertStringContainsString("document.addEventListener('click',window.__wuboxEarlyClickHandler,true);", $script);
+	}
+
+	/**
+	 * Test register_default_scripts attaches the same early click guard to wubox.
+	 */
+	public function test_register_default_scripts_attaches_wubox_early_click_guard(): void {
+
+		$this->scripts->register_default_scripts();
+
+		$before = wp_scripts()->get_data('wubox', 'before');
+
+		$this->assertIsArray($before);
+		$this->assertNotEmpty($before);
+		$this->assertStringContainsString('window.__wuboxEarlyClicks=window.__wuboxEarlyClicks||[];', implode("\n", $before));
 	}
 
 	/**
