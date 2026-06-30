@@ -29,6 +29,20 @@ class Magic_Link_Url_Element_Test extends WP_UnitTestCase {
 	private $site;
 
 	/**
+	 * Original remote address value.
+	 *
+	 * @var string|null
+	 */
+	private $remote_addr;
+
+	/**
+	 * Whether REMOTE_ADDR existed before the test.
+	 *
+	 * @var bool
+	 */
+	private $remote_addr_was_set = false;
+
+	/**
 	 * Set up test fixtures.
 	 */
 	protected function setUp(): void {
@@ -36,6 +50,11 @@ class Magic_Link_Url_Element_Test extends WP_UnitTestCase {
 		parent::setUp();
 
 		$unique = wp_rand(1000, 9999);
+
+		$this->remote_addr_was_set = isset($_SERVER['REMOTE_ADDR']);
+		$this->remote_addr         = $this->remote_addr_was_set ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : null;
+
+		$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
 
 		$this->customer = wu_create_customer(
 			[
@@ -84,6 +103,12 @@ class Magic_Link_Url_Element_Test extends WP_UnitTestCase {
 		unset($_GET['site'], $_POST['site'], $_REQUEST['site']);
 
 		wp_set_current_user(0);
+
+		if ($this->remote_addr_was_set) {
+			$_SERVER['REMOTE_ADDR'] = $this->remote_addr;
+		} else {
+			unset($_SERVER['REMOTE_ADDR']);
+		}
 
 		WP_Ultimo()->currents->set_customer(false);
 		WP_Ultimo()->currents->set_site(false);
