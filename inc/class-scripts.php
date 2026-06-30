@@ -37,6 +37,8 @@ class Scripts {
 
 		add_action('admin_enqueue_scripts', [$this, 'enqueue_default_admin_scripts']);
 
+		add_action('admin_head', [$this, 'print_wubox_early_click_guard'], 1);
+
 		add_action('wp_ajax_wu_toggle_container', [$this, 'update_use_container']);
 
 		add_filter('admin_body_class', [$this, 'add_body_class_container_boxed']);
@@ -299,19 +301,7 @@ class Scripts {
 		 */
 		wp_add_inline_script(
 			'wubox',
-			"(function(){
-				window.__wuboxEarlyClicks=[];
-				window.__wuboxEarlyClickHandler=function(e){
-					if(window.__wuboxReady)return;
-					var t=e.target.closest('.wubox');
-					if(!t)return;
-					e.preventDefault();
-					e.stopPropagation();
-					t.style.cursor='wait';
-					window.__wuboxEarlyClicks.push(t);
-				};
-				document.addEventListener('click',window.__wuboxEarlyClickHandler,true);
-			})();",
+			$this->get_wubox_early_click_guard_script(),
 			'before'
 		);
 
@@ -468,6 +458,54 @@ class Scripts {
 
 		// Password toggle for AJAX-loaded modals (e.g., Add Customer).
 		wp_enqueue_script('wu-password-toggle');
+	}
+
+	/**
+	 * Prints the early wubox click guard in the document head.
+	 *
+	 * Wubox itself is printed in the footer, so links/buttons rendered earlier in
+	 * the admin page can navigate to their AJAX URL before the footer inline script
+	 * runs. Printing the capture listener in the head closes that race for all
+	 * modal form triggers that use the shared `.wubox` class.
+	 *
+	 * @since 2.6.3
+	 * @return void
+	 */
+	public function print_wubox_early_click_guard(): void {
+
+		if ( ! wu_is_wu_page() || ! wp_script_is('wubox', 'enqueued')) {
+			return;
+		}
+
+		printf(
+			"\n<script id=\"wu-wubox-early-click-guard\">\n%s\n</script>\n",
+			$this->get_wubox_early_click_guard_script() // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static JavaScript, no user input.
+		);
+	}
+
+	/**
+	 * Returns the idempotent early wubox click guard script.
+	 *
+	 * @since 2.6.3
+	 * @return string
+	 */
+	protected function get_wubox_early_click_guard_script(): string {
+
+		return "(function(){
+	window.__wuboxEarlyClicks=window.__wuboxEarlyClicks||[];
+	if(window.__wuboxEarlyClickHandler)return;
+	window.__wuboxEarlyClickHandler=function(e){
+		if(window.__wuboxReady)return;
+		var t=e.target&&e.target.closest?e.target.closest('.wubox'):null;
+		if(!t)return;
+		e.preventDefault();
+		e.stopPropagation();
+		if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+		t.style.cursor='wait';
+		window.__wuboxEarlyClicks.push(t);
+	};
+	document.addEventListener('click',window.__wuboxEarlyClickHandler,true);
+})();";
 	}
 
 	/**
