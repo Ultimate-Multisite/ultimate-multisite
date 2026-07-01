@@ -291,6 +291,29 @@ class Scripts_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test print_wubox_early_click_guard outputs the guard when wubox is enqueued.
+	 */
+	public function test_print_wubox_early_click_guard_outputs_script_when_wubox_enqueued(): void {
+
+		$force_wu_page = static fn() => true;
+
+		add_filter('wu_is_wu_page', $force_wu_page);
+
+		$this->scripts->register_default_scripts();
+		wp_enqueue_script('wubox');
+
+		ob_start();
+		$this->scripts->print_wubox_early_click_guard();
+		$output = ob_get_clean();
+
+		remove_filter('wu_is_wu_page', $force_wu_page);
+		wp_dequeue_script('wubox');
+
+		$this->assertStringContainsString('id="wu-wubox-early-click-guard"', $output);
+		$this->assertStringContainsString('window.__wuboxEarlyClicks=window.__wuboxEarlyClicks||[];', $output);
+	}
+
+	/**
 	 * Test register_default_scripts registers expected handles.
 	 */
 	public function test_register_default_scripts_registers_handles(): void {
