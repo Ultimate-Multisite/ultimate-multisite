@@ -192,7 +192,7 @@ if ( ! class_exists('MUCD_Data') ) {
 			 * @param int    $from_site_id    Source site ID.
 			 * @param int    $to_site_id      Target site ID.
 			 */
-			return (bool) apply_filters('mucd_should_copy_table', $copy, $table, $table_base_name, $from_site_id, $to_site_id);
+			return (bool) apply_filters('wu_mucd_should_copy_table', $copy, $table, $table_base_name, $from_site_id, $to_site_id);
 		}
 
 		/**
@@ -248,7 +248,7 @@ if ( ! class_exists('MUCD_Data') ) {
 			 *
 			 * @param array $runtime_tables Runtime-only table base names.
 			 */
-			$runtime_tables = (array) apply_filters('mucd_runtime_tables_to_ignore', $runtime_tables);
+			$runtime_tables = (array) apply_filters('wu_mucd_runtime_tables_to_ignore', $runtime_tables);
 
 			return in_array($table_base_name, $runtime_tables, true);
 		}
@@ -274,7 +274,7 @@ if ( ! class_exists('MUCD_Data') ) {
 				return false;
 			}
 
-			return 0 === self::get_table_row_count($table);
+			return ! self::table_has_rows($table);
 		}
 
 		/**
@@ -297,7 +297,7 @@ if ( ! class_exists('MUCD_Data') ) {
 			 * @param int  $from_site_id      Source site ID.
 			 * @param int  $to_site_id        Target site ID.
 			 */
-			return (bool) apply_filters('mucd_skip_empty_tables', true, $from_site_id, $to_site_id);
+			return (bool) apply_filters('wu_mucd_skip_empty_tables', true, $from_site_id, $to_site_id);
 		}
 
 		/**
@@ -330,24 +330,30 @@ if ( ! class_exists('MUCD_Data') ) {
 			 *
 			 * @param array $required_tables Required table base names.
 			 */
-			$required_tables = (array) apply_filters('mucd_required_tables_to_copy', $required_tables);
+			$required_tables = (array) apply_filters('wu_mucd_required_tables_to_copy', $required_tables);
 
 			return in_array($table_base_name, $required_tables, true);
 		}
 
 		/**
-		 * Count rows in a source table.
+		 * Check whether a source table has rows.
 		 *
 		 * @since 2.5.1
 		 *
 		 * @param string $table Full source table name.
-		 * @return int Source table row count.
+		 * @return bool Whether the source table has rows.
 		 */
-		private static function get_table_row_count($table) {
+		private static function table_has_rows($table) {
+			global $wpdb;
 
-			$count = self::do_sql_query('SELECT COUNT(*) FROM `' . $table . '`', 'var', false);
+			$wpdb->last_error = '';
+			$has_rows         = self::do_sql_query('SELECT 1 FROM `' . $table . '` LIMIT 1', 'var', false);
 
-			return (int) $count;
+			if ('' !== $wpdb->last_error) {
+				return true;
+			}
+
+			return null !== $has_rows;
 		}
 
 		/**
