@@ -28,6 +28,28 @@ class Addon_Repository_Test extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	private function get_oauth_query_args(): array {
+		$query = (string) wp_parse_url($this->repo->get_oauth_url(), PHP_URL_QUERY);
+		$args  = [];
+
+		parse_str($query, $args);
+
+		return $args;
+	}
+
+	private function encrypt_for_addon_repository(string $plain_text, string $key): string {
+		$iv_length = openssl_cipher_iv_length('aes-256-cbc');
+
+		$this->assertNotFalse($iv_length);
+
+		$iv        = str_repeat('1', $iv_length);
+		$encrypted = openssl_encrypt($plain_text, 'aes-256-cbc', $key, 0, $iv);
+
+		$this->assertNotFalse($encrypted);
+
+		return base64_encode($iv . $encrypted); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+	}
+
 	// ------------------------------------------------------------------
 	// Constructor
 	// ------------------------------------------------------------------
@@ -79,7 +101,7 @@ class Addon_Repository_Test extends WP_UnitTestCase {
 		$ref->setValue($this->repo, 'Bearer test_token_123');
 
 		$parsed_args = ['headers' => []];
-		$url = MULTISITE_ULTIMATE_UPDATE_URL . 'some/path';
+		$url         = MULTISITE_ULTIMATE_UPDATE_URL . 'some/path';
 
 		$result = $this->repo->set_update_download_headers($parsed_args, $url);
 
@@ -96,7 +118,7 @@ class Addon_Repository_Test extends WP_UnitTestCase {
 		$ref->setValue($this->repo, 'Bearer test_token_123');
 
 		$parsed_args = ['headers' => []];
-		$url = 'https://example.com/other/path';
+		$url         = 'https://example.com/other/path';
 
 		$result = $this->repo->set_update_download_headers($parsed_args, $url);
 
@@ -105,7 +127,7 @@ class Addon_Repository_Test extends WP_UnitTestCase {
 
 	public function test_set_update_download_headers_ignores_empty_auth_header() {
 		$parsed_args = ['headers' => []];
-		$url = MULTISITE_ULTIMATE_UPDATE_URL . 'some/path';
+		$url         = MULTISITE_ULTIMATE_UPDATE_URL . 'some/path';
 
 		$result = $this->repo->set_update_download_headers($parsed_args, $url);
 
@@ -200,9 +222,10 @@ class Addon_Repository_Test extends WP_UnitTestCase {
 	}
 
 	public function test_get_oauth_url_contains_client_id() {
-		$url = $this->repo->get_oauth_url();
-		// client_id parameter may have empty value (no constant defined in test env)
-		$this->assertStringContainsString('client_id', $url);
+		$args = $this->get_oauth_query_args();
+
+		$this->assertArrayHasKey('client_id', $args);
+		$this->assertNotSame('', $args['client_id'], 'Packaged addon-store OAuth credentials must decrypt to a non-empty client_id.');
 	}
 
 	public function test_get_oauth_url_contains_redirect_uri() {
@@ -236,8 +259,47 @@ class Addon_Repository_Test extends WP_UnitTestCase {
 
 		// Provide data with enough bytes for IV (16 bytes) + some cipher text
 		$fake_data = str_repeat('A', 32); // 16 bytes IV + 16 bytes cipher text
-		$result = $method->invoke($this->repo, base64_encode($fake_data));
+		$result    = $method->invoke($this->repo, base64_encode($fake_data)); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 		// Result will be empty string or decrypted string (likely empty since data is invalid)
 		$this->assertIsString($result);
+	}
+
+	public function test_decrypt_value_supports_current_release_archive_key() {
+		if ( ! function_exists('openssl_encrypt') || ! function_exists('openssl_cipher_iv_length')) {
+			$this->markTestSkipped('OpenSSL is required to test addon credential encryption.');
+		}
+
+		$method = new \ReflectionMethod(Addon_Repository::class, 'decrypt_value');
+
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		$key = hash_file('sha256', dirname(__DIR__, 2) . '/inc/class-addon-repository.php');
+
+		$this->assertNotFalse($key);
+
+		$payload = $this->encrypt_for_addon_repository('current-client-id', $key);
+
+		$this->assertSame('current-client-id', $method->invoke($this->repo, $payload));
+	}
+
+	public function test_decrypt_value_supports_legacy_credential_key() {
+		if ( ! function_exists('openssl_encrypt') || ! function_exists('openssl_cipher_iv_length')) {
+			$this->markTestSkipped('OpenSSL is required to test addon credential encryption.');
+		}
+
+		$method = new \ReflectionMethod(Addon_Repository::class, 'decrypt_value');
+
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		$payload = $this->encrypt_for_addon_repository(
+			'legacy-client-id',
+			'4ffb3de0414a284b500b368caedf7c40f03cac215eb83b0164e91c491ced4bdf'
+		);
+
+		$this->assertSame('legacy-client-id', $method->invoke($this->repo, $payload));
 	}
 }

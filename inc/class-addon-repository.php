@@ -15,6 +15,14 @@ use Psr\Log\LogLevel;
  */
 class Addon_Repository {
 
+	/**
+	 * Legacy key used by source packages released before the OAuth secrets were
+	 * regenerated on every release build.
+	 *
+	 * @var string
+	 */
+	private const LEGACY_CREDENTIAL_KEY = '4ffb3de0414a284b500b368caedf7c40f03cac215eb83b0164e91c491ced4bdf';
+
 	private string $authorization_header = '';
 	private string $client_id;
 	private string $client_secret;
@@ -32,19 +40,52 @@ class Addon_Repository {
 	/**
 	 * @param string $data base64 encoded string.
 	 *
-	 * @return false|string
+	 * @return string
 	 */
 	private function decrypt_value(string $data): string {
 		// If the site doesn't have openssl, they just won't get auto updates.
 		if ( ! function_exists('openssl_decrypt') || ! function_exists('openssl_cipher_iv_length')) {
 			return '';
 		}
-		$key         = hash_file('sha256', __FILE__); // Hash of this file
-		$data        = base64_decode($data); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
-		$iv_length   = openssl_cipher_iv_length('aes-256-cbc');
+
+		$data = base64_decode($data, true); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
+
+		if (false === $data) {
+			return '';
+		}
+
+		$iv_length = openssl_cipher_iv_length('aes-256-cbc');
+
+		if (false === $iv_length || strlen($data) <= $iv_length) {
+			return '';
+		}
+
 		$iv          = substr($data, 0, $iv_length);
 		$cipher_text = substr($data, $iv_length);
-		return openssl_decrypt($cipher_text, 'aes-256-cbc', $key, 0, $iv);
+
+		foreach ($this->get_decryption_keys() as $key) {
+			$decrypted = openssl_decrypt($cipher_text, 'aes-256-cbc', $key, 0, $iv);
+
+			if (false !== $decrypted) {
+				return $decrypted;
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Gets supported OAuth credential decryption keys.
+	 *
+	 * @return array
+	 */
+	private function get_decryption_keys(): array {
+		$keys = [
+			hash_file('sha256', __FILE__), // Hash of this file for freshly built release archives.
+			self::LEGACY_CREDENTIAL_KEY,
+		];
+
+		return array_values(array_unique(array_filter($keys)));
 	}
 
 	/**
