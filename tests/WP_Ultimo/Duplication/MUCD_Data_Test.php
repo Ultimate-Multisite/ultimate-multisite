@@ -713,7 +713,7 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 		};
 
 		add_filter(
-			'mucd_should_copy_table',
+			'wu_mucd_should_copy_table',
 			$filter,
 			10,
 			3
@@ -724,8 +724,23 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 				\MUCD_Data::should_copy_table($table, 'actionscheduler_actions', get_current_blog_id(), 123)
 			);
 		} finally {
-			remove_filter('mucd_should_copy_table', $filter, 10);
+			remove_filter('wu_mucd_should_copy_table', $filter, 10);
 		}
+	}
+
+	/**
+	 * Test empty-table checks fail open when the row probe errors.
+	 */
+	public function test_should_copy_table_keeps_optional_table_when_row_probe_errors() {
+		global $wpdb;
+
+		$table = $wpdb->get_blog_prefix() . 'wu_missing_optional_fixture';
+
+		$this->drop_table_selection_fixture($table);
+
+		$this->assertTrue(
+			\MUCD_Data::should_copy_table($table, 'wu_missing_optional_fixture', get_current_blog_id(), 123)
+		);
 	}
 
 	/**
