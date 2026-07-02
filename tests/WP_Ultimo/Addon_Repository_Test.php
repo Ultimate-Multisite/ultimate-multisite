@@ -260,8 +260,8 @@ class Addon_Repository_Test extends WP_UnitTestCase {
 		// Provide data with enough bytes for IV (16 bytes) + some cipher text
 		$fake_data = str_repeat('A', 32); // 16 bytes IV + 16 bytes cipher text
 		$result    = $method->invoke($this->repo, base64_encode($fake_data)); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
-		// Result will be empty string or decrypted string (likely empty since data is invalid)
-		$this->assertIsString($result);
+		// Malformed payloads should fail closed.
+		$this->assertSame('', $result);
 	}
 
 	public function test_decrypt_value_supports_current_release_archive_key() {

@@ -56,7 +56,7 @@ class Addon_Repository {
 
 		$iv_length = openssl_cipher_iv_length('aes-256-cbc');
 
-		if (false === $iv_length || strlen($data) <= $iv_length) {
+		if (false === $iv_length || $iv_length >= strlen($data)) {
 			return '';
 		}
 
