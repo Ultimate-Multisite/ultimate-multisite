@@ -84,6 +84,10 @@ class Tracker implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function create_weekly_schedule(): void {
 
+		if (has_action('wu_weekly') === false) {
+			return;
+		}
+
 		if (wu_next_scheduled_action('wu_weekly') === false) {
 			$next_week = strtotime('next monday');
 
