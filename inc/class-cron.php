@@ -80,7 +80,7 @@ class Cron implements \WP_Ultimo\Interfaces\Singleton {
 		/*
 		 * Hourly check
 		 */
-		if (wu_next_scheduled_action('wu_hourly') === false) {
+		if ($this->has_recurring_hook_callback('wu_hourly') && wu_next_scheduled_action('wu_hourly') === false) {
 			$next_hour = strtotime(gmdate('Y-m-d H:00:00', strtotime('+1 hour')));
 
 			wu_schedule_recurring_action($next_hour, HOUR_IN_SECONDS, 'wu_hourly', [], 'wu_cron');
@@ -89,18 +89,35 @@ class Cron implements \WP_Ultimo\Interfaces\Singleton {
 		/*
 		 * Daily check
 		 */
-		if (wu_next_scheduled_action('wu_daily') === false) {
+		if ($this->has_recurring_hook_callback('wu_daily') && wu_next_scheduled_action('wu_daily') === false) {
 			wu_schedule_recurring_action(strtotime('tomorrow'), DAY_IN_SECONDS, 'wu_daily', [], 'wu_cron');
 		}
 
 		/*
 		 * Monthly check
 		 */
-		if (wu_next_scheduled_action('wu_monthly') === false) {
+		if ($this->has_recurring_hook_callback('wu_monthly') && wu_next_scheduled_action('wu_monthly') === false) {
 			$next_month = strtotime(gmdate('Y-m-01 00:00:00', strtotime('+1 month')));
 
 			wu_schedule_recurring_action($next_month, MONTH_IN_SECONDS, 'wu_monthly', [], 'wu_cron');
 		}
+	}
+
+	/**
+	 * Check whether a recurring schedule hook has a registered callback.
+	 *
+	 * Action Scheduler marks no-callback recurring actions as failed once due.
+	 * These general extension hooks should only be scheduled when Ultimate
+	 * Multisite or an add-on has registered work for the hook in the current
+	 * bootstrap context.
+	 *
+	 * @since 2.5.2
+	 * @param string $hook Action Scheduler hook name.
+	 * @return bool
+	 */
+	private function has_recurring_hook_callback(string $hook): bool {
+
+		return has_action($hook) !== false;
 	}
 
 	/**
