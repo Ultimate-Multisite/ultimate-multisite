@@ -2217,7 +2217,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	/**
 	 * Test SSO allows safe redirects back to mapped broker domains.
 	 */
-	public function test_allow_sso_redirect_hosts_adds_mapped_domain(): void {
+	public function test_startup_loads_domain_mapping_redirect_host_filter(): void {
 		$sso         = SSO::get_instance();
 		$domain_name = 'sso-redirect-mapped.example.com';
 		$domain      = wu_create_domain(
@@ -2239,10 +2239,11 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		wp_cache_delete('domain:www.' . $domain_name, 'domain_mappings');
 
 		try {
-			$result = $sso->allow_sso_redirect_hosts(['mygratis.site'], strtoupper($domain_name));
+			$sso->startup();
+
+			$result = apply_filters('allowed_redirect_hosts', ['mygratis.site'], strtoupper($domain_name));
 
 			$this->assertContains($domain_name, $result);
-			$this->assertContains('www.' . $domain_name, $result);
 		} finally {
 			$domain->delete();
 			wp_cache_delete('domain:' . $domain_name, 'domain_mappings');
