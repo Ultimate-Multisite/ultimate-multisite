@@ -246,6 +246,16 @@ class SSO {
 
 		add_filter('allowed_http_origins', [$this, 'add_additional_origins']);
 
+		/*
+		 * Domain_Mapping registers the network-owned redirect-host allow-list used
+		 * by wp_safe_redirect(). SSO grant requests can run in contexts where domain
+		 * mapping has not otherwise been instantiated, so load the singleton here
+		 * instead of duplicating its redirect-host logic.
+		 */
+		if (class_exists('\WP_Ultimo\Domain_Mapping')) {
+			\WP_Ultimo\Domain_Mapping::get_instance();
+		}
+
 		/**
 		 * Authorize a user via a bearer, and converts it into a regular cookie
 		 * authenticated user
