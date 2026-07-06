@@ -80,26 +80,45 @@ class Cron implements \WP_Ultimo\Interfaces\Singleton {
 		/*
 		 * Hourly check
 		 */
-		if ($this->has_recurring_hook_callback('wu_hourly') && wu_next_scheduled_action('wu_hourly') === false) {
-			$next_hour = strtotime(gmdate('Y-m-d H:00:00', strtotime('+1 hour')));
-
-			wu_schedule_recurring_action($next_hour, HOUR_IN_SECONDS, 'wu_hourly', [], 'wu_cron');
-		}
+		$next_hour = strtotime(gmdate('Y-m-d H:00:00', strtotime('+1 hour')));
+		$this->schedule_recurring_hook_when_needed('wu_hourly', $next_hour, HOUR_IN_SECONDS);
 
 		/*
 		 * Daily check
 		 */
-		if ($this->has_recurring_hook_callback('wu_daily') && wu_next_scheduled_action('wu_daily') === false) {
-			wu_schedule_recurring_action(strtotime('tomorrow'), DAY_IN_SECONDS, 'wu_daily', [], 'wu_cron');
-		}
+		$this->schedule_recurring_hook_when_needed('wu_daily', strtotime('tomorrow'), DAY_IN_SECONDS);
 
 		/*
 		 * Monthly check
 		 */
-		if ($this->has_recurring_hook_callback('wu_monthly') && wu_next_scheduled_action('wu_monthly') === false) {
-			$next_month = strtotime(gmdate('Y-m-01 00:00:00', strtotime('+1 month')));
+		$next_month = strtotime(gmdate('Y-m-01 00:00:00', strtotime('+1 month')));
+		$this->schedule_recurring_hook_when_needed('wu_monthly', $next_month, MONTH_IN_SECONDS);
+	}
 
-			wu_schedule_recurring_action($next_month, MONTH_IN_SECONDS, 'wu_monthly', [], 'wu_cron');
+	/**
+	 * Schedule recurring hooks only when they have callbacks.
+	 *
+	 * Existing no-callback recurring actions are cleaned up so Action Scheduler
+	 * does not keep retrying rows that cannot run any work.
+	 *
+	 * @since 2.5.2
+	 * @param string $hook Action Scheduler hook name.
+	 * @param int    $timestamp First run timestamp.
+	 * @param int    $interval Interval in seconds.
+	 * @return void
+	 */
+	private function schedule_recurring_hook_when_needed(string $hook, int $timestamp, int $interval): void {
+
+		if (false === $this->has_recurring_hook_callback($hook)) {
+			if (false !== wu_next_scheduled_action($hook, [], 'wu_cron')) {
+				wu_unschedule_all_actions($hook, [], 'wu_cron');
+			}
+
+			return;
+		}
+
+		if (false === wu_next_scheduled_action($hook, [], 'wu_cron')) {
+			wu_schedule_recurring_action($timestamp, $interval, $hook, [], 'wu_cron');
 		}
 	}
 
@@ -117,7 +136,7 @@ class Cron implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	private function has_recurring_hook_callback(string $hook): bool {
 
-		return has_action($hook) !== false;
+		return false !== has_action($hook);
 	}
 
 	/**

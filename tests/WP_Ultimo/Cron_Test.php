@@ -26,6 +26,18 @@ class Cron_Test extends WP_UnitTestCase {
 
 		parent::set_up();
 		$this->cron = Cron::get_instance();
+		wu_unschedule_all_actions('wu_monthly', [], 'wu_cron');
+	}
+
+	/**
+	 * Tear down test fixtures.
+	 */
+	public function tear_down(): void {
+
+		remove_action('wu_monthly', [$this, 'dummy_cron_callback']);
+		wu_unschedule_all_actions('wu_monthly', [], 'wu_cron');
+
+		parent::tear_down();
 	}
 
 	/**
@@ -106,6 +118,40 @@ class Cron_Test extends WP_UnitTestCase {
 	public function test_async_mark_membership_as_expired_invalid(): void {
 
 		$this->cron->async_mark_membership_as_expired(999999);
+
+		$this->assertTrue(true);
+	}
+
+	/**
+	 * Test create_schedules removes stale no-callback recurring actions.
+	 */
+	public function test_create_schedules_unschedules_no_callback_recurring_action(): void {
+
+		wu_schedule_recurring_action(time() + HOUR_IN_SECONDS, MONTH_IN_SECONDS, 'wu_monthly', [], 'wu_cron');
+
+		$this->assertNotFalse(wu_next_scheduled_action('wu_monthly', [], 'wu_cron'));
+
+		$this->cron->create_schedules();
+
+		$this->assertFalse(wu_next_scheduled_action('wu_monthly', [], 'wu_cron'));
+	}
+
+	/**
+	 * Test create_schedules keeps scheduling hooks that have callbacks.
+	 */
+	public function test_create_schedules_schedules_when_callback_exists(): void {
+
+		add_action('wu_monthly', [$this, 'dummy_cron_callback']);
+
+		$this->cron->create_schedules();
+
+		$this->assertNotFalse(wu_next_scheduled_action('wu_monthly', [], 'wu_cron'));
+	}
+
+	/**
+	 * Dummy callback for recurring cron tests.
+	 */
+	public function dummy_cron_callback(): void {
 
 		$this->assertTrue(true);
 	}
