@@ -246,6 +246,8 @@ class SSO {
 
 		add_filter('allowed_http_origins', [$this, 'add_additional_origins']);
 
+		add_filter('allowed_redirect_hosts', [$this, 'allow_sso_redirect_hosts'], 30, 2);
+
 		/**
 		 * Authorize a user via a bearer, and converts it into a regular cookie
 		 * authenticated user
@@ -1535,6 +1537,143 @@ class SSO {
 		}
 
 		return array_merge($allowed_origins, $additional_domains);
+	}
+
+	/**
+	 * Allow SSO redirects back to network-owned mapped domains.
+	 *
+	 * SSO grant requests run on the main site but often need to redirect back to
+	 * a broker hosted on a mapped domain. If the domain-mapping redirect-host
+	 * filter has not loaded in this request context, wp_safe_redirect() falls back
+	 * to the main-site admin URL, which sends anonymous visitors to the wrong
+	 * login page. Keep the redirect safe by only allowing hosts that belong to a
+	 * registered site or an Ultimate Multisite domain mapping.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string[] $allowed_hosts Currently allowed redirect hosts.
+	 * @param string   $host Host being validated by wp_safe_redirect().
+	 * @return string[] Updated allowed redirect hosts.
+	 */
+	public function allow_sso_redirect_hosts($allowed_hosts, $host): array {
+
+		$allowed_hosts = (array) $allowed_hosts;
+		$host          = $this->normalize_redirect_host((string) $host);
+
+		if (empty($host)) {
+			return array_values(array_unique($allowed_hosts));
+		}
+
+		foreach ($allowed_hosts as $allowed_host) {
+			$normalized_allowed_host = $this->normalize_redirect_host((string) $allowed_host);
+
+			if ($host === $normalized_allowed_host) {
+				return array_values(array_unique($allowed_hosts));
+			}
+		}
+
+		if ($this->is_network_owned_redirect_host($host)) {
+			$allowed_hosts = array_merge($allowed_hosts, $this->get_redirect_host_variants($host));
+		}
+
+		return array_values(array_unique(array_filter($allowed_hosts)));
+	}
+
+	/**
+	 * Normalize a redirect host for comparison.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $host Host to normalize.
+	 * @return string Normalized host without a port.
+	 */
+	private function normalize_redirect_host(string $host): string {
+
+		$host = strtolower(trim($host));
+		$host = rtrim($host, '.');
+		$host = (string) preg_replace('/:\d+$/', '', $host);
+
+		return $host;
+	}
+
+	/**
+	 * Return no-www and www host variants used by domain mapping lookups.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $host Host to expand.
+	 * @return string[] Host variants.
+	 */
+	private function get_redirect_host_variants(string $host): array {
+
+		$host = $this->normalize_redirect_host($host);
+
+		if (empty($host)) {
+			return [];
+		}
+
+		$hosts = [$host];
+
+		if (str_starts_with($host, 'www.')) {
+			$hosts[] = substr($host, 4);
+		} else {
+			$hosts[] = 'www.' . $host;
+		}
+
+		return array_values(array_unique(array_filter($hosts)));
+	}
+
+	/**
+	 * Check whether a redirect host belongs to this multisite network.
+	 *
+	 * @since 2.0.11
+	 *
+	 * @param string $host Host to check.
+	 * @return bool True when the host is registered or mapped on the network.
+	 */
+	private function is_network_owned_redirect_host(string $host): bool {
+
+		$hosts_to_check = $this->get_redirect_host_variants($host);
+
+		if (empty($hosts_to_check)) {
+			return false;
+		}
+
+		if (class_exists('\WP_Ultimo\Models\Domain')) {
+			$mapping = \WP_Ultimo\Models\Domain::get_by_domain($hosts_to_check);
+
+			if ($mapping && ! is_wp_error($mapping)) {
+				return true;
+			}
+		}
+
+		if (function_exists('get_site_by_path')) {
+			foreach ($hosts_to_check as $host_to_check) {
+				$site = get_site_by_path($host_to_check, '/');
+
+				if ($site instanceof \WP_Site) {
+					return true;
+				}
+			}
+		}
+
+		if (function_exists('get_sites')) {
+			foreach ($hosts_to_check as $host_to_check) {
+				$sites = get_sites(
+					[
+						'number' => 1,
+						'domain' => $host_to_check,
+						'fields' => 'ids',
+					]
+				);
+
+				if ( ! empty($sites)) {
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
 	/**
