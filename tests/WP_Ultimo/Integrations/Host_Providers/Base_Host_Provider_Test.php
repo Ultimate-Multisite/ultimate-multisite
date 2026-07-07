@@ -743,7 +743,11 @@ class Base_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_create_dns_record_returns_wp_error(): void {
 
-		$result = $this->provider->create_dns_record('example.com', ['type' => 'A', 'name' => 'test', 'content' => '1.2.3.4']);
+		$result = $this->provider->create_dns_record('example.com', [
+			'type'    => 'A',
+			'name'    => 'test',
+			'content' => '1.2.3.4',
+		]);
 
 		$this->assertInstanceOf(\WP_Error::class, $result);
 		$this->assertSame('dns-not-supported', $result->get_error_code());
@@ -758,7 +762,10 @@ class Base_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_update_dns_record_returns_wp_error(): void {
 
-		$result = $this->provider->update_dns_record('example.com', 'record-1', ['type' => 'A', 'content' => '1.2.3.5']);
+		$result = $this->provider->update_dns_record('example.com', 'record-1', [
+			'type'    => 'A',
+			'content' => '1.2.3.5',
+		]);
 
 		$this->assertInstanceOf(\WP_Error::class, $result);
 		$this->assertSame('dns-not-supported', $result->get_error_code());

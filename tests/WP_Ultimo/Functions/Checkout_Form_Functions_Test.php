@@ -139,7 +139,10 @@ class Checkout_Form_Functions_Test extends WP_UnitTestCase {
 	 */
 	public function test_wu_form_field_request_arg_template_selection(): void {
 
-		$field = ['type' => 'template_selection', 'id' => 'my_field'];
+		$field = [
+			'type' => 'template_selection',
+			'id'   => 'my_field',
+		];
 
 		$result = wu_form_field_request_arg($field);
 
@@ -151,7 +154,10 @@ class Checkout_Form_Functions_Test extends WP_UnitTestCase {
 	 */
 	public function test_wu_form_field_request_arg_pricing_table(): void {
 
-		$field = ['type' => 'pricing_table', 'id' => 'my_field'];
+		$field = [
+			'type' => 'pricing_table',
+			'id'   => 'my_field',
+		];
 
 		$result = wu_form_field_request_arg($field);
 
@@ -163,7 +169,10 @@ class Checkout_Form_Functions_Test extends WP_UnitTestCase {
 	 */
 	public function test_wu_form_field_request_arg_other_type(): void {
 
-		$field = ['type' => 'text', 'id' => 'my_custom_field'];
+		$field = [
+			'type' => 'text',
+			'id'   => 'my_custom_field',
+		];
 
 		$result = wu_form_field_request_arg($field);
 
@@ -176,9 +185,9 @@ class Checkout_Form_Functions_Test extends WP_UnitTestCase {
 	public function test_wu_should_hide_form_field_not_preselected(): void {
 
 		$field = [
-			'type'                                  => 'text',
-			'id'                                    => 'some_field',
-			'hide_text_when_pre_selected'           => '0',
+			'type'                        => 'text',
+			'id'                          => 'some_field',
+			'hide_text_when_pre_selected' => '0',
 		];
 
 		$result = wu_should_hide_form_field($field);

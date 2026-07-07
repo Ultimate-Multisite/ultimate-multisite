@@ -27,6 +27,6 @@ if (! in_array($strength, $valid, true)) {
 wu_save_setting('minimum_password_strength', $strength);
 
 echo wp_json_encode([
-	'success'  => true,
-	'setting'  => wu_get_setting('minimum_password_strength'),
+	'success' => true,
+	'setting' => wu_get_setting('minimum_password_strength'),
 ]);

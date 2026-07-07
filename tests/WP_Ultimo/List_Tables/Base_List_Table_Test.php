@@ -30,7 +30,7 @@ class Test_Concrete_List_Table extends Base_List_Table {
 	 *
 	 * @param array $args Table attributes.
 	 */
-	public function __construct( $args = [] ) {
+	public function __construct($args = []) {
 
 		$args = wp_parse_args(
 			$args,
@@ -76,7 +76,7 @@ class Test_Active_List_Table extends Base_List_Table {
 	 *
 	 * @param array $args Table attributes.
 	 */
-	public function __construct( $args = [] ) {
+	public function __construct($args = []) {
 
 		$args = wp_parse_args(
 			$args,
@@ -133,7 +133,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function tear_down(): void {
 
 		// Clean up request globals.
-		foreach ( [ 'orderby', 'order', 's', 'status', 'type', 'mode', 'page', 'id' ] as $key ) {
+		foreach ( ['orderby', 'order', 's', 'status', 'type', 'mode', 'page', 'id'] as $key ) {
 			unset( $_REQUEST[ $key ], $_GET[ $key ], $_POST[ $key ] );
 		}
 
@@ -203,7 +203,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 
 		$this->assertGreaterThan(
 			0,
-			has_action( 'admin_enqueue_scripts', [ $this->table, 'register_scripts' ] )
+			has_action( 'admin_enqueue_scripts', [$this->table, 'register_scripts'] )
 		);
 	}
 
@@ -214,7 +214,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 
 		$this->assertGreaterThan(
 			0,
-			has_action( 'in_admin_header', [ $this->table, 'add_default_screen_options' ] )
+			has_action( 'in_admin_header', [$this->table, 'add_default_screen_options'] )
 		);
 	}
 
@@ -578,7 +578,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'wu_bulk_actions',
-			function ( $actions, $id ) {
+			function ($actions, $id) {
 				$actions['custom_action'] = 'Custom Action';
 				return $actions;
 			},
@@ -603,7 +603,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_cb_returns_checkbox_html(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_id' ] )
+			->addMethods( ['get_id'] )
 			->getMock();
 		$item->method( 'get_id' )->willReturn( 42 );
 
@@ -624,7 +624,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_default_calls_getter_on_item(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_name' ] )
+			->addMethods( ['get_name'] )
 			->getMock();
 		$item->method( 'get_name' )->willReturn( 'Test Name' );
 
@@ -721,7 +721,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_featured_image_id_returns_placeholder_when_no_image(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_featured_image' ] )
+			->addMethods( ['get_featured_image'] )
 			->getMock();
 		$item->method( 'get_featured_image' )->willReturn( null );
 
@@ -737,11 +737,11 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_featured_image_id_returns_img_when_image_exists(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_featured_image' ] )
+			->addMethods( ['get_featured_image'] )
 			->getMock();
 		$item->method( 'get_featured_image' )
 			->willReturnCallback(
-				function ( $size ) {
+				function ($size) {
 					if ( 'thumbnail' === $size ) {
 						return 'https://example.com/thumb.jpg';
 					}
@@ -765,7 +765,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_membership_outputs_not_found_when_no_membership(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_membership' ] )
+			->addMethods( ['get_membership'] )
 			->getMock();
 		$item->method( 'get_membership' )->willReturn( null );
 
@@ -782,7 +782,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_membership_outputs_link_when_membership_exists(): void {
 
 		$membership = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_id', 'get_hash', 'get_price_description', 'get_status_class' ] )
+			->addMethods( ['get_id', 'get_hash', 'get_price_description', 'get_status_class'] )
 			->getMock();
 		$membership->method( 'get_id' )->willReturn( 5 );
 		$membership->method( 'get_hash' )->willReturn( 'HASH123' );
@@ -790,7 +790,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 		$membership->method( 'get_status_class' )->willReturn( 'wu-bg-green-500' );
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_membership' ] )
+			->addMethods( ['get_membership'] )
 			->getMock();
 		$item->method( 'get_membership' )->willReturn( $membership );
 
@@ -812,7 +812,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_customer_returns_not_found_when_no_customer(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_customer' ] )
+			->addMethods( ['get_customer'] )
 			->getMock();
 		$item->method( 'get_customer' )->willReturn( null );
 
@@ -827,7 +827,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_customer_returns_link_when_customer_exists(): void {
 
 		$customer = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_id', 'get_user_id', 'get_display_name', 'get_email_address' ] )
+			->addMethods( ['get_id', 'get_user_id', 'get_display_name', 'get_email_address'] )
 			->getMock();
 		$customer->method( 'get_id' )->willReturn( 3 );
 		$customer->method( 'get_user_id' )->willReturn( 1 );
@@ -835,7 +835,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 		$customer->method( 'get_email_address' )->willReturn( 'john@example.com' );
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_customer' ] )
+			->addMethods( ['get_customer'] )
 			->getMock();
 		$item->method( 'get_customer' )->willReturn( $customer );
 
@@ -855,7 +855,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_product_returns_not_found_when_no_product(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_plan' ] )
+			->addMethods( ['get_plan'] )
 			->getMock();
 		$item->method( 'get_plan' )->willReturn( null );
 
@@ -870,7 +870,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_product_returns_link_when_product_exists(): void {
 
 		$product = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_id', 'get_name', 'get_type', 'get_featured_image' ] )
+			->addMethods( ['get_id', 'get_name', 'get_type', 'get_featured_image'] )
 			->getMock();
 		$product->method( 'get_id' )->willReturn( 7 );
 		$product->method( 'get_name' )->willReturn( 'Pro Plan' );
@@ -878,7 +878,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 		$product->method( 'get_featured_image' )->willReturn( null );
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_plan' ] )
+			->addMethods( ['get_plan'] )
 			->getMock();
 		$item->method( 'get_plan' )->willReturn( $product );
 
@@ -894,7 +894,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_product_renders_image_when_product_has_image(): void {
 
 		$product = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_id', 'get_name', 'get_type', 'get_featured_image' ] )
+			->addMethods( ['get_id', 'get_name', 'get_type', 'get_featured_image'] )
 			->getMock();
 		$product->method( 'get_id' )->willReturn( 8 );
 		$product->method( 'get_name' )->willReturn( 'Premium Plan' );
@@ -902,7 +902,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 		$product->method( 'get_featured_image' )->willReturn( 'https://example.com/image.jpg' );
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_plan' ] )
+			->addMethods( ['get_plan'] )
 			->getMock();
 		$item->method( 'get_plan' )->willReturn( $product );
 
@@ -922,7 +922,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_blog_id_returns_not_found_when_no_site(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_site' ] )
+			->addMethods( ['get_site'] )
 			->getMock();
 		$item->method( 'get_site' )->willReturn( null );
 
@@ -937,7 +937,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_blog_id_returns_link_when_site_exists(): void {
 
 		$site = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_id', 'get_title', 'get_featured_image', 'get_active_site_url' ] )
+			->addMethods( ['get_id', 'get_title', 'get_featured_image', 'get_active_site_url'] )
 			->getMock();
 		$site->method( 'get_id' )->willReturn( 2 );
 		$site->method( 'get_title' )->willReturn( 'My Site' );
@@ -945,7 +945,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 		$site->method( 'get_active_site_url' )->willReturn( 'https://mysite.example.com' );
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_site' ] )
+			->addMethods( ['get_site'] )
 			->getMock();
 		$item->method( 'get_site' )->willReturn( $site );
 
@@ -969,7 +969,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_payment_outputs_not_found_when_no_payment(): void {
 
 		$payment = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_id', 'get_hash', 'get_total', 'get_currency', 'get_status_class' ] )
+			->addMethods( ['get_id', 'get_hash', 'get_total', 'get_currency', 'get_status_class'] )
 			->getMock();
 		$payment->method( 'get_id' )->willReturn( null );
 		$payment->method( 'get_hash' )->willReturn( '' );
@@ -978,7 +978,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 		$payment->method( 'get_status_class' )->willReturn( '' );
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_payment' ] )
+			->addMethods( ['get_payment'] )
 			->getMock();
 		// Return a mock payment that simulates the "not found" display path
 		// by returning a payment with null ID (to avoid the null dereference bug).
@@ -998,7 +998,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_payment_outputs_link_when_payment_exists(): void {
 
 		$payment = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_id', 'get_hash', 'get_total', 'get_currency', 'get_status_class' ] )
+			->addMethods( ['get_id', 'get_hash', 'get_total', 'get_currency', 'get_status_class'] )
 			->getMock();
 		$payment->method( 'get_id' )->willReturn( 10 );
 		$payment->method( 'get_hash' )->willReturn( 'PAY123' );
@@ -1007,7 +1007,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 		$payment->method( 'get_status_class' )->willReturn( 'wu-bg-green-500' );
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_payment' ] )
+			->addMethods( ['get_payment'] )
 			->getMock();
 		$item->method( 'get_payment' )->willReturn( $payment );
 
@@ -1132,7 +1132,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 
 		$this->assertIsArray( $options );
 
-		$expected_keys = [ 'all', 'today', 'yesterday', 'last_week', 'last_month', 'current_month', 'last_year', 'year_to_date', 'custom' ];
+		$expected_keys = ['all', 'today', 'yesterday', 'last_week', 'last_month', 'current_month', 'last_year', 'year_to_date', 'custom'];
 
 		foreach ( $expected_keys as $key ) {
 			$this->assertArrayHasKey( $key, $options, "Missing key: {$key}" );
@@ -1321,7 +1321,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	 */
 	public function test_has_items_returns_true_when_items_set(): void {
 
-		$this->table->items = [ new \stdClass() ];
+		$this->table->items = [new \stdClass()];
 
 		$result = $this->table->has_items();
 
@@ -1339,7 +1339,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'wu_list_row_actions',
-			function ( $actions, $id ) {
+			function ($actions, $id) {
 				$actions['custom'] = '<a href="#">Custom</a>';
 				return $actions;
 			},
@@ -1353,7 +1353,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 
 		$result = $method->invoke(
 			$this->table,
-			[ 'edit' => '<a href="#">Edit</a>' ]
+			['edit' => '<a href="#">Edit</a>']
 		);
 
 		// The filter was applied (custom action added), then parent::row_actions renders HTML.
@@ -1480,7 +1480,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 		$method     = $reflection->getMethod( 'get_schema_columns' );
 		$method->setAccessible( true );
 
-		$columns = $method->invoke( $this->table, [ 'searchable' => true ] );
+		$columns = $method->invoke( $this->table, ['searchable' => true] );
 
 		$this->assertIsArray( $columns );
 
@@ -1498,7 +1498,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 		$method     = $reflection->getMethod( 'get_schema_columns' );
 		$method->setAccessible( true );
 
-		$columns = $method->invoke( $this->table, [ 'sortable' => true ] );
+		$columns = $method->invoke( $this->table, ['sortable' => true] );
 
 		$this->assertIsArray( $columns );
 	}
@@ -1596,7 +1596,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_display_calls_display_view_when_items_exist(): void {
 
 		$table = $this->getMockBuilder( Test_Concrete_List_Table::class )
-			->onlyMethods( [ 'has_items', 'display_view_list' ] )
+			->onlyMethods( ['has_items', 'display_view_list'] )
 			->getMock();
 		$table->method( 'has_items' )->willReturn( true );
 		$table->expects( $this->once() )->method( 'display_view_list' );
@@ -1611,7 +1611,7 @@ class Base_List_Table_Test extends WP_UnitTestCase {
 	public function test_display_calls_display_view_list_in_list_mode(): void {
 
 		$table = $this->getMockBuilder( Test_Concrete_List_Table::class )
-			->onlyMethods( [ 'has_items', 'display_view_list' ] )
+			->onlyMethods( ['has_items', 'display_view_list'] )
 			->getMock();
 		$table->method( 'has_items' )->willReturn( true );
 		$table->expects( $this->once() )->method( 'display_view_list' );

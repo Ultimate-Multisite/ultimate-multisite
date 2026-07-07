@@ -140,7 +140,7 @@ class Danger_Functions_Test extends WP_UnitTestCase {
 		add_filter(
 			'wu_drop_tables_except',
 			function ($except) use (&$captured_except) {
-				$except[]       = 'custom_table';
+				$except[]        = 'custom_table';
 				$captured_except = $except;
 				return $except;
 			}

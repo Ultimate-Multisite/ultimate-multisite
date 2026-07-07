@@ -302,7 +302,7 @@ class Manual_Gateway_Test extends \WP_UnitTestCase {
 		$gateway = $this->get_gateway();
 
 		// Use a simple object as a stand-in for a cart
-		$cart = new \stdClass();
+		$cart       = new \stdClass();
 		$cart->test = 'value';
 
 		$swap_id = $gateway->save_swap($cart);

@@ -62,11 +62,17 @@ class RunCloud_Domain_Mapping_Test extends WP_UnitTestCase {
 					$this->assertSame('example.com', $data['name']);
 					$this->assertSame('alias', $data['type']);
 
-					return ['response' => ['code' => 200], 'body' => '{"id":1}'];
+					return [
+						'response' => ['code' => 200],
+						'body'     => '{"id":1}',
+					];
 				}
 
 				// GET requests for SSL
-				return ['response' => ['code' => 200], 'body' => '{}'];
+				return [
+					'response' => ['code' => 200],
+					'body'     => '{}',
+				];
 			});
 
 		$this->module->on_add_domain('example.com', 1);
@@ -101,7 +107,10 @@ class RunCloud_Domain_Mapping_Test extends WP_UnitTestCase {
 
 		$this->integration->expects($this->atLeast(1))
 			->method('send_runcloud_request')
-			->willReturn(['response' => ['code' => 200], 'body' => '{"data":{}}']);
+			->willReturn([
+				'response' => ['code' => 200],
+				'body'     => '{"data":{}}',
+			]);
 
 		$result = $this->module->test_connection();
 

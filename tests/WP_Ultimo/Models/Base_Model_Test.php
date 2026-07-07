@@ -59,8 +59,8 @@ class Base_Model_Test extends WP_UnitTestCase {
 	 */
 	public function test_constructor_accepts_stdclass(): void {
 
-		$user_id = self::factory()->user->create();
-		$obj     = new \stdClass();
+		$user_id      = self::factory()->user->create();
+		$obj          = new \stdClass();
 		$obj->user_id = $user_id;
 
 		$customer = new Customer($obj);

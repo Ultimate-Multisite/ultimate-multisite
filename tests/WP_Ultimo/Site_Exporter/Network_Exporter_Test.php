@@ -186,5 +186,3 @@ class Network_Exporter_Test extends WP_UnitTestCase {
 		rmdir($dir);
 	}
 }
-
-

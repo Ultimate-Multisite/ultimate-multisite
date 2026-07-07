@@ -468,7 +468,10 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * Test events_query_filter preserves existing args.
 	 */
 	public function test_events_query_filter_preserves_existing_args(): void {
-		$args   = ['existing_key' => 'existing_value', 'number' => 10];
+		$args   = [
+			'existing_key' => 'existing_value',
+			'number'       => 10,
+		];
 		$result = $this->page->events_query_filter($args);
 
 		$this->assertEquals('existing_value', $result['existing_key']);
@@ -536,7 +539,10 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * Test payments_query_filter preserves existing args.
 	 */
 	public function test_payments_query_filter_preserves_existing_args(): void {
-		$args   = ['number' => 20, 'status' => 'completed'];
+		$args   = [
+			'number' => 20,
+			'status' => 'completed',
+		];
 		$result = $this->page->payments_query_filter($args);
 
 		$this->assertEquals(20, $result['number']);

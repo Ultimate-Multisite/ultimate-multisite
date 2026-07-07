@@ -102,7 +102,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 		$this->http_response = null;
 
 		// Install HTTP interceptor
-		add_filter( 'pre_http_request', [ $this, 'intercept_http_request' ], 10, 3 );
+		add_filter( 'pre_http_request', [$this, 'intercept_http_request'], 10, 3 );
 	}
 
 	/**
@@ -110,7 +110,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function tear_down(): void {
 
-		remove_filter( 'pre_http_request', [ $this, 'intercept_http_request' ] );
+		remove_filter( 'pre_http_request', [$this, 'intercept_http_request'] );
 
 		parent::tear_down();
 	}
@@ -127,7 +127,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 	 * @param string                $url      Request URL.
 	 * @return false|array|\WP_Error
 	 */
-	public function intercept_http_request( $preempt, $args, $url ) {
+	public function intercept_http_request($preempt, $args, $url) {
 
 		$this->http_requests[] = [
 			'url'  => $url,
@@ -153,7 +153,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 	 * @param string $body Response body.
 	 * @return array
 	 */
-	private function make_http_response( int $code, string $body ): array {
+	private function make_http_response(int $code, string $body): array {
 
 		return [
 			'headers'       => [],
@@ -180,7 +180,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 	 *
 	 * @param mixed $data Data to JSON-encode.
 	 */
-	private function queue_json( $data ): void {
+	private function queue_json($data): void {
 
 		$this->http_response = $this->make_http_response( 200, wp_json_encode( $data ) );
 	}
@@ -191,7 +191,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 	 * @param int    $code HTTP status code.
 	 * @param string $body Response body.
 	 */
-	private function queue_http_error( int $code, string $body ): void {
+	private function queue_http_error(int $code, string $body): void {
 
 		$this->http_response = $this->make_http_response( $code, $body );
 	}
@@ -201,7 +201,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 	 *
 	 * @param string $message Error message.
 	 */
-	private function queue_wp_error( string $message = 'Connection refused' ): void {
+	private function queue_wp_error(string $message = 'Connection refused'): void {
 
 		$this->http_response = new \WP_Error( 'http_request_failed', $message );
 	}
@@ -477,7 +477,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 		// Only one request (the primary alias); no www. prefix added
 		$www_requests = array_filter(
 			$this->http_requests,
-			function ( $req ) {
+			function ($req) {
 				return isset( $req['args']['body']['arg3'] ) && str_starts_with( $req['args']['body']['arg3'], 'www.www.' );
 			}
 		);
@@ -542,7 +542,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 		// Should only have 1 request (no www.www.)
 		$www_www_requests = array_filter(
 			$this->http_requests,
-			function ( $req ) {
+			function ($req) {
 				return isset( $req['args']['body']['arg3'] ) && str_starts_with( $req['args']['body']['arg3'], 'www.www.' );
 			}
 		);
@@ -581,7 +581,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 		$this->queue_wp_error( 'Connection refused' );
 
 		$method = $this->get_send_request_method();
-		$result = $method->invoke( $this->provider, 'v-list-web-domains', [ 'admin' ] );
+		$result = $method->invoke( $this->provider, 'v-list-web-domains', ['admin'] );
 
 		$this->assertInstanceOf( \WP_Error::class, $result );
 	}
@@ -594,7 +594,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 		$this->queue_success();
 
 		$method = $this->get_send_request_method();
-		$result = $method->invoke( $this->provider, 'v-add-web-domain-alias', [ 'admin', 'mysite.com', 'example.com', 'yes' ] );
+		$result = $method->invoke( $this->provider, 'v-add-web-domain-alias', ['admin', 'mysite.com', 'example.com', 'yes'] );
 
 		$this->assertSame( '0', $result );
 	}
@@ -618,11 +618,18 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_send_hestia_request_decodes_json_response(): void {
 
-		$data = [ 'DOMAIN1' => [ 'TYPE' => 'A', 'RECORD' => '@', 'VALUE' => '1.2.3.4', 'TTL' => 3600 ] ];
+		$data = [
+			'DOMAIN1' => [
+				'TYPE'   => 'A',
+				'RECORD' => '@',
+				'VALUE'  => '1.2.3.4',
+				'TTL'    => 3600,
+			],
+		];
 		$this->queue_json( $data );
 
 		$method = $this->get_send_request_method();
-		$result = $method->invoke( $this->provider, 'v-list-dns-records', [ 'admin', 'example.com', 'json' ] );
+		$result = $method->invoke( $this->provider, 'v-list-dns-records', ['admin', 'example.com', 'json'] );
 
 		$this->assertIsObject( $result );
 	}
@@ -649,7 +656,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 		$this->queue_success();
 
 		$method = $this->get_send_request_method();
-		$method->invoke( $this->provider, 'v-test-cmd', [ 'first', 'second', 'third' ] );
+		$method->invoke( $this->provider, 'v-test-cmd', ['first', 'second', 'third'] );
 
 		$body = $this->http_requests[0]['args']['body'];
 		$this->assertSame( 'first', $body['arg1'] );
@@ -716,7 +723,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 		$method->setAccessible( true );
 
 		// Should not throw
-		$method->invoke( $this->provider, 'v-add-web-domain-alias', [ 'admin', 'mysite.com', 'example.com', 'yes' ], 'Add alias example.com' );
+		$method->invoke( $this->provider, 'v-add-web-domain-alias', ['admin', 'mysite.com', 'example.com', 'yes'], 'Add alias example.com' );
 
 		$this->assertCount( 1, $this->http_requests );
 	}
@@ -806,10 +813,10 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 				'TTL'    => 3600,
 			],
 			'2' => (object) [
-				'TYPE'   => 'MX',
-				'RECORD' => '@',
-				'VALUE'  => 'mail.example.com',
-				'TTL'    => 3600,
+				'TYPE'     => 'MX',
+				'RECORD'   => '@',
+				'VALUE'    => 'mail.example.com',
+				'TTL'      => 3600,
 				'PRIORITY' => 10,
 			],
 		];
@@ -892,7 +899,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 		$call_count = 0;
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$call_count ) {
+			function ($preempt, $args, $url) use (&$call_count) {
 				++$call_count;
 				if ( 1 === $call_count ) {
 					return $this->make_http_response( 200, '0' );
@@ -925,7 +932,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 
 		remove_all_filters( 'pre_http_request' );
 		// Re-add our main interceptor for subsequent tests
-		add_filter( 'pre_http_request', [ $this, 'intercept_http_request' ], 10, 3 );
+		add_filter( 'pre_http_request', [$this, 'intercept_http_request'], 10, 3 );
 
 		$this->assertIsArray( $result );
 		$this->assertArrayHasKey( 'type', $result );
@@ -979,11 +986,14 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 		$call_count = 0;
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$call_count ) {
+			function ($preempt, $args, $url) use (&$call_count) {
 				++$call_count;
 				if ( 1 === $call_count ) {
 					// Capture the body for assertion
-					$this->http_requests[] = [ 'url' => $url, 'args' => $args ];
+					$this->http_requests[] = [
+						'url'  => $url,
+						'args' => $args,
+					];
 
 					return $this->make_http_response( 200, '0' );
 				}
@@ -1005,7 +1015,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 		$this->provider->create_dns_record( 'example.com', $record );
 
 		remove_all_filters( 'pre_http_request' );
-		add_filter( 'pre_http_request', [ $this, 'intercept_http_request' ], 10, 3 );
+		add_filter( 'pre_http_request', [$this, 'intercept_http_request'], 10, 3 );
 
 		if ( ! empty( $this->http_requests ) ) {
 			$body = $this->http_requests[0]['args']['body'];
@@ -1025,7 +1035,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 		$call_count = 0;
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$call_count ) {
+			function ($preempt, $args, $url) use (&$call_count) {
 				++$call_count;
 				if ( 1 === $call_count ) {
 					return $this->make_http_response( 200, '0' );
@@ -1047,7 +1057,7 @@ class Hestia_Host_Provider_Test extends WP_UnitTestCase {
 		$result = $this->provider->create_dns_record( 'example.com', $record );
 
 		remove_all_filters( 'pre_http_request' );
-		add_filter( 'pre_http_request', [ $this, 'intercept_http_request' ], 10, 3 );
+		add_filter( 'pre_http_request', [$this, 'intercept_http_request'], 10, 3 );
 
 		$this->assertIsArray( $result );
 		$this->assertArrayHasKey( 'type', $result );

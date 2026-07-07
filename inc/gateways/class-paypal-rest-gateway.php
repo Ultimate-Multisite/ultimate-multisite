@@ -747,9 +747,9 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 				'wu_paypal_api_error',
 				$error_msg,
 				[
-					'status'    => $code,
-					'response'  => $body,
-					'debug_id'  => $debug_id,
+					'status'   => $code,
+					'response' => $body,
+					'debug_id' => $debug_id,
 				]
 			);
 		}
@@ -1114,7 +1114,7 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 					'email_address'      => $customer->get_email_address(),
 				],
 			],
-			'purchase_units' => [ $purchase_unit ],
+			'purchase_units' => [$purchase_unit],
 		];
 
 		/**
@@ -1944,27 +1944,6 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 
 		// Enqueue the connect/disconnect scripts
 		$this->enqueue_connect_scripts();
-
-		// Fee notice (mirrors Stripe Connect fee notice)
-//		if (! \WP_Ultimo::get_instance()->get_addon_repository()->has_addon_purchase()) {
-//			printf(
-//				'<div class="wu-py-3">%s <br><a href="%s" target="_blank" rel="noopener">%s</a></div>',
-//				esc_html(
-//					sprintf(
-//						/* translators: %s: the fee percentage */
-//						__('There is a %s%% fee per-transaction to use the PayPal integration included in the free Ultimate Multisite plugin.', 'ultimate-multisite'),
-//						number_format_i18n($this->get_platform_fee_percent(), 0)
-//					)
-//				),
-//				esc_url(network_admin_url('admin.php?page=wp-ultimo-addons')),
-//				esc_html__('Remove this fee by purchasing any addon and connecting your store.', 'ultimate-multisite')
-//			);
-//		} else {
-//			printf(
-//				'<p class="wu-text-xs wu-text-green-700 wu-mt-2">%s</p>',
-//				esc_html__('No application fee — thank you for your support!', 'ultimate-multisite')
-//			);
-//		}
 	}
 
 	/**
@@ -2229,9 +2208,9 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 		// Subscription is ACTIVE — try to find the transaction ID for the first payment.
 		$gateway_payment_id = '';
 
-		$start_time     = gmdate('Y-m-d\TH:i:s\Z', strtotime('-1 day'));
-		$end_time       = gmdate('Y-m-d\TH:i:s\Z');
-		$transactions   = $this->api_request(
+		$start_time   = gmdate('Y-m-d\TH:i:s\Z', strtotime('-1 day'));
+		$end_time     = gmdate('Y-m-d\TH:i:s\Z');
+		$transactions = $this->api_request(
 			sprintf('/v1/billing/subscriptions/%s/transactions?start_time=%s&end_time=%s', $subscription_id, $start_time, $end_time),
 			[],
 			'GET'

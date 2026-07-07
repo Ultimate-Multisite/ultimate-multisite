@@ -215,7 +215,7 @@ class Customer_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_customer_status_returns_html(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'is_vip', 'get_user_id' ] )
+			->addMethods( ['is_vip', 'get_user_id'] )
 			->getMock();
 		$item->method( 'is_vip' )->willReturn( false );
 		$item->method( 'get_user_id' )->willReturn( 1 );
@@ -232,7 +232,7 @@ class Customer_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_customer_status_includes_vip_tag(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'is_vip', 'get_user_id' ] )
+			->addMethods( ['is_vip', 'get_user_id'] )
 			->getMock();
 		$item->method( 'is_vip' )->willReturn( true );
 		$item->method( 'get_user_id' )->willReturn( 1 );
@@ -252,7 +252,7 @@ class Customer_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_last_login_returns_online_for_online_customer(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'is_online', 'get_last_login' ] )
+			->addMethods( ['is_online', 'get_last_login'] )
 			->getMock();
 		$item->method( 'is_online' )->willReturn( true );
 
@@ -267,7 +267,7 @@ class Customer_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_last_login_returns_datetime_for_offline_customer(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'is_online', 'get_last_login' ] )
+			->addMethods( ['is_online', 'get_last_login'] )
 			->getMock();
 		$item->method( 'is_online' )->willReturn( false );
 		$item->method( 'get_last_login' )->willReturn( '2024-01-15 10:00:00' );

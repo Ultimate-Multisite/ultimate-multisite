@@ -474,9 +474,18 @@ class External_Cron_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_get_service_status_always_has_required_keys(): void {
 
 		$scenarios = array(
-			array('site_id' => '', 'enabled' => false),
-			array('site_id' => 'abc', 'enabled' => false),
-			array('site_id' => 'abc', 'enabled' => true),
+			array(
+				'site_id' => '',
+				'enabled' => false,
+			),
+			array(
+				'site_id' => 'abc',
+				'enabled' => false,
+			),
+			array(
+				'site_id' => 'abc',
+				'enabled' => true,
+			),
 		);
 
 		foreach ($scenarios as $scenario) {
@@ -861,7 +870,10 @@ class External_Cron_Admin_Page_Test extends WP_UnitTestCase {
 		// Mock HTTP to avoid real API calls.
 		add_filter('pre_http_request', function () {
 			return array(
-				'response' => array('code' => 200, 'message' => 'OK'),
+				'response' => array(
+					'code'    => 200,
+					'message' => 'OK',
+				),
 				'body'     => wp_json_encode(array()),
 				'headers'  => array(),
 			);
@@ -897,7 +909,10 @@ class External_Cron_Admin_Page_Test extends WP_UnitTestCase {
 		// Mock HTTP to avoid real API calls.
 		add_filter('pre_http_request', function () {
 			return array(
-				'response' => array('code' => 200, 'message' => 'OK'),
+				'response' => array(
+					'code'    => 200,
+					'message' => 'OK',
+				),
 				'body'     => wp_json_encode(array()),
 				'headers'  => array(),
 			);
@@ -1089,7 +1104,7 @@ class External_Cron_Admin_Page_Test extends WP_UnitTestCase {
 		add_filter('wp_doing_ajax', '__return_true');
 
 		$handler = function () {
-			return function ( $message ) {
+			return function ($message) {
 				throw new \WPAjaxDieContinueException( (string) $message );
 			};
 		};
@@ -1105,7 +1120,7 @@ class External_Cron_Admin_Page_Test extends WP_UnitTestCase {
 	 * @param callable $handler The handler returned by install_ajax_die_handler().
 	 * @return void
 	 */
-	private function remove_ajax_die_handler( callable $handler ): void {
+	private function remove_ajax_die_handler(callable $handler): void {
 
 		remove_filter('wp_doing_ajax', '__return_true');
 		remove_filter('wp_die_ajax_handler', $handler, 1);

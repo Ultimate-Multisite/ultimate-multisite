@@ -14,7 +14,7 @@ class Plugin_Limits_Test extends \WP_UnitTestCase {
 	 */
 	private function get_instance() {
 
-		$ref = new \ReflectionClass(Plugin_Limits::class);
+		$ref      = new \ReflectionClass(Plugin_Limits::class);
 		$instance = $ref->newInstanceWithoutConstructor();
 
 		return $instance;
@@ -56,8 +56,14 @@ class Plugin_Limits_Test extends \WP_UnitTestCase {
 		$instance = $this->get_instance();
 
 		$plugins = [
-			'plugin1/plugin1.php' => ['Name' => 'Plugin 1', 'Network' => false],
-			'plugin2/plugin2.php' => ['Name' => 'Plugin 2', 'Network' => false],
+			'plugin1/plugin1.php' => [
+				'Name'    => 'Plugin 1',
+				'Network' => false,
+			],
+			'plugin2/plugin2.php' => [
+				'Name'    => 'Plugin 2',
+				'Network' => false,
+			],
 		];
 
 		$result = $instance->clear_plugin_list($plugins);
@@ -170,7 +176,10 @@ class Plugin_Limits_Test extends \WP_UnitTestCase {
 
 		$instance = $this->get_instance();
 
-		$actions = ['activate' => 'Activate', 'deactivate' => 'Deactivate'];
+		$actions = [
+			'activate'   => 'Activate',
+			'deactivate' => 'Deactivate',
+		];
 
 		$result = $instance->clear_actions($actions, 'plugin/plugin.php');
 

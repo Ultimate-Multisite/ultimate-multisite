@@ -516,7 +516,7 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_register_scripts_does_not_enqueue_on_wrong_screen(): void {
 
-		$block_ui_enqueued    = wp_script_is('wu-block-ui', 'enqueued');
+		$block_ui_enqueued     = wp_script_is('wu-block-ui', 'enqueued');
 		$wizard_extra_enqueued = wp_script_is('wu-setup-wizard-extra', 'enqueued');
 
 		$GLOBALS['current_screen'] = \WP_Screen::get('dashboard');

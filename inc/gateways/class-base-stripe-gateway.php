@@ -2940,7 +2940,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 					* Subscription payment received.
 					*/
 				} else {
-					$invoice_currency = strtoupper($invoice->currency ?? 'USD');
+					$invoice_currency                   = strtoupper($invoice->currency ?? 'USD');
 					$payment_data['total']              = $invoice->total / wu_stripe_get_currency_multiplier($invoice_currency);
 					$payment_data['subtotal']           = ($invoice->total_excluding_tax / wu_stripe_get_currency_multiplier($invoice_currency)) - $payment_data['discount_total'];
 					$payment_data['tax_total']          = $invoice->tax / wu_stripe_get_currency_multiplier($invoice_currency);
@@ -3317,7 +3317,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 								$expiration = '';
 							}
 
-						$new_status = 'trialing' === $stripe_status ? Membership_Status::TRIALING : Membership_Status::ACTIVE;
+							$new_status = 'trialing' === $stripe_status ? Membership_Status::TRIALING : Membership_Status::ACTIVE;
 
 							/*
 							 * Use reactivate() for expired/cancelled memberships so that

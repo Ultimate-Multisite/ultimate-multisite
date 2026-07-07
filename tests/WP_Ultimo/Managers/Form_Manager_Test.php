@@ -56,7 +56,7 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 		add_filter('wp_doing_ajax', '__return_true');
 
 		$handler = function () {
-			return function ( $message ) {
+			return function ($message) {
 				throw new \WPAjaxDieContinueException( (string) $message );
 			};
 		};
@@ -72,7 +72,7 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 	 * @param callable $handler The handler returned by install_ajax_die_handler().
 	 * @return void
 	 */
-	private function remove_ajax_die_handler( callable $handler ): void {
+	private function remove_ajax_die_handler(callable $handler): void {
 
 		remove_filter('wp_doing_ajax', '__return_true');
 		remove_filter('wp_die_ajax_handler', $handler, 1);
@@ -84,7 +84,7 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 	 * @param callable $callable The callable to invoke.
 	 * @return array{output: string, exception: bool}
 	 */
-	private function call_in_ajax_context( callable $callable ): array {
+	private function call_in_ajax_context(callable $callable): array {
 
 		if (defined('REST_REQUEST') && REST_REQUEST) {
 			$this->setExpectedIncorrectUsage('wp_send_json');
@@ -800,9 +800,9 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 
 		$manager = $this->get_manager_instance();
 
-		$_REQUEST['bulk_action']  = 'delete';
-		$_REQUEST['model']        = 'customer';
-		$_REQUEST['bulk-delete']  = ['1', '2', '3'];
+		$_REQUEST['bulk_action'] = 'delete';
+		$_REQUEST['model']       = 'customer';
+		$_REQUEST['bulk-delete'] = ['1', '2', '3'];
 
 		ob_start();
 		$manager->render_bulk_action_form();
@@ -821,9 +821,9 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 
 		$manager = $this->get_manager_instance();
 
-		$_REQUEST['bulk_action']  = 'activate';
-		$_REQUEST['model']        = 'membership';
-		$_REQUEST['bulk-delete']  = [];
+		$_REQUEST['bulk_action'] = 'activate';
+		$_REQUEST['model']       = 'membership';
+		$_REQUEST['bulk-delete'] = [];
 
 		ob_start();
 		$manager->render_bulk_action_form();
@@ -859,7 +859,7 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 
 		add_action(
 			'wu_handle_bulk_action_form',
-			function ( $action, $model, $ids ) use ( &$generic_fired ) {
+			function ($action, $model, $ids) use (&$generic_fired) {
 				$generic_fired = true;
 			},
 			10,
@@ -890,7 +890,7 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 
 		add_action(
 			'wu_handle_bulk_action_form_customer_delete',
-			function ( $action, $model, $ids ) use ( &$specific_fired ) {
+			function ($action, $model, $ids) use (&$specific_fired) {
 				$specific_fired = true;
 			},
 			10,
@@ -922,7 +922,7 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 
 		add_action(
 			'wu_handle_bulk_action_form',
-			function ( $action, $model, $ids ) use ( &$received_ids ) {
+			function ($action, $model, $ids) use (&$received_ids) {
 				$received_ids = $ids;
 			},
 			10,
@@ -955,7 +955,7 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 
 		add_action(
 			'wu_handle_bulk_action_form',
-			function ( $action, $model, $ids ) use ( &$received_action, &$received_model ) {
+			function ($action, $model, $ids) use (&$received_action, &$received_model) {
 				$received_action = $action;
 				$received_model  = $model;
 			},
@@ -984,7 +984,7 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 	 * @param callable $callable The callable to invoke.
 	 * @return array{output: string, exception: bool}
 	 */
-	private function run_in_ajax_context( callable $callable ): array {
+	private function run_in_ajax_context(callable $callable): array {
 
 		return $this->call_in_ajax_context($callable);
 	}
@@ -1007,7 +1007,7 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 		$_REQUEST['ids']         = '1,2,3';
 
 		$result = $this->run_in_ajax_context(
-			function () use ( $manager ) {
+			function () use ($manager) {
 				$manager->default_bulk_action_handler('delete', 'customer', ['1', '2', '3']);
 			}
 		);
@@ -1037,7 +1037,7 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 		$ids = ['1', '2', '3'];
 
 		$result = $this->run_in_ajax_context(
-			function () use ( $manager, $ids ) {
+			function () use ($manager, $ids) {
 				$manager->default_bulk_action_handler('delete', 'customer', $ids);
 			}
 		);
@@ -1063,7 +1063,7 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 		$_REQUEST['ids']         = '';
 
 		$result = $this->run_in_ajax_context(
-			function () use ( $manager ) {
+			function () use ($manager) {
 				$manager->default_bulk_action_handler('delete', 'customer', []);
 			}
 		);
@@ -1118,7 +1118,7 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 		unset($_SERVER['HTTP_X_REQUESTED_WITH']);
 
 		$die_handler = function () {
-			return function ( $message ) {
+			return function ($message) {
 				throw new \WPDieException( (string) $message );
 			};
 		};
@@ -1200,7 +1200,7 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 		$_REQUEST['ids']         = '1,2,3';
 
 		$result = $this->run_in_ajax_context(
-			function () use ( $manager ) {
+			function () use ($manager) {
 				$manager->default_bulk_action_handler('delete', 'nonexistent_model_xyz', ['1', '2', '3']);
 			}
 		);

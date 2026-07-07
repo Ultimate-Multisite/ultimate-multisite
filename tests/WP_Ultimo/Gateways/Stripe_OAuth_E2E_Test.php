@@ -50,7 +50,7 @@ class Stripe_OAuth_E2E_Test extends \WP_UnitTestCase {
 
 		// Verify account ID is loaded
 		$reflection = new \ReflectionClass($gateway);
-		$property = $reflection->getProperty('oauth_account_id');
+		$property   = $reflection->getProperty('oauth_account_id');
 		$property->setAccessible(true);
 		$this->assertEquals('acct_test_xyz789', $property->getValue($gateway));
 	}
@@ -72,7 +72,7 @@ class Stripe_OAuth_E2E_Test extends \WP_UnitTestCase {
 
 		// Access oauth_account_id via reflection
 		$reflection = new \ReflectionClass($gateway);
-		$property = $reflection->getProperty('oauth_account_id');
+		$property   = $reflection->getProperty('oauth_account_id');
 		$property->setAccessible(true);
 
 		// Verify account ID is set
@@ -104,7 +104,7 @@ class Stripe_OAuth_E2E_Test extends \WP_UnitTestCase {
 		$this->assertEquals('oauth', $gateway->get_authentication_mode());
 
 		// Verify account ID is loaded
-		$reflection = new \ReflectionClass($gateway);
+		$reflection       = new \ReflectionClass($gateway);
 		$account_property = $reflection->getProperty('oauth_account_id');
 		$account_property->setAccessible(true);
 		$this->assertEquals('acct_connected_xyz', $account_property->getValue($gateway));

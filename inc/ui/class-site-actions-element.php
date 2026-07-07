@@ -1397,7 +1397,7 @@ class Site_Actions_Element extends Base_Element {
 
 		$customer = wu_get_current_customer();
 
-		if ( ! is_super_admin() && ( ! $customer || $customer->get_id() !== $membership->get_customer_id())) {
+		if ( ! is_super_admin() && (! $customer || $customer->get_id() !== $membership->get_customer_id())) {
 			$error = __('You are not allowed to do this.', 'ultimate-multisite');
 		}
 
@@ -1488,7 +1488,7 @@ class Site_Actions_Element extends Base_Element {
 
 		$customer = wu_get_current_customer();
 
-		if ( ! is_super_admin() && ( ! $customer || $customer->get_id() !== $membership->get_customer_id())) {
+		if ( ! is_super_admin() && (! $customer || $customer->get_id() !== $membership->get_customer_id())) {
 			$error = new \WP_Error('error', __('You are not allowed to do this.', 'ultimate-multisite'));
 
 			wp_send_json_error($error);
@@ -1514,7 +1514,7 @@ class Site_Actions_Element extends Base_Element {
 
 		$checkout_url = add_query_arg(
 			[
-				'products[]'    => $plan->get_slug(),
+				'products[]'     => $plan->get_slug(),
 				'wu_resubscribe' => $membership->get_hash(),
 			],
 			$checkout_url

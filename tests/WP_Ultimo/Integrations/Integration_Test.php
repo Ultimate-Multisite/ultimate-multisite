@@ -136,8 +136,8 @@ class Integration_Test extends WP_UnitTestCase {
 	public function test_save_credentials_ignores_unknown_keys(): void {
 
 		$this->integration->save_credentials([
-			'CONST_A'  => 'value_a',
-			'UNKNOWN'  => 'should_be_ignored',
+			'CONST_A' => 'value_a',
+			'UNKNOWN' => 'should_be_ignored',
 		]);
 
 		$this->assertSame('value_a', $this->integration->get_credential('CONST_A'));

@@ -56,7 +56,7 @@ class Credential_Store_Test extends WP_UnitTestCase {
 	}
 
 	public function test_encrypt_decrypt_round_trip() {
-		$original = 'my_super_secret_api_key_12345';
+		$original  = 'my_super_secret_api_key_12345';
 		$encrypted = Credential_Store::encrypt($original);
 		$decrypted = Credential_Store::decrypt($encrypted);
 
@@ -64,7 +64,7 @@ class Credential_Store_Test extends WP_UnitTestCase {
 	}
 
 	public function test_encrypt_decrypt_round_trip_with_special_chars() {
-		$original = 'p@$$w0rd!#%^&*()_+-={}[]|\\:";\'<>?,./~`';
+		$original  = 'p@$$w0rd!#%^&*()_+-={}[]|\\:";\'<>?,./~`';
 		$encrypted = Credential_Store::encrypt($original);
 		$decrypted = Credential_Store::decrypt($encrypted);
 
@@ -72,7 +72,7 @@ class Credential_Store_Test extends WP_UnitTestCase {
 	}
 
 	public function test_encrypt_decrypt_round_trip_with_unicode() {
-		$original = 'Héllo Wörld 日本語 中文';
+		$original  = 'Héllo Wörld 日本語 中文';
 		$encrypted = Credential_Store::encrypt($original);
 		$decrypted = Credential_Store::decrypt($encrypted);
 
@@ -81,8 +81,8 @@ class Credential_Store_Test extends WP_UnitTestCase {
 
 	public function test_encrypt_produces_different_ciphertext_each_time() {
 		$value = 'same_value';
-		$enc1 = Credential_Store::encrypt($value);
-		$enc2 = Credential_Store::encrypt($value);
+		$enc1  = Credential_Store::encrypt($value);
+		$enc2  = Credential_Store::encrypt($value);
 
 		// Due to random IV, encryptions should differ
 		$this->assertNotEquals($enc1, $enc2);
@@ -146,7 +146,7 @@ class Credential_Store_Test extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	public function test_encrypt_decrypt_long_value() {
-		$original = str_repeat('A', 10000);
+		$original  = str_repeat('A', 10000);
 		$encrypted = Credential_Store::encrypt($original);
 		$decrypted = Credential_Store::decrypt($encrypted);
 

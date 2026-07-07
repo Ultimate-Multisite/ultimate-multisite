@@ -40,9 +40,9 @@ try {
 
 	if (! $renewal_invoice) {
 		echo wp_json_encode([
-			'error'          => 'No renewal invoice found.',
-			'invoice_count'  => count($invoices->data),
-			'billing_reasons' => array_map(function($inv) {
+			'error'           => 'No renewal invoice found.',
+			'invoice_count'   => count($invoices->data),
+			'billing_reasons' => array_map(function ($inv) {
 				return $inv->billing_reason;
 			}, $invoices->data),
 		]);
@@ -126,15 +126,15 @@ try {
 	$membership->renew($membership->is_recurring(), 'active', $expiration);
 
 	echo wp_json_encode([
-		'success'              => true,
-		'renewal_invoice_id'   => $renewal_invoice->id,
-		'charge_id'            => $charge_id,
-		'renewal_payment_id'   => $payment->get_id(),
-		'renewal_total'        => $total,
-		'new_expiration'       => $expiration,
-		'new_times_billed'     => $membership->get_times_billed(),
-		'membership_status'    => $membership->get_status(),
-		'current_period_end'   => $end_timestamp,
+		'success'            => true,
+		'renewal_invoice_id' => $renewal_invoice->id,
+		'charge_id'          => $charge_id,
+		'renewal_payment_id' => $payment->get_id(),
+		'renewal_total'      => $total,
+		'new_expiration'     => $expiration,
+		'new_times_billed'   => $membership->get_times_billed(),
+		'membership_status'  => $membership->get_status(),
+		'current_period_end' => $end_timestamp,
 	]);
 } catch (\Exception $e) {
 	echo wp_json_encode([

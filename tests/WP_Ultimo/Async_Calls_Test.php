@@ -175,19 +175,34 @@ class Async_Calls_Test extends WP_UnitTestCase {
 
 	public function test_condense_results_returns_true_when_all_success() {
 		$results = [
-			(object) ['success' => true, 'data' => 'ok'],
-			(object) ['success' => true, 'data' => 'ok'],
+			(object) [
+				'success' => true,
+				'data'    => 'ok',
+			],
+			(object) [
+				'success' => true,
+				'data'    => 'ok',
+			],
 		];
 
 		$this->assertTrue(Async_Calls::condense_results($results));
 	}
 
 	public function test_condense_results_returns_failure_on_first_error() {
-		$error = (object) ['success' => false, 'data' => 'error msg'];
+		$error   = (object) [
+			'success' => false,
+			'data'    => 'error msg',
+		];
 		$results = [
-			(object) ['success' => true, 'data' => 'ok'],
+			(object) [
+				'success' => true,
+				'data'    => 'ok',
+			],
 			$error,
-			(object) ['success' => true, 'data' => 'ok'],
+			(object) [
+				'success' => true,
+				'data'    => 'ok',
+			],
 		];
 
 		$result = Async_Calls::condense_results($results);

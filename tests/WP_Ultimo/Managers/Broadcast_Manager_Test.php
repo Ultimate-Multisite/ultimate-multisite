@@ -24,5 +24,4 @@ class Broadcast_Manager_Test extends \WP_UnitTestCase {
 	protected function get_expected_model_class(): ?string {
 		return \WP_Ultimo\Models\Broadcast::class;
 	}
-
 }

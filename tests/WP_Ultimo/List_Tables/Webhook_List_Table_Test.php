@@ -107,7 +107,7 @@ class Webhook_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_default_returns_value_from_getter(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_name' ] )
+			->addMethods( ['get_name'] )
 			->getMock();
 		$item->method( 'get_name' )->willReturn( 'My Webhook' );
 
@@ -126,7 +126,7 @@ class Webhook_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_webhook_url_returns_truncated_url_in_span(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_webhook_url' ] )
+			->addMethods( ['get_webhook_url'] )
 			->getMock();
 		$item->method( 'get_webhook_url' )->willReturn( 'https://example.com/webhook/endpoint' );
 
@@ -145,7 +145,7 @@ class Webhook_List_Table_Test extends WP_UnitTestCase {
 		$long_url = 'https://example.com/webhook/endpoint/with/a/very/long/path/that/exceeds/fifty/characters/limit';
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_webhook_url' ] )
+			->addMethods( ['get_webhook_url'] )
 			->getMock();
 		$item->method( 'get_webhook_url' )->willReturn( $long_url );
 
@@ -164,7 +164,7 @@ class Webhook_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_event_returns_event_in_span(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_event' ] )
+			->addMethods( ['get_event'] )
 			->getMock();
 		$item->method( 'get_event' )->willReturn( 'membership.created' );
 
@@ -185,7 +185,7 @@ class Webhook_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_active_returns_yes_for_active(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'is_active' ] )
+			->addMethods( ['is_active'] )
 			->getMock();
 		$item->method( 'is_active' )->willReturn( true );
 
@@ -200,7 +200,7 @@ class Webhook_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_active_returns_no_for_inactive(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'is_active' ] )
+			->addMethods( ['is_active'] )
 			->getMock();
 		$item->method( 'is_active' )->willReturn( false );
 
@@ -219,7 +219,7 @@ class Webhook_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_integration_returns_formatted_name(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_integration' ] )
+			->addMethods( ['get_integration'] )
 			->getMock();
 		$item->method( 'get_integration' )->willReturn( 'zapier_integration' );
 
@@ -239,7 +239,7 @@ class Webhook_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_count_returns_count_value(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_count' ] )
+			->addMethods( ['get_count'] )
 			->getMock();
 		$item->method( 'get_count' )->willReturn( 42 );
 

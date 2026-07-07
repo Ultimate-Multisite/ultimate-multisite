@@ -36,14 +36,14 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 	 * @param array $overrides Optional field overrides.
 	 * @return Event
 	 */
-	private function create_event( array $overrides = [] ): Event {
+	private function create_event(array $overrides = []): Event {
 
 		$defaults = [
 			'object_id'    => 0,
 			'object_type'  => 'network',
 			'severity'     => Event::SEVERITY_INFO,
 			'slug'         => 'test-event-' . wp_rand(),
-			'payload'      => [ 'key' => 'value' ],
+			'payload'      => ['key' => 'value'],
 			'initiator'    => 'system',
 			'date_created' => wu_get_current_time( 'mysql', true ),
 		];
@@ -67,7 +67,7 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 
 		$result = $manager->register_event( 'test_event', [
 			'name'    => 'Test Event',
-			'payload' => [ 'key' => 'value' ],
+			'payload' => ['key' => 'value'],
 		] );
 
 		$this->assertTrue( $result );
@@ -107,8 +107,14 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 
 		$manager = $this->get_manager_instance();
 
-		$manager->register_event( 'multi_a', [ 'name' => 'A', 'payload' => [] ] );
-		$manager->register_event( 'multi_b', [ 'name' => 'B', 'payload' => [] ] );
+		$manager->register_event( 'multi_a', [
+			'name'    => 'A',
+			'payload' => [],
+		] );
+		$manager->register_event( 'multi_b', [
+			'name'    => 'B',
+			'payload' => [],
+		] );
 
 		$this->assertIsArray( $manager->get_event( 'multi_a' ) );
 		$this->assertIsArray( $manager->get_event( 'multi_b' ) );
@@ -123,7 +129,7 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 
 		$manager->register_event( 'callable_event', [
 			'name'    => 'Callable',
-			'payload' => fn() => [ 'lazy' => 'loaded' ],
+			'payload' => fn() => ['lazy' => 'loaded'],
 		] );
 
 		$event = $manager->get_event( 'callable_event' );
@@ -156,22 +162,22 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 
 		$manager->register_event( 'test_fire', [
 			'name'    => 'Fire Test',
-			'payload' => [ 'sample' => 'data' ],
+			'payload' => ['sample' => 'data'],
 		] );
 
 		$generic_fired  = false;
 		$specific_fired = false;
 
-		add_action( 'wu_event', function () use ( &$generic_fired ) {
+		add_action( 'wu_event', function () use (&$generic_fired) {
 			$generic_fired = true;
 		} );
 
-		add_action( 'wu_event_test_fire', function () use ( &$specific_fired ) {
+		add_action( 'wu_event_test_fire', function () use (&$specific_fired) {
 			$specific_fired = true;
 		} );
 
 		// Actions fire before save_event; save may fail validation (no initiator).
-		$manager->do_event( 'test_fire', [ 'sample' => 'data' ] );
+		$manager->do_event( 'test_fire', ['sample' => 'data'] );
 
 		$this->assertTrue( $generic_fired, 'wu_event action should have fired.' );
 		$this->assertTrue( $specific_fired, 'wu_event_test_fire action should have fired.' );
@@ -186,18 +192,18 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 
 		$manager->register_event( 'slug_check', [
 			'name'    => 'Slug Check',
-			'payload' => [ 'foo' => 'bar' ],
+			'payload' => ['foo' => 'bar'],
 		] );
 
 		$captured_slug    = null;
 		$captured_payload = null;
 
-		add_action( 'wu_event', function ( $slug, $payload ) use ( &$captured_slug, &$captured_payload ) {
+		add_action( 'wu_event', function ($slug, $payload) use (&$captured_slug, &$captured_payload) {
 			$captured_slug    = $slug;
 			$captured_payload = $payload;
 		}, 10, 2 );
 
-		$manager->do_event( 'slug_check', [ 'foo' => 'bar' ] );
+		$manager->do_event( 'slug_check', ['foo' => 'bar'] );
 
 		$this->assertEquals( 'slug_check', $captured_slug );
 		$this->assertArrayHasKey( 'foo', $captured_payload );
@@ -212,16 +218,16 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 
 		$manager->register_event( 'version_check', [
 			'name'    => 'Version Check',
-			'payload' => [ 'item' => 'val' ],
+			'payload' => ['item' => 'val'],
 		] );
 
 		$captured_payload = null;
 
-		add_action( 'wu_event_version_check', function ( $payload ) use ( &$captured_payload ) {
+		add_action( 'wu_event_version_check', function ($payload) use (&$captured_payload) {
 			$captured_payload = $payload;
 		} );
 
-		$manager->do_event( 'version_check', [ 'item' => 'val' ] );
+		$manager->do_event( 'version_check', ['item' => 'val'] );
 
 		$this->assertNotNull( $captured_payload );
 		$this->assertArrayHasKey( 'wu_version', $captured_payload );
@@ -237,7 +243,7 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 		// Register event with a required payload key (non-callable array with index 0).
 		$manager->register_event( 'strict_payload', [
 			'name'    => 'Strict',
-			'payload' => [ [ 'required_key' => 'placeholder' ] ],
+			'payload' => [['required_key' => 'placeholder']],
 		] );
 
 		// Pass empty payload — missing required_key.
@@ -263,7 +269,7 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 				'object_type'  => 'test',
 				'severity'     => Event::SEVERITY_INFO,
 				'slug'         => 'test_direct_save',
-				'payload'      => [ 'key' => 'value' ],
+				'payload'      => ['key' => 'value'],
 				'initiator'    => 'system',
 				'date_created' => wu_get_current_time( 'mysql', true ),
 			]
@@ -317,7 +323,7 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 	 */
 	public function test_register_model_events(): void {
 
-		Event_Manager::register_model_events( 'test_model', 'Test Model', [ 'created', 'updated' ] );
+		Event_Manager::register_model_events( 'test_model', 'Test Model', ['created', 'updated'] );
 
 		$manager       = $this->get_manager_instance();
 		$models_events = $this->get_protected_property( $manager, 'models_events' );
@@ -332,8 +338,8 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 	 */
 	public function test_register_model_events_overwrites_existing(): void {
 
-		Event_Manager::register_model_events( 'overwrite_model', 'Old Label', [ 'created' ] );
-		Event_Manager::register_model_events( 'overwrite_model', 'New Label', [ 'created', 'updated' ] );
+		Event_Manager::register_model_events( 'overwrite_model', 'Old Label', ['created'] );
+		Event_Manager::register_model_events( 'overwrite_model', 'New Label', ['created', 'updated'] );
 
 		$manager       = $this->get_manager_instance();
 		$models_events = $this->get_protected_property( $manager, 'models_events' );
@@ -363,7 +369,7 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 	 */
 	public function test_dispatch_base_model_event_skips_unregistered_type(): void {
 
-		Event_Manager::register_model_events( 'dispatch_model', 'Dispatch Model', [ 'created' ] );
+		Event_Manager::register_model_events( 'dispatch_model', 'Dispatch Model', ['created'] );
 
 		$manager = $this->get_manager_instance();
 
@@ -400,9 +406,11 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 
 		$manager = $this->get_manager_instance();
 
-		$obj = new class extends \WP_Ultimo\Models\Base_Model {
-			public function get_id(): int { return 1; }
-			public function validation_rules(): array { return []; }
+		$obj = new class() extends \WP_Ultimo\Models\Base_Model {
+			public function get_id(): int {
+				return 1; }
+			public function validation_rules(): array {
+				return []; }
 		};
 
 		// No 'id' key in data_unserialized → treated as new object.
@@ -419,16 +427,24 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 		$manager = $this->get_manager_instance();
 
 		// Build a minimal object that has an id and identical original data.
-		$obj = new class extends \WP_Ultimo\Models\Base_Model {
-			public function get_id(): int { return 42; }
-			public function validation_rules(): array { return []; }
+		$obj = new class() extends \WP_Ultimo\Models\Base_Model {
+			public function get_id(): int {
+				return 42; }
+			public function validation_rules(): array {
+				return []; }
 			public function _get_original(): array {
-				return [ 'id' => 42, 'status' => 'active' ];
+				return [
+					'id'     => 42,
+					'status' => 'active',
+				];
 			}
 		};
 
 		// data_unserialized matches original → diff is empty → early return.
-		$manager->log_transitions( 'membership', [], [ 'id' => 42, 'status' => 'active' ], $obj );
+		$manager->log_transitions( 'membership', [], [
+			'id'     => 42,
+			'status' => 'active',
+		], $obj );
 
 		$this->assertTrue( true );
 	}
@@ -440,16 +456,18 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 
 		$manager = $this->get_manager_instance();
 
-		$obj = new class extends \WP_Ultimo\Models\Base_Model {
-			public function get_id(): int { return 1; }
-			public function validation_rules(): array { return []; }
+		$obj = new class() extends \WP_Ultimo\Models\Base_Model {
+			public function get_id(): int {
+				return 1; }
+			public function validation_rules(): array {
+				return []; }
 			public function _get_original(): array {
-				return [ 'id' => 0 ];
+				return ['id' => 0];
 			}
 		};
 
 		// data_unserialized has 'id' key, original id is 0 → early return.
-		$manager->log_transitions( 'membership', [], [ 'id' => 1 ], $obj );
+		$manager->log_transitions( 'membership', [], ['id' => 1], $obj );
 
 		$this->assertTrue( true );
 	}
@@ -482,7 +500,7 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 
 		$fired = false;
 
-		add_action( 'wu_register_all_events', function () use ( &$fired ) {
+		add_action( 'wu_register_all_events', function () use (&$fired) {
 			$fired = true;
 		} );
 
@@ -497,7 +515,7 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 	 */
 	public function test_register_all_events_registers_model_events(): void {
 
-		Event_Manager::register_model_events( 'site', 'Site', [ 'created', 'updated' ] );
+		Event_Manager::register_model_events( 'site', 'Site', ['created', 'updated'] );
 
 		$manager = $this->get_manager_instance();
 		$manager->register_all_events();
@@ -606,7 +624,7 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 	 * @param array  $events  The events to set.
 	 * @return array The original events array (for restoration).
 	 */
-	private function set_manager_events( object $manager, array $events ): array {
+	private function set_manager_events(object $manager, array $events): array {
 
 		$reflection = new \ReflectionClass( $manager );
 		$prop       = $reflection->getProperty( 'events' );
@@ -630,7 +648,7 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 		$original = $this->set_manager_events( $manager, [
 			'rest_test_event' => [
 				'name'    => 'REST Test',
-				'payload' => [ 'foo' => 'bar' ],
+				'payload' => ['foo' => 'bar'],
 			],
 		] );
 
@@ -651,7 +669,7 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 		$original = $this->set_manager_events( $manager, [
 			'lazy_rest_event' => [
 				'name'    => 'Lazy REST',
-				'payload' => fn() => [ 'resolved' => true ],
+				'payload' => fn() => ['resolved' => true],
 			],
 		] );
 
@@ -677,7 +695,7 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 		$original = $this->set_manager_events( $manager, [
 			'static_rest_event' => [
 				'name'    => 'Static REST',
-				'payload' => [ 'static' => 'value' ],
+				'payload' => ['static' => 'value'],
 			],
 		] );
 
@@ -689,7 +707,7 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 		$data = $response->get_data();
 
 		$this->assertArrayHasKey( 'static_rest_event', $data );
-		$this->assertEquals( [ 'static' => 'value' ], $data['static_rest_event']['payload'] );
+		$this->assertEquals( ['static' => 'value'], $data['static_rest_event']['payload'] );
 	}
 
 	// -------------------------------------------------------------------------

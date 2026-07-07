@@ -124,12 +124,15 @@ class CyberPanel_Domain_Mapping extends Base_Capability_Module implements Domain
 
 		$master_domain = $this->get_cyberpanel()->get_master_domain();
 
-		wu_log_add('integration-cyberpanel', sprintf(
+		wu_log_add(
+			'integration-cyberpanel',
+			sprintf(
 			'Adding child domain: %s for site ID: %d (master: %s)',
 			$domain,
 			$site_id,
 			$master_domain
-		));
+		)
+			);
 
 		// Step 1: Add as child domain so it shares the master's document root
 		$result = $this->create_child_domain($domain, $master_domain);
@@ -217,12 +220,15 @@ class CyberPanel_Domain_Mapping extends Base_Capability_Module implements Domain
 
 		$username = $this->get_cyberpanel()->get_credential('WU_CYBERPANEL_USERNAME');
 
-		return $this->get_cyberpanel()->api_call('addChildDomain', [
-			'masterDomain' => $master_domain,
-			'childDomain'  => $domain,
-			'owner'        => $username,
-			'path'         => '/home/' . $master_domain . '/public_html',
-		]);
+		return $this->get_cyberpanel()->api_call(
+			'addChildDomain',
+			[
+				'masterDomain' => $master_domain,
+				'childDomain'  => $domain,
+				'owner'        => $username,
+				'path'         => '/home/' . $master_domain . '/public_html',
+			]
+			);
 	}
 
 	/**
@@ -236,10 +242,13 @@ class CyberPanel_Domain_Mapping extends Base_Capability_Module implements Domain
 	 */
 	private function delete_child_domain(string $domain, string $master_domain) {
 
-		return $this->get_cyberpanel()->api_call('deleteChildDomain', [
-			'masterDomain' => $master_domain,
-			'childDomain'  => $domain,
-		]);
+		return $this->get_cyberpanel()->api_call(
+			'deleteChildDomain',
+			[
+				'masterDomain' => $master_domain,
+				'childDomain'  => $domain,
+			]
+			);
 	}
 
 	/**
@@ -257,10 +266,13 @@ class CyberPanel_Domain_Mapping extends Base_Capability_Module implements Domain
 	 */
 	private function issue_ssl(string $master_domain, string $child_domain): void {
 
-		$result = $this->get_cyberpanel()->api_call('submitWebsiteStatus', [
-			'websiteName' => $master_domain,
-			'state'       => 'issueSSL',
-		]);
+		$result = $this->get_cyberpanel()->api_call(
+			'submitWebsiteStatus',
+			[
+				'websiteName' => $master_domain,
+				'state'       => 'issueSSL',
+			]
+			);
 
 		if (is_wp_error($result)) {
 			wu_log_add('integration-cyberpanel', 'SSL issuance failed for ' . $child_domain . ': ' . $result->get_error_message(), LogLevel::ERROR);

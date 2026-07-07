@@ -296,8 +296,8 @@ class Signup_Field_Period_Selection_Test extends WP_UnitTestCase {
 	 * Test period_selection_template nested field is a select.
 	 */
 	public function test_get_fields_template_nested_select(): void {
-		$fields  = $this->field->get_fields();
-		$nested  = $fields['period_selection_template']['fields'];
+		$fields = $this->field->get_fields();
+		$nested = $fields['period_selection_template']['fields'];
 		$this->assertArrayHasKey('period_selection_template', $nested);
 		$this->assertEquals('select', $nested['period_selection_template']['type']);
 	}
@@ -354,7 +354,7 @@ class Signup_Field_Period_Selection_Test extends WP_UnitTestCase {
 	 * Test period_options group has nested fields.
 	 */
 	public function test_get_fields_period_options_has_nested_fields(): void {
-		$fields  = $this->field->get_fields();
+		$fields = $this->field->get_fields();
 		$this->assertArrayHasKey('fields', $fields['period_options']);
 		$nested = $fields['period_options']['fields'];
 		$this->assertArrayHasKey('period_options_remove', $nested);
@@ -385,9 +385,9 @@ class Signup_Field_Period_Selection_Test extends WP_UnitTestCase {
 	 * Test period_options_duration_unit options contain expected keys.
 	 */
 	public function test_get_fields_duration_unit_options(): void {
-		$fields   = $this->field->get_fields();
-		$nested   = $fields['period_options']['fields'];
-		$options  = $nested['period_options_duration_unit']['options'];
+		$fields  = $this->field->get_fields();
+		$nested  = $fields['period_options']['fields'];
+		$options = $nested['period_options_duration_unit']['options'];
 		$this->assertArrayHasKey('day', $options);
 		$this->assertArrayHasKey('week', $options);
 		$this->assertArrayHasKey('month', $options);
@@ -431,7 +431,7 @@ class Signup_Field_Period_Selection_Test extends WP_UnitTestCase {
 	 *
 	 * @return array
 	 */
-	private function make_attributes( string $template = 'clean' ): array {
+	private function make_attributes(string $template = 'clean'): array {
 		return [
 			'id'                        => 'period_selection',
 			'element_classes'           => 'wu-period-selection',
@@ -681,7 +681,10 @@ class Signup_Field_Period_Selection_Test extends WP_UnitTestCase {
 	 * Test set_attributes stores the attributes.
 	 */
 	public function test_set_attributes(): void {
-		$data = ['id' => 'period_selection', 'width' => 50];
+		$data = [
+			'id'    => 'period_selection',
+			'width' => 50,
+		];
 		$this->field->set_attributes($data);
 
 		$reflection = new \ReflectionClass($this->field);
@@ -734,7 +737,10 @@ class Signup_Field_Period_Selection_Test extends WP_UnitTestCase {
 	 * Test reduce_attributes returns the same array unchanged.
 	 */
 	public function test_reduce_attributes(): void {
-		$data   = ['foo' => 'bar', 'baz' => 123];
+		$data   = [
+			'foo' => 'bar',
+			'baz' => 123,
+		];
 		$result = $this->field->reduce_attributes($data);
 		$this->assertEquals($data, $result);
 	}

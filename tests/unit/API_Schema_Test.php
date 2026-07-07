@@ -1479,10 +1479,10 @@ final class API_Schema_Test extends TestCase {
 			['webhook-create.php', 'webhook-update.php'],
 		];
 		foreach ( $pairs as [$create_file, $update_file] ) {
-			$create_schema = $this->load_schema($create_file);
-			$update_schema = $this->load_schema($update_file);
-			$create_keys   = array_keys($create_schema);
-			$update_keys   = array_keys($update_schema);
+			$create_schema   = $this->load_schema($create_file);
+			$update_schema   = $this->load_schema($update_file);
+			$create_keys     = array_keys($create_schema);
+			$update_keys     = array_keys($update_schema);
 			$extra_in_update = array_diff($update_keys, $create_keys);
 			$this->assertEmpty(
 				$extra_in_update,

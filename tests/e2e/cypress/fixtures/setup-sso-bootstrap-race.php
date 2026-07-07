@@ -55,7 +55,7 @@ try {
 // It must return a deterministic hash (same call -> same hash).
 // -----------------------------------------------------------------------
 try {
-	$main = function_exists('get_main_site_id') ? get_site(get_main_site_id()) : get_site(1);
+	$main                  = function_exists('get_main_site_id') ? get_site(get_main_site_id()) : get_site(1);
 	$result['main_secret'] = $sso->calculate_secret_from_date($main->registered);
 } catch (\Throwable $e) {
 	$result['main_secret'] = 'THREW:' . $e->getMessage();
@@ -64,7 +64,7 @@ try {
 try {
 	$result['empty_secret_1'] = $sso->calculate_secret_from_date('');
 } catch (\Throwable $e) {
-	$result['secret_threw']  = true;
+	$result['secret_threw']   = true;
 	$result['empty_secret_1'] = 'THREW:' . $e->getMessage();
 }
 

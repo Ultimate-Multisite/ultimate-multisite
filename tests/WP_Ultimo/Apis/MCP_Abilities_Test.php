@@ -78,7 +78,7 @@ class MCP_Abilities_Test extends WP_UnitTestCase {
 		$this->manager->enable_mcp_abilities();
 
 		// Hooks should be registered since wp_register_ability exists in vendor.
-		$has_category_hook = has_action('wp_abilities_api_categories_init', [$this->manager, 'register_ability_category']);
+		$has_category_hook  = has_action('wp_abilities_api_categories_init', [$this->manager, 'register_ability_category']);
 		$has_abilities_hook = has_action('wp_abilities_api_init', [$this->manager, 'register_abilities']);
 
 		$this->assertNotFalse($has_category_hook);
@@ -179,7 +179,10 @@ class MCP_Abilities_Test extends WP_UnitTestCase {
 		wp_set_current_user(1);
 
 		// Pass arbitrary data — should not affect result.
-		$result = $this->manager->mcp_permission_callback(['foo' => 'bar', 'id' => 999]);
+		$result = $this->manager->mcp_permission_callback([
+			'foo' => 'bar',
+			'id'  => 999,
+		]);
 
 		$this->assertTrue($result);
 

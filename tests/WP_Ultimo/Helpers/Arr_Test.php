@@ -11,7 +11,10 @@ class Arr_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_simple_key(): void {
 
-		$array = ['name' => 'John', 'age' => 30];
+		$array = [
+			'name' => 'John',
+			'age'  => 30,
+		];
 
 		$this->assertEquals('John', Arr::get($array, 'name'));
 		$this->assertEquals(30, Arr::get($array, 'age'));
@@ -54,7 +57,10 @@ class Arr_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_null_key_returns_array(): void {
 
-		$array = ['name' => 'John', 'age' => 30];
+		$array = [
+			'name' => 'John',
+			'age'  => 30,
+		];
 
 		$this->assertEquals($array, Arr::get($array, null));
 	}
@@ -153,9 +159,18 @@ class Arr_Test extends WP_UnitTestCase {
 	public function test_filter_preserves_matching_items(): void {
 
 		$array = [
-			['name' => 'John', 'active' => true],
-			['name' => 'Jane', 'active' => false],
-			['name' => 'Bob', 'active' => true],
+			[
+				'name'   => 'John',
+				'active' => true,
+			],
+			[
+				'name'   => 'Jane',
+				'active' => false,
+			],
+			[
+				'name'   => 'Bob',
+				'active' => true,
+			],
 		];
 
 		$result = Arr::filter($array, function ($item) {
@@ -173,9 +188,18 @@ class Arr_Test extends WP_UnitTestCase {
 	public function test_filter_by_property_simple(): void {
 
 		$array = [
-			['name' => 'John', 'role' => 'admin'],
-			['name' => 'Jane', 'role' => 'editor'],
-			['name' => 'Bob', 'role' => 'admin'],
+			[
+				'name' => 'John',
+				'role' => 'admin',
+			],
+			[
+				'name' => 'Jane',
+				'role' => 'editor',
+			],
+			[
+				'name' => 'Bob',
+				'role' => 'admin',
+			],
 		];
 
 		$result = Arr::filter_by_property($array, 'role', 'admin');
@@ -189,9 +213,18 @@ class Arr_Test extends WP_UnitTestCase {
 	public function test_filter_by_property_dot_notation(): void {
 
 		$array = [
-			['name' => 'John', 'meta' => ['status' => 'active']],
-			['name' => 'Jane', 'meta' => ['status' => 'inactive']],
-			['name' => 'Bob', 'meta' => ['status' => 'active']],
+			[
+				'name' => 'John',
+				'meta' => ['status' => 'active'],
+			],
+			[
+				'name' => 'Jane',
+				'meta' => ['status' => 'inactive'],
+			],
+			[
+				'name' => 'Bob',
+				'meta' => ['status' => 'active'],
+			],
 		];
 
 		$result = Arr::filter_by_property($array, 'meta.status', 'active');
@@ -205,8 +238,14 @@ class Arr_Test extends WP_UnitTestCase {
 	public function test_filter_by_property_returns_first(): void {
 
 		$array = [
-			['name' => 'John', 'role' => 'admin'],
-			['name' => 'Bob', 'role' => 'admin'],
+			[
+				'name' => 'John',
+				'role' => 'admin',
+			],
+			[
+				'name' => 'Bob',
+				'role' => 'admin',
+			],
 		];
 
 		$result = Arr::filter_by_property($array, 'role', 'admin', Arr::RESULTS_FIRST);
@@ -221,8 +260,14 @@ class Arr_Test extends WP_UnitTestCase {
 	public function test_filter_by_property_returns_last(): void {
 
 		$array = [
-			['name' => 'John', 'role' => 'admin'],
-			['name' => 'Bob', 'role' => 'admin'],
+			[
+				'name' => 'John',
+				'role' => 'admin',
+			],
+			[
+				'name' => 'Bob',
+				'role' => 'admin',
+			],
 		];
 
 		$result = Arr::filter_by_property($array, 'role', 'admin', Arr::RESULTS_LAST);
@@ -237,7 +282,10 @@ class Arr_Test extends WP_UnitTestCase {
 	public function test_filter_by_property_no_matches(): void {
 
 		$array = [
-			['name' => 'John', 'role' => 'admin'],
+			[
+				'name' => 'John',
+				'role' => 'admin',
+			],
 		];
 
 		$result = Arr::filter_by_property($array, 'role', 'nonexistent');

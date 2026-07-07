@@ -76,8 +76,8 @@ class Concrete_Test_Admin_Page_With_Submenu extends Base_Admin_Page {
  */
 class Concrete_Test_Admin_Page_With_Highlight extends Base_Admin_Page {
 
-	public $id                   = 'test-page-highlight';
-	public $type                 = 'submenu';
+	public $id                     = 'test-page-highlight';
+	public $type                   = 'submenu';
 	protected $highlight_menu_slug = 'wp-ultimo';
 
 	protected $supported_panels = [
@@ -523,7 +523,7 @@ class Base_Admin_Page_Test extends WP_UnitTestCase {
 	 * @param Concrete_Test_Admin_Page $page The page instance.
 	 * @return string The classes string produced by the page's filter callback.
 	 */
-	private function get_body_classes_from_page( $page ): string {
+	private function get_body_classes_from_page($page): string {
 		global $wp_filter;
 
 		// Record how many callbacks exist before we add ours.
@@ -539,13 +539,13 @@ class Base_Admin_Page_Test extends WP_UnitTestCase {
 		// Find the newly added callback (the last one at priority 10).
 		$our_callback = null;
 		if (isset($wp_filter['admin_body_class']->callbacks[10])) {
-			$all = array_values($wp_filter['admin_body_class']->callbacks[10]);
+			$all          = array_values($wp_filter['admin_body_class']->callbacks[10]);
 			$our_callback = end($all);
 		}
 
 		remove_all_filters('admin_body_class');
 
-		if ($our_callback === null || !isset($our_callback['function'])) {
+		if ($our_callback === null || ! isset($our_callback['function'])) {
 			return '';
 		}
 

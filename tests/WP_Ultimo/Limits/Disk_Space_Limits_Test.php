@@ -62,7 +62,7 @@ class Disk_Space_Limits_Test extends \WP_UnitTestCase {
 
 		add_action(
 			'wu_disk_space_downgrade_exceeded',
-			function($blog_id, $used_mb, $quota_mb, $membership_id) use (&$action_fired, &$fired_args) {
+			function ($blog_id, $used_mb, $quota_mb, $membership_id) use (&$action_fired, &$fired_args) {
 				$action_fired = true;
 				$fired_args   = compact('blog_id', 'used_mb', 'quota_mb', 'membership_id');
 			},
@@ -127,7 +127,7 @@ class Disk_Space_Limits_Test extends \WP_UnitTestCase {
 		// Mock get_space_used to return a value above the quota.
 		add_filter(
 			'pre_option_upload_space_check_disabled',
-			function() {
+			function () {
 				return '0';
 			}
 		);
@@ -155,7 +155,7 @@ class Disk_Space_Limits_Test extends \WP_UnitTestCase {
 
 		add_action(
 			'wu_disk_space_downgrade_exceeded',
-			function() use (&$action_fired) {
+			function () use (&$action_fired) {
 				$action_fired = true;
 			}
 		);

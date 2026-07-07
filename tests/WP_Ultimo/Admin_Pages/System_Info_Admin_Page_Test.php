@@ -355,7 +355,7 @@ class System_Info_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_browser_user_agent_matches_server(): void {
 
-		$ua = 'Mozilla/5.0 (X11; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0';
+		$ua                         = 'Mozilla/5.0 (X11; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0';
 		$_SERVER['HTTP_USER_AGENT'] = $ua;
 
 		$browser = $this->page->get_browser();
@@ -545,7 +545,10 @@ class System_Info_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_transients_in_options_returns_empty_when_none(): void {
 
-		$options    = ['siteurl' => 'http://example.com', 'blogname' => 'Test'];
+		$options    = [
+			'siteurl'  => 'http://example.com',
+			'blogname' => 'Test',
+		];
 		$transients = $this->page->get_transients_in_options($options);
 
 		$this->assertIsArray($transients);
@@ -558,10 +561,10 @@ class System_Info_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_get_transients_in_options_returns_transients(): void {
 
 		$options = [
-			'siteurl'                    => 'http://example.com',
-			'_transient_my_cache'        => 'cached_value',
+			'siteurl'                     => 'http://example.com',
+			'_transient_my_cache'         => 'cached_value',
 			'_transient_timeout_my_cache' => '9999999999',
-			'blogname'                   => 'Test',
+			'blogname'                    => 'Test',
 		];
 
 		$transients = $this->page->get_transients_in_options($options);
@@ -977,7 +980,13 @@ class System_Info_Admin_Page_Test extends WP_UnitTestCase {
 	public function test_get_data_filter_can_modify_data(): void {
 
 		$callback = function ($data) {
-			$data['Custom Section'] = ['custom-key' => ['tooltip' => '', 'title' => 'Custom', 'value' => 'test']];
+			$data['Custom Section'] = [
+				'custom-key' => [
+					'tooltip' => '',
+					'title'   => 'Custom',
+					'value'   => 'test',
+				],
+			];
 			return $data;
 		};
 

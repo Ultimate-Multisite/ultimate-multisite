@@ -419,7 +419,10 @@ class Broadcast_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * Test query_filter preserves existing args.
 	 */
 	public function test_query_filter_preserves_existing_args(): void {
-		$args   = ['existing_key' => 'existing_value', 'number' => 10];
+		$args   = [
+			'existing_key' => 'existing_value',
+			'number'       => 10,
+		];
 		$result = $this->page->query_filter($args);
 
 		$this->assertEquals('existing_value', $result['existing_key']);
@@ -496,7 +499,10 @@ class Broadcast_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * Test events_query_filter preserves existing args.
 	 */
 	public function test_events_query_filter_preserves_existing_args(): void {
-		$args   = ['existing_key' => 'existing_value', 'number' => 5];
+		$args   = [
+			'existing_key' => 'existing_value',
+			'number'       => 5,
+		];
 		$result = $this->page->events_query_filter($args);
 
 		$this->assertEquals('existing_value', $result['existing_key']);
@@ -560,9 +566,9 @@ class Broadcast_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		$this->page->object = $broadcast;
 
-		$args            = ['number' => 10];
-		$query_result    = $this->page->query_filter($args);
-		$events_result   = $this->page->events_query_filter($args);
+		$args          = ['number' => 10];
+		$query_result  = $this->page->query_filter($args);
+		$events_result = $this->page->events_query_filter($args);
 
 		$this->assertEquals($query_result['object_type'], $events_result['object_type']);
 		$this->assertEquals($query_result['object_id'], $events_result['object_id']);
@@ -833,7 +839,10 @@ class Broadcast_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$broadcast->set_type('broadcast_notice');
 		$broadcast->set_content('Content for no product targets test');
 		// Set empty targets so get_message_targets() returns an array, not false.
-		$broadcast->set_message_targets(['customers' => '', 'products' => '']);
+		$broadcast->set_message_targets([
+			'customers' => '',
+			'products'  => '',
+		]);
 		$saved = $broadcast->save();
 
 		if (is_wp_error($saved)) {

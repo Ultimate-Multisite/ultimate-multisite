@@ -107,7 +107,7 @@ class PayPal_Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_page_id(): void {
 
-		$ref = new \ReflectionClass($this->page);
+		$ref  = new \ReflectionClass($this->page);
 		$prop = $ref->getProperty('id');
 		$prop->setAccessible(true);
 
@@ -119,7 +119,7 @@ class PayPal_Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_page_type(): void {
 
-		$ref = new \ReflectionClass($this->page);
+		$ref  = new \ReflectionClass($this->page);
 		$prop = $ref->getProperty('type');
 		$prop->setAccessible(true);
 
@@ -131,7 +131,7 @@ class PayPal_Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_page_parent(): void {
 
-		$ref = new \ReflectionClass($this->page);
+		$ref  = new \ReflectionClass($this->page);
 		$prop = $ref->getProperty('parent');
 		$prop->setAccessible(true);
 
@@ -143,7 +143,7 @@ class PayPal_Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_highlight_menu_slug(): void {
 
-		$ref = new \ReflectionClass($this->page);
+		$ref  = new \ReflectionClass($this->page);
 		$prop = $ref->getProperty('highlight_menu_slug');
 		$prop->setAccessible(true);
 
@@ -155,7 +155,7 @@ class PayPal_Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_supported_panels(): void {
 
-		$ref = new \ReflectionClass($this->page);
+		$ref  = new \ReflectionClass($this->page);
 		$prop = $ref->getProperty('supported_panels');
 		$prop->setAccessible(true);
 		$panels = $prop->getValue($this->page);
@@ -359,9 +359,9 @@ class PayPal_Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 		grant_super_admin($user_id);
 		wp_set_current_user($user_id);
 
-		$nonce                       = wp_create_nonce('saving_configure');
-		$_POST['_wpultimo_nonce']    = $nonce;
-		$_REQUEST['_wpultimo_nonce'] = $nonce;
+		$nonce                         = wp_create_nonce('saving_configure');
+		$_POST['_wpultimo_nonce']      = $nonce;
+		$_REQUEST['_wpultimo_nonce']   = $nonce;
 		$_POST['paypal_client_id']     = 'AX_test_sandbox_client_id_12345';
 		$_POST['paypal_client_secret'] = 'EK_test_sandbox_client_secret_67890';
 
@@ -399,9 +399,9 @@ class PayPal_Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 		grant_super_admin($user_id);
 		wp_set_current_user($user_id);
 
-		$nonce                       = wp_create_nonce('saving_configure');
-		$_POST['_wpultimo_nonce']    = $nonce;
-		$_REQUEST['_wpultimo_nonce'] = $nonce;
+		$nonce                         = wp_create_nonce('saving_configure');
+		$_POST['_wpultimo_nonce']      = $nonce;
+		$_REQUEST['_wpultimo_nonce']   = $nonce;
 		$_POST['paypal_client_id']     = 'AX_test_live_id';
 		$_POST['paypal_client_secret'] = 'EK_test_live_secret';
 
@@ -431,9 +431,9 @@ class PayPal_Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 		grant_super_admin($user_id);
 		wp_set_current_user($user_id);
 
-		$nonce                       = wp_create_nonce('saving_configure');
-		$_POST['_wpultimo_nonce']    = $nonce;
-		$_REQUEST['_wpultimo_nonce'] = $nonce;
+		$nonce                         = wp_create_nonce('saving_configure');
+		$_POST['_wpultimo_nonce']      = $nonce;
+		$_REQUEST['_wpultimo_nonce']   = $nonce;
 		$_POST['paypal_client_id']     = '';
 		$_POST['paypal_client_secret'] = '';
 
@@ -535,7 +535,10 @@ class PayPal_Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 			function ($preempt, $args, $url) {
 				if (false !== strpos($url, '/v1/oauth2/token')) {
 					return [
-						'response' => ['code' => 401, 'message' => 'Unauthorized'],
+						'response' => [
+							'code'    => 401,
+							'message' => 'Unauthorized',
+						],
 						'body'     => wp_json_encode(
 							[
 								'error'             => 'invalid_client',
@@ -629,7 +632,10 @@ class PayPal_Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 			function ($preempt, $args, $url) {
 				if (false !== strpos($url, '/v1/oauth2/token')) {
 					return [
-						'response' => ['code' => 200, 'message' => 'OK'],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode(
 							[
 								'access_token' => 'A21AAtest_access_token',
@@ -645,7 +651,10 @@ class PayPal_Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 				if (false !== strpos($url, '/v1/notifications/webhooks')) {
 					// Pretend webhook installed cleanly.
 					return [
-						'response' => ['code' => 201, 'message' => 'Created'],
+						'response' => [
+							'code'    => 201,
+							'message' => 'Created',
+						],
 						'body'     => wp_json_encode(
 							[
 								'id'  => 'WH-test-id',

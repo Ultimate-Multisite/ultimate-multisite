@@ -87,9 +87,9 @@ class Dashboard_Widgets_Test extends \WP_UnitTestCase {
 
 		global $pagenow, $wp_scripts;
 
-		$original        = $pagenow;
-		$original_queue  = isset( $wp_scripts ) ? $wp_scripts->queue : [];
-		$pagenow         = 'options.php';
+		$original       = $pagenow;
+		$original_queue = isset( $wp_scripts ) ? $wp_scripts->queue : [];
+		$pagenow        = 'options.php';
 
 		// Reset the script queue so that wu-vue dependents enqueued by prior
 		// tests do not cause wp_script_is() to return true via recurse_deps().
@@ -156,7 +156,6 @@ class Dashboard_Widgets_Test extends \WP_UnitTestCase {
 			$this->assertNotNull($script, 'wu-activity-stream should be registered');
 			$this->assertContains('wu-functions', $script->deps);
 			$this->assertContains('moment', $script->deps);
-
 		} finally {
 			if (isset($wp_scripts)) {
 				$wp_scripts->queue = $original_queue;
@@ -205,7 +204,6 @@ class Dashboard_Widgets_Test extends \WP_UnitTestCase {
 				wp_script_is('wu-activity-stream', 'enqueued'),
 				'wu-activity-stream should NOT be enqueued on the per-site dashboard'
 			);
-
 		} finally {
 			if (isset($wp_scripts)) {
 				$wp_scripts->queue = $original_queue;

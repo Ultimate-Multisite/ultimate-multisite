@@ -381,7 +381,7 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 
 		$this->assertNotWPError($membership);
 
-		$url = wu_get_membership_update_url($membership);
+		$url  = wu_get_membership_update_url($membership);
 		$hash = $membership->get_hash();
 
 		$this->assertStringContainsString($hash, $url);
@@ -754,7 +754,7 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 		$this->assertNotWPError($payment_keep);
 		$this->assertInstanceOf(\WP_Ultimo\Models\Payment::class, $payment_keep);
 
-		$keep_items = $payment_keep->get_line_items();
+		$keep_items         = $payment_keep->get_line_items();
 		$non_recurring_kept = array_filter($keep_items, fn($item) => ! $item->is_recurring());
 		$this->assertNotEmpty($non_recurring_kept, 'Non-recurring line items must be present when remove_non_recurring=false.');
 
@@ -764,7 +764,7 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 		$this->assertNotWPError($payment_strip);
 		$this->assertInstanceOf(\WP_Ultimo\Models\Payment::class, $payment_strip);
 
-		$strip_items = $payment_strip->get_line_items();
+		$strip_items            = $payment_strip->get_line_items();
 		$non_recurring_stripped = array_filter($strip_items, fn($item) => ! $item->is_recurring());
 		$this->assertEmpty($non_recurring_stripped, 'Non-recurring line items must be removed when remove_non_recurring=true.');
 	}

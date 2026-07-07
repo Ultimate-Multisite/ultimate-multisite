@@ -16,7 +16,7 @@ class Theme_Limits_Test extends \WP_UnitTestCase {
 	private function get_instance() {
 
 		// Create instance directly to bypass Singleton init()
-		$ref = new \ReflectionClass(Theme_Limits::class);
+		$ref      = new \ReflectionClass(Theme_Limits::class);
 		$instance = $ref->newInstanceWithoutConstructor();
 
 		return $instance;
@@ -106,7 +106,7 @@ class Theme_Limits_Test extends \WP_UnitTestCase {
 
 		$instance = $this->get_instance();
 
-		$data = ['key' => 'value'];
+		$data    = ['key' => 'value'];
 		$context = [];
 
 		$result = $instance->prevent_theme_activation_on_customizer($data, $context);

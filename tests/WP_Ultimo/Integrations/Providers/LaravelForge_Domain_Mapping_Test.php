@@ -80,7 +80,10 @@ class LaravelForge_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->integration->method('get_primary_site_id')->willReturn(67890);
 		$this->integration->method('get_deploy_command')->willReturn('');
 
-		$fake_response = ['response' => ['code' => 201], 'body' => '{"site":{"id":99}}'];
+		$fake_response = [
+			'response' => ['code' => 201],
+			'body'     => '{"site":{"id":99}}',
+		];
 
 		$this->integration->expects($this->atLeast(1))
 			->method('send_forge_request')
@@ -100,7 +103,10 @@ class LaravelForge_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->integration->expects($this->once())
 			->method('send_forge_request')
 			->with($this->stringContains('/servers/12345/sites'), [], 'GET')
-			->willReturn(['response' => ['code' => 200], 'body' => '{"sites":[]}']);
+			->willReturn([
+				'response' => ['code' => 200],
+				'body'     => '{"sites":[]}',
+			]);
 
 		$this->integration->method('parse_response')
 			->willReturn(['sites' => []]);
@@ -131,7 +137,10 @@ class LaravelForge_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->integration->expects($this->once())
 			->method('send_forge_request')
 			->with('/servers/12345', [], 'GET')
-			->willReturn(['response' => ['code' => 200], 'body' => '{"server":{"id":12345}}']);
+			->willReturn([
+				'response' => ['code' => 200],
+				'body'     => '{"server":{"id":12345}}',
+			]);
 
 		$this->integration->method('parse_response')
 			->willReturn(['server' => ['id' => 12345]]);

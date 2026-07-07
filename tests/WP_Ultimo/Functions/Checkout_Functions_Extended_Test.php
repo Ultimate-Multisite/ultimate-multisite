@@ -48,7 +48,10 @@ class Checkout_Functions_Extended_Test extends WP_UnitTestCase {
 	 */
 	public function test_stripe_idempotency_key_deterministic(): void {
 
-		$args = ['amount' => 100, 'currency' => 'USD'];
+		$args = [
+			'amount'   => 100,
+			'currency' => 'USD',
+		];
 
 		$key1 = wu_stripe_generate_idempotency_key($args);
 		$key2 = wu_stripe_generate_idempotency_key($args);

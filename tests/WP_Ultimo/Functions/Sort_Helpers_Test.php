@@ -85,9 +85,18 @@ class Sort_Helpers_Test extends WP_UnitTestCase {
 	 */
 	public function test_sort_by_column_with_usort(): void {
 		$items = [
-			['name' => 'C', 'order' => 30],
-			['name' => 'A', 'order' => 10],
-			['name' => 'B', 'order' => 20],
+			[
+				'name'  => 'C',
+				'order' => 30,
+			],
+			[
+				'name'  => 'A',
+				'order' => 10,
+			],
+			[
+				'name'  => 'B',
+				'order' => 20,
+			],
 		];
 
 		usort($items, fn($a, $b) => wu_sort_by_column($a, $b));
@@ -119,9 +128,15 @@ class Sort_Helpers_Test extends WP_UnitTestCase {
 	 */
 	public function test_set_order_from_index_preserves_existing(): void {
 		$items = [
-			['name' => 'First', 'order' => 5],
+			[
+				'name'  => 'First',
+				'order' => 5,
+			],
 			['name' => 'Second'],
-			['name' => 'Third', 'order' => 100],
+			[
+				'name'  => 'Third',
+				'order' => 100,
+			],
 		];
 
 		$result = wu_set_order_from_index($items);

@@ -134,9 +134,18 @@ class Signup_Field_Select_Test extends WP_UnitTestCase {
 			'required'        => true,
 			'element_classes' => 'select-class',
 			'options'         => [
-				['key' => 'us', 'label' => 'United States'],
-				['key' => 'uk', 'label' => 'United Kingdom'],
-				['key' => 'ca', 'label' => 'Canada'],
+				[
+					'key'   => 'us',
+					'label' => 'United States',
+				],
+				[
+					'key'   => 'uk',
+					'label' => 'United Kingdom',
+				],
+				[
+					'key'   => 'ca',
+					'label' => 'Canada',
+				],
 			],
 		];
 

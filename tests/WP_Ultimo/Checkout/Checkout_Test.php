@@ -1829,7 +1829,12 @@ class Checkout_Test extends WP_UnitTestCase {
 	public function test_get_js_validation_rules_is_filterable(): void {
 
 		add_filter('wu_checkout_js_validation_rules', function ($rules) {
-			$rules['custom_js_field'] = [['rule' => 'required', 'param' => null]];
+			$rules['custom_js_field'] = [
+				[
+					'rule'  => 'required',
+					'param' => null,
+				],
+			];
 			return $rules;
 		});
 
@@ -1983,9 +1988,9 @@ class Checkout_Test extends WP_UnitTestCase {
 	 */
 	public function test_setup_checkout_sets_already_setup_flag(): void {
 
-		$checkout    = Checkout::get_instance();
-		$reflection  = new \ReflectionClass($checkout);
-		$setup_prop  = $reflection->getProperty('already_setup');
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+		$setup_prop = $reflection->getProperty('already_setup');
 
 		if (PHP_VERSION_ID < 80100) {
 			$setup_prop->setAccessible(true);
@@ -2034,10 +2039,10 @@ class Checkout_Test extends WP_UnitTestCase {
 	 */
 	public function test_setup_checkout_initialises_session(): void {
 
-		$checkout      = Checkout::get_instance();
-		$reflection    = new \ReflectionClass($checkout);
-		$session_prop  = $this->get_session_prop($reflection);
-		$setup_prop    = $reflection->getProperty('already_setup');
+		$checkout     = Checkout::get_instance();
+		$reflection   = new \ReflectionClass($checkout);
+		$session_prop = $this->get_session_prop($reflection);
+		$setup_prop   = $reflection->getProperty('already_setup');
 
 		if (PHP_VERSION_ID < 80100) {
 			$setup_prop->setAccessible(true);
@@ -2072,9 +2077,9 @@ class Checkout_Test extends WP_UnitTestCase {
 
 		$setup_prop->setValue($checkout, false);
 
-		$_REQUEST['pre-flight']     = '1';
-		$_REQUEST['checkout_form']  = 'some-form';
-		$_REQUEST['some_field']     = 'some_value';
+		$_REQUEST['pre-flight']    = '1';
+		$_REQUEST['checkout_form'] = 'some-form';
+		$_REQUEST['some_field']    = 'some_value';
 
 		$checkout->setup_checkout();
 
@@ -2841,7 +2846,10 @@ class Checkout_Test extends WP_UnitTestCase {
 		$checkout            = Checkout::get_instance();
 		$checkout->step      = [
 			'fields' => [
-				['id' => 'custom_required_field', 'required' => true],
+				[
+					'id'       => 'custom_required_field',
+					'required' => true,
+				],
 			],
 		];
 		$checkout->steps     = [];
@@ -4925,7 +4933,10 @@ class Checkout_Test extends WP_UnitTestCase {
 		$checkout            = Checkout::get_instance();
 		$checkout->step      = [
 			'fields' => [
-				['id' => 'template_selection', 'required' => true],
+				[
+					'id'       => 'template_selection',
+					'required' => true,
+				],
 			],
 		];
 		$checkout->steps     = [];
@@ -4954,7 +4965,10 @@ class Checkout_Test extends WP_UnitTestCase {
 		$checkout            = Checkout::get_instance();
 		$checkout->step      = [
 			'fields' => [
-				['id' => 'template_selection', 'required' => true],
+				[
+					'id'       => 'template_selection',
+					'required' => true,
+				],
 			],
 		];
 		$checkout->steps     = [];
@@ -4978,7 +4992,10 @@ class Checkout_Test extends WP_UnitTestCase {
 		$checkout            = Checkout::get_instance();
 		$checkout->step      = [
 			'fields' => [
-				['id' => 'template_selection', 'required' => true],
+				[
+					'id'       => 'template_selection',
+					'required' => true,
+				],
 			],
 		];
 		$checkout->steps     = [];
@@ -5034,7 +5051,10 @@ class Checkout_Test extends WP_UnitTestCase {
 		$checkout            = Checkout::get_instance();
 		$checkout->step      = [
 			'fields' => [
-				['id' => 'email_address', 'required' => true],
+				[
+					'id'       => 'email_address',
+					'required' => true,
+				],
 			],
 		];
 		$checkout->steps     = [];
@@ -5085,7 +5105,10 @@ class Checkout_Test extends WP_UnitTestCase {
 		$checkout            = Checkout::get_instance();
 		$checkout->step      = [
 			'fields' => [
-				['id' => 'site_title', 'required' => true],
+				[
+					'id'       => 'site_title',
+					'required' => true,
+				],
 			],
 		];
 		$checkout->steps     = [];
@@ -5167,8 +5190,8 @@ class Checkout_Test extends WP_UnitTestCase {
 	 */
 	public function test_login_customer_after_checkout_no_password_fires_wp_login(): void {
 
-		$unique    = uniqid('nopw_', true);
-		$user_id   = self::factory()->user->create([
+		$unique  = uniqid('nopw_', true);
+		$user_id = self::factory()->user->create([
 			'user_login' => $unique,
 			'user_pass'  => wp_generate_password(),
 			'user_email' => $unique . '@example.com',
@@ -5200,7 +5223,7 @@ class Checkout_Test extends WP_UnitTestCase {
 
 		$login_fired    = false;
 		$login_user_arg = null;
-		add_action('wp_login', function($user_login, $user) use (&$login_fired, &$login_user_arg) {
+		add_action('wp_login', function ($user_login, $user) use (&$login_fired, &$login_user_arg) {
 			$login_fired    = true;
 			$login_user_arg = $user;
 		}, 10, 2);
@@ -5387,7 +5410,7 @@ class Checkout_Test extends WP_UnitTestCase {
 		unset($_REQUEST['password']);
 
 		$login_fired = false;
-		add_action('wp_login', function() use (&$login_fired) {
+		add_action('wp_login', function () use (&$login_fired) {
 			$login_fired = true;
 		});
 

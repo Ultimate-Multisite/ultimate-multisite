@@ -160,5 +160,4 @@ class Post_Base_Model_Test extends \WP_UnitTestCase {
 
 		parent::tearDown();
 	}
-
 }

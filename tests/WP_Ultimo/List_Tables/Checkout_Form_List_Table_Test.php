@@ -105,7 +105,7 @@ class Checkout_Form_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_slug_returns_slug_in_span(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_slug' ] )
+			->addMethods( ['get_slug'] )
 			->getMock();
 		$item->method( 'get_slug' )->willReturn( 'my-checkout-form' );
 
@@ -126,7 +126,7 @@ class Checkout_Form_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_steps_returns_step_and_field_count(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_step_count', 'get_field_count' ] )
+			->addMethods( ['get_step_count', 'get_field_count'] )
 			->getMock();
 		$item->method( 'get_step_count' )->willReturn( 3 );
 		$item->method( 'get_field_count' )->willReturn( 12 );
@@ -147,7 +147,7 @@ class Checkout_Form_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_shortcode_returns_input_with_shortcode(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_shortcode' ] )
+			->addMethods( ['get_shortcode'] )
 			->getMock();
 		$item->method( 'get_shortcode' )->willReturn( '[wu_checkout slug="my-form"]' );
 
@@ -167,7 +167,7 @@ class Checkout_Form_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_name_returns_string_with_form_name(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_id', 'get_slug', 'get_name' ] )
+			->addMethods( ['get_id', 'get_slug', 'get_name'] )
 			->getMock();
 		$item->method( 'get_id' )->willReturn( 1 );
 		$item->method( 'get_slug' )->willReturn( 'my-form' );

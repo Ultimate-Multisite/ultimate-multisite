@@ -40,7 +40,10 @@ class Model_Functions_Test extends WP_UnitTestCase {
 	 */
 	public function test_cast_model_to_array_with_array(): void {
 
-		$input = ['name' => 'Test', 'value' => 123];
+		$input = [
+			'name'  => 'Test',
+			'value' => 123,
+		];
 
 		$result = wu_cast_model_to_array($input);
 

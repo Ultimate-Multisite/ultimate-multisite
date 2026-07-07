@@ -923,7 +923,10 @@ class Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		$this->page->object = $mock_object;
 
-		$this->page->public_add_info_widget('info', ['title' => 'Timestamps', 'position' => 'side-bottom']);
+		$this->page->public_add_info_widget('info', [
+			'title'    => 'Timestamps',
+			'position' => 'side-bottom',
+		]);
 
 		$this->assertTrue(true);
 	}

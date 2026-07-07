@@ -116,7 +116,7 @@ class Helper_Test extends \WP_UnitTestCase {
 	 */
 	public function test_constructor_is_private() {
 
-		$ref = new \ReflectionClass(Helper::class);
+		$ref         = new \ReflectionClass(Helper::class);
 		$constructor = $ref->getConstructor();
 
 		$this->assertTrue($constructor->isPrivate());

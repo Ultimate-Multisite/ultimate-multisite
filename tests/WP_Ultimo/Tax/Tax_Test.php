@@ -309,7 +309,7 @@ class Tax_Test extends WP_UnitTestCase {
 
 		wu_save_option('tax_rates', $tax_rates);
 
-		$rates     = $this->tax->get_tax_rates();
+		$rates      = $this->tax->get_tax_rates();
 		$first_rate = $rates['default']['rates'][0];
 
 		// These should come from defaults.
@@ -344,7 +344,7 @@ class Tax_Test extends WP_UnitTestCase {
 
 		wu_save_option('tax_rates', $tax_rates);
 
-		$rates     = $this->tax->get_tax_rates();
+		$rates      = $this->tax->get_tax_rates();
 		$first_rate = $rates['default']['rates'][0];
 
 		$this->assertEquals(0, $first_rate['tax_rate']);
@@ -372,7 +372,7 @@ class Tax_Test extends WP_UnitTestCase {
 
 		wu_save_option('tax_rates', $tax_rates);
 
-		$rates     = $this->tax->get_tax_rates();
+		$rates      = $this->tax->get_tax_rates();
 		$first_rate = $rates['default']['rates'][0];
 
 		$this->assertEquals(15.5, $first_rate['tax_rate']);
@@ -396,7 +396,7 @@ class Tax_Test extends WP_UnitTestCase {
 					],
 				],
 			],
-			'eu' => [
+			'eu'      => [
 				'name'  => 'EU',
 				'rates' => [
 					[
@@ -427,7 +427,7 @@ class Tax_Test extends WP_UnitTestCase {
 
 		// Store rates without a 'default' key explicitly - use a different key name.
 		$tax_rates = [
-			'first_category' => [
+			'first_category'  => [
 				'name'  => 'First Category',
 				'rates' => [
 					[
@@ -601,7 +601,7 @@ class Tax_Test extends WP_UnitTestCase {
 
 		wu_save_option('tax_rates', $tax_rates);
 
-		$rates     = $this->tax->get_tax_rates();
+		$rates      = $this->tax->get_tax_rates();
 		$first_rate = $rates['default']['rates'][0];
 
 		$this->assertEquals(0, $first_rate['tax_rate']);
@@ -629,7 +629,7 @@ class Tax_Test extends WP_UnitTestCase {
 
 		wu_save_option('tax_rates', $tax_rates);
 
-		$rates     = $this->tax->get_tax_rates();
+		$rates      = $this->tax->get_tax_rates();
 		$first_rate = $rates['default']['rates'][0];
 
 		// String '10' is numeric, so it should be kept.
@@ -658,7 +658,7 @@ class Tax_Test extends WP_UnitTestCase {
 
 		wu_save_option('tax_rates', $tax_rates);
 
-		$rates     = $this->tax->get_tax_rates();
+		$rates      = $this->tax->get_tax_rates();
 		$first_rate = $rates['default']['rates'][0];
 
 		// Empty string is not numeric, so should be converted to 0.
@@ -740,7 +740,7 @@ class Tax_Test extends WP_UnitTestCase {
 
 		wu_save_option('tax_rates', $tax_rates);
 
-		$rates     = $this->tax->get_tax_rates();
+		$rates      = $this->tax->get_tax_rates();
 		$first_rate = $rates['default']['rates'][0];
 
 		// Keys from defaults that were not set.
@@ -801,7 +801,7 @@ class Tax_Test extends WP_UnitTestCase {
 
 		wu_save_option('tax_rates', $tax_rates);
 
-		$rates     = $this->tax->get_tax_rates();
+		$rates      = $this->tax->get_tax_rates();
 		$first_rate = $rates['default']['rates'][0];
 
 		// Negative numbers are numeric, so they should be kept.
@@ -861,7 +861,7 @@ class Tax_Test extends WP_UnitTestCase {
 
 		wu_save_option('tax_rates', $tax_rates);
 
-		$rates     = $this->tax->get_tax_rates();
+		$rates      = $this->tax->get_tax_rates();
 		$first_rate = $rates['default']['rates'][0];
 
 		// null is not numeric, should be set to 0.

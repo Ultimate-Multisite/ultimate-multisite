@@ -79,7 +79,7 @@ class Event_List_Table_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'wu_events_list_table_get_columns',
-			function ( $columns ) {
+			function ($columns) {
 				$columns['custom_col'] = 'Custom';
 				return $columns;
 			}
@@ -152,7 +152,7 @@ class Event_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_object_type_returns_type_in_span(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_object_type' ] )
+			->addMethods( ['get_object_type'] )
 			->getMock();
 		$item->method( 'get_object_type' )->willReturn( 'membership' );
 
@@ -173,7 +173,7 @@ class Event_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_slug_returns_slug_in_span(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_slug' ] )
+			->addMethods( ['get_slug'] )
 			->getMock();
 		$item->method( 'get_slug' )->willReturn( 'membership.created' );
 
@@ -246,7 +246,7 @@ class Event_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_message_returns_trimmed_message(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_id', 'get_message' ] )
+			->addMethods( ['get_id', 'get_message'] )
 			->getMock();
 		$item->method( 'get_id' )->willReturn( 1 );
 		$item->method( 'get_message' )->willReturn( 'A membership was created for the customer.' );

@@ -16,7 +16,7 @@ class Trial_Limits_Test extends \WP_UnitTestCase {
 	private function get_instance() {
 
 		// Create instance directly to bypass Singleton init()
-		$ref = new \ReflectionClass(Trial_Limits::class);
+		$ref      = new \ReflectionClass(Trial_Limits::class);
 		$instance = $ref->newInstanceWithoutConstructor();
 
 		return $instance;
@@ -57,7 +57,7 @@ class Trial_Limits_Test extends \WP_UnitTestCase {
 	 */
 	public function test_get_instance_returns_same_instance() {
 
-		$first = Trial_Limits::get_instance();
+		$first  = Trial_Limits::get_instance();
 		$second = Trial_Limits::get_instance();
 
 		$this->assertSame($first, $second);

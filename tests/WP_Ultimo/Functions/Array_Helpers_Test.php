@@ -152,8 +152,16 @@ class Array_Helpers_Test extends WP_UnitTestCase {
 	 * Test wu_array_recursive_diff basic diff.
 	 */
 	public function test_array_recursive_diff_basic(): void {
-		$array1 = ['a' => 1, 'b' => 2, 'c' => 3];
-		$array2 = ['a' => 1, 'b' => 2, 'c' => 3];
+		$array1 = [
+			'a' => 1,
+			'b' => 2,
+			'c' => 3,
+		];
+		$array2 = [
+			'a' => 1,
+			'b' => 2,
+			'c' => 3,
+		];
 
 		$result = wu_array_recursive_diff($array1, $array2);
 
@@ -164,8 +172,14 @@ class Array_Helpers_Test extends WP_UnitTestCase {
 	 * Test wu_array_recursive_diff finds differences.
 	 */
 	public function test_array_recursive_diff_finds_differences(): void {
-		$array1 = ['a' => 1, 'b' => 2];
-		$array2 = ['a' => 1, 'b' => 3];
+		$array1 = [
+			'a' => 1,
+			'b' => 2,
+		];
+		$array2 = [
+			'a' => 1,
+			'b' => 3,
+		];
 
 		$result = wu_array_recursive_diff($array1, $array2);
 
@@ -177,7 +191,11 @@ class Array_Helpers_Test extends WP_UnitTestCase {
 	 * Test wu_array_recursive_diff with missing keys.
 	 */
 	public function test_array_recursive_diff_missing_keys(): void {
-		$array1 = ['a' => 1, 'b' => 2, 'c' => 3];
+		$array1 = [
+			'a' => 1,
+			'b' => 2,
+			'c' => 3,
+		];
 		$array2 = ['a' => 1];
 
 		$result = wu_array_recursive_diff($array1, $array2);
@@ -190,8 +208,18 @@ class Array_Helpers_Test extends WP_UnitTestCase {
 	 * Test wu_array_recursive_diff with nested arrays.
 	 */
 	public function test_array_recursive_diff_nested(): void {
-		$array1 = ['nested' => ['a' => 1, 'b' => 2]];
-		$array2 = ['nested' => ['a' => 1, 'b' => 3]];
+		$array1 = [
+			'nested' => [
+				'a' => 1,
+				'b' => 2,
+			],
+		];
+		$array2 = [
+			'nested' => [
+				'a' => 1,
+				'b' => 3,
+			],
+		];
 
 		$result = wu_array_recursive_diff($array1, $array2);
 
@@ -261,9 +289,18 @@ class Array_Helpers_Test extends WP_UnitTestCase {
 	 */
 	public function test_array_find_first_by(): void {
 		$array = [
-			['id' => 1, 'name' => 'Alice'],
-			['id' => 2, 'name' => 'Bob'],
-			['id' => 3, 'name' => 'Alice'],
+			[
+				'id'   => 1,
+				'name' => 'Alice',
+			],
+			[
+				'id'   => 2,
+				'name' => 'Bob',
+			],
+			[
+				'id'   => 3,
+				'name' => 'Alice',
+			],
 		];
 
 		$result = wu_array_find_first_by($array, 'name', 'Alice');
@@ -277,9 +314,18 @@ class Array_Helpers_Test extends WP_UnitTestCase {
 	 */
 	public function test_array_find_last_by(): void {
 		$array = [
-			['id' => 1, 'name' => 'Alice'],
-			['id' => 2, 'name' => 'Bob'],
-			['id' => 3, 'name' => 'Alice'],
+			[
+				'id'   => 1,
+				'name' => 'Alice',
+			],
+			[
+				'id'   => 2,
+				'name' => 'Bob',
+			],
+			[
+				'id'   => 3,
+				'name' => 'Alice',
+			],
 		];
 
 		$result = wu_array_find_last_by($array, 'name', 'Alice');
@@ -293,9 +339,18 @@ class Array_Helpers_Test extends WP_UnitTestCase {
 	 */
 	public function test_array_find_all_by(): void {
 		$array = [
-			['id' => 1, 'name' => 'Alice'],
-			['id' => 2, 'name' => 'Bob'],
-			['id' => 3, 'name' => 'Alice'],
+			[
+				'id'   => 1,
+				'name' => 'Alice',
+			],
+			[
+				'id'   => 2,
+				'name' => 'Bob',
+			],
+			[
+				'id'   => 3,
+				'name' => 'Alice',
+			],
 		];
 
 		$result = wu_array_find_all_by($array, 'name', 'Alice');
@@ -308,8 +363,14 @@ class Array_Helpers_Test extends WP_UnitTestCase {
 	 */
 	public function test_array_find_first_by_no_match(): void {
 		$array = [
-			['id' => 1, 'name' => 'Alice'],
-			['id' => 2, 'name' => 'Bob'],
+			[
+				'id'   => 1,
+				'name' => 'Alice',
+			],
+			[
+				'id'   => 2,
+				'name' => 'Bob',
+			],
 		];
 
 		$result = wu_array_find_first_by($array, 'name', 'Charlie');

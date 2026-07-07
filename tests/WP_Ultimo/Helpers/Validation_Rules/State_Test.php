@@ -13,7 +13,6 @@ use WP_UnitTestCase;
 
 /**
  * Test State validation rule.
-
  */
 class State_Test extends WP_UnitTestCase {
 
@@ -78,22 +77,22 @@ class State_Test extends WP_UnitTestCase {
 	 */
 	public function german_state_codes_provider(): array {
 		return [
-			'Baden-Württemberg'       => ['BW'],
-			'Bavaria'                 => ['BY'],
-			'Berlin'                  => ['BE'],
-			'Brandenburg'             => ['BB'],
-			'Bremen'                  => ['HB'],
-			'Hamburg'                 => ['HH'],
-			'Hesse'                   => ['HE'],
-			'Lower Saxony'            => ['NI'],
-			'Mecklenburg-Vorpommern'  => ['MV'],
-			'North Rhine-Westphalia'  => ['NW'],
-			'Rhineland-Palatinate'    => ['RP'],
-			'Saarland'                => ['SL'],
-			'Saxony'                  => ['SN'],
-			'Saxony-Anhalt'           => ['ST'],
-			'Schleswig-Holstein'      => ['SH'],
-			'Thuringia'               => ['TH'],
+			'Baden-Württemberg'      => ['BW'],
+			'Bavaria'                => ['BY'],
+			'Berlin'                 => ['BE'],
+			'Brandenburg'            => ['BB'],
+			'Bremen'                 => ['HB'],
+			'Hamburg'                => ['HH'],
+			'Hesse'                  => ['HE'],
+			'Lower Saxony'           => ['NI'],
+			'Mecklenburg-Vorpommern' => ['MV'],
+			'North Rhine-Westphalia' => ['NW'],
+			'Rhineland-Palatinate'   => ['RP'],
+			'Saarland'               => ['SL'],
+			'Saxony'                 => ['SN'],
+			'Saxony-Anhalt'          => ['ST'],
+			'Schleswig-Holstein'     => ['SH'],
+			'Thuringia'              => ['TH'],
 		];
 	}
 

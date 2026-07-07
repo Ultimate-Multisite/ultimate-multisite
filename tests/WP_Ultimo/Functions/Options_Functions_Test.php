@@ -46,7 +46,10 @@ class Options_Functions_Test extends WP_UnitTestCase {
 	 */
 	public function test_save_option_array(): void {
 
-		$data = ['key1' => 'val1', 'key2' => 'val2'];
+		$data = [
+			'key1' => 'val1',
+			'key2' => 'val2',
+		];
 
 		wu_save_option('test_option_array', $data);
 

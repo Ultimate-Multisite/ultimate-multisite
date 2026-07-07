@@ -143,7 +143,7 @@ class Query extends \BerlinDB\Database\Query {
 	 *                                Default true.
 	 * @return int|false Number of rows affected, or false on failure.
 	 */
-	public function increment_item( $item_id = 0, $increments = [], $sets = [], $invalidate_cache = true ) {
+	public function increment_item($item_id = 0, $increments = [], $sets = [], $invalidate_cache = true) {
 
 		// Bail if nothing to do.
 		if ( empty( $increments ) && empty( $sets ) ) {
@@ -173,7 +173,7 @@ class Query extends \BerlinDB\Database\Query {
 		$valid_columns = array_flip( $this->get_columns( [], 'and', 'name' ) );
 
 		// Get the primary column name.
-		$primary_columns = $this->get_columns( [ 'primary' => true ], 'and', 'name' );
+		$primary_columns = $this->get_columns( ['primary' => true], 'and', 'name' );
 		$primary         = ! empty( $primary_columns ) ? reset( $primary_columns ) : 'id';
 
 		// Build SET clause fragments and prepare values.
@@ -227,7 +227,7 @@ class Query extends \BerlinDB\Database\Query {
 
 		// Build and execute the query.
 		$sql = sprintf(
-			"UPDATE `%s` SET %s WHERE `%s` = %%d",
+			'UPDATE `%s` SET %s WHERE `%s` = %%d',
 			$table,
 			implode( ', ', $set_clauses ),
 			$primary

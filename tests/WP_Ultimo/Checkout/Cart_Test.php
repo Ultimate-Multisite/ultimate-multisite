@@ -658,8 +658,8 @@ class Cart_Test extends WP_UnitTestCase {
 		// Create a new cart with different total
 		$cart = new Cart([
 			'cart_type' => 'new',
-			'products' => [1], // Assume product exists
-			'country' => 'US',
+			'products'  => [1], // Assume product exists
+			'country'   => 'US',
 		]);
 
 		// The method should cancel the pending payment if totals differ
@@ -899,7 +899,10 @@ class Cart_Test extends WP_UnitTestCase {
 	 * Test recurring total for a recurring product.
 	 */
 	public function test_recurring_total_for_recurring_product() {
-		$product = $this->create_plan(['amount' => 35.00, 'recurring' => true]);
+		$product = $this->create_plan([
+			'amount'    => 35.00,
+			'recurring' => true,
+		]);
 
 		$cart = new Cart([
 			'products' => [$product->get_id()],
@@ -931,7 +934,10 @@ class Cart_Test extends WP_UnitTestCase {
 	 */
 	public function test_total_with_plan_and_service() {
 		$plan    = $this->create_plan(['amount' => 40.00]);
-		$service = $this->create_service(['amount' => 20.00, 'recurring' => false]);
+		$service = $this->create_service([
+			'amount'    => 20.00,
+			'recurring' => false,
+		]);
 
 		$cart = new Cart([
 			'products' => [$plan->get_id(), $service->get_id()],
@@ -949,12 +955,12 @@ class Cart_Test extends WP_UnitTestCase {
 
 		// Manually add a credit line item to try to make total negative
 		$credit = new Line_Item([
-			'type'        => 'credit',
-			'title'       => 'Big Credit',
-			'unit_price'  => -1000,
-			'quantity'    => 1,
+			'type'         => 'credit',
+			'title'        => 'Big Credit',
+			'unit_price'   => -1000,
+			'quantity'     => 1,
 			'discountable' => false,
-			'taxable'     => false,
+			'taxable'      => false,
 		]);
 		$cart->add_line_item($credit);
 
@@ -2099,7 +2105,10 @@ class Cart_Test extends WP_UnitTestCase {
 	 * Test get_total_fees returns zero when no fees.
 	 */
 	public function test_get_total_fees_zero_without_fees() {
-		$plan = $this->create_plan(['amount' => 50.00, 'setup_fee' => 0]);
+		$plan = $this->create_plan([
+			'amount'    => 50.00,
+			'setup_fee' => 0,
+		]);
 
 		$cart = new Cart([
 			'products' => [$plan->get_id()],
@@ -2342,8 +2351,14 @@ class Cart_Test extends WP_UnitTestCase {
 	 */
 	public function test_multiple_product_totals() {
 		$plan     = $this->create_plan(['amount' => 50.00]);
-		$service1 = $this->create_service(['amount' => 10.00, 'recurring' => false]);
-		$service2 = $this->create_service(['amount' => 5.00, 'recurring' => false]);
+		$service1 = $this->create_service([
+			'amount'    => 10.00,
+			'recurring' => false,
+		]);
+		$service2 = $this->create_service([
+			'amount'    => 5.00,
+			'recurring' => false,
+		]);
 
 		$cart = new Cart([
 			'products' => [$plan->get_id(), $service1->get_id(), $service2->get_id()],
@@ -2362,7 +2377,10 @@ class Cart_Test extends WP_UnitTestCase {
 	 * Test that all returned line items are Line_Item instances.
 	 */
 	public function test_line_items_are_correct_instances() {
-		$plan = $this->create_plan(['amount' => 50.00, 'setup_fee' => 10.00]);
+		$plan = $this->create_plan([
+			'amount'    => 50.00,
+			'setup_fee' => 10.00,
+		]);
 
 		$cart = new Cart([
 			'products' => [$plan->get_id()],
@@ -2384,7 +2402,10 @@ class Cart_Test extends WP_UnitTestCase {
 	 * Test get_recurring_products returns recurring products.
 	 */
 	public function test_get_recurring_products() {
-		$plan = $this->create_plan(['amount' => 50.00, 'recurring' => true]);
+		$plan = $this->create_plan([
+			'amount'    => 50.00,
+			'recurring' => true,
+		]);
 
 		$cart = new Cart([
 			'products' => [$plan->get_id()],
@@ -2655,14 +2676,14 @@ class Cart_Test extends WP_UnitTestCase {
 		);
 
 		$defaults = [
-			'customer_id'        => self::$customer->get_id(),
-			'plan_id'            => $plan->get_id(),
-			'status'             => 'cancelled',
-			'amount'             => 50.00,
-			'recurring'          => true,
-			'duration'           => 1,
-			'duration_unit'      => 'month',
-			'date_cancellation'  => wu_get_current_time('mysql'),
+			'customer_id'       => self::$customer->get_id(),
+			'plan_id'           => $plan->get_id(),
+			'status'            => 'cancelled',
+			'amount'            => 50.00,
+			'recurring'         => true,
+			'duration'          => 1,
+			'duration_unit'     => 'month',
+			'date_cancellation' => wu_get_current_time('mysql'),
 		];
 
 		return wu_create_membership(array_merge($defaults, $overrides));
@@ -2675,8 +2696,8 @@ class Cart_Test extends WP_UnitTestCase {
 	 * override the default 'upgrade' cart_type to 'reactivation'.
 	 */
 	public function test_reactivation_cart_type_set_for_cancelled_membership() {
-		$customer    = self::$customer;
-		$membership  = $this->create_cancelled_membership();
+		$customer   = self::$customer;
+		$membership = $this->create_cancelled_membership();
 
 		wp_set_current_user($customer->get_user_id(), $customer->get_username());
 

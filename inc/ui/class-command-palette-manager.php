@@ -138,8 +138,8 @@ class Command_Palette_Manager {
 
 		// Core dependencies: wp-commands, wp-data, wp-element, wp-i18n, wp-api-fetch.
 		// Progressive enhancement deps (JS feature-detects these at runtime):
-		//   wp-primitives: SVG/Path for icons (no global wp.icons exists in any WP version).
-		//   wp-compose: useDebounce for search debouncing.
+		// wp-primitives: SVG/Path for icons (no global wp.icons exists in any WP version).
+		// wp-compose: useDebounce for search debouncing.
 		// Both are available since WP 6.1 and safe to list — WP resolves them
 		// from its registered scripts. On pages where they aren't loaded, the JS
 		// gracefully degrades (no icons, setTimeout fallback for debounce).

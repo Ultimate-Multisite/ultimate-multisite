@@ -46,7 +46,10 @@ class Form_Functions_Test extends WP_UnitTestCase {
 	 */
 	public function test_wu_get_form_url_inline_custom_dimensions(): void {
 
-		$url = wu_get_form_url('my_form', ['width' => '600', 'height' => '500'], true);
+		$url = wu_get_form_url('my_form', [
+			'width'  => '600',
+			'height' => '500',
+		], true);
 
 		$this->assertStringContainsString('width=600', $url);
 		$this->assertStringContainsString('height=500', $url);

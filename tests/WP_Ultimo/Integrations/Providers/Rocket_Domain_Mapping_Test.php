@@ -69,7 +69,10 @@ class Rocket_Domain_Mapping_Test extends WP_UnitTestCase {
 				['domain' => 'example.com'],
 				'POST'
 			)
-			->willReturn(['response' => ['code' => 201], 'body' => '{"id":42}']);
+			->willReturn([
+				'response' => ['code' => 201],
+				'body'     => '{"id":42}',
+			]);
 
 		$this->module->on_add_domain('example.com', 1);
 	}
@@ -96,7 +99,10 @@ class Rocket_Domain_Mapping_Test extends WP_UnitTestCase {
 					];
 				}
 
-				return ['response' => ['code' => 204], 'body' => ''];
+				return [
+					'response' => ['code' => 204],
+					'body'     => '',
+				];
 			});
 
 		$this->module->on_remove_domain('example.com', 1);
@@ -108,7 +114,10 @@ class Rocket_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->integration->expects($this->once())
 			->method('send_rocket_request')
 			->with('domains', [], 'GET')
-			->willReturn(['response' => ['code' => 200], 'body' => '{"data":[]}']);
+			->willReturn([
+				'response' => ['code' => 200],
+				'body'     => '{"data":[]}',
+			]);
 
 		$this->module->on_remove_domain('notfound.com', 1);
 	}
@@ -134,7 +143,10 @@ class Rocket_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->integration->expects($this->once())
 			->method('send_rocket_request')
 			->with('domains', [], 'GET')
-			->willReturn(['response' => ['code' => 200], 'body' => '{"data":[]}']);
+			->willReturn([
+				'response' => ['code' => 200],
+				'body'     => '{"data":[]}',
+			]);
 
 		$result = $this->module->test_connection();
 

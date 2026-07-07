@@ -78,7 +78,9 @@
 				}
 			},
 			mounted() {
-				wu_on_load();
+				if (typeof window.wu_on_load === "function") {
+					window.wu_on_load();
+				}
 				hooks.doAction("wu_" + app_id + "_mounted", this.$data);
 				const cb = element.dataset.onLoad;
 				if (typeof window[ cb ] === "function") {
@@ -122,14 +124,15 @@
 					return typeof this[ value ] === "undefined" ? default_value : this[ value ];
 				},
 				duplicate_and_clean($event, query) {
-					let _a;
 					const elements = document.querySelectorAll(query);
 					const target = elements.item(elements.length - 1);
 					const clone = target.cloneNode(true);
 					clone.id = clone.id + "_copy";
 					const textAreas = clone.querySelectorAll("input, textarea");
 					textAreas.forEach((el) => el.value = "");
-					(_a = target.parentNode) == null ? void 0 : _a.insertBefore(clone, target.nextSibling);
+					if (target.parentNode) {
+						target.parentNode.insertBefore(clone, target.nextSibling);
+					}
 				},
 				wu_format_money(value) {
 					return wu_format_money(value);
@@ -141,7 +144,7 @@
 					if (Object.prototype.toString.call(value) === "[object Array]") {
 						return value.indexOf(this[ data ]) > -1;
 					}
-					return this[ data ] == value;
+					return this[ data ] === value;
 				},
 				open($event) {
 					$event.preventDefault();
@@ -155,7 +158,7 @@
 				url.searchParams.set(app_id, new_value);
 				history.pushState({}, "", url);
 			} catch (err) {
-				console.warn("Browser does not support pushState.", err);
+				window.console.warn("Browser does not support pushState.", err);
 			}
 		});
 	};
@@ -228,11 +231,11 @@
 		});
 		document.body.addEventListener("wubox:unload", function() {
 			const modal = document.getElementById("WUB_window");
-			if (!modal) {
+			if (! modal) {
 				return;
 			}
 			const app = modal.querySelector("ul[data-wu-app]");
-			if (!app) {
+			if (! app) {
 				return;
 			}
 			const app_name = "wu_" + app.dataset.wuApp;

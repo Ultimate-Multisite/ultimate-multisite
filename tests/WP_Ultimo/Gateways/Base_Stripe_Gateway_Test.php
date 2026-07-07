@@ -345,7 +345,10 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 
 		$gateway_mock->method('should_apply_application_fee')->willReturn(false);
 
-		$intent_args = ['amount' => 1000, 'currency' => 'usd'];
+		$intent_args = [
+			'amount'   => 1000,
+			'currency' => 'usd',
+		];
 		$result      = $this->gateway->add_application_fee_to_intent($intent_args, $gateway_mock);
 
 		$this->assertArrayNotHasKey('application_fee_amount', $result);
@@ -363,7 +366,10 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$gateway_mock->method('should_apply_application_fee')->willReturn(true);
 		$gateway_mock->method('get_application_fee_percent')->willReturn(3.0);
 
-		$intent_args = ['amount' => 0, 'currency' => 'usd'];
+		$intent_args = [
+			'amount'   => 0,
+			'currency' => 'usd',
+		];
 		$result      = $this->gateway->add_application_fee_to_intent($intent_args, $gateway_mock);
 
 		$this->assertArrayNotHasKey('application_fee_amount', $result);
@@ -380,7 +386,10 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$gateway_mock->method('should_apply_application_fee')->willReturn(true);
 		$gateway_mock->method('get_application_fee_percent')->willReturn(3.0);
 
-		$intent_args = ['amount' => 1000, 'currency' => 'usd'];
+		$intent_args = [
+			'amount'   => 1000,
+			'currency' => 'usd',
+		];
 		$result      = $this->gateway->add_application_fee_to_intent($intent_args, $gateway_mock);
 
 		$this->assertArrayHasKey('application_fee_amount', $result);
@@ -398,7 +407,10 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$gateway_mock->method('should_apply_application_fee')->willReturn(true);
 		$gateway_mock->method('get_application_fee_percent')->willReturn(3.0);
 
-		$intent_args = ['amount' => -100, 'currency' => 'usd'];
+		$intent_args = [
+			'amount'   => -100,
+			'currency' => 'usd',
+		];
 		$result      = $this->gateway->add_application_fee_to_intent($intent_args, $gateway_mock);
 
 		$this->assertArrayNotHasKey('application_fee_amount', $result);
@@ -689,9 +701,9 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 
 		$subscription = \Stripe\Subscription::constructFrom(
 			[
-				'id'                      => 'sub_test123',
-				'status'                  => 'active',
-				'default_payment_method'  => null,
+				'id'                     => 'sub_test123',
+				'status'                 => 'active',
+				'default_payment_method' => null,
 			]
 		);
 
@@ -729,11 +741,11 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 
 		$membership_mock->method('get_gateway_subscription_id')->willReturn('sub_test123');
 
-		$card = new \stdClass();
+		$card        = new \stdClass();
 		$card->brand = 'visa';
 		$card->last4 = '4242';
 
-		$pm = new \stdClass();
+		$pm       = new \stdClass();
 		$pm->card = $card;
 
 		$subscription = \Stripe\Subscription::constructFrom(
@@ -920,13 +932,13 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$id = 'stripe';
 
 		$saved_settings = [
-			"{$id}_test_access_token"   => 'sk_test_existing_token',
-			"{$id}_test_refresh_token"  => 'rt_test_existing',
-			"{$id}_test_account_id"     => 'acct_existing',
+			"{$id}_test_access_token"    => 'sk_test_existing_token',
+			"{$id}_test_refresh_token"   => 'rt_test_existing',
+			"{$id}_test_account_id"      => 'acct_existing',
 			"{$id}_test_publishable_key" => 'pk_test_existing',
-			"{$id}_live_access_token"   => 'sk_live_existing_token',
-			"{$id}_live_refresh_token"  => 'rt_live_existing',
-			"{$id}_live_account_id"     => 'acct_live_existing',
+			"{$id}_live_access_token"    => 'sk_live_existing_token',
+			"{$id}_live_refresh_token"   => 'rt_live_existing',
+			"{$id}_live_account_id"      => 'acct_live_existing',
 			"{$id}_live_publishable_key" => 'pk_live_existing',
 		];
 
@@ -950,7 +962,7 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$id = 'stripe';
 
 		$settings = [
-			"{$id}_sandbox_mode"                => '1',
+			"{$id}_sandbox_mode"                 => '1',
 			"{$id}_webhook_listener_explanation" => 'some_url',
 		];
 
@@ -973,7 +985,7 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$id = 'stripe';
 
 		$settings = [
-			"{$id}_sandbox_mode"                => '1',
+			"{$id}_sandbox_mode"                 => '1',
 			"{$id}_webhook_listener_explanation" => 'some_url',
 		];
 
@@ -1023,13 +1035,13 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 	 * Test convert_to_stripe_address maps fields correctly.
 	 */
 	public function test_convert_to_stripe_address_maps_fields(): void {
-		$billing_address                       = new \stdClass();
-		$billing_address->billing_city         = 'New York';
-		$billing_address->billing_country      = 'US';
+		$billing_address                         = new \stdClass();
+		$billing_address->billing_city           = 'New York';
+		$billing_address->billing_country        = 'US';
 		$billing_address->billing_address_line_1 = '123 Main St';
 		$billing_address->billing_address_line_2 = 'Apt 4';
-		$billing_address->billing_zip_code     = '10001';
-		$billing_address->billing_state        = 'NY';
+		$billing_address->billing_zip_code       = '10001';
+		$billing_address->billing_state          = 'NY';
 
 		$result = $this->gateway->convert_to_stripe_address($billing_address);
 
@@ -2461,7 +2473,10 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 			'pre_http_request',
 			function ($preempt, $args, $url) {
 				if (strpos($url, '/deauthorize') !== false) {
-					return ['response' => ['code' => 200], 'body' => '{}'];
+					return [
+						'response' => ['code' => 200],
+						'body'     => '{}',
+					];
 				}
 				return $preempt;
 			},
@@ -2693,10 +2708,10 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 
 		$result = $this->gateway->maybe_create_tax_rate(
 			[
-				'country'  => 'US',
-				'tax_rate' => 10,
-				'type'     => 'vat',
-				'title'    => 'VAT',
+				'country'   => 'US',
+				'tax_rate'  => 10,
+				'type'      => 'vat',
+				'title'     => 'VAT',
 				'inclusive' => false,
 			]
 		);
@@ -2768,11 +2783,11 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$id = 'stripe';
 
 		$settings = [
-			"{$id}_sandbox_mode"      => '1',
-			"{$id}_test_pk_key"       => 'pk_test_new',
-			"{$id}_test_sk_key"       => 'sk_test_new',
-			"{$id}_live_pk_key"       => '',
-			"{$id}_live_sk_key"       => '',
+			"{$id}_sandbox_mode" => '1',
+			"{$id}_test_pk_key"  => 'pk_test_new',
+			"{$id}_test_sk_key"  => 'sk_test_new',
+			"{$id}_live_pk_key"  => '',
+			"{$id}_live_sk_key"  => '',
 		];
 
 		$settings_to_save = [
@@ -2794,11 +2809,11 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$id = 'stripe';
 
 		$settings = [
-			"{$id}_sandbox_mode"  => '1',
-			"{$id}_test_pk_key"   => 'pk_test_same',
-			"{$id}_test_sk_key"   => 'sk_test_same',
-			"{$id}_live_pk_key"   => '',
-			"{$id}_live_sk_key"   => '',
+			"{$id}_sandbox_mode" => '1',
+			"{$id}_test_pk_key"  => 'pk_test_same',
+			"{$id}_test_sk_key"  => 'sk_test_same',
+			"{$id}_live_pk_key"  => '',
+			"{$id}_live_sk_key"  => '',
 		];
 
 		$settings_to_save = [
@@ -2823,7 +2838,7 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 	 * Uses Base_Stripe_Gateway_Stub since Stripe_Gateway overrides run_preflight() with real logic.
 	 */
 	public function test_run_preflight_returns_nothing(): void {
-		$stub  = new Base_Stripe_Gateway_Stub();
+		$stub   = new Base_Stripe_Gateway_Stub();
 		$result = $stub->run_preflight();
 
 		$this->assertNull($result);
@@ -2924,9 +2939,9 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 	public function test_handle_oauth_callbacks_ignores_invalid_state(): void {
 		// Set up GET params for OAuth callback.
 		$_GET = [
-			'page'              => 'wp-ultimo-settings',
-			'wcs_stripe_code'   => 'encrypted_code_123',
-			'wcs_stripe_state'  => 'invalid_state',
+			'page'             => 'wp-ultimo-settings',
+			'wcs_stripe_code'  => 'encrypted_code_123',
+			'wcs_stripe_state' => 'invalid_state',
 		];
 
 		// Set a different expected state.

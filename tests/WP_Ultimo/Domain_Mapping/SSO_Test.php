@@ -19,7 +19,7 @@ class SSO_Test extends \WP_UnitTestCase {
 	private function get_instance() {
 
 		// Create instance directly to bypass Singleton init()
-		$ref = new \ReflectionClass(SSO::class);
+		$ref      = new \ReflectionClass(SSO::class);
 		$instance = $ref->newInstanceWithoutConstructor();
 
 		return $instance;
@@ -60,7 +60,7 @@ class SSO_Test extends \WP_UnitTestCase {
 	 */
 	public function test_get_instance_returns_same_instance() {
 
-		$first = SSO::get_instance();
+		$first  = SSO::get_instance();
 		$second = SSO::get_instance();
 
 		$this->assertSame($first, $second);
@@ -81,7 +81,7 @@ class SSO_Test extends \WP_UnitTestCase {
 	 */
 	public function test_class_is_deprecated() {
 
-		$ref = new \ReflectionClass(SSO::class);
+		$ref      = new \ReflectionClass(SSO::class);
 		$docblock = $ref->getDocComment();
 
 		$this->assertNotFalse($docblock);
@@ -93,7 +93,7 @@ class SSO_Test extends \WP_UnitTestCase {
 	 */
 	public function test_file_references_new_location() {
 
-		$file_path = dirname(__DIR__, 3) . '/inc/domain-mapping/class-sso.php';
+		$file_path     = dirname(__DIR__, 3) . '/inc/domain-mapping/class-sso.php';
 		$file_contents = file_get_contents($file_path);
 
 		$this->assertNotFalse($file_contents);
@@ -115,7 +115,7 @@ class SSO_Test extends \WP_UnitTestCase {
 	 */
 	public function test_has_only_singleton_public_methods() {
 
-		$ref = new \ReflectionClass(SSO::class);
+		$ref     = new \ReflectionClass(SSO::class);
 		$methods = $ref->getMethods(\ReflectionMethod::IS_PUBLIC);
 
 		$method_names = array_map(function ($method) {
@@ -131,7 +131,7 @@ class SSO_Test extends \WP_UnitTestCase {
 
 		// Filter out Singleton methods
 		$non_singleton_methods = array_filter($method_names, function ($name) {
-			return !in_array($name, ['get_instance', 'init', 'has_parents']);
+			return ! in_array($name, ['get_instance', 'init', 'has_parents']);
 		});
 
 		$this->assertEmpty($non_singleton_methods, 'SSO should have no public methods beyond Singleton trait');

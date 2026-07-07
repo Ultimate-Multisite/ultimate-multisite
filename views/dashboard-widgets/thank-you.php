@@ -6,7 +6,7 @@
  */
 defined('ABSPATH') || exit;
 ?>
-<div id="wu-thank-you-element" class="wu-styling <?php echo esc_attr($className); ?>">
+<div id="wu-thank-you-element" class="wu-styling <?php echo esc_attr($className); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase ?>">
 
 	<div class="<?php echo esc_attr(wu_env_picker('', 'wu-widget-inset')); ?>">
 
@@ -246,7 +246,7 @@ defined('ABSPATH') || exit;
 
 			<?php if ($membership->get_sites()) : ?>
 
-			<?php foreach ($membership->get_sites() as $site) : ?>
+				<?php foreach ($membership->get_sites() as $site) : ?>
 
 			<div class="wu-bg-gray-100 wu-p-4 wu-rounded wu-mb-2 sm:wu-flex wu-items-center wu-w-full">
 
@@ -264,7 +264,7 @@ defined('ABSPATH') || exit;
 
 				<h5 class="wu-mb-1">
 
-				<?php echo esc_html(ucfirst($site->get_title())); ?>
+					<?php echo esc_html(ucfirst($site->get_title())); ?>
 
 					<?php if ($site->get_type() === 'pending') : ?>
 

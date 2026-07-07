@@ -131,7 +131,10 @@ class Enhance_Domain_Mapping_Test extends WP_UnitTestCase {
 				if ('GET' === $method) {
 					return [
 						'items' => [
-							['id' => 'domain-uuid-abc', 'domain' => 'example.com'],
+							[
+								'id'     => 'domain-uuid-abc',
+								'domain' => 'example.com',
+							],
 						],
 					];
 				}

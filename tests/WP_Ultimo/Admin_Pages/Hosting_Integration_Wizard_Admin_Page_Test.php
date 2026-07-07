@@ -81,7 +81,7 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_page_id(): void {
 
-		$ref = new \ReflectionClass($this->page);
+		$ref  = new \ReflectionClass($this->page);
 		$prop = $ref->getProperty('id');
 		$prop->setAccessible(true);
 
@@ -93,7 +93,7 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_page_type(): void {
 
-		$ref = new \ReflectionClass($this->page);
+		$ref  = new \ReflectionClass($this->page);
 		$prop = $ref->getProperty('type');
 		$prop->setAccessible(true);
 
@@ -105,7 +105,7 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_page_parent(): void {
 
-		$ref = new \ReflectionClass($this->page);
+		$ref  = new \ReflectionClass($this->page);
 		$prop = $ref->getProperty('parent');
 		$prop->setAccessible(true);
 
@@ -117,7 +117,7 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_highlight_menu_slug(): void {
 
-		$ref = new \ReflectionClass($this->page);
+		$ref  = new \ReflectionClass($this->page);
 		$prop = $ref->getProperty('highlight_menu_slug');
 		$prop->setAccessible(true);
 
@@ -129,7 +129,7 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_badge_count(): void {
 
-		$ref = new \ReflectionClass($this->page);
+		$ref  = new \ReflectionClass($this->page);
 		$prop = $ref->getProperty('badge_count');
 		$prop->setAccessible(true);
 
@@ -141,7 +141,7 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_supported_panels(): void {
 
-		$ref = new \ReflectionClass($this->page);
+		$ref  = new \ReflectionClass($this->page);
 		$prop = $ref->getProperty('supported_panels');
 		$prop->setAccessible(true);
 		$panels = $prop->getValue($this->page);
@@ -457,7 +457,11 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 		// Set a current section so get_current_section() doesn't fail.
 		$ref = new \ReflectionProperty(\WP_Ultimo\Admin_Pages\Wizard_Admin_Page::class, 'current_section');
 		$ref->setAccessible(true);
-		$ref->setValue($this->page, ['title' => 'Config', 'view' => function () {}, 'handler' => function () {}]);
+		$ref->setValue($this->page, [
+			'title'   => 'Config',
+			'view'    => function () {},
+			'handler' => function () {},
+		]);
 
 		ob_start();
 		$this->page->section_configuration();
@@ -606,8 +610,8 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_handle_configuration_with_valid_nonce_saves_and_redirects(): void {
 
-		$nonce = wp_create_nonce('saving_config');
-		$_POST['saving_config'] = $nonce;
+		$nonce                     = wp_create_nonce('saving_config');
+		$_POST['saving_config']    = $nonce;
 		$_REQUEST['saving_config'] = $nonce;
 
 		// Intercept wp_safe_redirect() before it calls header() (which fails after output).
@@ -671,7 +675,7 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_page_loaded_redirects_when_integration_not_found(): void {
 
-		$page = new Hosting_Integration_Wizard_Admin_Page();
+		$page                = new Hosting_Integration_Wizard_Admin_Page();
 		$_GET['integration'] = 'nonexistent-integration-xyz';
 
 		// Intercept wp_safe_redirect() before it calls header() (which fails after output).

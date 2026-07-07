@@ -79,7 +79,7 @@ class Base_PayPal_Gateway_Stub extends Base_PayPal_Gateway {
 	 * @param mixed $type       Checkout type.
 	 * @return bool
 	 */
-	public function process_checkout( $payment, $membership, $customer, $cart, $type ) {
+	public function process_checkout($payment, $membership, $customer, $cart, $type) {
 		return true;
 	}
 
@@ -90,7 +90,7 @@ class Base_PayPal_Gateway_Stub extends Base_PayPal_Gateway {
 	 * @param mixed $customer   Customer object.
 	 * @return bool
 	 */
-	public function process_cancellation( $membership, $customer ) {
+	public function process_cancellation($membership, $customer) {
 		return true;
 	}
 
@@ -103,7 +103,7 @@ class Base_PayPal_Gateway_Stub extends Base_PayPal_Gateway {
 	 * @param mixed $customer   Customer object.
 	 * @return bool
 	 */
-	public function process_refund( $amount, $payment, $membership, $customer ) {
+	public function process_refund($amount, $payment, $membership, $customer) {
 		return true;
 	}
 
@@ -112,7 +112,7 @@ class Base_PayPal_Gateway_Stub extends Base_PayPal_Gateway {
 	 *
 	 * @param bool $test_mode Test mode flag.
 	 */
-	public function set_test_mode( bool $test_mode ): void {
+	public function set_test_mode(bool $test_mode): void {
 		$this->test_mode = $test_mode;
 	}
 
@@ -140,7 +140,7 @@ class Base_PayPal_Gateway_Stub extends Base_PayPal_Gateway {
 	 * @param string $subscription_id Subscription ID.
 	 * @return bool
 	 */
-	public function public_is_rest_subscription_id( string $subscription_id ): bool {
+	public function public_is_rest_subscription_id(string $subscription_id): bool {
 		return $this->is_rest_subscription_id( $subscription_id );
 	}
 
@@ -150,7 +150,7 @@ class Base_PayPal_Gateway_Stub extends Base_PayPal_Gateway {
 	 * @param array $headers Headers array.
 	 * @return array
 	 */
-	public function public_add_partner_attribution_header( array $headers ): array {
+	public function public_add_partner_attribution_header(array $headers): array {
 		return $this->add_partner_attribution_header( $headers );
 	}
 
@@ -160,7 +160,7 @@ class Base_PayPal_Gateway_Stub extends Base_PayPal_Gateway {
 	 * @param \WP_Ultimo\Checkout\Cart $cart Cart object.
 	 * @return string
 	 */
-	public function public_get_subscription_description( $cart ): string {
+	public function public_get_subscription_description($cart): string {
 		return $this->get_subscription_description( $cart );
 	}
 
@@ -170,7 +170,7 @@ class Base_PayPal_Gateway_Stub extends Base_PayPal_Gateway {
 	 * @param string $message Message to log.
 	 * @param string $level   Log level.
 	 */
-	public function public_log( string $message, string $level = 'info' ): void {
+	public function public_log(string $message, string $level = 'info'): void {
 		$this->log( $message, $level );
 	}
 }
@@ -278,7 +278,7 @@ class Base_PayPal_Gateway_Test extends \WP_UnitTestCase {
 	public function test_get_subscription_description_truncates_to_127_chars(): void {
 		$cart_mock = $this->getMockBuilder( \WP_Ultimo\Checkout\Cart::class )
 			->disableOriginalConstructor()
-			->onlyMethods( array( 'get_cart_descriptor' ) )
+			->onlyMethods( array('get_cart_descriptor') )
 			->getMock();
 
 		$long_descriptor = str_repeat( 'A', 200 );
@@ -296,7 +296,7 @@ class Base_PayPal_Gateway_Test extends \WP_UnitTestCase {
 	public function test_get_subscription_description_decodes_html_entities(): void {
 		$cart_mock = $this->getMockBuilder( \WP_Ultimo\Checkout\Cart::class )
 			->disableOriginalConstructor()
-			->onlyMethods( array( 'get_cart_descriptor' ) )
+			->onlyMethods( array('get_cart_descriptor') )
 			->getMock();
 
 		$cart_mock->method( 'get_cart_descriptor' )->willReturn( 'Test &amp; Product' );
@@ -312,7 +312,7 @@ class Base_PayPal_Gateway_Test extends \WP_UnitTestCase {
 	public function test_get_subscription_description_handles_short_descriptors(): void {
 		$cart_mock = $this->getMockBuilder( \WP_Ultimo\Checkout\Cart::class )
 			->disableOriginalConstructor()
-			->onlyMethods( array( 'get_cart_descriptor' ) )
+			->onlyMethods( array('get_cart_descriptor') )
 			->getMock();
 
 		$cart_mock->method( 'get_cart_descriptor' )->willReturn( 'Short' );
@@ -456,7 +456,7 @@ class Base_PayPal_Gateway_Test extends \WP_UnitTestCase {
 	 * Test add_partner_attribution_header adds BN code to headers.
 	 */
 	public function test_add_partner_attribution_header_adds_bn_code(): void {
-		$headers = array( 'Content-Type' => 'application/json' );
+		$headers = array('Content-Type' => 'application/json');
 
 		$result = $this->gateway->public_add_partner_attribution_header( $headers );
 
@@ -484,7 +484,7 @@ class Base_PayPal_Gateway_Test extends \WP_UnitTestCase {
 	 * Test add_site_actions returns unchanged actions when no membership.
 	 */
 	public function test_add_site_actions_returns_unchanged_when_no_membership(): void {
-		$actions = array( 'existing_action' => array( 'label' => 'Test' ) );
+		$actions = array('existing_action' => array('label' => 'Test'));
 
 		$result = $this->gateway->add_site_actions( $actions, array(), null, null );
 
@@ -497,12 +497,12 @@ class Base_PayPal_Gateway_Test extends \WP_UnitTestCase {
 	public function test_add_site_actions_returns_unchanged_when_gateway_does_not_match(): void {
 		$membership_mock = $this->getMockBuilder( Membership::class )
 			->disableOriginalConstructor()
-			->onlyMethods( array( 'get_gateway' ) )
+			->onlyMethods( array('get_gateway') )
 			->getMock();
 
 		$membership_mock->method( 'get_gateway' )->willReturn( 'stripe' );
 
-		$actions = array( 'existing_action' => array( 'label' => 'Test' ) );
+		$actions = array('existing_action' => array('label' => 'Test'));
 
 		$result = $this->gateway->add_site_actions( $actions, array(), null, $membership_mock );
 
@@ -515,13 +515,13 @@ class Base_PayPal_Gateway_Test extends \WP_UnitTestCase {
 	public function test_add_site_actions_returns_unchanged_when_no_subscription_id(): void {
 		$membership_mock = $this->getMockBuilder( Membership::class )
 			->disableOriginalConstructor()
-			->onlyMethods( array( 'get_gateway', 'get_gateway_subscription_id' ) )
+			->onlyMethods( array('get_gateway', 'get_gateway_subscription_id') )
 			->getMock();
 
 		$membership_mock->method( 'get_gateway' )->willReturn( 'paypal' );
 		$membership_mock->method( 'get_gateway_subscription_id' )->willReturn( '' );
 
-		$actions = array( 'existing_action' => array( 'label' => 'Test' ) );
+		$actions = array('existing_action' => array('label' => 'Test'));
 
 		$result = $this->gateway->add_site_actions( $actions, array(), null, $membership_mock );
 
@@ -536,13 +536,13 @@ class Base_PayPal_Gateway_Test extends \WP_UnitTestCase {
 
 		$membership_mock = $this->getMockBuilder( Membership::class )
 			->disableOriginalConstructor()
-			->onlyMethods( array( 'get_gateway', 'get_gateway_subscription_id' ) )
+			->onlyMethods( array('get_gateway', 'get_gateway_subscription_id') )
 			->getMock();
 
 		$membership_mock->method( 'get_gateway' )->willReturn( 'paypal' );
 		$membership_mock->method( 'get_gateway_subscription_id' )->willReturn( 'I-TEST123' );
 
-		$actions = array( 'existing_action' => array( 'label' => 'Test' ) );
+		$actions = array('existing_action' => array('label' => 'Test'));
 
 		$result = $this->gateway->add_site_actions( $actions, array(), null, $membership_mock );
 
@@ -562,7 +562,7 @@ class Base_PayPal_Gateway_Test extends \WP_UnitTestCase {
 
 		$membership_mock = $this->getMockBuilder( Membership::class )
 			->disableOriginalConstructor()
-			->onlyMethods( array( 'get_gateway', 'get_gateway_subscription_id' ) )
+			->onlyMethods( array('get_gateway', 'get_gateway_subscription_id') )
 			->getMock();
 
 		$membership_mock->method( 'get_gateway' )->willReturn( 'paypal-rest' );

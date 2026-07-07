@@ -284,7 +284,7 @@ class Whitelabel_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test replace_text replaces lowercase wordpress variant.
+	 * Test replace_text replaces lowercase WordPress variant.
 	 */
 	public function test_replace_text_replaces_lowercase_wordpress(): void {
 
@@ -294,7 +294,7 @@ class Whitelabel_Test extends WP_UnitTestCase {
 
 		$this->whitelabel->hooks();
 
-		$result = $this->whitelabel->replace_text('powered by wordpress', 'powered by wordpress', 'default');
+		$result = $this->whitelabel->replace_text('powered by WordPress', 'powered by WordPress', 'default');
 
 		$this->assertEquals('powered by myplatform', $result);
 	}
@@ -316,7 +316,7 @@ class Whitelabel_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test replace_text replaces "Wordpress" variant (common misspelling).
+	 * Test replace_text replaces "WordPress" variant (common misspelling).
 	 */
 	public function test_replace_text_replaces_wordpress_misspelling(): void {
 
@@ -326,13 +326,13 @@ class Whitelabel_Test extends WP_UnitTestCase {
 
 		$this->whitelabel->hooks();
 
-		$result = $this->whitelabel->replace_text('Wordpress dashboard', 'Wordpress dashboard', 'default');
+		$result = $this->whitelabel->replace_text('WordPress dashboard', 'WordPress dashboard', 'default');
 
 		$this->assertEquals('MyPlatform dashboard', $result);
 	}
 
 	/**
-	 * Test replace_text replaces "wordPress" variant.
+	 * Test replace_text replaces "WordPress" variant.
 	 */
 	public function test_replace_text_replaces_wordpress_camelcase(): void {
 
@@ -342,7 +342,7 @@ class Whitelabel_Test extends WP_UnitTestCase {
 
 		$this->whitelabel->hooks();
 
-		$result = $this->whitelabel->replace_text('wordPress setup', 'wordPress setup', 'default');
+		$result = $this->whitelabel->replace_text('WordPress setup', 'WordPress setup', 'default');
 
 		$this->assertEquals('MyPlatform setup', $result);
 	}

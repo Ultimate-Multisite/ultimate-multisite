@@ -629,5 +629,4 @@ class Hestia_Host_Provider extends Base_Host_Provider {
 
 		return true;
 	}
-
 }

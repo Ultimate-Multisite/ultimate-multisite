@@ -176,10 +176,12 @@ defined('ABSPATH') || exit;
 								<span class="<?php echo esc_attr($status_class); ?>"><?php echo esc_html(ucfirst($status)); ?></span>
 							</td>
 							<td><?php echo isset($log['duration_ms']) ? esc_html($log['duration_ms'] . 'ms') : '-'; ?></td>
-							<td><?php
+							<td>
+							<?php
 							$exec_time = isset($log['execution_time']) ? strtotime($log['execution_time']) : false;
 							echo $exec_time ? esc_html(human_time_diff($exec_time, time()) . ' ' . __('ago', 'ultimate-multisite')) : '-';
-						?></td>
+							?>
+						</td>
 						</tr>
 					<?php endforeach; ?>
 				</tbody>

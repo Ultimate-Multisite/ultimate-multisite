@@ -37,7 +37,7 @@ class Env_Functions_Test extends WP_UnitTestCase {
 	 */
 	public function test_env_picker_with_arrays(): void {
 		$frontend = ['class1', 'class2'];
-		$backend = ['class3', 'class4'];
+		$backend  = ['class3', 'class4'];
 
 		$result = wu_env_picker($frontend, $backend, false);
 		$this->assertEquals($frontend, $result);

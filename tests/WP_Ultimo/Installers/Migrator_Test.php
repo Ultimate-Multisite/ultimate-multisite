@@ -185,7 +185,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * @param array  $args        Arguments to pass.
 	 * @return mixed
 	 */
-	protected function invoke_method( string $method_name, array $args = [] ) {
+	protected function invoke_method(string $method_name, array $args = []) {
 		$ref    = new \ReflectionClass( $this->migrator );
 		$method = $ref->getMethod( $method_name );
 		$method->setAccessible( true );
@@ -198,7 +198,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * @param string $property_name The property name.
 	 * @return mixed
 	 */
-	protected function get_property( string $property_name ) {
+	protected function get_property(string $property_name) {
 		$ref  = new \ReflectionClass( $this->migrator );
 		$prop = $ref->getProperty( $property_name );
 		$prop->setAccessible( true );
@@ -211,7 +211,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * @param string $property_name The property name.
 	 * @param mixed  $value         The value to set.
 	 */
-	protected function set_property( string $property_name, $value ): void {
+	protected function set_property(string $property_name, $value): void {
 		$ref  = new \ReflectionClass( $this->migrator );
 		$prop = $ref->getProperty( $property_name );
 		$prop->setAccessible( true );
@@ -335,7 +335,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 */
 	public function test_get_errors_returns_empty_array_initially(): void {
 		$this->migrator->errors = null;
-		$result = $this->migrator->get_errors();
+		$result                 = $this->migrator->get_errors();
 		$this->assertIsArray( $result );
 		$this->assertEmpty( $result );
 	}
@@ -344,8 +344,8 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test get_errors returns unique errors.
 	 */
 	public function test_get_errors_returns_unique_values(): void {
-		$this->migrator->errors = [ 'error1', 'error1', 'error2' ];
-		$result = $this->migrator->get_errors();
+		$this->migrator->errors = ['error1', 'error1', 'error2'];
+		$result                 = $this->migrator->get_errors();
 		$this->assertCount( 2, $result );
 		$this->assertContains( 'error1', $result );
 		$this->assertContains( 'error2', $result );
@@ -356,7 +356,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 */
 	public function test_get_errors_handles_non_array_errors(): void {
 		$this->migrator->errors = 'some string error';
-		$result = $this->migrator->get_errors();
+		$result                 = $this->migrator->get_errors();
 		$this->assertIsArray( $result );
 	}
 
@@ -364,8 +364,8 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test get_errors with multiple distinct errors.
 	 */
 	public function test_get_errors_returns_all_distinct_errors(): void {
-		$this->migrator->errors = [ 'err_a', 'err_b', 'err_c' ];
-		$result = $this->migrator->get_errors();
+		$this->migrator->errors = ['err_a', 'err_b', 'err_c'];
+		$result                 = $this->migrator->get_errors();
 		$this->assertCount( 3, $result );
 	}
 
@@ -373,8 +373,8 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test get_errors deduplicates.
 	 */
 	public function test_get_errors_deduplicates(): void {
-		$this->migrator->errors = [ 'err', 'err', 'err', 'other' ];
-		$result = $this->migrator->get_errors();
+		$this->migrator->errors = ['err', 'err', 'err', 'other'];
+		$result                 = $this->migrator->get_errors();
 		$this->assertCount( 2, $result );
 	}
 
@@ -387,7 +387,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 */
 	public function test_get_back_traces_returns_empty_array_initially(): void {
 		$this->migrator->back_traces = null;
-		$result = $this->migrator->get_back_traces();
+		$result                      = $this->migrator->get_back_traces();
 		$this->assertIsArray( $result );
 		$this->assertEmpty( $result );
 	}
@@ -396,8 +396,8 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test get_back_traces returns unique traces.
 	 */
 	public function test_get_back_traces_returns_unique_values(): void {
-		$this->migrator->back_traces = [ 'trace1', 'trace1', 'trace2' ];
-		$result = $this->migrator->get_back_traces();
+		$this->migrator->back_traces = ['trace1', 'trace1', 'trace2'];
+		$result                      = $this->migrator->get_back_traces();
 		$this->assertCount( 2, $result );
 	}
 
@@ -406,7 +406,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 */
 	public function test_get_back_traces_handles_non_array(): void {
 		$this->migrator->back_traces = false;
-		$result = $this->migrator->get_back_traces();
+		$result                      = $this->migrator->get_back_traces();
 		$this->assertIsArray( $result );
 	}
 
@@ -414,8 +414,8 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test get_back_traces deduplicates traces.
 	 */
 	public function test_get_back_traces_deduplicates(): void {
-		$this->migrator->back_traces = [ 'trace', 'trace', 'unique' ];
-		$result = $this->migrator->get_back_traces();
+		$this->migrator->back_traces = ['trace', 'trace', 'unique'];
+		$result                      = $this->migrator->get_back_traces();
 		$this->assertCount( 2, $result );
 	}
 
@@ -445,7 +445,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 */
 	public function test_get_steps_non_dry_run_returns_all_steps(): void {
 		$_REQUEST['dry-run'] = '0';
-		$steps = $this->migrator->get_steps();
+		$steps               = $this->migrator->get_steps();
 
 		$expected_keys = [
 			'backup',
@@ -486,9 +486,9 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 */
 	public function test_get_steps_each_step_has_required_fields(): void {
 		$_REQUEST['dry-run'] = '0';
-		$steps = $this->migrator->get_steps();
+		$steps               = $this->migrator->get_steps();
 
-		$required_fields = [ 'title', 'description', 'pending', 'installing', 'success', 'done', 'help' ];
+		$required_fields = ['title', 'description', 'pending', 'installing', 'success', 'done', 'help'];
 
 		foreach ( $steps as $key => $step ) {
 			foreach ( $required_fields as $field ) {
@@ -519,7 +519,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 */
 	public function test_get_steps_non_dry_run_excludes_dry_run_check(): void {
 		$_REQUEST['dry-run'] = '0';
-		$steps = $this->migrator->get_steps();
+		$steps               = $this->migrator->get_steps();
 		$this->assertArrayNotHasKey( 'dry_run_check', $steps );
 	}
 
@@ -533,7 +533,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 		$filter_called = false;
 		add_filter(
 			'wu_get_migration_steps',
-			function ( $steps ) use ( &$filter_called ) {
+			function ($steps) use (&$filter_called) {
 				$filter_called = true;
 				return $steps;
 			}
@@ -554,7 +554,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 
 		add_filter(
 			'wu_get_migration_steps',
-			function ( $steps ) {
+			function ($steps) {
 				$steps['custom_step'] = [
 					'title'       => 'Custom Step',
 					'description' => 'A custom migration step',
@@ -586,8 +586,8 @@ class Migrator_Test extends \WP_UnitTestCase {
 
 		$wpdb->delete(
 			$wpdb->base_prefix . 'sitemeta',
-			[ 'meta_key' => 'wp-ultimo_settings' ],
-			[ '%s' ]
+			['meta_key' => 'wp-ultimo_settings'],
+			['%s']
 		);
 
 		$this->set_property( 'settings', null );
@@ -600,7 +600,10 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test get_old_settings returns cached value on second call.
 	 */
 	public function test_get_old_settings_returns_cached_value(): void {
-		$cached = [ 'currency' => 'USD', 'test_key' => 'test_value' ];
+		$cached = [
+			'currency' => 'USD',
+			'test_key' => 'test_value',
+		];
 		$this->set_property( 'settings', $cached );
 
 		$result = $this->migrator->get_old_settings();
@@ -613,7 +616,10 @@ class Migrator_Test extends \WP_UnitTestCase {
 	public function test_get_old_settings_reads_from_sitemeta(): void {
 		global $wpdb;
 
-		$settings_data = [ 'currency' => 'EUR', 'enable_signup' => true ];
+		$settings_data = [
+			'currency'      => 'EUR',
+			'enable_signup' => true,
+		];
 
 		$wpdb->replace(
 			$wpdb->base_prefix . 'sitemeta',
@@ -622,7 +628,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 				'meta_key'   => 'wp-ultimo_settings',
 				'meta_value' => serialize( $settings_data ),
 			],
-			[ '%d', '%s', '%s' ]
+			['%d', '%s', '%s']
 		);
 
 		$this->set_property( 'settings', null );
@@ -633,8 +639,8 @@ class Migrator_Test extends \WP_UnitTestCase {
 
 		$wpdb->delete(
 			$wpdb->base_prefix . 'sitemeta',
-			[ 'meta_key' => 'wp-ultimo_settings' ],
-			[ '%s' ]
+			['meta_key' => 'wp-ultimo_settings'],
+			['%s']
 		);
 	}
 
@@ -656,7 +662,10 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test get_old_setting returns correct value when key exists.
 	 */
 	public function test_get_old_setting_returns_value_when_key_exists(): void {
-		$this->set_property( 'settings', [ 'currency' => 'GBP', 'precision' => 2 ] );
+		$this->set_property( 'settings', [
+			'currency'  => 'GBP',
+			'precision' => 2,
+		] );
 
 		$result = $this->migrator->get_old_setting( 'currency', 'USD' );
 		$this->assertSame( 'GBP', $result );
@@ -666,7 +675,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test get_old_setting returns default when key does not exist.
 	 */
 	public function test_get_old_setting_returns_default_when_key_missing(): void {
-		$this->set_property( 'settings', [ 'currency' => 'USD' ] );
+		$this->set_property( 'settings', ['currency' => 'USD'] );
 
 		$result = $this->migrator->get_old_setting( 'missing_key', 'fallback' );
 		$this->assertSame( 'fallback', $result );
@@ -686,7 +695,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test get_old_setting returns integer value correctly.
 	 */
 	public function test_get_old_setting_returns_integer_value(): void {
-		$this->set_property( 'settings', [ 'precision' => 3 ] );
+		$this->set_property( 'settings', ['precision' => 3] );
 
 		$result = $this->migrator->get_old_setting( 'precision', 2 );
 		$this->assertSame( 3, $result );
@@ -711,7 +720,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test add_id_of_interest adds multiple IDs as array.
 	 */
 	public function test_add_id_of_interest_adds_array_of_ids(): void {
-		$this->migrator->add_id_of_interest( [ 1, 2, 3 ], 'plan_not_migrated', 'memberships' );
+		$this->migrator->add_id_of_interest( [1, 2, 3], 'plan_not_migrated', 'memberships' );
 
 		$ids = $this->get_property( 'ids_of_interest' );
 		$this->assertArrayHasKey( 'memberships:plan_not_migrated', $ids );
@@ -781,7 +790,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test log_ids_of_interest skips empty ID lists.
 	 */
 	public function test_log_ids_of_interest_skips_empty_id_lists(): void {
-		$this->set_property( 'ids_of_interest', [ 'customers:not_found' => [] ] );
+		$this->set_property( 'ids_of_interest', ['customers:not_found' => []] );
 
 		$this->migrator->log_ids_of_interest();
 		$this->assertTrue( true );
@@ -791,7 +800,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test log_ids_of_interest processes non-empty ID lists.
 	 */
 	public function test_log_ids_of_interest_processes_non_empty_lists(): void {
-		$this->migrator->add_id_of_interest( [ 1, 2, 3 ], 'not_found', 'customers' );
+		$this->migrator->add_id_of_interest( [1, 2, 3], 'not_found', 'customers' );
 
 		$this->migrator->log_ids_of_interest();
 		$this->assertTrue( true );
@@ -928,7 +937,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test fake_register_settings adds wu_settings_section_core_fields filter.
 	 */
 	public function test_fake_register_settings_adds_filter(): void {
-		$this->migrator->fake_register_settings( [ 'test_key' => 'test_value' ] );
+		$this->migrator->fake_register_settings( ['test_key' => 'test_value'] );
 
 		$this->assertNotFalse( has_filter( 'wu_settings_section_core_fields' ) );
 	}
@@ -971,7 +980,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 
 		add_filter(
 			'wu_installer_test_step_callback',
-			function ( $callable ) use ( &$filter_called ) {
+			function ($callable) use (&$filter_called) {
 				$filter_called = true;
 				return null;
 			}
@@ -1243,7 +1252,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 				'price'      => 0.00,
 				'created_at' => '2020-01-01 00:00:00',
 			],
-			[ '%d', '%d', '%f', '%s' ]
+			['%d', '%d', '%f', '%s']
 		);
 
 		$this->set_property( 'dry_run', true );
@@ -1299,7 +1308,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 				'created_at'   => '2020-01-01 00:00:00',
 				'gateway'      => null,
 			],
-			[ '%d', '%d', '%f', '%d', '%s', '%s', '%s', '%s' ]
+			['%d', '%d', '%f', '%d', '%s', '%s', '%s', '%s']
 		);
 
 		$this->set_property( 'dry_run', true );
@@ -1334,7 +1343,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 				'created_at'   => '2020-01-01 00:00:00',
 				'gateway'      => null,
 			],
-			[ '%d', '%d', '%f', '%d', '%s', '%s', '%s', '%s' ]
+			['%d', '%d', '%f', '%d', '%s', '%s', '%s', '%s']
 		);
 
 		$this->set_property( 'dry_run', true );
@@ -1369,7 +1378,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 				'created_at'   => '2020-01-01 00:00:00',
 				'gateway'      => null,
 			],
-			[ '%d', '%d', '%f', '%d', '%s', '%s', '%s', '%s' ]
+			['%d', '%d', '%f', '%d', '%s', '%s', '%s', '%s']
 		);
 
 		$this->set_property( 'dry_run', true );
@@ -1404,7 +1413,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 				'created_at'   => '2020-01-01 00:00:00',
 				'gateway'      => null,
 			],
-			[ '%d', '%d', '%f', '%d', '%s', '%s', '%s', '%s' ]
+			['%d', '%d', '%f', '%d', '%s', '%s', '%s', '%s']
 		);
 
 		$this->set_property( 'dry_run', true );
@@ -1427,7 +1436,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 
 		$user_id = wp_create_user( 'teststripe', 'password', 'teststripe@example.com' );
 
-		$meta = serialize( (object) [ 'subscription_id' => 'sub_test123' ] );
+		$meta = serialize( (object) ['subscription_id' => 'sub_test123'] );
 
 		$wpdb->insert(
 			$wpdb->base_prefix . 'wu_subscriptions',
@@ -1444,7 +1453,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 				'integration_status' => 1,
 				'meta_object'        => $meta,
 			],
-			[ '%d', '%d', '%f', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ]
+			['%d', '%d', '%f', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s']
 		);
 
 		$this->set_property( 'dry_run', true );
@@ -1482,7 +1491,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 				'integration_status' => 0,
 				'meta_object'        => null,
 			],
-			[ '%d', '%d', '%f', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ]
+			['%d', '%d', '%f', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s']
 		);
 
 		$this->set_property( 'dry_run', true );
@@ -1531,7 +1540,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 				'description' => 'Recurring setup',
 				'time'        => '2020-01-01 00:00:00',
 			],
-			[ '%d', '%f', '%s', '%s', '%s' ]
+			['%d', '%f', '%s', '%s', '%s']
 		);
 
 		$wpdb->insert(
@@ -1543,7 +1552,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 				'description' => 'Cancel',
 				'time'        => '2020-01-01 00:00:00',
 			],
-			[ '%d', '%f', '%s', '%s', '%s' ]
+			['%d', '%f', '%s', '%s', '%s']
 		);
 
 		$this->set_property( 'dry_run', true );
@@ -1577,7 +1586,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 				'reference_id' => 'ch_test123',
 				'time'         => '2020-01-01 00:00:00',
 			],
-			[ '%d', '%d', '%f', '%s', '%s', '%s', '%s', '%s' ]
+			['%d', '%d', '%f', '%s', '%s', '%s', '%s', '%s']
 		);
 
 		$this->set_property( 'dry_run', true );
@@ -1599,7 +1608,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 
 		$user_id = wp_create_user( 'testtxfail', 'password', 'testtxfail@example.com' );
 
-		foreach ( [ 'failed', 'refund', 'pending' ] as $type ) {
+		foreach ( ['failed', 'refund', 'pending'] as $type ) {
 			$wpdb->insert(
 				$wpdb->base_prefix . 'wu_transactions',
 				[
@@ -1609,7 +1618,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 					'description' => ucfirst( $type ) . ' transaction',
 					'time'        => '2020-01-01 00:00:00',
 				],
-				[ '%d', '%f', '%s', '%s', '%s' ]
+				['%d', '%f', '%s', '%s', '%s']
 			);
 		}
 
@@ -1692,7 +1701,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 				'site_id' => 99999,
 				'user_id' => $user_id,
 			],
-			[ '%d', '%d' ]
+			['%d', '%d']
 		);
 
 		$this->set_property( 'dry_run', true );
@@ -1731,7 +1740,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 		$wpdb->query( "TRUNCATE TABLE `{$wpdb->base_prefix}domain_mapping`" );
 
 		$this->set_property( 'dry_run', true );
-		$this->set_property( 'settings', [ 'force_mapped_https' => true ] );
+		$this->set_property( 'settings', ['force_mapped_https' => true] );
 
 		$this->invoke_method( '_install_domains' );
 		$this->assertTrue( true );
@@ -1752,11 +1761,11 @@ class Migrator_Test extends \WP_UnitTestCase {
 				'domain'  => 'test-migrator-domain-' . uniqid() . '.example.com',
 				'active'  => 1,
 			],
-			[ '%d', '%s', '%d' ]
+			['%d', '%s', '%d']
 		);
 
 		$this->set_property( 'dry_run', true );
-		$this->set_property( 'settings', [ 'force_mapped_https' => false ] );
+		$this->set_property( 'settings', ['force_mapped_https' => false] );
 
 		$this->invoke_method( '_install_domains' );
 		$this->assertTrue( true );
@@ -1891,7 +1900,7 @@ class Migrator_Test extends \WP_UnitTestCase {
 	 * Test add_id_of_interest followed by log_ids_of_interest completes without error.
 	 */
 	public function test_add_and_log_ids_of_interest_round_trip(): void {
-		$this->migrator->add_id_of_interest( [ 100, 200 ], 'not_found', 'customers' );
+		$this->migrator->add_id_of_interest( [100, 200], 'not_found', 'customers' );
 		$this->migrator->add_id_of_interest( 300, 'plan_not_migrated', 'memberships' );
 
 		$this->migrator->log_ids_of_interest();

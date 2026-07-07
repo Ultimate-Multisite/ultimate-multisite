@@ -86,7 +86,7 @@ class Screenshot_Test extends WP_UnitTestCase {
 	public function test_api_url_filter_can_override() {
 		add_filter(
 			'wu_screenshot_api_url',
-			function ( $url, $domain ) {
+			function ($url, $domain) {
 				return 'https://custom-screenshot.com/' . $domain;
 			},
 			10,
@@ -130,7 +130,7 @@ class Screenshot_Test extends WP_UnitTestCase {
 	public function test_fallback_api_url_filter_can_override() {
 		add_filter(
 			'wu_screenshot_fallback_api_url',
-			function ( $url, $domain ) {
+			function ($url, $domain) {
 				return 'https://other-fallback.com/' . $domain;
 			},
 			10,
@@ -150,7 +150,10 @@ class Screenshot_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => 'not an image',
 				];
 			}
@@ -165,7 +168,10 @@ class Screenshot_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => [ 'code' => 500, 'message' => 'Server Error' ],
+					'response' => [
+						'code'    => 500,
+						'message' => 'Server Error',
+					],
 					'body'     => '',
 				];
 			}
@@ -192,7 +198,10 @@ class Screenshot_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => $this->png_body(),
 				];
 			}
@@ -210,7 +219,10 @@ class Screenshot_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => $this->jpeg_body(),
 				];
 			}
@@ -231,7 +243,10 @@ class Screenshot_Test extends WP_UnitTestCase {
 			'pre_http_request',
 			function () {
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => 'not an image',
 				];
 			}
@@ -246,9 +261,12 @@ class Screenshot_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function () use ( $png_body ) {
+			function () use ($png_body) {
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => $png_body,
 				];
 			}
@@ -265,19 +283,25 @@ class Screenshot_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$call_count, $png_body ) {
+			function ($preempt, $args, $url) use (&$call_count, $png_body) {
 				$call_count++;
 
 				// First call (Microlink) fails, second call (thum.io) succeeds.
 				if (strpos($url, 'microlink') !== false) {
 					return [
-						'response' => [ 'code' => 429, 'message' => 'Too Many Requests' ],
+						'response' => [
+							'code'    => 429,
+							'message' => 'Too Many Requests',
+						],
 						'body'     => '',
 					];
 				}
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => $png_body,
 				];
 			},
@@ -297,11 +321,14 @@ class Screenshot_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function () use ( &$call_count, $png_body ) {
+			function () use (&$call_count, $png_body) {
 				$call_count++;
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => $png_body,
 				];
 			}

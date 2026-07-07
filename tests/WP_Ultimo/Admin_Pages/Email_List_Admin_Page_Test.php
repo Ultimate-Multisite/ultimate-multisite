@@ -65,7 +65,7 @@ class Email_List_Admin_Page_Test extends WP_UnitTestCase {
 		add_filter('wp_doing_ajax', '__return_true');
 
 		$handler = function () {
-			return function ( $message ) {
+			return function ($message) {
 				throw new \WPAjaxDieContinueException( (string) $message );
 			};
 		};
@@ -81,7 +81,7 @@ class Email_List_Admin_Page_Test extends WP_UnitTestCase {
 	 * @param callable $handler The handler returned by install_ajax_die_handler().
 	 * @return void
 	 */
-	private function remove_ajax_die_handler( callable $handler ): void {
+	private function remove_ajax_die_handler(callable $handler): void {
 		remove_filter('wp_doing_ajax', '__return_true');
 		remove_filter('wp_die_ajax_handler', $handler, 1);
 	}
@@ -92,7 +92,7 @@ class Email_List_Admin_Page_Test extends WP_UnitTestCase {
 	 * @param callable $callable The callable to invoke.
 	 * @return array{output: string, exception: bool}
 	 */
-	private function call_in_ajax_context( callable $callable ): array {
+	private function call_in_ajax_context(callable $callable): array {
 		$handler          = $this->install_ajax_die_handler();
 		$exception_caught = false;
 
@@ -966,9 +966,9 @@ class Email_List_Admin_Page_Test extends WP_UnitTestCase {
 
 		$original_id = $email->get_id();
 
-		$_REQUEST['reset_emails']          = '1';
-		$_REQUEST['import_emails']         = '';
-		$_REQUEST['reset_' . $first_slug]  = '1';
+		$_REQUEST['reset_emails']         = '1';
+		$_REQUEST['import_emails']        = '';
+		$_REQUEST['reset_' . $first_slug] = '1';
 
 		$result = $this->call_in_ajax_context(function () {
 			$this->page->handle_reset_import_modal();
@@ -1006,9 +1006,9 @@ class Email_List_Admin_Page_Test extends WP_UnitTestCase {
 			$this->markTestSkipped('All default emails already exist; cannot test import path.');
 		}
 
-		$_REQUEST['reset_emails']             = '';
-		$_REQUEST['import_emails']            = '1';
-		$_REQUEST['import_' . $import_slug]   = '1';
+		$_REQUEST['reset_emails']           = '';
+		$_REQUEST['import_emails']          = '1';
+		$_REQUEST['import_' . $import_slug] = '1';
 
 		$result = $this->call_in_ajax_context(function () {
 			$this->page->handle_reset_import_modal();

@@ -92,12 +92,12 @@ class AWS_Signer {
 	 */
 	public function sign(string $method, string $url, string $payload = ''): array {
 
-		$parsed      = wp_parse_url($url);
-		$uri         = $parsed['path'] ?? '/';
-		$query       = $parsed['query'] ?? '';
-		$host        = $parsed['host'] ?? '';
-		$amz_date    = gmdate('Ymd\THis\Z');
-		$date_stamp  = gmdate('Ymd');
+		$parsed       = wp_parse_url($url);
+		$uri          = $parsed['path'] ?? '/';
+		$query        = $parsed['query'] ?? '';
+		$host         = $parsed['host'] ?? '';
+		$amz_date     = gmdate('Ymd\THis\Z');
+		$date_stamp   = gmdate('Ymd');
 		$payload_hash = hash('sha256', $payload);
 
 		$canonical_headers = "host:{$host}\n" .

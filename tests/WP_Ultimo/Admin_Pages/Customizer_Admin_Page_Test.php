@@ -55,15 +55,15 @@ class Customizer_Admin_Page_Test extends WP_UnitTestCase {
 			public function get_labels() {
 
 				return [
-					'edit_label'       => 'Edit Test',
-					'add_new_label'    => 'Add Test',
-					'updated_message'  => 'Test updated',
-					'title_placeholder' => 'Enter title',
-					'title_description' => 'Title desc',
-					'save_button_label' => 'Save Test',
-					'save_description'  => 'Save desc',
+					'edit_label'          => 'Edit Test',
+					'add_new_label'       => 'Add Test',
+					'updated_message'     => 'Test updated',
+					'title_placeholder'   => 'Enter title',
+					'title_description'   => 'Title desc',
+					'save_button_label'   => 'Save Test',
+					'save_description'    => 'Save desc',
 					'delete_button_label' => 'Delete Test',
-					'delete_description' => 'Delete desc',
+					'delete_description'  => 'Delete desc',
 				];
 			}
 

@@ -104,7 +104,12 @@ class BunnyNet_Domain_Mapping_Test extends WP_UnitTestCase {
 			->with('WU_BUNNYNET_ZONE_ID')
 			->willReturn('');
 
-		$existing = [['type' => 'A', 'data' => '1.2.3.4']];
+		$existing = [
+			[
+				'type' => 'A',
+				'data' => '1.2.3.4',
+			],
+		];
 
 		$result = $this->module->add_bunnynet_dns_entries($existing, 'example.com');
 
@@ -120,7 +125,12 @@ class BunnyNet_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->integration->method('send_bunnynet_request')
 			->willReturn(new \WP_Error('fail', 'error'));
 
-		$existing = [['type' => 'A', 'data' => '1.2.3.4']];
+		$existing = [
+			[
+				'type' => 'A',
+				'data' => '1.2.3.4',
+			],
+		];
 
 		$result = $this->module->add_bunnynet_dns_entries($existing, 'example.com');
 

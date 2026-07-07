@@ -271,7 +271,7 @@ class Signup_Field_Template_Selection_Test extends WP_UnitTestCase {
 	 * Test template_selection_type field has expected options.
 	 */
 	public function test_get_fields_template_selection_type_options(): void {
-		$fields = $this->field->get_fields();
+		$fields  = $this->field->get_fields();
 		$options = $fields['template_selection_type']['options'];
 		$this->assertArrayHasKey('name', $options);
 		$this->assertArrayHasKey('categories', $options);
@@ -344,9 +344,18 @@ class Signup_Field_Template_Selection_Test extends WP_UnitTestCase {
 	public function test_reduce_attributes_extracts_blog_ids(): void {
 		$attributes = [
 			'sites' => [
-				['blog_id' => 1, 'title' => 'Site One'],
-				['blog_id' => 2, 'title' => 'Site Two'],
-				['blog_id' => 3, 'title' => 'Site Three'],
+				[
+					'blog_id' => 1,
+					'title'   => 'Site One',
+				],
+				[
+					'blog_id' => 2,
+					'title'   => 'Site Two',
+				],
+				[
+					'blog_id' => 3,
+					'title'   => 'Site Three',
+				],
 			],
 		];
 
@@ -365,8 +374,14 @@ class Signup_Field_Template_Selection_Test extends WP_UnitTestCase {
 	public function test_reduce_attributes_returns_sequential_array(): void {
 		$attributes = [
 			'sites' => [
-				['blog_id' => 5, 'title' => 'Site Five'],
-				['blog_id' => 10, 'title' => 'Site Ten'],
+				[
+					'blog_id' => 5,
+					'title'   => 'Site Five',
+				],
+				[
+					'blog_id' => 10,
+					'title'   => 'Site Ten',
+				],
 			],
 		];
 
@@ -396,7 +411,12 @@ class Signup_Field_Template_Selection_Test extends WP_UnitTestCase {
 	 */
 	public function test_reduce_attributes_preserves_other_keys(): void {
 		$attributes = [
-			'sites'    => [['blog_id' => 1, 'title' => 'Site']],
+			'sites'    => [
+				[
+					'blog_id' => 1,
+					'title'   => 'Site',
+				],
+			],
 			'some_key' => 'some_value',
 		];
 
@@ -514,15 +534,15 @@ class Signup_Field_Template_Selection_Test extends WP_UnitTestCase {
 	private function make_attributes(array $overrides = []): array {
 		return array_merge(
 			[
-				'id'                                        => 'template_selection',
-				'type'                                      => 'template_selection',
-				'name'                                      => 'Template Selection',
-				'element_classes'                           => '',
-				'cols'                                      => 3,
-				'template_selection_type'                   => 'name',
-				'template_selection_sites'                  => '',
-				'template_selection_template'               => 'clean',
-				'template_selection_categories'             => [],
+				'id'                            => 'template_selection',
+				'type'                          => 'template_selection',
+				'name'                          => 'Template Selection',
+				'element_classes'               => '',
+				'cols'                          => 3,
+				'template_selection_type'       => 'name',
+				'template_selection_sites'      => '',
+				'template_selection_template'   => 'clean',
+				'template_selection_categories' => [],
 				'hide_template_selection_when_pre_selected' => false,
 			],
 			$overrides

@@ -46,11 +46,11 @@ defined('ABSPATH') || exit;
 
 		<?php foreach ($field->options as $value => $option) : ?>
 
-		<?php
-		// Support both string options ('key' => 'Label') and array options ('key' => ['title' => 'Label', 'desc' => '...'])
-		$option_title = is_array($option) ? ($option['title'] ?? '') : (string) $option;
-		$option_desc  = is_array($option) ? ($option['desc'] ?? '') : '';
-		?>
+			<?php
+			// Support both string labels and structured title/description option arrays.
+			$option_title = is_array($option) ? ($option['title'] ?? '') : (string) $option;
+			$option_desc  = is_array($option) ? ($option['desc'] ?? '') : '';
+			?>
 
 		<li class="item wu-box-border wu-m-0 wu-my-2">
 

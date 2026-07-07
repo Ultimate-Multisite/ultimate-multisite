@@ -797,7 +797,10 @@ class Customer_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		$form_attributes = [
 			'html_attr' => [
-				'data-state' => wp_json_encode(['confirmed' => true, 'other_key' => 'value']),
+				'data-state' => wp_json_encode([
+					'confirmed' => true,
+					'other_key' => 'value',
+				]),
 			],
 		];
 
@@ -1151,12 +1154,12 @@ class Customer_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	public function restricted_meta_keys_provider(): array {
 
 		return [
-			'wu_verification_key'  => ['wu_verification_key'],
-			'wu_billing_address'   => ['wu_billing_address'],
-			'ip_state'             => ['ip_state'],
-			'ip_country'           => ['ip_country'],
-			'wu_has_trialed'       => ['wu_has_trialed'],
-			'wu_custom_meta_keys'  => ['wu_custom_meta_keys'],
+			'wu_verification_key' => ['wu_verification_key'],
+			'wu_billing_address'  => ['wu_billing_address'],
+			'ip_state'            => ['ip_state'],
+			'ip_country'          => ['ip_country'],
+			'wu_has_trialed'      => ['wu_has_trialed'],
+			'wu_custom_meta_keys' => ['wu_custom_meta_keys'],
 		];
 	}
 

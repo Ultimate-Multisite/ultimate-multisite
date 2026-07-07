@@ -107,10 +107,10 @@ class Export_Download_Handler {
 
 		return add_query_arg(
 			[
-				'page'      => 'wu-site-export',
-				'action'    => 'download',
-				'file'      => rawurlencode($filename),
-				'_wpnonce'  => wp_create_nonce(self::nonce_action($filename)),
+				'page'     => 'wu-site-export',
+				'action'   => 'download',
+				'file'     => rawurlencode($filename),
+				'_wpnonce' => wp_create_nonce(self::nonce_action($filename)),
 			],
 			network_admin_url('sites.php')
 		);

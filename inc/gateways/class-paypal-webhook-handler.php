@@ -486,11 +486,13 @@ class PayPal_Webhook_Handler {
 		// Check for the original pending payment created during checkout (first payment only).
 		// When a subscription returns APPROVED, we leave the initial payment as PENDING and
 		// expect this webhook to confirm it rather than creating a duplicate.
-		$pending_payments = wu_get_payments([
-			'membership_id' => $membership->get_id(),
-			'status'        => Payment_Status::PENDING,
-			'number'        => 1,
-		]);
+		$pending_payments = wu_get_payments(
+			[
+				'membership_id' => $membership->get_id(),
+				'status'        => Payment_Status::PENDING,
+				'number'        => 1,
+			]
+			);
 
 		$payment = ! empty($pending_payments) ? $pending_payments[0] : null;
 
