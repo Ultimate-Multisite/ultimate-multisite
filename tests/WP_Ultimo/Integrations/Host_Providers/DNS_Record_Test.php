@@ -312,11 +312,32 @@ class DNS_Record_Test extends WP_UnitTestCase {
 	 * Test get_type_class returns correct CSS class for each type.
 	 */
 	public function test_get_type_class() {
-		$a_record = new DNS_Record(['type' => 'A', 'name' => 'test', 'content' => '1.1.1.1']);
-		$aaaa_record = new DNS_Record(['type' => 'AAAA', 'name' => 'test', 'content' => '::1']);
-		$cname_record = new DNS_Record(['type' => 'CNAME', 'name' => 'test', 'content' => 'target.com']);
-		$mx_record = new DNS_Record(['type' => 'MX', 'name' => 'test', 'content' => 'mail.test.com', 'priority' => 10]);
-		$txt_record = new DNS_Record(['type' => 'TXT', 'name' => 'test', 'content' => 'test']);
+		$a_record     = new DNS_Record([
+			'type'    => 'A',
+			'name'    => 'test',
+			'content' => '1.1.1.1',
+		]);
+		$aaaa_record  = new DNS_Record([
+			'type'    => 'AAAA',
+			'name'    => 'test',
+			'content' => '::1',
+		]);
+		$cname_record = new DNS_Record([
+			'type'    => 'CNAME',
+			'name'    => 'test',
+			'content' => 'target.com',
+		]);
+		$mx_record    = new DNS_Record([
+			'type'     => 'MX',
+			'name'     => 'test',
+			'content'  => 'mail.test.com',
+			'priority' => 10,
+		]);
+		$txt_record   = new DNS_Record([
+			'type'    => 'TXT',
+			'name'    => 'test',
+			'content' => 'test',
+		]);
 
 		$this->assertStringContainsString('blue', $a_record->get_type_class());
 		$this->assertStringContainsString('purple', $aaaa_record->get_type_class());
@@ -329,10 +350,20 @@ class DNS_Record_Test extends WP_UnitTestCase {
 	 * Test get_ttl_label returns correct human-readable format.
 	 */
 	public function test_get_ttl_label() {
-		$auto_record = new DNS_Record(['type' => 'A', 'name' => 'test', 'content' => '1.1.1.1', 'ttl' => 1]);
+		$auto_record = new DNS_Record([
+			'type'    => 'A',
+			'name'    => 'test',
+			'content' => '1.1.1.1',
+			'ttl'     => 1,
+		]);
 		$this->assertEquals('Auto', $auto_record->get_ttl_label());
 
-		$hour_record = new DNS_Record(['type' => 'A', 'name' => 'test', 'content' => '1.1.1.1', 'ttl' => 3600]);
+		$hour_record = new DNS_Record([
+			'type'    => 'A',
+			'name'    => 'test',
+			'content' => '1.1.1.1',
+			'ttl'     => 3600,
+		]);
 		$this->assertEquals('1 hour', $hour_record->get_ttl_label());
 	}
 

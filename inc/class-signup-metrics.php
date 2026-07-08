@@ -106,13 +106,14 @@ class Signup_Metrics {
 	 *
 	 * @since 2.5.0
 	 *
-	 * @param \WP_Ultimo\Checkout\Cart    $order      The cart/order object.
-	 * @param \WP_Ultimo\Models\Customer  $customer   The customer.
+	 * @param \WP_Ultimo\Checkout\Cart     $order      The cart/order object.
+	 * @param \WP_Ultimo\Models\Customer   $customer   The customer.
 	 * @param \WP_Ultimo\Models\Membership $membership The primary membership.
-	 * @param \WP_Ultimo\Models\Payment   $payment    The payment.
+	 * @param \WP_Ultimo\Models\Payment    $payment    The payment.
 	 * @return void
 	 */
 	public function track_checkout_step_completed($order, $customer, $membership, $payment): void {
+		unset($payment);
 
 		$plan = $order->get_plan();
 
@@ -149,6 +150,7 @@ class Signup_Metrics {
 	 * @return void
 	 */
 	public function track_checkout_completed($payment, $membership, $customer, $order, $type, $checkout): void {
+		unset($checkout);
 
 		$plan = $order ? $order->get_plan() : null;
 

@@ -55,7 +55,7 @@ class Domain_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		parent::setUp();
 
-		$this->page    = new Testable_Domain_Edit_Admin_Page();
+		$this->page = new Testable_Domain_Edit_Admin_Page();
 		// Use the main site blog ID (1) to avoid switch_to_blog() DB connection issues.
 		$this->blog_id = 1;
 	}
@@ -156,7 +156,7 @@ class Domain_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * @param array $overrides Optional attribute overrides.
 	 * @return Domain
 	 */
-	private function create_domain( array $overrides = [] ): Domain {
+	private function create_domain(array $overrides = []): Domain {
 
 		$domain = new Domain(
 			array_merge(
@@ -520,7 +520,7 @@ class Domain_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_query_filter_merges_object_id(): void {
 
-		$domain = $this->create_domain();
+		$domain             = $this->create_domain();
 		$this->page->object = $domain;
 
 		$result = $this->page->query_filter([]);
@@ -540,7 +540,10 @@ class Domain_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		$this->page->object = $domain;
 
-		$args   = ['existing_key' => 'existing_value', 'number' => 10];
+		$args   = [
+			'existing_key' => 'existing_value',
+			'number'       => 10,
+		];
 		$result = $this->page->query_filter($args);
 
 		$this->assertEquals('existing_value', $result['existing_key']);
@@ -595,7 +598,10 @@ class Domain_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		$this->page->object = $domain;
 
-		$args   = ['number' => 5, 'orderby' => 'title'];
+		$args   = [
+			'number'  => 5,
+			'orderby' => 'title',
+		];
 		$result = $this->page->sites_query_filter($args);
 
 		$this->assertEquals(5, $result['number']);

@@ -170,7 +170,7 @@ class Invoice {
 	 */
 	private function pdf_setup(): void {
 
-		$this->printer                     = new Mpdf(
+		$this->printer = new Mpdf(
 			[
 				'mode'             => '+aCJK',
 				'autoScriptToLang' => true,

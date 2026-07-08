@@ -107,8 +107,13 @@ class Customer_User_Role_Limits_Test extends \WP_UnitTestCase {
 			// Ensure wp_users.can is an array before calling revoke_super_admin
 			// (required on some WP versions to avoid a fatal error)
 			wp_cache_flush();
-			if (!is_array(get_option('wp_users.can'))) {
-				update_option('wp_users.can', ['list_users' => true, 'promote_users' => true, 'remove_users' => true, 'edit_users' => true]);
+			if (! is_array(get_option('wp_users.can'))) {
+				update_option('wp_users.can', [
+					'list_users'    => true,
+					'promote_users' => true,
+					'remove_users'  => true,
+					'edit_users'    => true,
+				]);
 			}
 			revoke_super_admin($admin_id);
 		}
@@ -303,7 +308,7 @@ class Customer_User_Role_Limits_Test extends \WP_UnitTestCase {
 
 		add_action(
 			'wu_customer_user_role_downgrade_demoted',
-			function($user_id) use (&$demoted_user_ids) {
+			function ($user_id) use (&$demoted_user_ids) {
 				$demoted_user_ids[] = $user_id;
 			}
 		);
@@ -393,7 +398,7 @@ class Customer_User_Role_Limits_Test extends \WP_UnitTestCase {
 
 		add_action(
 			'wu_customer_user_role_downgrade_demoted',
-			function($user_id) use (&$demoted_user_ids) {
+			function ($user_id) use (&$demoted_user_ids) {
 				$demoted_user_ids[] = $user_id;
 			}
 		);

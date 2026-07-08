@@ -52,7 +52,7 @@ class Unique_Customer_Email_Test extends WP_UnitTestCase {
 	public function test_email_with_user_but_no_customer_passes() {
 
 		// Create a WordPress user without a customer using a unique email
-		$email = 'user-only-' . wp_generate_uuid4() . '@example.com';
+		$email   = 'user-only-' . wp_generate_uuid4() . '@example.com';
 		$user_id = $this->factory()->user->create([
 			'user_email' => $email,
 		]);

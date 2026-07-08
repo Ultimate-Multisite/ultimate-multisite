@@ -98,13 +98,13 @@ class Stripe_OAuth_Test extends WP_UnitTestCase {
 	 */
 	public function test_oauth_authorization_url_generation() {
 		// Mock proxy response
-		add_filter('pre_http_request', function($preempt, $args, $url) {
+		add_filter('pre_http_request', function ($preempt, $args, $url) {
 			if (strpos($url, '/oauth/init') !== false) {
 				return [
 					'response' => ['code' => 200],
-					'body' => wp_json_encode([
+					'body'     => wp_json_encode([
 						'oauthUrl' => 'https://connect.stripe.com/oauth/authorize?client_id=ca_test123&state=encrypted_state&scope=read_write',
-						'state' => 'test_state_123',
+						'state'    => 'test_state_123',
 					]),
 				];
 			}
@@ -112,7 +112,7 @@ class Stripe_OAuth_Test extends WP_UnitTestCase {
 		}, 10, 3);
 
 		$gateway = new Stripe_Gateway();
-		$url = $gateway->get_connect_authorization_url('');
+		$url     = $gateway->get_connect_authorization_url('');
 
 		$this->assertStringContainsString('connect.stripe.com/oauth/authorize', $url);
 		$this->assertStringContainsString('client_id=ca_test123', $url);
@@ -127,7 +127,7 @@ class Stripe_OAuth_Test extends WP_UnitTestCase {
 	 */
 	public function test_oauth_authorization_url_requires_client_id() {
 		// Mock proxy returning error or invalid response
-		add_filter('pre_http_request', function($preempt, $args, $url) {
+		add_filter('pre_http_request', function ($preempt, $args, $url) {
 			if (strpos($url, '/oauth/init') !== false) {
 				return new \WP_Error('http_request_failed', 'Connection failed');
 			}
@@ -135,7 +135,7 @@ class Stripe_OAuth_Test extends WP_UnitTestCase {
 		}, 10, 3);
 
 		$gateway = new Stripe_Gateway();
-		$url = $gateway->get_connect_authorization_url('');
+		$url     = $gateway->get_connect_authorization_url('');
 
 		$this->assertEmpty($url);
 	}
@@ -157,7 +157,7 @@ class Stripe_OAuth_Test extends WP_UnitTestCase {
 		$this->assertFalse($gateway->is_using_oauth());
 
 		// Verify API keys are loaded
-		$reflection = new \ReflectionClass($gateway);
+		$reflection      = new \ReflectionClass($gateway);
 		$secret_property = $reflection->getProperty('secret_key');
 		$secret_property->setAccessible(true);
 
@@ -180,7 +180,7 @@ class Stripe_OAuth_Test extends WP_UnitTestCase {
 
 		// Verify account ID is loaded
 		$reflection = new \ReflectionClass($gateway);
-		$property = $reflection->getProperty('oauth_account_id');
+		$property   = $reflection->getProperty('oauth_account_id');
 		$property->setAccessible(true);
 
 		$this->assertEquals('acct_test123', $property->getValue($gateway));
@@ -201,7 +201,7 @@ class Stripe_OAuth_Test extends WP_UnitTestCase {
 
 		// Verify account ID is empty
 		$reflection = new \ReflectionClass($gateway);
-		$property = $reflection->getProperty('oauth_account_id');
+		$property   = $reflection->getProperty('oauth_account_id');
 		$property->setAccessible(true);
 
 		$this->assertEmpty($property->getValue($gateway));
@@ -285,7 +285,7 @@ class Stripe_OAuth_Test extends WP_UnitTestCase {
 		$gateway = new Stripe_Gateway();
 
 		$reflection = new \ReflectionClass($gateway);
-		$method = $reflection->getMethod('get_disconnect_url');
+		$method     = $reflection->getMethod('get_disconnect_url');
 		$method->setAccessible(true);
 
 		$url = $method->invoke($gateway);

@@ -685,7 +685,10 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 
 		wu_save_setting('currency', 'USD');
 
-		$gateways = ['paypal-rest' => $this->gateway, 'stripe' => 'stripe'];
+		$gateways = [
+			'paypal-rest' => $this->gateway,
+			'stripe'      => 'stripe',
+		];
 		$result   = $this->gateway->maybe_remove_for_unsupported_currency($gateways);
 
 		$this->assertArrayHasKey('paypal-rest', $result);
@@ -698,7 +701,10 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 
 		wu_save_setting('currency', 'NGN');
 
-		$gateways = ['paypal-rest' => $this->gateway, 'stripe' => 'stripe'];
+		$gateways = [
+			'paypal-rest' => $this->gateway,
+			'stripe'      => 'stripe',
+		];
 		$result   = $this->gateway->maybe_remove_for_unsupported_currency($gateways);
 
 		$this->assertArrayNotHasKey('paypal-rest', $result);
@@ -712,7 +718,11 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 
 		wu_save_setting('currency', 'NGN');
 
-		$gateways = ['paypal-rest' => $this->gateway, 'stripe' => 'stripe', 'manual' => 'manual'];
+		$gateways = [
+			'paypal-rest' => $this->gateway,
+			'stripe'      => 'stripe',
+			'manual'      => 'manual',
+		];
 		$result   = $this->gateway->maybe_remove_for_unsupported_currency($gateways);
 
 		$this->assertArrayHasKey('stripe', $result);
@@ -833,9 +843,12 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 		wu_save_setting('paypal_rest_sandbox_email_confirmed', true);
 		wu_save_setting('paypal_rest_sandbox_mode', 1);
 
-		$gateway  = new PayPal_REST_Gateway();
+		$gateway = new PayPal_REST_Gateway();
 		$gateway->init();
-		$gateways = ['paypal-rest' => $gateway, 'stripe' => 'stripe'];
+		$gateways = [
+			'paypal-rest' => $gateway,
+			'stripe'      => 'stripe',
+		];
 		$result   = $gateway->maybe_remove_for_invalid_merchant_status($gateways);
 
 		$this->assertArrayHasKey('paypal-rest', $result);
@@ -851,9 +864,12 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 		wu_save_setting('paypal_rest_sandbox_email_confirmed', true);
 		wu_save_setting('paypal_rest_sandbox_mode', 1);
 
-		$gateway  = new PayPal_REST_Gateway();
+		$gateway = new PayPal_REST_Gateway();
 		$gateway->init();
-		$gateways = ['paypal-rest' => $gateway, 'stripe' => 'stripe'];
+		$gateways = [
+			'paypal-rest' => $gateway,
+			'stripe'      => 'stripe',
+		];
 		$result   = $gateway->maybe_remove_for_invalid_merchant_status($gateways);
 
 		$this->assertArrayNotHasKey('paypal-rest', $result);
@@ -870,9 +886,12 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 		wu_save_setting('paypal_rest_sandbox_email_confirmed', false);
 		wu_save_setting('paypal_rest_sandbox_mode', 1);
 
-		$gateway  = new PayPal_REST_Gateway();
+		$gateway = new PayPal_REST_Gateway();
 		$gateway->init();
-		$gateways = ['paypal-rest' => $gateway, 'stripe' => 'stripe'];
+		$gateways = [
+			'paypal-rest' => $gateway,
+			'stripe'      => 'stripe',
+		];
 		$result   = $gateway->maybe_remove_for_invalid_merchant_status($gateways);
 
 		$this->assertArrayNotHasKey('paypal-rest', $result);
@@ -889,7 +908,10 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 		wu_save_setting('paypal_rest_sandbox_payments_receivable', false);
 		wu_save_setting('paypal_rest_sandbox_email_confirmed', false);
 
-		$gateways = ['paypal-rest' => $this->gateway, 'stripe' => 'stripe'];
+		$gateways = [
+			'paypal-rest' => $this->gateway,
+			'stripe'      => 'stripe',
+		];
 		$result   = $this->gateway->maybe_remove_for_invalid_merchant_status($gateways);
 
 		$this->assertArrayHasKey('paypal-rest', $result);
@@ -905,9 +927,13 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 		wu_save_setting('paypal_rest_sandbox_email_confirmed', false);
 		wu_save_setting('paypal_rest_sandbox_mode', 1);
 
-		$gateway  = new PayPal_REST_Gateway();
+		$gateway = new PayPal_REST_Gateway();
 		$gateway->init();
-		$gateways = ['paypal-rest' => $gateway, 'stripe' => 'stripe', 'manual' => 'manual'];
+		$gateways = [
+			'paypal-rest' => $gateway,
+			'stripe'      => 'stripe',
+			'manual'      => 'manual',
+		];
 		$result   = $gateway->maybe_remove_for_invalid_merchant_status($gateways);
 
 		$this->assertArrayHasKey('stripe', $result);
@@ -1914,8 +1940,8 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 	private function invoke_create_order_and_capture(PayPal_REST_Gateway $gateway, array $fixtures): ?array {
 
 		// Set $this->payment on the gateway so get_confirm_url() can call get_hash().
-		$reflection    = new \ReflectionClass($gateway);
-		$payment_prop  = $reflection->getParentClass()->getProperty('payment');
+		$reflection   = new \ReflectionClass($gateway);
+		$payment_prop = $reflection->getParentClass()->getProperty('payment');
 		$payment_prop->setAccessible(true);
 		$payment_prop->setValue($gateway, $fixtures['payment']);
 

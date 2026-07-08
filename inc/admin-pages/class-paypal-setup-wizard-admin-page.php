@@ -127,7 +127,7 @@ class PayPal_Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 	public function get_sections() {
 
 		return [
-			'welcome'       => [
+			'welcome'      => [
 				'title'   => __('Welcome', 'ultimate-multisite'),
 				'view'    => [$this, 'section_welcome'],
 				'handler' => [$this, 'handle_welcome'],
@@ -136,16 +136,16 @@ class PayPal_Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 				'title' => __('Get Credentials', 'ultimate-multisite'),
 				'view'  => [$this, 'section_instructions'],
 			],
-			'configure'     => [
+			'configure'    => [
 				'title'   => __('Configure', 'ultimate-multisite'),
 				'view'    => [$this, 'section_configure'],
 				'handler' => [$this, 'handle_configure'],
 			],
-			'test'          => [
+			'test'         => [
 				'title' => __('Test Connection', 'ultimate-multisite'),
 				'view'  => [$this, 'section_test'],
 			],
-			'done'          => [
+			'done'         => [
 				'title' => __('Done', 'ultimate-multisite'),
 				'view'  => [$this, 'section_done'],
 			],
@@ -201,8 +201,8 @@ class PayPal_Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 		wu_get_template(
 			'wizards/paypal-setup/instructions',
 			[
-				'page'         => $this,
-				'sandbox_mode' => $this->sandbox_mode,
+				'page'          => $this,
+				'sandbox_mode'  => $this->sandbox_mode,
 				'developer_url' => $this->sandbox_mode
 					? 'https://developer.paypal.com/dashboard/applications/sandbox'
 					: 'https://developer.paypal.com/dashboard/applications/live',
@@ -228,13 +228,13 @@ class PayPal_Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 		wu_get_template(
 			'wizards/paypal-setup/configure',
 			[
-				'page'           => $this,
-				'sandbox_mode'   => $this->sandbox_mode,
-				'mode_label'     => $this->sandbox_mode
+				'page'          => $this,
+				'sandbox_mode'  => $this->sandbox_mode,
+				'mode_label'    => $this->sandbox_mode
 					? __('Sandbox', 'ultimate-multisite')
 					: __('Live', 'ultimate-multisite'),
-				'client_id'      => $client_id,
-				'client_secret'  => $client_secret,
+				'client_id'     => $client_id,
+				'client_secret' => $client_secret,
 			]
 		);
 	}
@@ -313,13 +313,13 @@ class PayPal_Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 			'wu-paypal-setup-wizard-test',
 			'wu_paypal_setup_wizard',
 			[
-				'ajax_url'         => admin_url('admin-ajax.php'),
-				'nonce'            => wp_create_nonce('wu_paypal_setup_wizard'),
-				'sandbox_mode'     => $this->sandbox_mode ? 1 : 0,
-				'waiting_message'  => __('Verifying your credentials with PayPal…', 'ultimate-multisite'),
-				'success_message'  => __('Your credentials were accepted by PayPal.', 'ultimate-multisite'),
-				'webhook_message'  => __('We installed the webhook automatically.', 'ultimate-multisite'),
-				'error_message'    => __('PayPal rejected the credentials. Double-check the Client ID and Secret on the previous step.', 'ultimate-multisite'),
+				'ajax_url'        => admin_url('admin-ajax.php'),
+				'nonce'           => wp_create_nonce('wu_paypal_setup_wizard'),
+				'sandbox_mode'    => $this->sandbox_mode ? 1 : 0,
+				'waiting_message' => __('Verifying your credentials with PayPal…', 'ultimate-multisite'),
+				'success_message' => __('Your credentials were accepted by PayPal.', 'ultimate-multisite'),
+				'webhook_message' => __('We installed the webhook automatically.', 'ultimate-multisite'),
+				'error_message'   => __('PayPal rejected the credentials. Double-check the Client ID and Secret on the previous step.', 'ultimate-multisite'),
 			]
 		);
 
@@ -465,9 +465,9 @@ class PayPal_Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 		}
 
 		// Credentials valid — try to install the webhook automatically.
-		$webhook_status   = 'not_attempted';
-		$webhook_message  = '';
-		$gateway          = wu_get_gateway('paypal-rest');
+		$webhook_status  = 'not_attempted';
+		$webhook_message = '';
+		$gateway         = wu_get_gateway('paypal-rest');
 
 		if ($gateway instanceof PayPal_REST_Gateway) {
 			$gateway->set_test_mode($sandbox);

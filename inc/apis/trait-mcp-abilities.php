@@ -753,13 +753,13 @@ trait MCP_Abilities {
 		$filter_columns = array_keys($this->get_model_filter_columns());
 
 		foreach ($filter_columns as $column) {
-			if (isset($args[$column]) && empty($args[$column]) && $args[$column] !== false) {
-				unset($args[$column]);
+			if (isset($args[ $column ]) && empty($args[ $column ]) && false !== $args[ $column ]) {
+				unset($args[ $column ]);
 			}
 		}
 
 		// Also strip empty search strings.
-		if (isset($args['search']) && $args['search'] === '') {
+		if (isset($args['search']) && '' === $args['search']) {
 			unset($args['search']);
 		}
 

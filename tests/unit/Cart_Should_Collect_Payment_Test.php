@@ -57,7 +57,7 @@ class Cart_Should_Collect_Payment_Test extends WP_UnitTestCase {
 		return new Cart(
 			[
 				'cart_type'     => 'new',
-				'products'      => [ $product_id ],
+				'products'      => [$product_id],
 				'duration'      => 1,
 				'duration_unit' => 'month',
 			]

@@ -240,7 +240,7 @@ class Limitation_Manager_Test extends \WP_UnitTestCase {
 	public function test_limitations_is_module_enabled(): void {
 
 		$limitations = new Limitations([
-			'sites' => [
+			'sites'  => [
 				'enabled' => true,
 				'limit'   => 5,
 			],
@@ -345,7 +345,7 @@ class Limitation_Manager_Test extends \WP_UnitTestCase {
 						'enabled' => true,
 						'number'  => 1,
 					],
-					'editor' => [
+					'editor'        => [
 						'enabled' => true,
 						'number'  => 5,
 					],
@@ -804,7 +804,7 @@ class Limitation_Manager_Test extends \WP_UnitTestCase {
 			'themes' => [
 				'enabled' => true,
 				'limit'   => [
-					'twentytwentyfour' => [
+					'twentytwentyfour'  => [
 						'visibility' => 'visible',
 						'behavior'   => 'force_active',
 					],
@@ -852,7 +852,7 @@ class Limitation_Manager_Test extends \WP_UnitTestCase {
 			'themes' => [
 				'enabled' => true,
 				'limit'   => [
-					'twentytwentyfour' => [
+					'twentytwentyfour'  => [
 						'visibility' => 'visible',
 						'behavior'   => 'available',
 					],
@@ -860,7 +860,7 @@ class Limitation_Manager_Test extends \WP_UnitTestCase {
 						'visibility' => 'visible',
 						'behavior'   => 'not_available',
 					],
-					'twentytwentytwo' => [
+					'twentytwentytwo'   => [
 						'visibility' => 'visible',
 						'behavior'   => 'available',
 					],
@@ -1404,7 +1404,7 @@ class Limitation_Manager_Test extends \WP_UnitTestCase {
 						'behavior' => 'pre_selected',
 					],
 				],
-				'mode' => 'choose_available_templates',
+				'mode'    => 'choose_available_templates',
 			],
 		]);
 
@@ -1431,7 +1431,7 @@ class Limitation_Manager_Test extends \WP_UnitTestCase {
 						'behavior' => 'pre_selected',
 					],
 				],
-				'mode' => 'choose_available_templates',
+				'mode'    => 'choose_available_templates',
 			],
 		]);
 
@@ -1453,7 +1453,7 @@ class Limitation_Manager_Test extends \WP_UnitTestCase {
 						'behavior' => 'available',
 					],
 				],
-				'mode' => 'choose_available_templates',
+				'mode'    => 'choose_available_templates',
 			],
 		]);
 
@@ -1710,8 +1710,8 @@ class Limitation_Manager_Test extends \WP_UnitTestCase {
 			],
 		];
 
-		$base    = new Limitations($base_data);
-		$merged  = $base->merge($override_data);
+		$base   = new Limitations($base_data);
+		$merged = $base->merge($override_data);
 
 		// force_active has higher priority than default, so it should win
 		$plugin = $merged->plugins->{'akismet/akismet.php'};
@@ -1805,7 +1805,7 @@ class Limitation_Manager_Test extends \WP_UnitTestCase {
 	public function test_limitations_serialization(): void {
 
 		$data = [
-			'sites' => [
+			'sites'      => [
 				'enabled' => true,
 				'limit'   => 5,
 			],
@@ -2623,7 +2623,7 @@ class Limitation_Manager_Test extends \WP_UnitTestCase {
 	public function test_limitations_mixed_enabled_disabled(): void {
 
 		$limitations = new Limitations([
-			'sites' => [
+			'sites'      => [
 				'enabled' => true,
 				'limit'   => 5,
 			],

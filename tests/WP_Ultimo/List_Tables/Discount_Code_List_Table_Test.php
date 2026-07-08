@@ -106,7 +106,7 @@ class Discount_Code_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_default_returns_value_from_getter(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_name' ] )
+			->addMethods( ['get_name'] )
 			->getMock();
 		$item->method( 'get_name' )->willReturn( 'Summer Sale' );
 
@@ -125,7 +125,7 @@ class Discount_Code_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_value_returns_no_discount_when_zero(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_value', 'get_type' ] )
+			->addMethods( ['get_value', 'get_type'] )
 			->getMock();
 		$item->method( 'get_value' )->willReturn( 0 );
 
@@ -140,7 +140,7 @@ class Discount_Code_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_value_returns_percentage_for_percentage_type(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_value', 'get_type' ] )
+			->addMethods( ['get_value', 'get_type'] )
 			->getMock();
 		$item->method( 'get_value' )->willReturn( 20 );
 		$item->method( 'get_type' )->willReturn( 'percentage' );
@@ -157,7 +157,7 @@ class Discount_Code_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_value_returns_currency_for_flat_type(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_value', 'get_type' ] )
+			->addMethods( ['get_value', 'get_type'] )
 			->getMock();
 		$item->method( 'get_value' )->willReturn( 10 );
 		$item->method( 'get_type' )->willReturn( 'flat' );
@@ -177,7 +177,7 @@ class Discount_Code_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_setup_fee_value_returns_no_discount_when_zero(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_setup_fee_value', 'get_setup_fee_type' ] )
+			->addMethods( ['get_setup_fee_value', 'get_setup_fee_type'] )
 			->getMock();
 		$item->method( 'get_setup_fee_value' )->willReturn( 0 );
 
@@ -192,7 +192,7 @@ class Discount_Code_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_setup_fee_value_returns_percentage_for_percentage_type(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_setup_fee_value', 'get_setup_fee_type' ] )
+			->addMethods( ['get_setup_fee_value', 'get_setup_fee_type'] )
 			->getMock();
 		$item->method( 'get_setup_fee_value' )->willReturn( 15 );
 		$item->method( 'get_setup_fee_type' )->willReturn( 'percentage' );
@@ -212,7 +212,7 @@ class Discount_Code_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_uses_returns_usage_count(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_uses', 'get_max_uses' ] )
+			->addMethods( ['get_uses', 'get_max_uses'] )
 			->getMock();
 		$item->method( 'get_uses' )->willReturn( 5 );
 		$item->method( 'get_max_uses' )->willReturn( 0 );
@@ -229,7 +229,7 @@ class Discount_Code_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_uses_shows_max_uses_when_set(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_uses', 'get_max_uses' ] )
+			->addMethods( ['get_uses', 'get_max_uses'] )
 			->getMock();
 		$item->method( 'get_uses' )->willReturn( 3 );
 		$item->method( 'get_max_uses' )->willReturn( 10 );
@@ -251,7 +251,7 @@ class Discount_Code_List_Table_Test extends WP_UnitTestCase {
 		$valid_mock = true; // not a WP_Error
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_code', 'is_valid' ] )
+			->addMethods( ['get_code', 'is_valid'] )
 			->getMock();
 		$item->method( 'get_code' )->willReturn( 'summer20' );
 		$item->method( 'is_valid' )->willReturn( true );

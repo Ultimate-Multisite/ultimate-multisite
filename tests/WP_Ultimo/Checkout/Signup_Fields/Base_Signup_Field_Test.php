@@ -290,7 +290,10 @@ class Base_Signup_Field_Test extends WP_UnitTestCase {
 	 * Test reduce_attributes is a passthrough.
 	 */
 	public function test_reduce_attributes_is_passthrough() {
-		$input = ['foo' => 'bar', 'baz' => 123];
+		$input = [
+			'foo' => 'bar',
+			'baz' => 123,
+		];
 		$this->assertSame($input, $this->field->reduce_attributes($input));
 	}
 
@@ -298,7 +301,10 @@ class Base_Signup_Field_Test extends WP_UnitTestCase {
 	 * Test get_editor_fields_html_attr is a passthrough.
 	 */
 	public function test_get_editor_fields_html_attr_is_passthrough() {
-		$html_attr = ['class' => 'my-class', 'data-foo' => 'bar'];
+		$html_attr = [
+			'class'    => 'my-class',
+			'data-foo' => 'bar',
+		];
 		$result    = $this->field->get_editor_fields_html_attr($html_attr, 'text');
 		$this->assertSame($html_attr, $result);
 	}
@@ -321,7 +327,10 @@ class Base_Signup_Field_Test extends WP_UnitTestCase {
 	 * Test set_attributes stores the attributes array.
 	 */
 	public function test_set_attributes_stores_attributes() {
-		$attrs = ['id' => 'my_field', 'name' => 'My Field'];
+		$attrs = [
+			'id'   => 'my_field',
+			'name' => 'My Field',
+		];
 		$this->field->set_attributes($attrs);
 
 		$reflection = new \ReflectionClass($this->field);
@@ -589,8 +598,8 @@ class Base_Signup_Field_Test extends WP_UnitTestCase {
 	 * Test fields_list save_as field has expected options.
 	 */
 	public function test_fields_list_save_as_has_options() {
-		$fields   = Base_Signup_Field::fields_list();
-		$save_as  = $fields['save_as'];
+		$fields  = Base_Signup_Field::fields_list();
+		$save_as = $fields['save_as'];
 
 		$this->assertEquals('select', $save_as['type']);
 		$this->assertArrayHasKey('options', $save_as);
@@ -649,8 +658,8 @@ class Base_Signup_Field_Test extends WP_UnitTestCase {
 	 * Test get_editor_fields v-show contains the field type.
 	 */
 	public function test_get_editor_fields_v_show_contains_field_type() {
-		$fields  = $this->field->get_editor_fields([]);
-		$v_show  = $fields['test_option']['wrapper_html_attr']['v-show'];
+		$fields = $this->field->get_editor_fields([]);
+		$v_show = $fields['test_option']['wrapper_html_attr']['v-show'];
 
 		$this->assertStringContainsString('test_field', $v_show);
 	}

@@ -179,7 +179,12 @@ class Cloudflare_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->integration->method('cloudflare_api_call')
 			->willReturn(new \WP_Error('fail', 'error'));
 
-		$existing = [['type' => 'A', 'data' => '1.2.3.4']];
+		$existing = [
+			[
+				'type' => 'A',
+				'data' => '1.2.3.4',
+			],
+		];
 
 		$result = $this->module->add_cloudflare_dns_entries($existing, 'example.com');
 
@@ -200,7 +205,12 @@ class Cloudflare_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->integration->method('cloudflare_api_call')
 			->willReturn(new \WP_Error('fail', 'error'));
 
-		$existing = [['type' => 'A', 'data' => '1.2.3.4']];
+		$existing = [
+			[
+				'type' => 'A',
+				'data' => '1.2.3.4',
+			],
+		];
 
 		$result = $this->module->add_cloudflare_dns_entries($existing, 'example.com');
 

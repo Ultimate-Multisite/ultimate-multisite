@@ -74,7 +74,10 @@ class Url_Helpers_Test extends WP_UnitTestCase {
 	 * Test wu_network_admin_url with query parameters.
 	 */
 	public function test_network_admin_url_with_query_params(): void {
-		$url = wu_network_admin_url('wp-ultimo', ['tab' => 'settings', 'id' => 123]);
+		$url = wu_network_admin_url('wp-ultimo', [
+			'tab' => 'settings',
+			'id'  => 123,
+		]);
 		$this->assertStringContainsString('admin.php?page=wp-ultimo', $url);
 		$this->assertStringContainsString('tab=settings', $url);
 		$this->assertStringContainsString('id=123', $url);
@@ -126,7 +129,10 @@ class Url_Helpers_Test extends WP_UnitTestCase {
 	 * Test wu_ajax_url with custom query args.
 	 */
 	public function test_ajax_url_with_query_args(): void {
-		$url = wu_ajax_url(null, ['action' => 'test_action', 'id' => 42]);
+		$url = wu_ajax_url(null, [
+			'action' => 'test_action',
+			'id'     => 42,
+		]);
 		$this->assertStringContainsString('action=test_action', $url);
 		$this->assertStringContainsString('id=42', $url);
 	}

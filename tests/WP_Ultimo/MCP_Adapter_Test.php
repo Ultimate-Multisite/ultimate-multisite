@@ -38,7 +38,7 @@ class MCP_Adapter_Test extends \WP_UnitTestCase {
 		$instance->init();
 
 		// The MCP adapter core class exists in this env, so hooks get registered
-		$has_adapter_hook = has_action('init', [$instance, 'initialize_adapter']);
+		$has_adapter_hook  = has_action('init', [$instance, 'initialize_adapter']);
 		$has_settings_hook = has_action('init', [$instance, 'add_settings']);
 
 		// Both should be registered (truthy priority) or both not (false)

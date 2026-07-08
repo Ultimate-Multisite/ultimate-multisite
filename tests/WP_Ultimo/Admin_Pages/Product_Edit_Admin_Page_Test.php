@@ -415,7 +415,10 @@ class Product_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * Test query_filter preserves existing args.
 	 */
 	public function test_query_filter_preserves_existing_args(): void {
-		$args   = ['existing_key' => 'existing_value', 'number' => 10];
+		$args   = [
+			'existing_key' => 'existing_value',
+			'number'       => 10,
+		];
 		$result = $this->page->query_filter($args);
 
 		$this->assertEquals('existing_value', $result['existing_key']);
@@ -545,7 +548,7 @@ class Product_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		remove_all_filters('wu_form_fields_delete_product_modal');
 		remove_all_actions('wu_after_delete_product_modal');
-		remove_all_actions("wu_page_wp-ultimo-edit-product_load");
+		remove_all_actions('wu_page_wp-ultimo-edit-product_load');
 	}
 
 	/**
@@ -561,7 +564,7 @@ class Product_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		remove_all_filters('wu_form_fields_delete_product_modal');
 		remove_all_actions('wu_after_delete_product_modal');
-		remove_all_actions("wu_page_wp-ultimo-edit-product_load");
+		remove_all_actions('wu_page_wp-ultimo-edit-product_load');
 	}
 
 	/**
@@ -577,7 +580,7 @@ class Product_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		remove_all_filters('wu_form_fields_delete_product_modal');
 		remove_all_actions('wu_after_delete_product_modal');
-		remove_all_actions("wu_page_wp-ultimo-edit-product_load");
+		remove_all_actions('wu_page_wp-ultimo-edit-product_load');
 	}
 
 	// -------------------------------------------------------------------------

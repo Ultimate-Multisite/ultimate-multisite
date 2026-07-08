@@ -92,7 +92,7 @@ class Payment_List_Table_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'wu_payments_list_table_columns',
-			function ( $columns ) {
+			function ($columns) {
 				$columns['extra_col'] = 'Extra';
 				return $columns;
 			}
@@ -210,7 +210,7 @@ class Payment_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_status_returns_span_with_label(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_status_label', 'get_status_class' ] )
+			->addMethods( ['get_status_label', 'get_status_class'] )
 			->getMock();
 		$item->method( 'get_status_label' )->willReturn( 'Completed' );
 		$item->method( 'get_status_class' )->willReturn( 'wu-bg-green-500' );
@@ -232,7 +232,7 @@ class Payment_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_total_returns_currency_with_gateway(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_total', 'get_gateway' ] )
+			->addMethods( ['get_total', 'get_gateway'] )
 			->getMock();
 		$item->method( 'get_total' )->willReturn( 99.99 );
 		$item->method( 'get_gateway' )->willReturn( 'stripe' );
@@ -253,7 +253,7 @@ class Payment_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_product_returns_no_product_when_null(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_product' ] )
+			->addMethods( ['get_product'] )
 			->getMock();
 		$item->method( 'get_product' )->willReturn( null );
 
@@ -268,13 +268,13 @@ class Payment_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_product_returns_product_name_when_exists(): void {
 
 		$product = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_id', 'get_name' ] )
+			->addMethods( ['get_id', 'get_name'] )
 			->getMock();
 		$product->method( 'get_id' )->willReturn( 1 );
 		$product->method( 'get_name' )->willReturn( 'Pro Plan' );
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_product' ] )
+			->addMethods( ['get_product'] )
 			->getMock();
 		$item->method( 'get_product' )->willReturn( $product );
 

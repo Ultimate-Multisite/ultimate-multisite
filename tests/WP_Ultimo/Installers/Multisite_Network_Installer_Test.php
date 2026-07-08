@@ -74,8 +74,8 @@ class Multisite_Network_Installer_Test extends \WP_UnitTestCase {
 				unset( $plugins[ WP_ULTIMO_PLUGIN_BASENAME ] );
 				$wpdb->update(
 					$this->sitemeta_table,
-					array( 'meta_value' => serialize( $plugins ) ),
-					array( 'meta_id' => $row->meta_id )
+					array('meta_value' => serialize( $plugins )),
+					array('meta_id' => $row->meta_id)
 				);
 			}
 		}
@@ -139,7 +139,7 @@ class Multisite_Network_Installer_Test extends \WP_UnitTestCase {
 	 */
 	public function test_get_steps_each_step_has_required_keys(): void {
 
-		$required = array( 'done', 'title', 'description', 'pending', 'installing', 'success' );
+		$required = array('done', 'title', 'description', 'pending', 'installing', 'success');
 
 		foreach ( $this->installer->get_steps() as $key => $step ) {
 			foreach ( $required as $field ) {
@@ -327,8 +327,8 @@ class Multisite_Network_Installer_Test extends \WP_UnitTestCase {
 		if ( $row ) {
 			$wpdb->update(
 				$this->sitemeta_table,
-				array( 'meta_value' => serialize( $plugins ) ),
-				array( 'meta_id' => $row->meta_id )
+				array('meta_value' => serialize( $plugins )),
+				array('meta_id' => $row->meta_id)
 			);
 		} else {
 			$wpdb->insert(
@@ -361,7 +361,7 @@ class Multisite_Network_Installer_Test extends \WP_UnitTestCase {
 		$existing_plugin = 'some-other-plugin/plugin.php';
 
 		// Pre-populate sitemeta with a different plugin already active.
-		$plugins = array( $existing_plugin => time() );
+		$plugins = array($existing_plugin => time());
 
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
@@ -374,8 +374,8 @@ class Multisite_Network_Installer_Test extends \WP_UnitTestCase {
 		if ( $row ) {
 			$wpdb->update(
 				$this->sitemeta_table,
-				array( 'meta_value' => serialize( $plugins ) ),
-				array( 'meta_id' => $row->meta_id )
+				array('meta_value' => serialize( $plugins )),
+				array('meta_id' => $row->meta_id)
 			);
 		} else {
 			$wpdb->insert(

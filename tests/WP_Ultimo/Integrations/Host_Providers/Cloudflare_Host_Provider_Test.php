@@ -64,16 +64,19 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 * @param array $result_info Optional result_info (e.g. pagination).
 	 * @return array WordPress HTTP response array.
 	 */
-	private function make_cf_response( $result, array $result_info = [] ): array {
+	private function make_cf_response($result, array $result_info = []): array {
 
-		$body = [ 'result' => $result ];
+		$body = ['result' => $result];
 
 		if ( ! empty( $result_info ) ) {
 			$body['result_info'] = $result_info;
 		}
 
 		return [
-			'response' => [ 'code' => 200, 'message' => 'OK' ],
+			'response' => [
+				'code'    => 200,
+				'message' => 'OK',
+			],
 			'body'     => wp_json_encode( $body ),
 		];
 	}
@@ -86,10 +89,13 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 * @param string $body    Response body.
 	 * @return array WordPress HTTP response array.
 	 */
-	private function make_cf_error_response( int $code = 403, string $message = 'Forbidden', string $body = '{"errors":[{"message":"Invalid API key"}]}' ): array {
+	private function make_cf_error_response(int $code = 403, string $message = 'Forbidden', string $body = '{"errors":[{"message":"Invalid API key"}]}'): array {
 
 		return [
-			'response' => [ 'code' => $code, 'message' => $message ],
+			'response' => [
+				'code'    => $code,
+				'message' => $message,
+			],
 			'body'     => $body,
 		];
 	}
@@ -102,11 +108,11 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 * @param string $url_fragment Substring that must appear in the request URL.
 	 * @return void
 	 */
-	private function mock_http( array $response, string $url_fragment = '' ): void {
+	private function mock_http(array $response, string $url_fragment = ''): void {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( $response, $url_fragment ) {
+			function ($preempt, $args, $url) use ($response, $url_fragment) {
 				if ( '' === $url_fragment || str_contains( $url, $url_fragment ) ) {
 					return $response;
 				}
@@ -125,11 +131,11 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 * @param string $message Error message.
 	 * @return void
 	 */
-	private function mock_http_wp_error( string $code = 'http-error', string $message = 'Connection failed' ): void {
+	private function mock_http_wp_error(string $code = 'http-error', string $message = 'Connection failed'): void {
 
 		add_filter(
 			'pre_http_request',
-			function () use ( $code, $message ) {
+			function () use ($code, $message) {
 				return new \WP_Error( $code, $message );
 			},
 			10,
@@ -329,7 +335,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		$this->provider->additional_hooks();
 
-		$this->assertIsInt( has_filter( 'wu_domain_dns_get_record', [ $this->provider, 'add_cloudflare_dns_entries' ] ) );
+		$this->assertIsInt( has_filter( 'wu_domain_dns_get_record', [$this->provider, 'add_cloudflare_dns_entries'] ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -384,8 +390,8 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_zone_id_returns_zone_id_from_api(): void {
 
-		$zone = (object) [ 'id' => 'zone-abc-123' ];
-		$this->mock_http( $this->make_cf_response( [ $zone ] ), 'client/v4/zones' );
+		$zone = (object) ['id' => 'zone-abc-123'];
+		$this->mock_http( $this->make_cf_response( [$zone] ), 'client/v4/zones' );
 
 		$result = $this->provider->get_zone_id( 'example.com' );
 
@@ -433,24 +439,30 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	public function test_get_zone_id_iterates_domain_parts(): void {
 
 		$callCount = 0;
-		$zone      = (object) [ 'id' => 'zone-from-root' ];
+		$zone      = (object) ['id' => 'zone-from-root'];
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone) {
 				++$callCount;
 
 				// Return empty for the first call (sub.example.com), zone on second (example.com).
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => []] ),
 					];
 				}
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => [$zone]] ),
 				];
 			},
 			10,
@@ -490,20 +502,23 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_dns_records_returns_wp_error_on_api_failure(): void {
 
-		$zone = (object) [ 'id' => 'zone-xyz' ];
+		$zone = (object) ['id' => 'zone-xyz'];
 
 		$callCount = 0;
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone) {
 				++$callCount;
 
 				// First call: zone lookup succeeds.
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
@@ -524,25 +539,31 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_dns_records_returns_wp_error_on_invalid_response(): void {
 
-		$zone      = (object) [ 'id' => 'zone-xyz' ];
+		$zone      = (object) ['id' => 'zone-xyz'];
 		$callCount = 0;
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
 				// Invalid response — no 'result' key.
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'success' => true ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['success' => true] ),
 				];
 			},
 			10,
@@ -560,7 +581,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_dns_records_returns_array_on_success(): void {
 
-		$zone = (object) [ 'id' => 'zone-success' ];
+		$zone = (object) ['id' => 'zone-success'];
 
 		$record = (object) [
 			'id'        => 'rec-001',
@@ -577,23 +598,29 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone, $record ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone, $record) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					// Zone lookup.
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
 				// DNS records page 1 (only page).
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => wp_json_encode( [
-						'result'      => [ $record ],
-						'result_info' => [ 'total_pages' => 1 ],
+						'result'      => [$record],
+						'result_info' => ['total_pages' => 1],
 					] ),
 				];
 			},
@@ -612,7 +639,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_dns_records_filters_unsupported_types(): void {
 
-		$zone = (object) [ 'id' => 'zone-filter' ];
+		$zone = (object) ['id' => 'zone-filter'];
 
 		$supported_record = (object) [
 			'id'        => 'rec-a',
@@ -640,21 +667,27 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone, $supported_record, $unsupported_record ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone, $supported_record, $unsupported_record) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => wp_json_encode( [
-						'result'      => [ $supported_record, $unsupported_record ],
-						'result_info' => [ 'total_pages' => 1 ],
+						'result'      => [$supported_record, $unsupported_record],
+						'result_info' => ['total_pages' => 1],
 					] ),
 				];
 			},
@@ -674,7 +707,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_dns_records_paginates(): void {
 
-		$zone = (object) [ 'id' => 'zone-paginate' ];
+		$zone = (object) ['id' => 'zone-paginate'];
 
 		$record1 = (object) [
 			'id'        => 'rec-p1',
@@ -702,34 +735,43 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone, $record1, $record2 ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone, $record1, $record2) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					// Zone lookup.
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
 				if ( $callCount === 2 ) {
 					// Page 1 of 2.
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
 						'body'     => wp_json_encode( [
-							'result'      => [ $record1 ],
-							'result_info' => [ 'total_pages' => 2 ],
+							'result'      => [$record1],
+							'result_info' => ['total_pages' => 2],
 						] ),
 					];
 				}
 
 				// Page 2 of 2.
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
 					'body'     => wp_json_encode( [
-						'result'      => [ $record2 ],
-						'result_info' => [ 'total_pages' => 2 ],
+						'result'      => [$record2],
+						'result_info' => ['total_pages' => 2],
 					] ),
 				];
 			},
@@ -774,18 +816,21 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_create_dns_record_returns_wp_error_on_api_failure(): void {
 
-		$zone      = (object) [ 'id' => 'zone-create' ];
+		$zone      = (object) ['id' => 'zone-create'];
 		$callCount = 0;
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
@@ -809,25 +854,31 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_create_dns_record_returns_wp_error_on_invalid_response(): void {
 
-		$zone      = (object) [ 'id' => 'zone-create-invalid' ];
+		$zone      = (object) ['id' => 'zone-create-invalid'];
 		$callCount = 0;
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
 				// No 'result' key in response.
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'success' => true ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['success' => true] ),
 				];
 			},
 			10,
@@ -849,7 +900,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_create_dns_record_returns_array_on_success(): void {
 
-		$zone      = (object) [ 'id' => 'zone-create-ok' ];
+		$zone      = (object) ['id' => 'zone-create-ok'];
 		$created   = (object) [
 			'id'      => 'rec-new',
 			'type'    => 'A',
@@ -862,19 +913,25 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone, $created ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone, $created) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => $created ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => $created] ),
 				];
 			},
 			10,
@@ -898,7 +955,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_create_dns_record_strips_proxied_for_mx(): void {
 
-		$zone      = (object) [ 'id' => 'zone-mx' ];
+		$zone      = (object) ['id' => 'zone-mx'];
 		$created   = (object) [
 			'id'       => 'rec-mx',
 			'type'     => 'MX',
@@ -912,21 +969,27 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, &$sentBody, $zone, $created ) {
+			function ($preempt, $args, $url) use (&$callCount, &$sentBody, $zone, $created) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
 				$sentBody = json_decode( $args['body'], true );
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => $created ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => $created] ),
 				];
 			},
 			10,
@@ -955,7 +1018,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_create_dns_record_strips_proxied_for_txt(): void {
 
-		$zone      = (object) [ 'id' => 'zone-txt' ];
+		$zone      = (object) ['id' => 'zone-txt'];
 		$created   = (object) [
 			'id'      => 'rec-txt',
 			'type'    => 'TXT',
@@ -968,21 +1031,27 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, &$sentBody, $zone, $created ) {
+			function ($preempt, $args, $url) use (&$callCount, &$sentBody, $zone, $created) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
 				$sentBody = json_decode( $args['body'], true );
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => $created ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => $created] ),
 				];
 			},
 			10,
@@ -1031,18 +1100,21 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_update_dns_record_returns_wp_error_on_api_failure(): void {
 
-		$zone      = (object) [ 'id' => 'zone-update' ];
+		$zone      = (object) ['id' => 'zone-update'];
 		$callCount = 0;
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
@@ -1066,24 +1138,30 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_update_dns_record_returns_wp_error_on_invalid_response(): void {
 
-		$zone      = (object) [ 'id' => 'zone-update-invalid' ];
+		$zone      = (object) ['id' => 'zone-update-invalid'];
 		$callCount = 0;
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'success' => true ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['success' => true] ),
 				];
 			},
 			10,
@@ -1105,7 +1183,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_update_dns_record_returns_array_on_success(): void {
 
-		$zone      = (object) [ 'id' => 'zone-update-ok' ];
+		$zone      = (object) ['id' => 'zone-update-ok'];
 		$updated   = (object) [
 			'id'      => 'rec-123',
 			'type'    => 'A',
@@ -1118,19 +1196,25 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone, $updated ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone, $updated) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => $updated ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => $updated] ),
 				];
 			},
 			10,
@@ -1154,7 +1238,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_update_dns_record_strips_proxied_for_mx(): void {
 
-		$zone      = (object) [ 'id' => 'zone-update-mx' ];
+		$zone      = (object) ['id' => 'zone-update-mx'];
 		$updated   = (object) [
 			'id'       => 'rec-mx-upd',
 			'type'     => 'MX',
@@ -1168,21 +1252,27 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, &$sentBody, $zone, $updated ) {
+			function ($preempt, $args, $url) use (&$callCount, &$sentBody, $zone, $updated) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
 				$sentBody = json_decode( $args['body'], true );
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => $updated ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => $updated] ),
 				];
 			},
 			10,
@@ -1229,18 +1319,21 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_delete_dns_record_returns_wp_error_on_api_failure(): void {
 
-		$zone      = (object) [ 'id' => 'zone-delete' ];
+		$zone      = (object) ['id' => 'zone-delete'];
 		$callCount = 0;
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
@@ -1260,24 +1353,30 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_delete_dns_record_returns_true_on_success(): void {
 
-		$zone      = (object) [ 'id' => 'zone-delete-ok' ];
+		$zone      = (object) ['id' => 'zone-delete-ok'];
 		$callCount = 0;
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$callCount, $zone ) {
+			function ($preempt, $args, $url) use (&$callCount, $zone) {
 				++$callCount;
 
 				if ( $callCount === 1 ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$zone]] ),
 					];
 				}
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => [] ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => []] ),
 				];
 			},
 			10,
@@ -1305,7 +1404,14 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 		// API returns empty zones.
 		$this->mock_http( $this->make_cf_response( [] ), 'client/v4/zones' );
 
-		$original = [ [ 'type' => 'A', 'data' => '1.2.3.4', 'host' => 'example.com', 'ttl' => 300 ] ];
+		$original = [
+			[
+				'type' => 'A',
+				'data' => '1.2.3.4',
+				'host' => 'example.com',
+				'ttl'  => 300,
+			],
+		];
 
 		$result = $this->provider->add_cloudflare_dns_entries( $original, 'example.com' );
 
@@ -1321,7 +1427,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_add_cloudflare_dns_entries_appends_entries(): void {
 
-		$zone      = (object) [ 'id' => 'zone-dns-entries' ];
+		$zone      = (object) ['id' => 'zone-dns-entries'];
 		$dns_entry = (object) [
 			'ttl'     => 1,
 			'content' => '1.2.3.4',
@@ -1332,19 +1438,25 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( $zone, $dns_entry ) {
+			function ($preempt, $args, $url) use ($zone, $dns_entry) {
 				if ( str_contains( $url, 'dns_records' ) ) {
 					// DNS records lookup — return one entry.
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $dns_entry ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$dns_entry]] ),
 					];
 				}
 
 				// Zone lookup.
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => [$zone]] ),
 				];
 			},
 			10,
@@ -1365,7 +1477,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_add_cloudflare_dns_entries_adds_proxied_tag(): void {
 
-		$zone      = (object) [ 'id' => 'zone-proxied' ];
+		$zone      = (object) ['id' => 'zone-proxied'];
 		$dns_entry = (object) [
 			'ttl'     => 1,
 			'content' => '1.2.3.4',
@@ -1376,17 +1488,23 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( $zone, $dns_entry ) {
+			function ($preempt, $args, $url) use ($zone, $dns_entry) {
 				if ( str_contains( $url, 'dns_records' ) ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $dns_entry ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$dns_entry]] ),
 					];
 				}
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => [$zone]] ),
 				];
 			},
 			10,
@@ -1405,7 +1523,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	 */
 	public function test_add_cloudflare_dns_entries_adds_not_proxied_tag(): void {
 
-		$zone      = (object) [ 'id' => 'zone-not-proxied' ];
+		$zone      = (object) ['id' => 'zone-not-proxied'];
 		$dns_entry = (object) [
 			'ttl'     => 3600,
 			'content' => '1.2.3.4',
@@ -1416,17 +1534,23 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( $zone, $dns_entry ) {
+			function ($preempt, $args, $url) use ($zone, $dns_entry) {
 				if ( str_contains( $url, 'dns_records' ) ) {
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [ $dns_entry ] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => [$dns_entry]] ),
 					];
 				}
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => [$zone]] ),
 				];
 			},
 			10,
@@ -1449,29 +1573,42 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 			$this->markTestSkipped( 'WU_CLOUDFLARE_ZONE_ID is defined — constant zone always present.' );
 		}
 
-		$zone = (object) [ 'id' => 'zone-empty-dns' ];
+		$zone = (object) ['id' => 'zone-empty-dns'];
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( $zone ) {
+			function ($preempt, $args, $url) use ($zone) {
 				if ( str_contains( $url, 'dns_records' ) ) {
 					// Empty DNS entries.
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => []] ),
 					];
 				}
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => [ $zone ] ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => [$zone]] ),
 				];
 			},
 			10,
 			3
 		);
 
-		$original = [ [ 'type' => 'A', 'data' => '5.5.5.5', 'host' => 'example.com', 'ttl' => 300 ] ];
+		$original = [
+			[
+				'type' => 'A',
+				'data' => '5.5.5.5',
+				'host' => 'example.com',
+				'ttl'  => 300,
+			],
+		];
 		$result   = $this->provider->add_cloudflare_dns_entries( $original, 'example.com' );
 
 		// Original records unchanged — no Cloudflare entries appended.
@@ -1496,7 +1633,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function () use ( &$called ) {
+			function () use (&$called) {
 				$called = true;
 
 				return new \WP_Error( 'should-not-be-called', 'Should not be called' );
@@ -1528,7 +1665,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function () use ( &$called ) {
+			function () use (&$called) {
 				$called = true;
 
 				return new \WP_Error( 'should-not-be-called', 'Should not be called' );
@@ -1561,7 +1698,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function () use ( &$called ) {
+			function () use (&$called) {
 				$called = true;
 
 				return new \WP_Error( 'should-not-be-called', 'Should not be called' );
@@ -1597,18 +1734,23 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$apiCalled ) {
+			function ($preempt, $args, $url) use (&$apiCalled) {
 				if ( str_contains( $url, 'dns_records' ) ) {
 					$apiCalled = true;
 
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => (object) [
-							'id'      => 'new-rec',
-							'type'    => 'CNAME',
-							'name'    => 'newsite.mynetwork.com',
-							'content' => '@',
-						] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( [
+							'result' => (object) [
+								'id'      => 'new-rec',
+								'type'    => 'CNAME',
+								'name'    => 'newsite.mynetwork.com',
+								'content' => '@',
+							],
+						] ),
 					];
 				}
 
@@ -1644,7 +1786,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				if ( str_contains( $url, 'dns_records' ) ) {
 					return new \WP_Error( 'api-fail', 'API failure' );
 				}
@@ -1680,7 +1822,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function () use ( &$called ) {
+			function () use (&$called) {
 				$called = true;
 
 				return new \WP_Error( 'should-not-be-called', 'Should not be called' );
@@ -1712,7 +1854,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function () use ( &$called ) {
+			function () use (&$called) {
 				$called = true;
 
 				return new \WP_Error( 'should-not-be-called', 'Should not be called' );
@@ -1744,7 +1886,7 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function () use ( &$called ) {
+			function () use (&$called) {
 				$called = true;
 
 				return new \WP_Error( 'should-not-be-called', 'Should not be called' );
@@ -1774,11 +1916,14 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) {
+			function ($preempt, $args, $url) {
 				// DNS lookup returns empty result.
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => [] ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => []] ),
 				];
 			},
 			10,
@@ -1806,24 +1951,30 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 		$current_site->domain = 'mynetwork.com';
 
 		$deleteCalled = false;
-		$dnsEntry     = (object) [ 'id' => 'rec-to-delete' ];
+		$dnsEntry     = (object) ['id' => 'rec-to-delete'];
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( &$deleteCalled, $dnsEntry ) {
+			function ($preempt, $args, $url) use (&$deleteCalled, $dnsEntry) {
 				if ( 'DELETE' === $args['method'] ) {
 					$deleteCalled = true;
 
 					return [
-						'response' => [ 'code' => 200, 'message' => 'OK' ],
-						'body'     => wp_json_encode( [ 'result' => [] ] ),
+						'response' => [
+							'code'    => 200,
+							'message' => 'OK',
+						],
+						'body'     => wp_json_encode( ['result' => []] ),
 					];
 				}
 
 				// GET for DNS lookup.
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => [ $dnsEntry ] ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => [$dnsEntry]] ),
 				];
 			},
 			10,
@@ -1849,18 +2000,21 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 		$current_site         = new \stdClass();
 		$current_site->domain = 'mynetwork.com';
 
-		$dnsEntry = (object) [ 'id' => 'rec-fail-delete' ];
+		$dnsEntry = (object) ['id' => 'rec-fail-delete'];
 
 		add_filter(
 			'pre_http_request',
-			function ( $preempt, $args, $url ) use ( $dnsEntry ) {
+			function ($preempt, $args, $url) use ($dnsEntry) {
 				if ( 'DELETE' === $args['method'] ) {
 					return new \WP_Error( 'delete-fail', 'Delete failed' );
 				}
 
 				return [
-					'response' => [ 'code' => 200, 'message' => 'OK' ],
-					'body'     => wp_json_encode( [ 'result' => [ $dnsEntry ] ] ),
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => wp_json_encode( ['result' => [$dnsEntry]] ),
 				];
 			},
 			10,

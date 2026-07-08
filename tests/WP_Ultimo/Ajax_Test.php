@@ -48,7 +48,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	 */
 	public function tear_down(): void {
 
-		foreach ( [ 'model', 'query', 'number', 'exclude', 'include', 'table_id' ] as $key ) {
+		foreach ( ['model', 'query', 'number', 'exclude', 'include', 'table_id'] as $key ) {
 			unset( $_REQUEST[ $key ], $_GET[ $key ], $_POST[ $key ] );
 		}
 
@@ -93,7 +93,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	 *
 	 * @param array $sections The sections to set.
 	 */
-	private function set_settings_sections( array $sections ): void {
+	private function set_settings_sections(array $sections): void {
 
 		$this->settings_sections_ref->setValue( Settings::get_instance(), $sections );
 	}
@@ -112,7 +112,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		add_filter( 'wp_doing_ajax', '__return_true' );
 
 		$handler = function () {
-			return function ( $message ) {
+			return function ($message) {
 				throw new \WPAjaxDieContinueException( (string) $message );
 			};
 		};
@@ -127,7 +127,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	 *
 	 * @param callable $handler The handler returned by install_ajax_die_handler().
 	 */
-	private function remove_ajax_die_handler( callable $handler ): void {
+	private function remove_ajax_die_handler(callable $handler): void {
 
 		remove_filter( 'wp_doing_ajax', '__return_true' );
 		remove_filter( 'wp_die_ajax_handler', $handler, 1 );
@@ -139,7 +139,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	 * @param callable $callable The callable to invoke.
 	 * @return array{output: string, exception: bool}
 	 */
-	private function call_in_ajax_context( callable $callable ): array {
+	private function call_in_ajax_context(callable $callable): array {
 
 		$handler          = $this->install_ajax_die_handler();
 		$exception_caught = false;
@@ -168,7 +168,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	 * @param string $table_id The table ID to convert.
 	 * @return string
 	 */
-	private function invoke_get_table_class_name( string $table_id ): string {
+	private function invoke_get_table_class_name(string $table_id): string {
 
 		$reflection = new \ReflectionClass( $this->ajax );
 		$method     = $reflection->getMethod( 'get_table_class_name' );
@@ -211,9 +211,9 @@ class Ajax_Test extends WP_UnitTestCase {
 
 		$this->ajax->init();
 
-		$this->assertGreaterThan( 0, has_action( 'wu_ajax_wu_search', [ $this->ajax, 'search_models' ] ) );
-		$this->assertGreaterThan( 0, has_action( 'in_admin_footer', [ $this->ajax, 'render_selectize_templates' ] ) );
-		$this->assertGreaterThan( 0, has_action( 'wp_ajax_wu_list_table_fetch_ajax_results', [ $this->ajax, 'refresh_list_table' ] ) );
+		$this->assertGreaterThan( 0, has_action( 'wu_ajax_wu_search', [$this->ajax, 'search_models'] ) );
+		$this->assertGreaterThan( 0, has_action( 'in_admin_footer', [$this->ajax, 'render_selectize_templates'] ) );
+		$this->assertGreaterThan( 0, has_action( 'wp_ajax_wu_list_table_fetch_ajax_results', [$this->ajax, 'refresh_list_table'] ) );
 	}
 
 	// =========================================================================
@@ -274,7 +274,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		$action_fired = false;
 		add_action(
 			'wu_list_table_fetch_ajax_results',
-			function ( $table_id ) use ( &$action_fired ) {
+			function ($table_id) use (&$action_fired) {
 				$action_fired = $table_id;
 			}
 		);
@@ -296,7 +296,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		$fired_with = null;
 		add_action(
 			'wu_list_table_fetch_ajax_results',
-			function ( $table_id ) use ( &$fired_with ) {
+			function ($table_id) use (&$fired_with) {
 				$fired_with = $table_id;
 			}
 		);
@@ -318,7 +318,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		$fired = false;
 		add_action(
 			'wu_list_table_fetch_ajax_results',
-			function () use ( &$fired ) {
+			function () use (&$fired) {
 				$fired = true;
 			}
 		);
@@ -341,7 +341,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		$action_fired = false;
 		add_action(
 			'wu_list_table_fetch_ajax_results',
-			function () use ( &$action_fired ) {
+			function () use (&$action_fired) {
 				$action_fired = true;
 			}
 		);
@@ -366,7 +366,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		$this->reset_settings_with_empty_sections();
 
 		$_REQUEST['model'] = 'all';
-		$_REQUEST['query'] = [ 'search' => 'zzz_no_match_xyz' ];
+		$_REQUEST['query'] = ['search' => 'zzz_no_match_xyz'];
 
 		// Suppress all data-source functions to return empty arrays.
 		add_filter(
@@ -396,7 +396,7 @@ class Ajax_Test extends WP_UnitTestCase {
 
 		$this->reset_settings_with_empty_sections();
 
-		$grant_manage_network = static function ( array $allcaps ): array {
+		$grant_manage_network = static function (array $allcaps): array {
 			$allcaps['manage_network'] = true;
 
 			return $allcaps;
@@ -404,7 +404,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		add_filter( 'user_has_cap', $grant_manage_network );
 
 		$_REQUEST['model'] = 'all';
-		$_REQUEST['query'] = [ 'search' => 'zzz_no_match_xyz' ];
+		$_REQUEST['query'] = ['search' => 'zzz_no_match_xyz'];
 
 		add_filter(
 			'wu_search_models_functions',
@@ -416,7 +416,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		$fired = false;
 		add_action(
 			'wu_before_search_models',
-			function () use ( &$fired ) {
+			function () use (&$fired) {
 				$fired = true;
 			}
 		);
@@ -441,7 +441,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	public function test_search_models_user_model(): void {
 
 		$_REQUEST['model']   = 'user';
-		$_REQUEST['query']   = [ 'search' => 'admin' ];
+		$_REQUEST['query']   = ['search' => 'admin'];
 		$_REQUEST['number']  = 10;
 		$_REQUEST['exclude'] = [];
 
@@ -467,7 +467,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		$this->reset_settings_with_empty_sections();
 
 		$_REQUEST['model']   = 'setting';
-		$_REQUEST['query']   = [ 'search' => 'zzz_no_match_xyz' ];
+		$_REQUEST['query']   = ['search' => 'zzz_no_match_xyz'];
 		$_REQUEST['number']  = 10;
 		$_REQUEST['exclude'] = [];
 
@@ -490,7 +490,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	public function test_search_models_page_model(): void {
 
 		$_REQUEST['model']   = 'page';
-		$_REQUEST['query']   = [ 'search' => '' ];
+		$_REQUEST['query']   = ['search' => ''];
 		$_REQUEST['number']  = 10;
 		$_REQUEST['exclude'] = [];
 
@@ -513,7 +513,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	public function test_search_models_unknown_model_returns_empty_array(): void {
 
 		$_REQUEST['model']   = 'nonexistent_model_xyz';
-		$_REQUEST['query']   = [ 'search' => 'test' ];
+		$_REQUEST['query']   = ['search' => 'test'];
 		$_REQUEST['number']  = 10;
 		$_REQUEST['exclude'] = [];
 
@@ -537,7 +537,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	public function test_search_models_exclude_as_string(): void {
 
 		$_REQUEST['model']   = 'user';
-		$_REQUEST['query']   = [ 'search' => '' ];
+		$_REQUEST['query']   = ['search' => ''];
 		$_REQUEST['number']  = 10;
 		$_REQUEST['exclude'] = '1,2,3';
 
@@ -559,9 +559,9 @@ class Ajax_Test extends WP_UnitTestCase {
 	public function test_search_models_exclude_as_array(): void {
 
 		$_REQUEST['model']   = 'user';
-		$_REQUEST['query']   = [ 'search' => '' ];
+		$_REQUEST['query']   = ['search' => ''];
 		$_REQUEST['number']  = 10;
-		$_REQUEST['exclude'] = [ '1', '2' ];
+		$_REQUEST['exclude'] = ['1', '2'];
 
 		$result = $this->call_in_ajax_context(
 			function () {
@@ -581,7 +581,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	public function test_search_models_include_as_string(): void {
 
 		$_REQUEST['model']   = 'user';
-		$_REQUEST['query']   = [ 'search' => '' ];
+		$_REQUEST['query']   = ['search' => ''];
 		$_REQUEST['number']  = 10;
 		$_REQUEST['exclude'] = [];
 		$_REQUEST['include'] = '1,2,3';
@@ -604,10 +604,10 @@ class Ajax_Test extends WP_UnitTestCase {
 	public function test_search_models_include_as_array(): void {
 
 		$_REQUEST['model']   = 'user';
-		$_REQUEST['query']   = [ 'search' => '' ];
+		$_REQUEST['query']   = ['search' => ''];
 		$_REQUEST['number']  = 10;
 		$_REQUEST['exclude'] = [];
-		$_REQUEST['include'] = [ '1', '2' ];
+		$_REQUEST['include'] = ['1', '2'];
 
 		$result = $this->call_in_ajax_context(
 			function () {
@@ -627,7 +627,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	public function test_search_models_site_model_remaps_id_in(): void {
 
 		$_REQUEST['model']   = 'site';
-		$_REQUEST['query']   = [ 'search' => '' ];
+		$_REQUEST['query']   = ['search' => ''];
 		$_REQUEST['number']  = 10;
 		$_REQUEST['exclude'] = [];
 		$_REQUEST['include'] = '1';
@@ -650,7 +650,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	public function test_search_models_site_model_remaps_id_not_in(): void {
 
 		$_REQUEST['model']   = 'site';
-		$_REQUEST['query']   = [ 'search' => '' ];
+		$_REQUEST['query']   = ['search' => ''];
 		$_REQUEST['number']  = 10;
 		$_REQUEST['exclude'] = '1,2';
 
@@ -672,7 +672,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	public function test_search_models_number_defaults_to_100(): void {
 
 		$_REQUEST['model']   = 'user';
-		$_REQUEST['query']   = [ 'search' => '' ];
+		$_REQUEST['query']   = ['search' => ''];
 		$_REQUEST['exclude'] = [];
 		// No 'number' key set.
 
@@ -694,7 +694,10 @@ class Ajax_Test extends WP_UnitTestCase {
 	public function test_search_models_number_in_query_preserved(): void {
 
 		$_REQUEST['model']   = 'user';
-		$_REQUEST['query']   = [ 'number' => 5, 'search' => '' ];
+		$_REQUEST['query']   = [
+			'number' => 5,
+			'search' => '',
+		];
 		$_REQUEST['number']  = 100;
 		$_REQUEST['exclude'] = [];
 
@@ -722,7 +725,7 @@ class Ajax_Test extends WP_UnitTestCase {
 
 		$this->reset_settings_with_empty_sections();
 
-		$_REQUEST['query'] = [ 'search' => 'zzz_no_match_xyz' ];
+		$_REQUEST['query'] = ['search' => 'zzz_no_match_xyz'];
 
 		add_filter(
 			'wu_search_models_functions',
@@ -759,7 +762,7 @@ class Ajax_Test extends WP_UnitTestCase {
 			]
 		);
 
-		$_REQUEST['query'] = [ 'search' => 'testajaxuser' ];
+		$_REQUEST['query'] = ['search' => 'testajaxuser'];
 
 		add_filter(
 			'wu_search_models_functions',
@@ -780,7 +783,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		// Find the user entry.
 		$user_entries = array_filter(
 			$decoded,
-			function ( $item ) {
+			function ($item) {
 				return isset( $item['model'] ) && $item['model'] === 'user';
 			}
 		);
@@ -798,12 +801,12 @@ class Ajax_Test extends WP_UnitTestCase {
 
 		$this->reset_settings_with_empty_sections();
 
-		$_REQUEST['query'] = [ 'search' => 'zzz_no_match_xyz' ];
+		$_REQUEST['query'] = ['search' => 'zzz_no_match_xyz'];
 
 		$filter_applied = false;
 		add_filter(
 			'wu_search_models_functions',
-			function ( $functions ) use ( &$filter_applied ) {
+			function ($functions) use (&$filter_applied) {
 				$filter_applied = true;
 				return [];
 			}
@@ -830,7 +833,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		$this->reset_settings_with_empty_sections();
 
 		// Must include 'search' key to avoid undefined array key in search_wp_ultimo_setting.
-		$_REQUEST['query'] = [ 'search' => 'zzz_no_match_xyz' ];
+		$_REQUEST['query'] = ['search' => 'zzz_no_match_xyz'];
 
 		add_filter(
 			'wu_search_models_functions',
@@ -863,7 +866,7 @@ class Ajax_Test extends WP_UnitTestCase {
 
 		$this->reset_settings_with_empty_sections();
 
-		$result = $this->ajax->search_wp_ultimo_setting( [ 'search' => 'zzz_no_match_xyz_abc_123' ] );
+		$result = $this->ajax->search_wp_ultimo_setting( ['search' => 'zzz_no_match_xyz_abc_123'] );
 
 		$this->assertIsArray( $result );
 	}
@@ -890,13 +893,13 @@ class Ajax_Test extends WP_UnitTestCase {
 			]
 		);
 
-		$result = $this->ajax->search_wp_ultimo_setting( [ 'search' => 'my_unique_setting_xyz' ] );
+		$result = $this->ajax->search_wp_ultimo_setting( ['search' => 'my_unique_setting_xyz'] );
 
 		$this->assertIsArray( $result );
 
 		$found = array_filter(
 			$result,
-			function ( $item ) {
+			function ($item) {
 				return isset( $item['setting_id'] ) && $item['setting_id'] === 'my_unique_setting_xyz';
 			}
 		);
@@ -926,13 +929,13 @@ class Ajax_Test extends WP_UnitTestCase {
 			]
 		);
 
-		$result = $this->ajax->search_wp_ultimo_setting( [ 'search' => 'unique title xyz' ] );
+		$result = $this->ajax->search_wp_ultimo_setting( ['search' => 'unique title xyz'] );
 
 		$this->assertIsArray( $result );
 
 		$found = array_filter(
 			$result,
-			function ( $item ) {
+			function ($item) {
 				return isset( $item['title'] ) && $item['title'] === 'Unique Title XYZ';
 			}
 		);
@@ -962,13 +965,13 @@ class Ajax_Test extends WP_UnitTestCase {
 			]
 		);
 
-		$result = $this->ajax->search_wp_ultimo_setting( [ 'search' => 'unique description abcdef' ] );
+		$result = $this->ajax->search_wp_ultimo_setting( ['search' => 'unique description abcdef'] );
 
 		$this->assertIsArray( $result );
 
 		$found = array_filter(
 			$result,
-			function ( $item ) {
+			function ($item) {
 				return isset( $item['setting_id'] ) && $item['setting_id'] === 'desc_setting';
 			}
 		);
@@ -998,13 +1001,13 @@ class Ajax_Test extends WP_UnitTestCase {
 			]
 		);
 
-		$result = $this->ajax->search_wp_ultimo_setting( [ 'search' => 'header_field_xyz' ] );
+		$result = $this->ajax->search_wp_ultimo_setting( ['search' => 'header_field_xyz'] );
 
 		$this->assertIsArray( $result );
 
 		$found = array_filter(
 			$result,
-			function ( $item ) {
+			function ($item) {
 				return isset( $item['setting_id'] ) && $item['setting_id'] === 'header_field_xyz';
 			}
 		);
@@ -1040,7 +1043,7 @@ class Ajax_Test extends WP_UnitTestCase {
 			]
 		);
 
-		$result = $this->ajax->search_wp_ultimo_setting( [ 'search' => 'sort test' ] );
+		$result = $this->ajax->search_wp_ultimo_setting( ['search' => 'sort test'] );
 
 		$this->assertIsArray( $result );
 
@@ -1048,7 +1051,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		$test_entries = array_values(
 			array_filter(
 				$result,
-				function ( $item ) {
+				function ($item) {
 					return isset( $item['desc'] ) && $item['desc'] === 'sort test';
 				}
 			)
@@ -1057,7 +1060,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		$this->assertCount( 2, $test_entries );
 		$this->assertLessThanOrEqual(
 			0,
-			strcmp( (string) ( $test_entries[0]['title'] ?? '' ), (string) ( $test_entries[1]['title'] ?? '' ) ),
+			strcmp( (string) ($test_entries[0]['title'] ?? ''), (string) ($test_entries[1]['title'] ?? '') ),
 			'Results should be sorted alphabetically by title'
 		);
 	}
@@ -1084,14 +1087,14 @@ class Ajax_Test extends WP_UnitTestCase {
 			]
 		);
 
-		$result = $this->ajax->search_wp_ultimo_setting( [ 'search' => 'url_test_setting' ] );
+		$result = $this->ajax->search_wp_ultimo_setting( ['search' => 'url_test_setting'] );
 
 		$this->assertIsArray( $result );
 
 		$found = array_values(
 			array_filter(
 				$result,
-				function ( $item ) {
+				function ($item) {
 					return isset( $item['setting_id'] ) && $item['setting_id'] === 'url_test_setting';
 				}
 			)
@@ -1117,7 +1120,7 @@ class Ajax_Test extends WP_UnitTestCase {
 
 		$this->reset_settings_with_empty_sections();
 
-		$result = $this->ajax->search_wp_ultimo_setting( [ 'search' => 'zzz_no_match_xyz_abc_123' ] );
+		$result = $this->ajax->search_wp_ultimo_setting( ['search' => 'zzz_no_match_xyz_abc_123'] );
 
 		$this->assertIsArray( $result );
 		$this->assertEmpty( $result );
@@ -1146,13 +1149,13 @@ class Ajax_Test extends WP_UnitTestCase {
 		);
 
 		// Pass search with leading/trailing asterisks — should be stripped.
-		$result = $this->ajax->search_wp_ultimo_setting( [ 'search' => '*wildcard_setting*' ] );
+		$result = $this->ajax->search_wp_ultimo_setting( ['search' => '*wildcard_setting*'] );
 
 		$this->assertIsArray( $result );
 
 		$found = array_filter(
 			$result,
-			function ( $item ) {
+			function ($item) {
 				return isset( $item['setting_id'] ) && $item['setting_id'] === 'wildcard_setting';
 			}
 		);
@@ -1169,7 +1172,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	 */
 	public function test_search_wordpress_users_returns_array(): void {
 
-		$result = $this->ajax->search_wordpress_users( [ 'search' => '' ] );
+		$result = $this->ajax->search_wordpress_users( ['search' => ''] );
 
 		$this->assertIsArray( $result );
 	}
@@ -1186,7 +1189,7 @@ class Ajax_Test extends WP_UnitTestCase {
 			]
 		);
 
-		$result = $this->ajax->search_wordpress_users( [ 'search' => 'searchable_user_abc' ] );
+		$result = $this->ajax->search_wordpress_users( ['search' => 'searchable_user_abc'] );
 
 		$this->assertIsArray( $result );
 		$this->assertNotEmpty( $result );
@@ -1210,7 +1213,7 @@ class Ajax_Test extends WP_UnitTestCase {
 			]
 		);
 
-		$result = $this->ajax->search_wordpress_users( [ 'search' => 'passtest_user_xyz' ] );
+		$result = $this->ajax->search_wordpress_users( ['search' => 'passtest_user_xyz'] );
 
 		$this->assertIsArray( $result );
 		$this->assertNotEmpty( $result );
@@ -1232,7 +1235,7 @@ class Ajax_Test extends WP_UnitTestCase {
 			]
 		);
 
-		$result = $this->ajax->search_wordpress_users( [ 'search' => 'avatar_test_user_xyz' ] );
+		$result = $this->ajax->search_wordpress_users( ['search' => 'avatar_test_user_xyz'] );
 
 		$this->assertIsArray( $result );
 		$this->assertNotEmpty( $result );
@@ -1247,7 +1250,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	 */
 	public function test_search_wordpress_users_no_match_returns_empty(): void {
 
-		$result = $this->ajax->search_wordpress_users( [ 'search' => 'zzz_no_such_user_xyz_abc_999' ] );
+		$result = $this->ajax->search_wordpress_users( ['search' => 'zzz_no_such_user_xyz_abc_999'] );
 
 		$this->assertIsArray( $result );
 		$this->assertEmpty( $result );
@@ -1263,7 +1266,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	public function test_render_selectize_templates_no_output_without_capability(): void {
 
 		// Create a subscriber (no manage_network capability).
-		$user_id = $this->factory->user->create( [ 'role' => 'subscriber' ] );
+		$user_id = $this->factory->user->create( ['role' => 'subscriber'] );
 		wp_set_current_user( $user_id );
 
 		ob_start();
@@ -1280,7 +1283,7 @@ class Ajax_Test extends WP_UnitTestCase {
 	public function test_render_selectize_templates_calls_template_for_admin(): void {
 
 		// Grant manage_network to current user.
-		$user_id = $this->factory->user->create( [ 'role' => 'administrator' ] );
+		$user_id = $this->factory->user->create( ['role' => 'administrator'] );
 		wp_set_current_user( $user_id );
 		grant_super_admin( $user_id );
 

@@ -106,7 +106,7 @@ class Notes_Manager_Test extends \WP_UnitTestCase {
 		add_filter('wp_doing_ajax', '__return_true');
 
 		$handler = function () {
-			return function ( $message ) {
+			return function ($message) {
 				throw new \WPAjaxDieContinueException((string) $message);
 			};
 		};
@@ -121,7 +121,7 @@ class Notes_Manager_Test extends \WP_UnitTestCase {
 	 *
 	 * @param callable $handler The handler returned by install_ajax_die_handler().
 	 */
-	private function remove_ajax_die_handler( callable $handler ): void {
+	private function remove_ajax_die_handler(callable $handler): void {
 		remove_filter('wp_doing_ajax', '__return_true');
 		remove_filter('wp_die_ajax_handler', $handler, 1);
 	}
@@ -132,7 +132,7 @@ class Notes_Manager_Test extends \WP_UnitTestCase {
 	 * @param callable $callable The callable to invoke.
 	 * @return array
 	 */
-	private function capture_json_response( callable $callable ): array {
+	private function capture_json_response(callable $callable): array {
 		$handler   = $this->install_ajax_die_handler();
 		$exception = null;
 
@@ -453,7 +453,7 @@ class Notes_Manager_Test extends \WP_UnitTestCase {
 
 		add_filter(
 			'wu_notes_options_section_fields',
-			function ( $fields ) use ( &$filter_fired ) {
+			function ($fields) use (&$filter_fired) {
 				$filter_fired = true;
 				return $fields;
 			}

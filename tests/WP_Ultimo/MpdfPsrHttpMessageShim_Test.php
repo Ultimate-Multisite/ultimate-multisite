@@ -223,42 +223,42 @@ class MpdfPsrHttpMessageShim_Test extends \WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	public function test_request_get_method_returns_string() {
-		$uri = new \Mpdf\PsrHttpMessageShim\Uri('http://example.com/');
+		$uri     = new \Mpdf\PsrHttpMessageShim\Uri('http://example.com/');
 		$request = new \Mpdf\PsrHttpMessageShim\Request('GET', $uri);
-		$result = $request->getMethod();
+		$result  = $request->getMethod();
 		$this->assertIsString($result);
 		$this->assertSame('GET', $result);
 	}
 
 	public function test_request_get_request_target_returns_string() {
-		$uri = new \Mpdf\PsrHttpMessageShim\Uri('http://example.com/path');
+		$uri     = new \Mpdf\PsrHttpMessageShim\Uri('http://example.com/path');
 		$request = new \Mpdf\PsrHttpMessageShim\Request('GET', $uri);
 		$this->assertIsString($request->getRequestTarget());
 	}
 
 	public function test_response_get_status_code_returns_int() {
 		$response = new \Mpdf\PsrHttpMessageShim\Response(201);
-		$code = $response->getStatusCode();
+		$code     = $response->getStatusCode();
 		$this->assertIsInt($code);
 		$this->assertSame(201, $code);
 	}
 
 	public function test_stream_get_size_returns_int_or_null() {
 		$stream = \Mpdf\PsrHttpMessageShim\Stream::create('hello world');
-		$size = $stream->getSize();
+		$size   = $stream->getSize();
 		// getSize() returns ?int — both int and null are valid.
 		$this->assertTrue(null === $size || is_int($size), 'Stream::getSize() must return int or null');
 	}
 
 	public function test_uri_get_port_returns_int_or_null() {
 		// http uses default port 80 — getPort() should return null for default ports.
-		$uri = new \Mpdf\PsrHttpMessageShim\Uri('http://example.com/');
+		$uri  = new \Mpdf\PsrHttpMessageShim\Uri('http://example.com/');
 		$port = $uri->getPort();
 		$this->assertTrue(null === $port || is_int($port), 'Uri::getPort() must return int or null');
 	}
 
 	public function test_uri_get_port_returns_int_for_non_standard_port() {
-		$uri = new \Mpdf\PsrHttpMessageShim\Uri('http://example.com:8080/');
+		$uri  = new \Mpdf\PsrHttpMessageShim\Uri('http://example.com:8080/');
 		$port = $uri->getPort();
 		$this->assertIsInt($port);
 		$this->assertSame(8080, $port);
@@ -276,10 +276,10 @@ class MpdfPsrHttpMessageShim_Test extends \WP_UnitTestCase {
 	 * @param string $expected_type Expected type name (primitive or FQCN).
 	 */
 	private function assert_method_return_type(string $class_name, string $method_name, string $expected_type): void {
-		$ref = new \ReflectionClass($class_name);
-		$method = $ref->getMethod($method_name);
+		$ref         = new \ReflectionClass($class_name);
+		$method      = $ref->getMethod($method_name);
 		$return_type = $method->getReturnType();
-		$short_name = $ref->getShortName();
+		$short_name  = $ref->getShortName();
 
 		$this->assertNotNull(
 			$return_type,
@@ -299,10 +299,10 @@ class MpdfPsrHttpMessageShim_Test extends \WP_UnitTestCase {
 	 * @param string $method_name Method to inspect.
 	 */
 	private function assert_method_nullable_int_return_type(string $class_name, string $method_name): void {
-		$ref = new \ReflectionClass($class_name);
-		$method = $ref->getMethod($method_name);
+		$ref         = new \ReflectionClass($class_name);
+		$method      = $ref->getMethod($method_name);
 		$return_type = $method->getReturnType();
-		$short_name = $ref->getShortName();
+		$short_name  = $ref->getShortName();
 
 		$this->assertNotNull(
 			$return_type,

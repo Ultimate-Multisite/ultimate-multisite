@@ -72,8 +72,6 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 		global $wpdb;
 		$wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}wu_customers" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
-
-
 		$unique = 'cov' . uniqid();
 
 		$result = wu_create_customer(
@@ -154,13 +152,13 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * @param string                    $recurring_mode   PWYW recurring mode.
 	 * @return void
 	 */
-	private function prime_pwyw_meta( $product, float $suggested_amount = 0.0, float $minimum_amount = 0.0, string $recurring_mode = 'customer_choice' ) {
+	private function prime_pwyw_meta($product, float $suggested_amount = 0.0, float $minimum_amount = 0.0, string $recurring_mode = 'customer_choice') {
 		$product_id = $product->get_id();
 
 		// Use the wu_filter_product_item BerlinDB filter to intercept product fetches
 		// and inject the PWYW values directly onto the product object.
 		// This bypasses the meta table entirely, which may not be available in tests.
-		$callback = function ( $item ) use ( $product_id, $suggested_amount, $minimum_amount, $recurring_mode ) {
+		$callback = function ($item) use ($product_id, $suggested_amount, $minimum_amount, $recurring_mode) {
 			if ( ! is_object( $item ) ) {
 				return $item;
 			}
@@ -172,7 +170,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 		// Use the get_wu_product_metadata filter to intercept meta reads.
 		// NOTE: This only works if is_meta_available() returns true (i.e., $wpdb->wu_productmeta is set).
 		// As a fallback, we also directly set the values on the product object.
-		$meta_callback = function ( $value, $object_id, $meta_key, $single ) use ( $product_id, $suggested_amount, $minimum_amount, $recurring_mode ) {
+		$meta_callback = function ($value, $object_id, $meta_key, $single) use ($product_id, $suggested_amount, $minimum_amount, $recurring_mode) {
 			if ( (int) $object_id !== (int) $product_id ) {
 				return $value;
 			}
@@ -182,7 +180,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 				'wu_pwyw_recurring_mode'   => $recurring_mode,
 			];
 			if ( isset( $pwyw_values[ $meta_key ] ) ) {
-				return $single ? $pwyw_values[ $meta_key ] : [ $pwyw_values[ $meta_key ] ];
+				return $single ? $pwyw_values[ $meta_key ] : [$pwyw_values[ $meta_key ]];
 			}
 			return $value;
 		};
@@ -215,7 +213,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * @param array $overrides Optional overrides.
 	 * @return \WP_Ultimo\Models\Product
 	 */
-	private function create_plan( array $overrides = [] ) {
+	private function create_plan(array $overrides = []) {
 		$uid = uniqid( 'cp-' );
 
 		$defaults = [
@@ -245,7 +243,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * @param array $overrides Optional overrides.
 	 * @return \WP_Ultimo\Models\Product
 	 */
-	private function create_service( array $overrides = [] ) {
+	private function create_service(array $overrides = []) {
 		$uid = uniqid( 'cs-' );
 
 		$defaults = [
@@ -276,18 +274,18 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * @param array                     $overrides Optional overrides.
 	 * @return Membership
 	 */
-	private function create_active_membership( $plan, array $overrides = [] ) {
+	private function create_active_membership($plan, array $overrides = []) {
 		$defaults = [
-			'customer_id'    => self::$customer->get_id(),
-			'plan_id'        => $plan->get_id(),
-			'status'         => 'active',
-			'recurring'      => true,
-			'amount'         => $plan->get_amount(),
-			'duration'       => $plan->get_duration(),
-			'duration_unit'  => $plan->get_duration_unit(),
+			'customer_id'     => self::$customer->get_id(),
+			'plan_id'         => $plan->get_id(),
+			'status'          => 'active',
+			'recurring'       => true,
+			'amount'          => $plan->get_amount(),
+			'duration'        => $plan->get_duration(),
+			'duration_unit'   => $plan->get_duration_unit(),
 			'date_expiration' => gmdate( 'Y-m-d 23:59:59', strtotime( '+30 days' ) ),
-			'date_created'   => wu_get_current_time( 'mysql', true ),
-			'date_activated' => wu_get_current_time( 'mysql', true ),
+			'date_created'    => wu_get_current_time( 'mysql', true ),
+			'date_activated'  => wu_get_current_time( 'mysql', true ),
 		];
 
 		$membership = wu_create_membership( array_merge( $defaults, $overrides ) );
@@ -341,11 +339,11 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$membership = wu_create_membership(
 			[
-				'customer_id'  => $other_customer->get_id(),
-				'plan_id'      => $plan->get_id(),
-				'status'       => 'active',
-				'amount'       => $plan->get_amount(),
-				'duration'     => $plan->get_duration(),
+				'customer_id'   => $other_customer->get_id(),
+				'plan_id'       => $plan->get_id(),
+				'status'        => 'active',
+				'amount'        => $plan->get_amount(),
+				'duration'      => $plan->get_duration(),
 				'duration_unit' => $plan->get_duration_unit(),
 			]
 		);
@@ -358,11 +356,11 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$payment = wu_create_payment(
 			[
-				'customer_id'  => $other_customer->get_id(),
+				'customer_id'   => $other_customer->get_id(),
 				'membership_id' => $membership->get_id(),
-				'total'        => 50.00,
-				'subtotal'     => 50.00,
-				'status'       => Payment_Status::PENDING,
+				'total'         => 50.00,
+				'subtotal'      => 50.00,
+				'status'        => Payment_Status::PENDING,
 			]
 		);
 
@@ -398,16 +396,16 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_build_from_payment_pending_payment_pending_membership() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan = $this->create_plan( [ 'amount' => 30.00 ] );
+		$plan = $this->create_plan( ['amount' => 30.00] );
 
 		// Create a membership with 'pending' status (not active, not trialing)
 		$membership = wu_create_membership(
 			[
-				'customer_id'  => self::$customer->get_id(),
-				'plan_id'      => $plan->get_id(),
-				'status'       => 'pending',
-				'amount'       => 30.00,
-				'duration'     => 1,
+				'customer_id'   => self::$customer->get_id(),
+				'plan_id'       => $plan->get_id(),
+				'status'        => 'pending',
+				'amount'        => 30.00,
+				'duration'      => 1,
 				'duration_unit' => 'month',
 			]
 		);
@@ -419,11 +417,11 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$payment = wu_create_payment(
 			[
-				'customer_id'  => self::$customer->get_id(),
+				'customer_id'   => self::$customer->get_id(),
 				'membership_id' => $membership->get_id(),
-				'total'        => 30.00,
-				'subtotal'     => 30.00,
-				'status'       => Payment_Status::PENDING,
+				'total'         => 30.00,
+				'subtotal'      => 30.00,
+				'status'        => Payment_Status::PENDING,
 			]
 		);
 
@@ -454,17 +452,17 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_build_from_payment_completed_payment() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan = $this->create_plan( [ 'amount' => 40.00 ] );
+		$plan = $this->create_plan( ['amount' => 40.00] );
 
 		$membership = $this->create_active_membership( $plan );
 
 		$payment = wu_create_payment(
 			[
-				'customer_id'  => self::$customer->get_id(),
+				'customer_id'   => self::$customer->get_id(),
 				'membership_id' => $membership->get_id(),
-				'total'        => 40.00,
-				'subtotal'     => 40.00,
-				'status'       => Payment_Status::COMPLETED,
+				'total'         => 40.00,
+				'subtotal'      => 40.00,
+				'status'        => Payment_Status::COMPLETED,
 			]
 		);
 
@@ -495,17 +493,17 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_build_from_payment_cancelled_payment() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan = $this->create_plan( [ 'amount' => 40.00 ] );
+		$plan = $this->create_plan( ['amount' => 40.00] );
 
 		$membership = $this->create_active_membership( $plan );
 
 		$payment = wu_create_payment(
 			[
-				'customer_id'  => self::$customer->get_id(),
+				'customer_id'   => self::$customer->get_id(),
 				'membership_id' => $membership->get_id(),
-				'total'        => 40.00,
-				'subtotal'     => 40.00,
-				'status'       => Payment_Status::CANCELLED,
+				'total'         => 40.00,
+				'subtotal'      => 40.00,
+				'status'        => Payment_Status::CANCELLED,
 			]
 		);
 
@@ -536,15 +534,15 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_build_from_payment_invalid_status() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan = $this->create_plan( [ 'amount' => 40.00 ] );
+		$plan = $this->create_plan( ['amount' => 40.00] );
 
 		$membership = wu_create_membership(
 			[
-				'customer_id'  => self::$customer->get_id(),
-				'plan_id'      => $plan->get_id(),
-				'status'       => 'pending',
-				'amount'       => 40.00,
-				'duration'     => 1,
+				'customer_id'   => self::$customer->get_id(),
+				'plan_id'       => $plan->get_id(),
+				'status'        => 'pending',
+				'amount'        => 40.00,
+				'duration'      => 1,
 				'duration_unit' => 'month',
 			]
 		);
@@ -557,11 +555,11 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 		// Create a payment with 'refunded' status (not in allowed list for retry)
 		$payment = wu_create_payment(
 			[
-				'customer_id'  => self::$customer->get_id(),
+				'customer_id'   => self::$customer->get_id(),
 				'membership_id' => $membership->get_id(),
-				'total'        => 40.00,
-				'subtotal'     => 40.00,
-				'status'       => 'refunded',
+				'total'         => 40.00,
+				'subtotal'      => 40.00,
+				'status'        => 'refunded',
 			]
 		);
 
@@ -596,15 +594,15 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_pending_membership_id_is_ignored() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan = $this->create_plan( [ 'amount' => 50.00 ] );
+		$plan = $this->create_plan( ['amount' => 50.00] );
 
 		$pending_membership = wu_create_membership(
 			[
-				'customer_id'  => self::$customer->get_id(),
-				'plan_id'      => $plan->get_id(),
-				'status'       => 'pending',
-				'amount'       => 50.00,
-				'duration'     => 1,
+				'customer_id'   => self::$customer->get_id(),
+				'plan_id'       => $plan->get_id(),
+				'status'        => 'pending',
+				'amount'        => 50.00,
+				'duration'      => 1,
 				'duration_unit' => 'month',
 			]
 		);
@@ -614,13 +612,13 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			$this->markTestSkipped( 'Could not create pending membership' );
 		}
 
-		$new_plan = $this->create_plan( [ 'amount' => 75.00 ] );
+		$new_plan = $this->create_plan( ['amount' => 75.00] );
 
 		$cart = new Cart(
 			[
 				'cart_type'     => 'upgrade',
 				'membership_id' => $pending_membership->get_id(),
-				'products'      => [ $new_plan->get_id() ],
+				'products'      => [$new_plan->get_id()],
 			]
 		);
 
@@ -643,7 +641,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_membership_change_with_no_products_adds_error() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan = $this->create_plan( [ 'amount' => 50.00 ] );
+		$plan = $this->create_plan( ['amount' => 50.00] );
 
 		$membership = $this->create_active_membership( $plan );
 
@@ -674,17 +672,17 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_membership_change_no_products_with_payment_no_error() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan = $this->create_plan( [ 'amount' => 50.00 ] );
+		$plan = $this->create_plan( ['amount' => 50.00] );
 
 		$membership = $this->create_active_membership( $plan );
 
 		$payment = wu_create_payment(
 			[
-				'customer_id'  => self::$customer->get_id(),
+				'customer_id'   => self::$customer->get_id(),
 				'membership_id' => $membership->get_id(),
-				'total'        => 50.00,
-				'subtotal'     => 50.00,
-				'status'       => Payment_Status::COMPLETED,
+				'total'         => 50.00,
+				'subtotal'      => 50.00,
+				'status'        => Payment_Status::COMPLETED,
 			]
 		);
 
@@ -724,8 +722,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_addon_cart_service_only() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan    = $this->create_plan( [ 'amount' => 50.00 ] );
-		$service = $this->create_service( [ 'amount' => 15.00 ] );
+		$plan    = $this->create_plan( ['amount' => 50.00] );
+		$service = $this->create_service( ['amount' => 15.00] );
 
 		$membership = $this->create_active_membership( $plan );
 
@@ -733,7 +731,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'addon',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $service->get_id() ],
+				'products'      => [$service->get_id()],
 			]
 		);
 
@@ -752,8 +750,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_addon_cart_applies_membership_discount_code() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan    = $this->create_plan( [ 'amount' => 50.00 ] );
-		$service = $this->create_service( [ 'amount' => 20.00 ] );
+		$plan    = $this->create_plan( ['amount' => 50.00] );
+		$service = $this->create_service( ['amount' => 20.00] );
 
 		$code = 'RNWDSC' . uniqid();
 
@@ -783,7 +781,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'addon',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $service->get_id() ],
+				'products'      => [$service->get_id()],
 			]
 		);
 
@@ -802,7 +800,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_addon_cart_no_products_adds_error() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan = $this->create_plan( [ 'amount' => 50.00 ] );
+		$plan = $this->create_plan( ['amount' => 50.00] );
 
 		$membership = $this->create_active_membership( $plan );
 
@@ -811,7 +809,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'addon',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ 999999 ], // non-existent
+				'products'      => [999999], // non-existent
 			]
 		);
 
@@ -828,7 +826,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_addon_cart_no_changes_error_suppressed_by_filter() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan = $this->create_plan( [ 'amount' => 50.00 ] );
+		$plan = $this->create_plan( ['amount' => 50.00] );
 
 		$membership = $this->create_active_membership( $plan );
 
@@ -839,7 +837,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'addon',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ 999999 ], // non-existent
+				'products'      => [999999], // non-existent
 			]
 		);
 
@@ -864,8 +862,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_addon_cart_plan_plus_service_removes_plan() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan    = $this->create_plan( [ 'amount' => 50.00 ] );
-		$service = $this->create_service( [ 'amount' => 20.00 ] );
+		$plan    = $this->create_plan( ['amount' => 50.00] );
+		$service = $this->create_service( ['amount' => 20.00] );
 
 		$membership = $this->create_active_membership( $plan );
 
@@ -874,7 +872,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'addon',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $plan->get_id(), $service->get_id() ],
+				'products'      => [$plan->get_id(), $service->get_id()],
 			]
 		);
 
@@ -899,8 +897,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_upgrade_cart_more_expensive_plan() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$cheap_plan     = $this->create_plan( [ 'amount' => 20.00 ] );
-		$expensive_plan = $this->create_plan( [ 'amount' => 80.00 ] );
+		$cheap_plan     = $this->create_plan( ['amount' => 20.00] );
+		$expensive_plan = $this->create_plan( ['amount' => 80.00] );
 
 		$membership = $this->create_active_membership( $cheap_plan );
 
@@ -908,7 +906,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'upgrade',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $expensive_plan->get_id() ],
+				'products'      => [$expensive_plan->get_id()],
 			]
 		);
 
@@ -927,8 +925,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_downgrade_cart_cheaper_plan() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$expensive_plan = $this->create_plan( [ 'amount' => 100.00 ] );
-		$cheap_plan     = $this->create_plan( [ 'amount' => 20.00 ] );
+		$expensive_plan = $this->create_plan( ['amount' => 100.00] );
+		$cheap_plan     = $this->create_plan( ['amount' => 20.00] );
 
 		$membership = $this->create_active_membership( $expensive_plan );
 
@@ -936,7 +934,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'downgrade',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $cheap_plan->get_id() ],
+				'products'      => [$cheap_plan->get_id()],
 			]
 		);
 
@@ -954,7 +952,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_upgrade_to_lifetime_plan() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$monthly_plan  = $this->create_plan( [ 'amount' => 50.00 ] );
+		$monthly_plan  = $this->create_plan( ['amount' => 50.00] );
 		$lifetime_plan = $this->create_plan(
 			[
 				'amount'       => 500.00,
@@ -969,7 +967,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'upgrade',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $lifetime_plan->get_id() ],
+				'products'      => [$lifetime_plan->get_id()],
 			]
 		);
 
@@ -1003,7 +1001,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'upgrade',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $plan->get_id() ],
+				'products'      => [$plan->get_id()],
 				'duration'      => 1,
 				'duration_unit' => 'month',
 			]
@@ -1029,7 +1027,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'upgrade',
 				'membership_id' => 999999,
-				'products'      => [ $plan->get_id() ],
+				'products'      => [$plan->get_id()],
 			]
 		);
 
@@ -1061,11 +1059,11 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$membership = wu_create_membership(
 			[
-				'customer_id'  => $other_customer->get_id(),
-				'plan_id'      => $plan->get_id(),
-				'status'       => 'active',
-				'amount'       => $plan->get_amount(),
-				'duration'     => $plan->get_duration(),
+				'customer_id'   => $other_customer->get_id(),
+				'plan_id'       => $plan->get_id(),
+				'status'        => 'active',
+				'amount'        => $plan->get_amount(),
+				'duration'      => $plan->get_duration(),
 				'duration_unit' => $plan->get_duration_unit(),
 			]
 		);
@@ -1079,13 +1077,13 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 		// Log in as our shared customer (not the membership owner)
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$new_plan = $this->create_plan( [ 'amount' => 100.00 ] );
+		$new_plan = $this->create_plan( ['amount' => 100.00] );
 
 		$cart = new Cart(
 			[
 				'cart_type'     => 'upgrade',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $new_plan->get_id() ],
+				'products'      => [$new_plan->get_id()],
 			]
 		);
 
@@ -1109,8 +1107,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_prorate_credits_added_for_upgrade() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$cheap_plan     = $this->create_plan( [ 'amount' => 20.00 ] );
-		$expensive_plan = $this->create_plan( [ 'amount' => 80.00 ] );
+		$cheap_plan     = $this->create_plan( ['amount' => 20.00] );
+		$expensive_plan = $this->create_plan( ['amount' => 80.00] );
 
 		$membership = $this->create_active_membership( $cheap_plan );
 
@@ -1118,7 +1116,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'upgrade',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $expensive_plan->get_id() ],
+				'products'      => [$expensive_plan->get_id()],
 			]
 		);
 
@@ -1138,14 +1136,14 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_prorate_credits_filter() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$cheap_plan     = $this->create_plan( [ 'amount' => 20.00 ] );
-		$expensive_plan = $this->create_plan( [ 'amount' => 80.00 ] );
+		$cheap_plan     = $this->create_plan( ['amount' => 20.00] );
+		$expensive_plan = $this->create_plan( ['amount' => 80.00] );
 
 		$membership = $this->create_active_membership( $cheap_plan );
 
 		add_filter(
 			'wu_checkout_calculate_prorate_credits',
-			function ( $credit ) {
+			function ($credit) {
 				return 5.00; // Force a fixed credit
 			}
 		);
@@ -1154,7 +1152,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'upgrade',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $expensive_plan->get_id() ],
+				'products'      => [$expensive_plan->get_id()],
 			]
 		);
 
@@ -1178,19 +1176,19 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_prorate_credits_skipped_for_trialing_membership() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$cheap_plan     = $this->create_plan( [ 'amount' => 20.00 ] );
-		$expensive_plan = $this->create_plan( [ 'amount' => 80.00 ] );
+		$cheap_plan     = $this->create_plan( ['amount' => 20.00] );
+		$expensive_plan = $this->create_plan( ['amount' => 80.00] );
 
 		$membership = $this->create_active_membership(
 			$cheap_plan,
-			[ 'status' => Membership_Status::TRIALING ]
+			['status' => Membership_Status::TRIALING]
 		);
 
 		$cart = new Cart(
 			[
 				'cart_type'     => 'upgrade',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $expensive_plan->get_id() ],
+				'products'      => [$expensive_plan->get_id()],
 			]
 		);
 
@@ -1226,8 +1224,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products'       => [ $pwyw_plan->get_id() ],
-				'custom_amounts' => [ $pwyw_plan->get_id() => 30.00 ],
+				'products'       => [$pwyw_plan->get_id()],
+				'custom_amounts' => [$pwyw_plan->get_id() => 30.00],
 			]
 		);
 
@@ -1253,8 +1251,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products'       => [ $pwyw_plan->get_id() ],
-				'custom_amounts' => [ $pwyw_plan->get_id() => 2.00 ],
+				'products'       => [$pwyw_plan->get_id()],
+				'custom_amounts' => [$pwyw_plan->get_id() => 2.00],
 			]
 		);
 
@@ -1282,8 +1280,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products'       => [ $pwyw_plan->get_id() ],
-				'custom_amounts' => [ $pwyw_plan->get_id() => 200.00 ],
+				'products'       => [$pwyw_plan->get_id()],
+				'custom_amounts' => [$pwyw_plan->get_id() => 200.00],
 			]
 		);
 
@@ -1312,7 +1310,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products' => [ $pwyw_plan->get_id() ],
+				'products' => [$pwyw_plan->get_id()],
 				// No custom_amounts — should use suggested
 			]
 		);
@@ -1340,7 +1338,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products' => [ $pwyw_plan->get_id() ],
+				'products' => [$pwyw_plan->get_id()],
 			]
 		);
 
@@ -1367,7 +1365,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products' => [ $pwyw_plan->get_id() ],
+				'products' => [$pwyw_plan->get_id()],
 			]
 		);
 
@@ -1394,8 +1392,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products'       => [ $pwyw_plan->get_id() ],
-				'pwyw_recurring' => [ $pwyw_plan->get_id() => true ],
+				'products'       => [$pwyw_plan->get_id()],
+				'pwyw_recurring' => [$pwyw_plan->get_id() => true],
 			]
 		);
 
@@ -1427,8 +1425,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products'       => [ $plan->get_id() ],
-				'custom_amounts' => [ $plan->get_id() => 42.50 ],
+				'products'       => [$plan->get_id()],
+				'custom_amounts' => [$plan->get_id() => 42.50],
 			]
 		);
 
@@ -1464,8 +1462,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products'       => [ $plan->get_id() ],
-				'pwyw_recurring' => [ $plan->get_id() => true ],
+				'products'       => [$plan->get_id()],
+				'pwyw_recurring' => [$plan->get_id() => true],
 			]
 		);
 
@@ -1493,10 +1491,10 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 		// Pass invalid keys (0, negative) and non-scalar values
 		$cart = new Cart(
 			[
-				'products'       => [ $plan->get_id() ],
+				'products'       => [$plan->get_id()],
 				'custom_amounts' => [
-					0              => 10.00,  // invalid key (0)
-					-1             => 5.00,   // invalid key (negative)
+					0               => 10.00,  // invalid key (0)
+					-1              => 5.00,   // invalid key (negative)
 					$plan->get_id() => 25.00, // valid
 				],
 			]
@@ -1523,8 +1521,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products'       => [ $plan->get_id() ],
-				'custom_amounts' => [ $plan->get_id() => -50.00 ],
+				'products'       => [$plan->get_id()],
+				'custom_amounts' => [$plan->get_id() => -50.00],
 			]
 		);
 
@@ -1552,9 +1550,9 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products'       => [ $plan->get_id() ],
+				'products'       => [$plan->get_id()],
 				'pwyw_recurring' => [
-					0              => true,  // invalid key
+					0               => true,  // invalid key
 					$plan->get_id() => true, // valid
 				],
 			]
@@ -1575,11 +1573,11 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * Test get_independent_line_items returns empty for standard products.
 	 */
 	public function test_get_independent_line_items_empty_for_standard_products() {
-		$plan = $this->create_plan( [ 'amount' => 50.00 ] );
+		$plan = $this->create_plan( ['amount' => 50.00] );
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -1611,12 +1609,12 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_cancel_conflicting_pending_payments_runs_for_new_cart() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan = $this->create_plan( [ 'amount' => 50.00 ] );
+		$plan = $this->create_plan( ['amount' => 50.00] );
 
 		$cart = new Cart(
 			[
 				'cart_type' => 'new',
-				'products'  => [ $plan->get_id() ],
+				'products'  => [$plan->get_id()],
 			]
 		);
 
@@ -1637,19 +1635,19 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_cancel_conflicting_pending_payments_skips_non_new_cart() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan      = $this->create_plan( [ 'amount' => 50.00 ] );
-		$new_plan  = $this->create_plan( [ 'amount' => 80.00 ] );
+		$plan     = $this->create_plan( ['amount' => 50.00] );
+		$new_plan = $this->create_plan( ['amount' => 80.00] );
 
 		// Create an active membership so build_from_membership() succeeds.
 		$membership = $this->create_active_membership( $plan );
 
 		$pending_payment = wu_create_payment(
 			[
-				'customer_id'  => self::$customer->get_id(),
+				'customer_id'   => self::$customer->get_id(),
 				'membership_id' => $membership->get_id(),
-				'total'        => 50.00,
-				'subtotal'     => 50.00,
-				'status'       => Payment_Status::PENDING,
+				'total'         => 50.00,
+				'subtotal'      => 50.00,
+				'status'        => Payment_Status::PENDING,
 			]
 		);
 
@@ -1666,7 +1664,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'upgrade',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $new_plan->get_id() ],
+				'products'      => [$new_plan->get_id()],
 			]
 		);
 
@@ -1710,7 +1708,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -1738,7 +1736,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -1772,7 +1770,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -1796,21 +1794,21 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_billing_start_date_for_downgrade_cart() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$expensive_plan = $this->create_plan( [ 'amount' => 100.00 ] );
-		$cheap_plan     = $this->create_plan( [ 'amount' => 20.00 ] );
+		$expensive_plan = $this->create_plan( ['amount' => 100.00] );
+		$cheap_plan     = $this->create_plan( ['amount' => 20.00] );
 
 		$expiration = gmdate( 'Y-m-d 23:59:59', strtotime( '+30 days' ) );
 
 		$membership = $this->create_active_membership(
 			$expensive_plan,
-			[ 'date_expiration' => $expiration ]
+			['date_expiration' => $expiration]
 		);
 
 		$cart = new Cart(
 			[
 				'cart_type'     => 'downgrade',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $cheap_plan->get_id() ],
+				'products'      => [$cheap_plan->get_id()],
 			]
 		);
 
@@ -1832,21 +1830,21 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_billing_next_charge_date_for_downgrade_cart() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$expensive_plan = $this->create_plan( [ 'amount' => 100.00 ] );
-		$cheap_plan     = $this->create_plan( [ 'amount' => 20.00 ] );
+		$expensive_plan = $this->create_plan( ['amount' => 100.00] );
+		$cheap_plan     = $this->create_plan( ['amount' => 20.00] );
 
 		$expiration = gmdate( 'Y-m-d 23:59:59', strtotime( '+30 days' ) );
 
 		$membership = $this->create_active_membership(
 			$expensive_plan,
-			[ 'date_expiration' => $expiration ]
+			['date_expiration' => $expiration]
 		);
 
 		$cart = new Cart(
 			[
 				'cart_type'     => 'downgrade',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $cheap_plan->get_id() ],
+				'products'      => [$cheap_plan->get_id()],
 			]
 		);
 
@@ -1869,11 +1867,11 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * Test get_proration_credits returns 0 when no fees.
 	 */
 	public function test_get_proration_credits_zero_without_fees() {
-		$plan = $this->create_plan( [ 'amount' => 50.00 ] );
+		$plan = $this->create_plan( ['amount' => 50.00] );
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -1902,7 +1900,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 		// Force cart to use yearly duration — monthly plan has no yearly variation
 		$cart = new Cart(
 			[
-				'products'      => [ $monthly_plan->get_id() ],
+				'products'      => [$monthly_plan->get_id()],
 				'duration'      => 1,
 				'duration_unit' => 'year',
 			]
@@ -1928,13 +1926,13 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * Test add_product returns false when wu_add_product_line_item filter returns empty.
 	 */
 	public function test_add_product_returns_false_when_line_item_data_empty() {
-		$plan = $this->create_plan( [ 'amount' => 50.00 ] );
+		$plan = $this->create_plan( ['amount' => 50.00] );
 
 		add_filter( 'wu_add_product_line_item', '__return_empty_array' );
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -1967,7 +1965,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -1992,7 +1990,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * Test valid discount code applied via constructor reduces total.
 	 */
 	public function test_valid_discount_code_via_constructor_reduces_total() {
-		$plan = $this->create_plan( [ 'amount' => 100.00 ] );
+		$plan = $this->create_plan( ['amount' => 100.00] );
 
 		$code = 'VALID' . uniqid();
 
@@ -2014,7 +2012,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products'      => [ $plan->get_id() ],
+				'products'      => [$plan->get_id()],
 				'discount_code' => $code,
 			]
 		);
@@ -2051,7 +2049,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -2077,7 +2075,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -2096,12 +2094,18 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 		$plan_uid    = uniqid( 'main-plan-' );
 		$service_uid = uniqid( 'extra-svc-' );
 
-		$plan    = $this->create_plan( [ 'slug' => $plan_uid, 'amount' => 50.00 ] );
-		$service = $this->create_service( [ 'slug' => $service_uid, 'amount' => 10.00 ] );
+		$plan    = $this->create_plan( [
+			'slug'   => $plan_uid,
+			'amount' => 50.00,
+		] );
+		$service = $this->create_service( [
+			'slug'   => $service_uid,
+			'amount' => 10.00,
+		] );
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id(), $service->get_id() ],
+				'products' => [$plan->get_id(), $service->get_id()],
 			]
 		);
 
@@ -2122,7 +2126,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * Test recurring total excludes discount when discount does not apply to renewals.
 	 */
 	public function test_recurring_total_excludes_non_renewal_discount() {
-		$plan = $this->create_plan( [ 'amount' => 100.00 ] );
+		$plan = $this->create_plan( ['amount' => 100.00] );
 
 		// Create discount code object directly (no DB lookup needed)
 		$discount_code = new \WP_Ultimo\Models\Discount_Code();
@@ -2134,7 +2138,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -2171,7 +2175,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -2193,7 +2197,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_done_includes_error_details() {
 		$cart = new Cart(
 			[
-				'products' => [ 999999 ],
+				'products' => [999999],
 			]
 		);
 
@@ -2244,7 +2248,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			[
 				'cart_type'     => 'downgrade',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $monthly_plan->get_id() ],
+				'products'      => [$monthly_plan->get_id()],
 				'duration'      => 1,
 				'duration_unit' => 'month',
 			]
@@ -2269,8 +2273,8 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	public function test_reapply_discounts_triggered_for_addon_with_renewal_discount() {
 		wp_set_current_user( self::$customer->get_user_id() );
 
-		$plan    = $this->create_plan( [ 'amount' => 50.00 ] );
-		$service = $this->create_service( [ 'amount' => 20.00 ] );
+		$plan    = $this->create_plan( ['amount' => 50.00] );
+		$service = $this->create_service( ['amount' => 20.00] );
 
 		$code = 'RNWADDON' . uniqid();
 
@@ -2304,14 +2308,14 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 			$existing_meta = [];
 		}
 		// META_DISCOUNT_CODE = 'discount_code'
-		$existing_meta['discount_code'] = [ $discount ];
+		$existing_meta['discount_code'] = [$discount];
 		wp_cache_set( $membership_id, $existing_meta, 'wu_membership_meta' );
 
 		$cart = new Cart(
 			[
 				'cart_type'     => 'addon',
 				'membership_id' => $membership->get_id(),
-				'products'      => [ $service->get_id() ],
+				'products'      => [$service->get_id()],
 			]
 		);
 
@@ -2337,14 +2341,14 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * Test wu_cart_should_collect_payment filter overrides result.
 	 */
 	public function test_should_collect_payment_filter() {
-		$plan = $this->create_plan( [ 'amount' => 50.00 ] );
+		$plan = $this->create_plan( ['amount' => 50.00] );
 
 		// Create cart first, then test the filter on a fresh cart
 		add_filter( 'wu_cart_should_collect_payment', '__return_false' );
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -2376,7 +2380,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products' => [ $monthly_plan->get_id() ],
+				'products' => [$monthly_plan->get_id()],
 			]
 		);
 
@@ -2426,12 +2430,12 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * Test to_membership_data includes addon products.
 	 */
 	public function test_to_membership_data_includes_addon_products() {
-		$plan    = $this->create_plan( [ 'amount' => 50.00 ] );
-		$service = $this->create_service( [ 'amount' => 10.00 ] );
+		$plan    = $this->create_plan( ['amount' => 50.00] );
+		$service = $this->create_service( ['amount' => 10.00] );
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id(), $service->get_id() ],
+				'products' => [$plan->get_id(), $service->get_id()],
 			]
 		);
 
@@ -2522,11 +2526,14 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * Test get_non_recurring_products returns non-recurring products.
 	 */
 	public function test_get_non_recurring_products() {
-		$service = $this->create_service( [ 'amount' => 10.00, 'recurring' => false ] );
+		$service = $this->create_service( [
+			'amount'    => 10.00,
+			'recurring' => false,
+		] );
 
 		$cart = new Cart(
 			[
-				'products' => [ $service->get_id() ],
+				'products' => [$service->get_id()],
 			]
 		);
 
@@ -2545,11 +2552,14 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * Test get_recurring_products returns recurring products.
 	 */
 	public function test_get_recurring_products() {
-		$plan = $this->create_plan( [ 'amount' => 50.00, 'recurring' => true ] );
+		$plan = $this->create_plan( [
+			'amount'    => 50.00,
+			'recurring' => true,
+		] );
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -2577,7 +2587,7 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -2630,18 +2640,18 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 	 * Test wu_cart_product_amount filter modifies product amount.
 	 */
 	public function test_cart_product_amount_filter() {
-		$plan = $this->create_plan( [ 'amount' => 50.00 ] );
+		$plan = $this->create_plan( ['amount' => 50.00] );
 
 		add_filter(
 			'wu_cart_product_amount',
-			function ( $amount ) {
+			function ($amount) {
 				return 75.00; // Override to 75
 			}
 		);
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 
@@ -2670,14 +2680,14 @@ class Cart_Coverage_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'wu_cart_product_setup_fee',
-			function ( $fee ) {
+			function ($fee) {
 				return 25.00; // Override to 25
 			}
 		);
 
 		$cart = new Cart(
 			[
-				'products' => [ $plan->get_id() ],
+				'products' => [$plan->get_id()],
 			]
 		);
 

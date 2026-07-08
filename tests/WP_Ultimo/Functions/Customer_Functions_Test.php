@@ -279,7 +279,10 @@ class Customer_Functions_Test extends WP_UnitTestCase {
 		$this->assertSame($user_id, $customer->get_user_id());
 
 		// Confirm only one WP user exists with this email.
-		$users_with_email = get_users(['search' => $email, 'search_columns' => ['user_email']]);
+		$users_with_email = get_users([
+			'search'         => $email,
+			'search_columns' => ['user_email'],
+		]);
 		$this->assertCount(1, $users_with_email);
 	}
 

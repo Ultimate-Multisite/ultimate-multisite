@@ -58,17 +58,17 @@ class Membership_Test extends \WP_UnitTestCase {
 		// Create product directly.
 		$this->product = new Product(
 			[
-				'name'         => 'Test Plan',
-				'slug'         => 'test-plan-' . wp_generate_password(6, false),
-				'description'  => 'A test plan',
-				'pricing_type' => 'paid',
-				'amount'       => 29.99,
-				'currency'     => 'USD',
-				'duration'     => 1,
+				'name'          => 'Test Plan',
+				'slug'          => 'test-plan-' . wp_generate_password(6, false),
+				'description'   => 'A test plan',
+				'pricing_type'  => 'paid',
+				'amount'        => 29.99,
+				'currency'      => 'USD',
+				'duration'      => 1,
 				'duration_unit' => 'month',
-				'type'         => 'plan',
-				'recurring'    => true,
-				'active'       => true,
+				'type'          => 'plan',
+				'recurring'     => true,
+				'active'        => true,
 			]
 		);
 		$this->product->set_skip_validation(true);
@@ -77,20 +77,20 @@ class Membership_Test extends \WP_UnitTestCase {
 		// Create a membership tied to the customer and product.
 		$this->membership = new Membership(
 			[
-				'customer_id'   => $this->customer->get_id(),
-				'user_id'       => $user_id,
-				'plan_id'       => $this->product->get_id(),
-				'status'        => Membership_Status::ACTIVE,
-				'amount'        => 29.99,
-				'initial_amount' => 29.99,
-				'duration'      => 1,
-				'duration_unit' => 'month',
-				'recurring'     => true,
-				'auto_renew'    => true,
-				'currency'      => 'USD',
-				'gateway'       => '',
-				'date_created'  => gmdate('Y-m-d H:i:s'),
-				'date_modified' => gmdate('Y-m-d H:i:s'),
+				'customer_id'     => $this->customer->get_id(),
+				'user_id'         => $user_id,
+				'plan_id'         => $this->product->get_id(),
+				'status'          => Membership_Status::ACTIVE,
+				'amount'          => 29.99,
+				'initial_amount'  => 29.99,
+				'duration'        => 1,
+				'duration_unit'   => 'month',
+				'recurring'       => true,
+				'auto_renew'      => true,
+				'currency'        => 'USD',
+				'gateway'         => '',
+				'date_created'    => gmdate('Y-m-d H:i:s'),
+				'date_modified'   => gmdate('Y-m-d H:i:s'),
 				'date_expiration' => gmdate('Y-m-d H:i:s', strtotime('+30 days')),
 			]
 		);
@@ -546,10 +546,10 @@ class Membership_Test extends \WP_UnitTestCase {
 		// Create a fresh membership to have clean gateway_info state.
 		$m = new Membership(
 			[
-				'customer_id'   => $this->customer->get_id(),
-				'plan_id'       => $this->product->get_id(),
-				'status'        => Membership_Status::ACTIVE,
-				'gateway'       => 'stripe',
+				'customer_id'             => $this->customer->get_id(),
+				'plan_id'                 => $this->product->get_id(),
+				'status'                  => Membership_Status::ACTIVE,
+				'gateway'                 => 'stripe',
 				'gateway_customer_id'     => 'cus_old',
 				'gateway_subscription_id' => 'sub_old',
 			]
@@ -578,15 +578,15 @@ class Membership_Test extends \WP_UnitTestCase {
 		// Create an addon product.
 		$addon = new Product(
 			[
-				'name'         => 'Addon Product',
-				'slug'         => 'addon-product-' . wp_generate_password(6, false),
-				'pricing_type' => 'paid',
-				'amount'       => 9.99,
-				'currency'     => 'USD',
-				'duration'     => 1,
+				'name'          => 'Addon Product',
+				'slug'          => 'addon-product-' . wp_generate_password(6, false),
+				'pricing_type'  => 'paid',
+				'amount'        => 9.99,
+				'currency'      => 'USD',
+				'duration'      => 1,
 				'duration_unit' => 'month',
-				'type'         => 'package',
-				'active'       => true,
+				'type'          => 'package',
+				'active'        => true,
 			]
 		);
 		$addon->set_skip_validation(true);
@@ -599,7 +599,7 @@ class Membership_Test extends \WP_UnitTestCase {
 		$this->assertContains($product_id, $addon_ids);
 
 		$addon_products = $this->membership->get_addon_products();
-		$found = false;
+		$found          = false;
 		foreach ($addon_products as $item) {
 			if ($item['product']->get_id() === $product_id) {
 				$this->assertEquals(2, $item['quantity']);
@@ -624,15 +624,15 @@ class Membership_Test extends \WP_UnitTestCase {
 	public function test_remove_product(): void {
 		$addon = new Product(
 			[
-				'name'         => 'Removable Addon',
-				'slug'         => 'removable-addon-' . wp_generate_password(6, false),
-				'pricing_type' => 'paid',
-				'amount'       => 4.99,
-				'currency'     => 'USD',
-				'duration'     => 1,
+				'name'          => 'Removable Addon',
+				'slug'          => 'removable-addon-' . wp_generate_password(6, false),
+				'pricing_type'  => 'paid',
+				'amount'        => 4.99,
+				'currency'      => 'USD',
+				'duration'      => 1,
 				'duration_unit' => 'month',
-				'type'         => 'package',
-				'active'       => true,
+				'type'          => 'package',
+				'active'        => true,
 			]
 		);
 		$addon->set_skip_validation(true);
@@ -661,15 +661,15 @@ class Membership_Test extends \WP_UnitTestCase {
 	public function test_get_all_products(): void {
 		$addon = new Product(
 			[
-				'name'         => 'All Products Addon',
-				'slug'         => 'all-prod-addon-' . wp_generate_password(6, false),
-				'pricing_type' => 'paid',
-				'amount'       => 9.99,
-				'currency'     => 'USD',
-				'duration'     => 1,
+				'name'          => 'All Products Addon',
+				'slug'          => 'all-prod-addon-' . wp_generate_password(6, false),
+				'pricing_type'  => 'paid',
+				'amount'        => 9.99,
+				'currency'      => 'USD',
+				'duration'      => 1,
 				'duration_unit' => 'month',
-				'type'         => 'package',
-				'active'       => true,
+				'type'          => 'package',
+				'active'        => true,
 			]
 		);
 		$addon->set_skip_validation(true);
@@ -745,15 +745,15 @@ class Membership_Test extends \WP_UnitTestCase {
 	public function test_set_addon_products(): void {
 		$addon = new Product(
 			[
-				'name'         => 'Set Addon Prod',
-				'slug'         => 'set-addon-prod-' . wp_generate_password(6, false),
-				'pricing_type' => 'paid',
-				'amount'       => 5.00,
-				'currency'     => 'USD',
-				'duration'     => 1,
+				'name'          => 'Set Addon Prod',
+				'slug'          => 'set-addon-prod-' . wp_generate_password(6, false),
+				'pricing_type'  => 'paid',
+				'amount'        => 5.00,
+				'currency'      => 'USD',
+				'duration'      => 1,
 				'duration_unit' => 'month',
-				'type'         => 'package',
-				'active'       => true,
+				'type'          => 'package',
+				'active'        => true,
 			]
 		);
 		$addon->set_skip_validation(true);
@@ -1107,7 +1107,7 @@ class Membership_Test extends \WP_UnitTestCase {
 	 * Test schedule_swap with invalid date returns WP_Error.
 	 */
 	public function test_schedule_swap_invalid_date(): void {
-		$cart = new \WP_Ultimo\Checkout\Cart([]);
+		$cart   = new \WP_Ultimo\Checkout\Cart([]);
 		$result = $this->membership->schedule_swap($cart, 'bogus-date');
 		$this->assertInstanceOf(\WP_Error::class, $result);
 	}
@@ -1453,7 +1453,7 @@ class Membership_Test extends \WP_UnitTestCase {
 
 		add_action(
 			'wu_membership_pre_reactivate',
-			function($id) use (&$pre_fired, &$captured_id) {
+			function ($id) use (&$pre_fired, &$captured_id) {
 				$pre_fired   = true;
 				$captured_id = $id;
 			}
@@ -1479,7 +1479,7 @@ class Membership_Test extends \WP_UnitTestCase {
 
 		add_action(
 			'wu_membership_post_reactivate',
-			function($id) use (&$post_fired, &$captured_id) {
+			function ($id) use (&$post_fired, &$captured_id) {
 				$post_fired  = true;
 				$captured_id = $id;
 			}
@@ -1510,7 +1510,7 @@ class Membership_Test extends \WP_UnitTestCase {
 
 		add_action(
 			'wu_membership_post_reactivate',
-			function() use (&$post_fired) {
+			function () use (&$post_fired) {
 				$post_fired = true;
 			}
 		);

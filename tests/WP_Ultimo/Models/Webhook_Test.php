@@ -102,7 +102,6 @@ class Webhook_Test extends \WP_UnitTestCase {
 		// Test event counting
 		$this->webhook->set_event_count(5);
 		$this->assertEquals(5, $this->webhook->get_event_count(), 'Event count should be set and retrieved correctly.');
-
 	}
 
 	/**
@@ -213,7 +212,6 @@ class Webhook_Test extends \WP_UnitTestCase {
 
 		$this->assertIsString($hash, 'Hash should be a string.');
 		$this->assertNotEmpty($hash, 'Hash should not be empty.');
-
 	}
 
 	/**
@@ -226,7 +224,6 @@ class Webhook_Test extends \WP_UnitTestCase {
 		// Test meta update
 		$result = $this->webhook->update_meta($meta_key, $meta_value);
 		$this->assertFalse($result || is_numeric($result), 'Web hooks don\'t do meta ');
-
 	}
 
 	/**
@@ -245,5 +242,4 @@ class Webhook_Test extends \WP_UnitTestCase {
 
 		parent::tearDown();
 	}
-
 }

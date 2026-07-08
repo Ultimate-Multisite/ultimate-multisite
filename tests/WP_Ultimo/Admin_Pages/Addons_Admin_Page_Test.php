@@ -418,7 +418,7 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 		delete_site_transient('wu-addons-list-beta');
 
 		// Mock HTTP request to return WP_Error
-		add_filter('pre_http_request', function($preempt, $args, $url) {
+		add_filter('pre_http_request', function ($preempt, $args, $url) {
 			return new \WP_Error('http_error', 'Connection failed');
 		}, 10, 3);
 
@@ -440,9 +440,12 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 		delete_site_transient('wu-addons-list-beta');
 
 		// Mock HTTP request to return empty body
-		add_filter('pre_http_request', function($preempt, $args, $url) {
+		add_filter('pre_http_request', function ($preempt, $args, $url) {
 			return array(
-				'response' => array('code' => 200, 'message' => 'OK'),
+				'response' => array(
+					'code'    => 200,
+					'message' => 'OK',
+				),
 				'body'     => wp_json_encode(array()),
 				'headers'  => array(),
 			);
@@ -466,7 +469,12 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 		$reflection = new \ReflectionClass($this->page);
 		$property   = $reflection->getProperty('addons');
 		$property->setAccessible(true);
-		$property->setValue($this->page, array(array('slug' => 'test-addon', 'name' => 'Test Addon')));
+		$property->setValue($this->page, array(
+			array(
+				'slug' => 'test-addon',
+				'name' => 'Test Addon',
+			),
+		));
 
 		$method = new \ReflectionMethod($this->page, 'get_addons_list');
 		$method->setAccessible(true);
@@ -483,7 +491,10 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_addons_list_uses_transient_cache(): void {
 		$cached_addons = array(
-			array('slug' => 'cached-addon', 'name' => 'Cached Addon'),
+			array(
+				'slug' => 'cached-addon',
+				'name' => 'Cached Addon',
+			),
 		);
 		set_site_transient('wu-addons-list', $cached_addons);
 
@@ -507,7 +518,10 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_addons_list_uses_beta_transient_when_beta_enabled(): void {
 		$beta_addons = array(
-			array('slug' => 'beta-addon', 'name' => 'Beta Addon'),
+			array(
+				'slug' => 'beta-addon',
+				'name' => 'Beta Addon',
+			),
 		);
 		set_site_transient('wu-addons-list-beta', $beta_addons);
 
@@ -536,13 +550,20 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 		delete_site_transient('wu-addons-list');
 
 		$api_addons = array(
-			array('slug' => 'api-addon', 'name' => 'API Addon', 'sku' => 'api-addon'),
+			array(
+				'slug' => 'api-addon',
+				'name' => 'API Addon',
+				'sku'  => 'api-addon',
+			),
 		);
 
 		// Mock HTTP request to return addon data
-		add_filter('pre_http_request', function($preempt, $args, $url) use ($api_addons) {
+		add_filter('pre_http_request', function ($preempt, $args, $url) use ($api_addons) {
 			return array(
-				'response' => array('code' => 200, 'message' => 'OK'),
+				'response' => array(
+					'code'    => 200,
+					'message' => 'OK',
+				),
 				'body'     => wp_json_encode($api_addons),
 				'headers'  => array(),
 			);
@@ -572,12 +593,19 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 		delete_site_transient('wu-addons-list');
 
 		$api_addons = array(
-			array('slug' => 'my-addon', 'name' => 'My Addon', 'sku' => 'my-addon'),
+			array(
+				'slug' => 'my-addon',
+				'name' => 'My Addon',
+				'sku'  => 'my-addon',
+			),
 		);
 
-		add_filter('pre_http_request', function($preempt, $args, $url) use ($api_addons) {
+		add_filter('pre_http_request', function ($preempt, $args, $url) use ($api_addons) {
 			return array(
-				'response' => array('code' => 200, 'message' => 'OK'),
+				'response' => array(
+					'code'    => 200,
+					'message' => 'OK',
+				),
 				'body'     => wp_json_encode($api_addons),
 				'headers'  => array(),
 			);
@@ -614,7 +642,12 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 	 * that the cached addons property is used when available.
 	 */
 	public function test_serve_addons_list_uses_cached_addons(): void {
-		$test_addons = array(array('slug' => 'cached-addon', 'name' => 'Cached Addon'));
+		$test_addons = array(
+			array(
+				'slug' => 'cached-addon',
+				'name' => 'Cached Addon',
+			),
+		);
 
 		// Pre-populate addons cache
 		$reflection = new \ReflectionClass($this->page);
@@ -773,7 +806,7 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 		add_filter('wp_doing_ajax', '__return_true');
 
 		$handler = function () {
-			return function ( $message ) {
+			return function ($message) {
 				throw new \WPAjaxDieContinueException( (string) $message );
 			};
 		};
@@ -789,7 +822,7 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 	 * @param callable $handler The handler returned by install_ajax_die_handler().
 	 * @return void
 	 */
-	private function remove_ajax_die_handler( callable $handler ): void {
+	private function remove_ajax_die_handler(callable $handler): void {
 		remove_filter('wp_doing_ajax', '__return_true');
 		remove_filter('wp_die_ajax_handler', $handler, 1);
 	}
@@ -874,7 +907,7 @@ class Addons_Admin_Page_Test extends WP_UnitTestCase {
 
 		$redirected = false;
 		$exited     = false;
-		add_filter('wp_redirect', function($location) use (&$redirected) {
+		add_filter('wp_redirect', function ($location) use (&$redirected) {
 			$redirected = true;
 			return $location;
 		});

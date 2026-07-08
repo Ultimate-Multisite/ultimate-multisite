@@ -28,9 +28,10 @@ defined('ABSPATH') || exit;
 		 * email/username/password fields are not required.
 		 */
 		if (is_user_logged_in()) :
-		?>
+			?>
 			<input type="hidden" name="user_id" value="<?php echo esc_attr(get_current_user_id()); ?>">
-		<?php endif;
+			<?php
+		endif;
 
 		/**
 		 * Instantiate the form for the order details.

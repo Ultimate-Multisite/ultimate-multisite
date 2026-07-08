@@ -182,7 +182,7 @@ class Email_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_event_returns_event_in_span(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_event' ] )
+			->addMethods( ['get_event'] )
 			->getMock();
 		$item->method( 'get_event' )->willReturn( 'membership_created' );
 
@@ -203,7 +203,7 @@ class Email_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_slug_returns_slug_in_span(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_slug' ] )
+			->addMethods( ['get_slug'] )
 			->getMock();
 		$item->method( 'get_slug' )->willReturn( 'welcome-email' );
 
@@ -223,7 +223,7 @@ class Email_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_schedule_returns_immediate_when_no_schedule(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'has_schedule', 'get_schedule_type', 'get_send_hours', 'get_send_days' ] )
+			->addMethods( ['has_schedule', 'get_schedule_type', 'get_send_hours', 'get_send_days'] )
 			->getMock();
 		$item->method( 'has_schedule' )->willReturn( false );
 
@@ -238,7 +238,7 @@ class Email_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_schedule_returns_hours_text_for_hours_type(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'has_schedule', 'get_schedule_type', 'get_send_hours', 'get_send_days' ] )
+			->addMethods( ['has_schedule', 'get_schedule_type', 'get_send_hours', 'get_send_days'] )
 			->getMock();
 		$item->method( 'has_schedule' )->willReturn( true );
 		$item->method( 'get_schedule_type' )->willReturn( 'hours' );
@@ -255,7 +255,7 @@ class Email_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_schedule_returns_days_text_for_days_type(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'has_schedule', 'get_schedule_type', 'get_send_hours', 'get_send_days' ] )
+			->addMethods( ['has_schedule', 'get_schedule_type', 'get_send_hours', 'get_send_days'] )
 			->getMock();
 		$item->method( 'has_schedule' )->willReturn( true );
 		$item->method( 'get_schedule_type' )->willReturn( 'days' );

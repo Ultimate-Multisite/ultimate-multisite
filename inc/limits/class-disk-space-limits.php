@@ -46,11 +46,11 @@ class Disk_Space_Limits {
 	 */
 	public function init(): void {
 
-		add_filter( 'site_option_upload_space_check_disabled', array( $this, 'upload_space_check_disabled' ) );
+		add_filter( 'site_option_upload_space_check_disabled', array($this, 'upload_space_check_disabled') );
 
-		add_filter( 'get_space_allowed', array( $this, 'apply_disk_space_limitations' ) );
+		add_filter( 'get_space_allowed', array($this, 'apply_disk_space_limitations') );
 
-		add_action( 'wu_async_after_membership_update_products', array( $this, 'handle_downgrade' ) );
+		add_action( 'wu_async_after_membership_update_products', array($this, 'handle_downgrade') );
 	}
 
 	/**
@@ -62,7 +62,7 @@ class Disk_Space_Limits {
 	 * @param int $value The current value.
 	 * @return int
 	 */
-	public function upload_space_check_disabled( $value ) {
+	public function upload_space_check_disabled($value) {
 
 		if ( ! $this->should_load() ) {
 			return $value;
@@ -120,7 +120,7 @@ class Disk_Space_Limits {
 	 * @param int $membership_id The membership that was updated.
 	 * @return void
 	 */
-	public function handle_downgrade( $membership_id ): void {
+	public function handle_downgrade($membership_id): void {
 
 		$membership = wu_get_membership( $membership_id );
 
@@ -131,7 +131,6 @@ class Disk_Space_Limits {
 		$sites = $membership->get_sites( false );
 
 		foreach ( $sites as $site ) {
-
 			$blog_id = $site->get_id();
 
 			switch_to_blog( $blog_id );
@@ -181,7 +180,7 @@ class Disk_Space_Limits {
 	 * @param string $disk_space The new disk space.
 	 * @return int
 	 */
-	public function apply_disk_space_limitations( $disk_space ) {
+	public function apply_disk_space_limitations($disk_space) {
 
 		if ( ! $this->should_load() ) {
 			return $disk_space;

@@ -99,7 +99,7 @@ class Free_Gateway_Test extends WP_UnitTestCase {
 		$this->gateway->process_checkout($payment, $membership, $customer, $cart, 'new');
 
 		// Reload from database
-		$updated_payment = wu_get_payment($payment->get_id());
+		$updated_payment    = wu_get_payment($payment->get_id());
 		$updated_membership = wu_get_membership($membership->get_id());
 
 		// Assert payment is completed

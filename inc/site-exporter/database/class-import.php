@@ -173,7 +173,7 @@ class Import {
 
 		// Get list of tables — use PDO::quote() to safely escape the LIKE pattern.
 		$like_pattern = $this->db->quote($table . '%');
-		$tables = $this->query('SHOW TABLES LIKE ' . $like_pattern);
+		$tables       = $this->query('SHOW TABLES LIKE ' . $like_pattern);
 		if ($tables !== null && $tables !== false) {
 			// Loop through tables
 			$results = $tables->fetchAll(PDO::FETCH_COLUMN);

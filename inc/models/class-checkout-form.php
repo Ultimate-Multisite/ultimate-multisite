@@ -729,12 +729,12 @@ class Checkout_Form extends Base_Model {
 						'auto_generate_site_url' => true,
 					],
 					[
-						'step'                                      => 'checkout',
-						'name'                                      => __('Template Selection', 'ultimate-multisite'),
-						'type'                                      => 'template_selection',
-						'id'                                        => 'template_selection',
-						'template_selection_type'                   => 'all',
-						'template_selection_template'               => 'clean',
+						'step'                        => 'checkout',
+						'name'                        => __('Template Selection', 'ultimate-multisite'),
+						'type'                        => 'template_selection',
+						'id'                          => 'template_selection',
+						'template_selection_type'     => 'all',
+						'template_selection_template' => 'clean',
 						'hide_template_selection_when_pre_selected' => true,
 					],
 					[

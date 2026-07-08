@@ -121,7 +121,7 @@ class Admin_Themes_Compatibility_Test extends WP_UnitTestCase {
 		});
 
 		$instance = Admin_Themes_Compatibility::get_instance();
-		$result = $instance->add_body_classes('');
+		$result   = $instance->add_body_classes('');
 
 		$this->assertStringContainsString('wu-compat-admin-theme-test-theme', $result);
 	}

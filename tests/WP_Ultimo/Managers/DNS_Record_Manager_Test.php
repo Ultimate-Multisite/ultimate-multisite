@@ -757,8 +757,8 @@ class DNS_Record_Manager_Test extends WP_UnitTestCase {
 	 * Test parse_bind_format with standard records.
 	 */
 	public function test_parse_bind_format_standard_records(): void {
-		$bind_content = <<<BIND
-\$ORIGIN example.com.
+		$bind_content = <<<'BIND'
+$ORIGIN example.com.
 @ 3600 IN A 192.168.1.1
 www 3600 IN CNAME example.com.
 @ 3600 IN MX 10 mail.example.com.
@@ -779,7 +779,7 @@ BIND;
 	 * Test parse_bind_format skips comment lines.
 	 */
 	public function test_parse_bind_format_skips_comments(): void {
-		$bind_content = <<<BIND
+		$bind_content = <<<'BIND'
 ; This is a comment
 @ 3600 IN A 192.168.1.1
 ; Another comment
@@ -805,8 +805,8 @@ BIND;
 	 * Test parse_bind_format respects $TTL directive.
 	 */
 	public function test_parse_bind_format_respects_ttl_directive(): void {
-		$bind_content = <<<BIND
-\$TTL 7200
+		$bind_content = <<<'BIND'
+$TTL 7200
 @ IN A 1.2.3.4
 BIND;
 
@@ -870,8 +870,8 @@ BIND;
 	 * Test parse_bind_format skips $ORIGIN directive.
 	 */
 	public function test_parse_bind_format_skips_origin_directive(): void {
-		$bind_content = <<<BIND
-\$ORIGIN example.com.
+		$bind_content = <<<'BIND'
+$ORIGIN example.com.
 @ 3600 IN A 1.2.3.4
 BIND;
 
@@ -884,7 +884,7 @@ BIND;
 	 * Test parse_bind_format skips unsupported record types.
 	 */
 	public function test_parse_bind_format_skips_unsupported_types(): void {
-		$bind_content = <<<BIND
+		$bind_content = <<<'BIND'
 @ 3600 IN A 1.2.3.4
 @ 3600 IN HINFO "PC" "Linux"
 @ 3600 IN SOA ns1.example.com. admin.example.com. 2024010101 3600 900 604800 300
@@ -926,7 +926,7 @@ BIND;
 	 * Test parse_bind_format with lines having fewer than 3 parts are skipped.
 	 */
 	public function test_parse_bind_format_skips_short_lines(): void {
-		$bind_content = <<<BIND
+		$bind_content = <<<'BIND'
 @ 3600
 @ 3600 IN A 1.2.3.4
 BIND;
@@ -962,7 +962,7 @@ BIND;
 	 * Test parse_bind_format with multiple records of same type.
 	 */
 	public function test_parse_bind_format_multiple_same_type(): void {
-		$bind_content = <<<BIND
+		$bind_content = <<<'BIND'
 @ 3600 IN A 1.2.3.4
 @ 3600 IN A 5.6.7.8
 BIND;
@@ -993,8 +993,8 @@ BIND;
 			]),
 		];
 
-		$bind    = $this->manager->export_to_bind('example.com', $original_records);
-		$parsed  = $this->manager->parse_bind_format($bind, 'example.com');
+		$bind   = $this->manager->export_to_bind('example.com', $original_records);
+		$parsed = $this->manager->parse_bind_format($bind, 'example.com');
 
 		$this->assertIsArray($parsed);
 		$this->assertGreaterThanOrEqual(2, count($parsed));

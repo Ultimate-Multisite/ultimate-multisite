@@ -35,7 +35,7 @@ class Post_Type_Limits {
 		 * @since 2.0.6
 		 */
 		if ( is_main_site() && is_network_admin() ) {
-			add_action( 'init', array( $this, 'register_emulated_post_types' ), 999 );
+			add_action( 'init', array($this, 'register_emulated_post_types'), 999 );
 		}
 
 		/**
@@ -56,17 +56,17 @@ class Post_Type_Limits {
 			return;
 		}
 
-		add_action( 'load-post-new.php', array( $this, 'limit_posts' ) );
+		add_action( 'load-post-new.php', array($this, 'limit_posts') );
 
-		add_filter( 'wp_handle_upload', array( $this, 'limit_media' ) );
+		add_filter( 'wp_handle_upload', array($this, 'limit_media') );
 
-		add_filter( 'media_upload_tabs', array( $this, 'limit_tabs' ) );
+		add_filter( 'media_upload_tabs', array($this, 'limit_tabs') );
 
-		add_action( 'current_screen', array( $this, 'limit_restoring' ), 10 );
+		add_action( 'current_screen', array($this, 'limit_restoring'), 10 );
 
-		add_filter( 'wp_insert_post_data', array( $this, 'limit_draft_publishing' ), 10, 2 );
+		add_filter( 'wp_insert_post_data', array($this, 'limit_draft_publishing'), 10, 2 );
 
-		add_action( 'wu_async_after_membership_update_products', array( $this, 'handle_downgrade' ) );
+		add_action( 'wu_async_after_membership_update_products', array($this, 'handle_downgrade') );
 	}
 
 	/**
@@ -182,14 +182,14 @@ class Post_Type_Limits {
 		if ( ! wu_get_current_site()->get_limitations()->post_types->{$screen->post_type}->enabled ) {
 			$upgrade_message = __( 'Your plan does not support this post type.', 'ultimate-multisite' );
 
-			wp_die( esc_html( $upgrade_message ), esc_html( __( 'Limit Reached', 'ultimate-multisite' ) ), array( 'back_link' => true ) );
+			wp_die( esc_html( $upgrade_message ), esc_html( __( 'Limit Reached', 'ultimate-multisite' ) ), array('back_link' => true) );
 		}
 
 		// Check if that is more than our limit
 		if ( wu_get_current_site()->get_limitations()->post_types->is_post_above_limit( $screen->post_type ) ) {
 			$upgrade_message = __( 'You reached your plan\'s post limit.', 'ultimate-multisite' );
 
-			wp_die( esc_html( $upgrade_message ), esc_html__( 'Limit Reached', 'ultimate-multisite' ), array( 'back_link' => true ) );
+			wp_die( esc_html( $upgrade_message ), esc_html__( 'Limit Reached', 'ultimate-multisite' ), array('back_link' => true) );
 		}
 	}
 
@@ -203,7 +203,7 @@ class Post_Type_Limits {
 	 * @param array $modified_data Data that is changing. We are interested in publish.
 	 * @return array
 	 */
-	public function limit_draft_publishing( $data, $modified_data ) {
+	public function limit_draft_publishing($data, $modified_data) {
 
 		global $current_screen;
 
@@ -239,7 +239,7 @@ class Post_Type_Limits {
 	 * @param array $file $_FILE array being passed.
 	 * @return mixed
 	 */
-	public function limit_media( $file ) {
+	public function limit_media($file) {
 
 		if ( ! wu_get_current_site()->get_limitations()->post_types->attachment->enabled ) {
 			$file['error'] = __( 'Your plan does not support media upload.', 'ultimate-multisite' );
@@ -290,7 +290,7 @@ class Post_Type_Limits {
 	 * @param int $membership_id The membership that was updated.
 	 * @return void
 	 */
-	public function handle_downgrade( $membership_id ): void {
+	public function handle_downgrade($membership_id): void {
 
 		$membership = wu_get_membership( $membership_id );
 
@@ -301,7 +301,6 @@ class Post_Type_Limits {
 		$sites = $membership->get_sites( false );
 
 		foreach ( $sites as $site ) {
-
 			$blog_id = $site->get_id();
 
 			switch_to_blog( $blog_id );
@@ -316,7 +315,6 @@ class Post_Type_Limits {
 			$over_limit = $post_type_limits->check_all_post_types();
 
 			foreach ( $over_limit as $post_type => $counts ) {
-
 				$excess = $counts['current'] - $counts['limit'];
 
 				if ( $excess <= 0 ) {
@@ -327,7 +325,7 @@ class Post_Type_Limits {
 				$posts_to_demote = get_posts(
 					array(
 						'post_type'      => $post_type,
-						'post_status'    => array( 'publish', 'private' ),
+						'post_status'    => array('publish', 'private'),
 						'posts_per_page' => $excess,
 						'orderby'        => 'ID',
 						'order'          => 'ASC',
@@ -336,7 +334,6 @@ class Post_Type_Limits {
 				);
 
 				foreach ( $posts_to_demote as $post_id ) {
-
 					wp_update_post(
 						array(
 							'ID'          => $post_id,
@@ -370,7 +367,7 @@ class Post_Type_Limits {
 	 * @param array $tabs Tabs of the media gallery upload modal.
 	 * @return array
 	 */
-	public function limit_tabs( $tabs ) {
+	public function limit_tabs($tabs) {
 
 		$post_count = wp_count_posts( 'attachment' );
 

@@ -86,7 +86,13 @@ class Amazon_SES_Transactional_Email_Test extends WP_UnitTestCase {
 
 		$result = $this->module->intercept_wp_mail(
 			true,
-			['to' => 'test@example.com', 'subject' => 'Test', 'message' => 'Body', 'headers' => [], 'attachments' => []]
+			[
+				'to'          => 'test@example.com',
+				'subject'     => 'Test',
+				'message'     => 'Body',
+				'headers'     => [],
+				'attachments' => [],
+			]
 		);
 
 		$this->assertTrue($result);
@@ -143,8 +149,8 @@ class Amazon_SES_Transactional_Email_Test extends WP_UnitTestCase {
 				'VerifiedForSendingStatus' => false,
 				'DkimAttributes'           => [
 					'SigningEnabled' => false,
-					'Status'        => 'NOT_STARTED',
-					'Tokens'        => ['token1abc', 'token2def', 'token3ghi'],
+					'Status'         => 'NOT_STARTED',
+					'Tokens'         => ['token1abc', 'token2def', 'token3ghi'],
 				],
 			]);
 
@@ -269,9 +275,9 @@ class Amazon_SES_Transactional_Email_Test extends WP_UnitTestCase {
 			->willReturn([
 				'SendingEnabled' => true,
 				'SendQuota'      => [
-					'Max24HourSend'    => 50000,
-					'MaxSendRate'      => 14,
-					'SentLast24Hours'  => 100,
+					'Max24HourSend'   => 50000,
+					'MaxSendRate'     => 14,
+					'SentLast24Hours' => 100,
 				],
 			]);
 

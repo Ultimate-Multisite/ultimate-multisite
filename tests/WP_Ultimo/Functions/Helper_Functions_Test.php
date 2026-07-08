@@ -49,7 +49,10 @@ class Helper_Functions_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_isset_existing_key(): void {
 
-		$array = ['name' => 'John', 'age' => 30];
+		$array = [
+			'name' => 'John',
+			'age'  => 30,
+		];
 
 		$this->assertEquals('John', wu_get_isset($array, 'name'));
 		$this->assertEquals(30, wu_get_isset($array, 'age'));
@@ -71,7 +74,10 @@ class Helper_Functions_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_isset_with_object(): void {
 
-		$obj = (object) ['name' => 'Jane', 'role' => 'admin'];
+		$obj = (object) [
+			'name' => 'Jane',
+			'role' => 'admin',
+		];
 
 		$this->assertEquals('Jane', wu_get_isset($obj, 'name'));
 		$this->assertEquals('admin', wu_get_isset($obj, 'role'));

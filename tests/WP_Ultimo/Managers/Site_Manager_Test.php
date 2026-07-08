@@ -79,10 +79,10 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 		$manager = $this->get_manager_instance();
 
 		$input = [
-			'good_key'  => 'value1',
-			''          => 'value2',
-			'another'   => 'value3',
-			false       => 'value4',
+			'good_key' => 'value1',
+			''         => 'value2',
+			'another'  => 'value3',
+			false      => 'value4',
 		];
 
 		$result = $manager->filter_illegal_search_keys($input);
@@ -100,9 +100,18 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 		wu_save_setting(
 			'search_and_replace',
 			[
-				['search' => 'foo', 'replace' => 'bar'],
-				['search' => '', 'replace' => 'baz'],
-				['search' => 'hello', 'replace' => 'world'],
+				[
+					'search'  => 'foo',
+					'replace' => 'bar',
+				],
+				[
+					'search'  => '',
+					'replace' => 'baz',
+				],
+				[
+					'search'  => 'hello',
+					'replace' => 'world',
+				],
 			]
 		);
 
@@ -366,9 +375,9 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 		$manager = $this->get_manager_instance();
 
 		$input = [
-			'0'    => 'zero-string',
-			1      => 'one-int',
-			'key'  => 'value',
+			'0'   => 'zero-string',
+			1     => 'one-int',
+			'key' => 'value',
 		];
 
 		// Note: PHP treats '0' and 0 as the same array key, but both should be filtered as empty/false-like
@@ -406,7 +415,10 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 			'search_and_replace',
 			[
 				['replace' => 'bar'],
-				['search' => 'hello', 'replace' => 'world'],
+				[
+					'search'  => 'hello',
+					'replace' => 'world',
+				],
 			]
 		);
 
@@ -425,7 +437,10 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 		wu_save_setting(
 			'search_and_replace',
 			[
-				['search' => 'remove-me', 'replace' => ''],
+				[
+					'search'  => 'remove-me',
+					'replace' => '',
+				],
 			]
 		);
 
@@ -448,7 +463,10 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 		wu_save_setting(
 			'search_and_replace',
 			[
-				['search' => 'old-domain', 'replace' => 'new-domain'],
+				[
+					'search'  => 'old-domain',
+					'replace' => 'new-domain',
+				],
 			]
 		);
 
@@ -545,7 +563,10 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 		$user_id = $this->factory()->user->create(['role' => 'subscriber']);
 		wp_set_current_user($user_id);
 
-		$args   = ['role' => 'editor', 'number' => 10];
+		$args   = [
+			'role'   => 'editor',
+			'number' => 10,
+		];
 		$result = $manager->hide_super_admin_from_list($args);
 
 		$this->assertArrayHasKey('login__not_in', $result);
@@ -1452,7 +1473,10 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 
 		$site = new \WP_Ultimo\Models\Site();
 
-		$options = ['option1' => 'value1', 'option2' => 'value2'];
+		$options = [
+			'option1' => 'value1',
+			'option2' => 'value2',
+		];
 
 		$site->set_signup_options($options);
 
@@ -1776,7 +1800,10 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 
 		$site = new \WP_Ultimo\Models\Site();
 
-		$data = ['key1' => 'value1', 'key2' => 'value2'];
+		$data = [
+			'key1' => 'value1',
+			'key2' => 'value2',
+		];
 
 		$site->set_transient($data);
 

@@ -39,7 +39,11 @@ class Newsletter_Test extends WP_UnitTestCase {
 
 		$newsletter = \WP_Ultimo\Newsletter::get_instance();
 
-		$settings         = ['company_email' => 'test@example.com', 'company_name' => 'Test', 'company_country' => 'US'];
+		$settings         = [
+			'company_email'   => 'test@example.com',
+			'company_name'    => 'Test',
+			'company_country' => 'US',
+		];
 		$settings_to_save = [];
 		$saved_settings   = [];
 
@@ -55,7 +59,11 @@ class Newsletter_Test extends WP_UnitTestCase {
 
 		$newsletter = \WP_Ultimo\Newsletter::get_instance();
 
-		$settings         = ['company_email' => 'test@example.com', 'company_name' => 'Test', 'company_country' => 'US'];
+		$settings         = [
+			'company_email'   => 'test@example.com',
+			'company_name'    => 'Test',
+			'company_country' => 'US',
+		];
 		$settings_to_save = ['newsletter_optin' => '1'];
 		$saved_settings   = ['newsletter_optin' => '1'];
 

@@ -146,10 +146,10 @@ try {
 	$initial_invoice = $subscription->latest_invoice;
 
 	if (is_string($initial_invoice)) {
-		$invoice_obj      = $stripe->invoices->retrieve($initial_invoice);
-		$gateway_pay_id   = $invoice_obj->charge ?? $invoice_obj->payment_intent ?? $initial_invoice;
+		$invoice_obj    = $stripe->invoices->retrieve($initial_invoice);
+		$gateway_pay_id = $invoice_obj->charge ?? $invoice_obj->payment_intent ?? $initial_invoice;
 	} else {
-		$gateway_pay_id   = $initial_invoice->charge ?? $initial_invoice->payment_intent ?? '';
+		$gateway_pay_id = $initial_invoice->charge ?? $initial_invoice->payment_intent ?? '';
 	}
 
 	$payment = wu_create_payment([
@@ -184,7 +184,7 @@ try {
 	]);
 } catch (\Exception $e) {
 	echo wp_json_encode([
-		'error'   => $e->getMessage(),
-		'code'    => $e->getCode(),
+		'error' => $e->getMessage(),
+		'code'  => $e->getCode(),
 	]);
 }

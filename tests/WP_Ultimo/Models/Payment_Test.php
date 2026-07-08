@@ -388,13 +388,13 @@ class Payment_Test extends WP_UnitTestCase {
 		wp_set_current_user($customer->get_user_id(), $customer->get_username());
 
 		$product = wu_create_product([
-			'name' => 'Test Plan',
-			'slug' => 'test-plan',
+			'name'         => 'Test Plan',
+			'slug'         => 'test-plan',
 			'pricing_type' => 'paid',
-			'amount' => 10,
-			'currency' => 'USD',
-			'recurring' => false,
-			'type' => 'plan',
+			'amount'       => 10,
+			'currency'     => 'USD',
+			'recurring'    => false,
+			'type'         => 'plan',
 		]);
 
 		if (is_wp_error($product)) {
@@ -403,8 +403,8 @@ class Payment_Test extends WP_UnitTestCase {
 
 		$membership = wu_create_membership([
 			'customer_id' => $customer->get_id(),
-			'plan_id' => $product->get_id(),
-			'status' => Membership_Status::ACTIVE,
+			'plan_id'     => $product->get_id(),
+			'status'      => Membership_Status::ACTIVE,
 		]);
 
 		if (is_wp_error($membership)) {
@@ -412,13 +412,13 @@ class Payment_Test extends WP_UnitTestCase {
 		}
 
 		$payment = wu_create_payment([
-			'customer_id' => $customer->get_id(),
+			'customer_id'   => $customer->get_id(),
 			'membership_id' => $membership->get_id(),
-			'currency' => 'USD',
-			'subtotal' => 100.00,
-			'total' => 100.00,
-			'status' => Payment_Status::PENDING,
-			'gateway' => 'manual',
+			'currency'      => 'USD',
+			'subtotal'      => 100.00,
+			'total'         => 100.00,
+			'status'        => Payment_Status::PENDING,
+			'gateway'       => 'manual',
 		]);
 
 		$this->assertInstanceOf(Payment::class, $payment, 'Payment creation failed');
@@ -1075,7 +1075,7 @@ class Payment_Test extends WP_UnitTestCase {
 		$this->assertEquals(Payment_Status::REFUND, $payment->get_status());
 
 		// Verify refund line item was added
-		$items = $payment->get_line_items();
+		$items        = $payment->get_line_items();
 		$refund_items = array_filter($items, fn($item) => $item->get_type() === 'refund');
 		$this->assertNotEmpty($refund_items);
 
@@ -1117,7 +1117,7 @@ class Payment_Test extends WP_UnitTestCase {
 		$this->assertEquals(Payment_Status::PARTIAL_REFUND, $payment->get_status());
 
 		// Verify the refund line item
-		$items = $payment->get_line_items();
+		$items        = $payment->get_line_items();
 		$refund_items = array_filter($items, fn($item) => $item->get_type() === 'refund');
 		$this->assertNotEmpty($refund_items);
 

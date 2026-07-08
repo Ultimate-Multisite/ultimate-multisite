@@ -81,7 +81,10 @@ class Concrete_Wizard_Page_With_Addon extends Wizard_Admin_Page {
 	public function get_sections(): array {
 		return [
 			'main'  => ['title' => 'Main'],
-			'extra' => ['title' => 'Extra', 'addon' => true],
+			'extra' => [
+				'title' => 'Extra',
+				'addon' => true,
+			],
 		];
 	}
 }
@@ -610,7 +613,10 @@ class Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	 * register_widgets() returns early when current_section has a separator key.
 	 */
 	public function test_register_widgets_returns_early_for_separator_section(): void {
-		$this->page->current_section = ['separator' => true, 'title' => 'Sep'];
+		$this->page->current_section = [
+			'separator' => true,
+			'title'     => 'Sep',
+		];
 
 		$GLOBALS['current_screen'] = \WP_Screen::get('dashboard-network');
 

@@ -54,8 +54,8 @@ if ($existing) {
 }
 
 // 2. Insert domain mapping for sso-test.ultimate-multisite.test:PORT directly
-//    into the DB. The Domain model's validation rejects domains with ports, so
-//    we bypass it.
+// into the DB. The Domain model's validation rejects domains with ports, so
+// we bypass it.
 $table = $wpdb->base_prefix . 'wu_domain_mappings';
 $now   = current_time('mysql');
 
@@ -75,7 +75,11 @@ if ($existing_domain) {
 	// Update existing record to ensure domain includes port.
 	$wpdb->update(
 		$table,
-		['domain' => $mapped_domain, 'active' => 1, 'stage' => 'done'],
+		[
+			'domain' => $mapped_domain,
+			'active' => 1,
+			'stage'  => 'done',
+		],
 		['id' => $existing_domain],
 		['%s', '%d', '%s'],
 		['%d']
@@ -120,9 +124,9 @@ wp_cache_delete('domain:127.0.0.1' . $port, 'domain_mappings');
 wp_cache_delete('domain:127.0.0.1', 'domain_mappings');
 
 // 3. Enable domain mapping, enable SSO, and disable the loading overlay
-//    (avoids flicker in tests). Domain mapping must be enabled before the
-//    next mapped-host request so sunrise registers the mapped site instead of
-//    falling back to WordPress' main-site redirect.
+// (avoids flicker in tests). Domain mapping must be enabled before the
+// next mapped-host request so sunrise registers the mapped site instead of
+// falling back to WordPress' main-site redirect.
 wu_save_setting('enable_domain_mapping', true);
 wu_save_setting('enable_sso', true);
 wu_save_setting('enable_sso_loading_overlay', false);

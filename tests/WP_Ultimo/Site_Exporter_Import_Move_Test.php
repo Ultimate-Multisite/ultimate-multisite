@@ -201,9 +201,9 @@ class Site_Exporter_Import_Move_Test extends WP_UnitTestCase {
 	public function test_runcommand_theme_enable_invokes_switch_theme(): void {
 
 		// Find an installed theme other than the current one to switch to.
-		$themes      = wp_get_themes();
-		$current     = get_stylesheet();
-		$candidate   = '';
+		$themes    = wp_get_themes();
+		$current   = get_stylesheet();
+		$candidate = '';
 
 		foreach ($themes as $slug => $theme) {
 			if ($slug !== $current && $theme->exists()) {

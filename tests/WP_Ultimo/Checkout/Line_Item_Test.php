@@ -43,7 +43,10 @@ class Line_Item_Test extends WP_UnitTestCase {
 	 */
 	public function test_constructor_generates_id(): void {
 
-		$line_item = $this->create_line_item(['hash' => 'abc123', 'type' => 'fee']);
+		$line_item = $this->create_line_item([
+			'hash' => 'abc123',
+			'type' => 'fee',
+		]);
 
 		$id = $line_item->get_id();
 

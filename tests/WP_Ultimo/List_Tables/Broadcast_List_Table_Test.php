@@ -116,7 +116,7 @@ class Broadcast_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_cb_returns_disabled_for_broadcast_email(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_id' ] )
+			->addMethods( ['get_type', 'get_id'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( 'broadcast_email' );
 		$item->method( 'get_id' )->willReturn( 1 );
@@ -132,7 +132,7 @@ class Broadcast_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_cb_returns_normal_for_broadcast_notice(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_id' ] )
+			->addMethods( ['get_type', 'get_id'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( 'broadcast_notice' );
 		$item->method( 'get_id' )->willReturn( 5 );
@@ -154,7 +154,7 @@ class Broadcast_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_type_returns_email_label_for_broadcast_email(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_notice_type' ] )
+			->addMethods( ['get_type', 'get_notice_type'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( 'broadcast_email' );
 
@@ -169,7 +169,7 @@ class Broadcast_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_type_returns_notice_label_for_broadcast_notice(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_notice_type' ] )
+			->addMethods( ['get_type', 'get_notice_type'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( 'broadcast_notice' );
 		$item->method( 'get_notice_type' )->willReturn( 'info' );
@@ -185,7 +185,7 @@ class Broadcast_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_type_applies_blue_class_for_info_notice(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_notice_type' ] )
+			->addMethods( ['get_type', 'get_notice_type'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( 'broadcast_notice' );
 		$item->method( 'get_notice_type' )->willReturn( 'info' );
@@ -201,7 +201,7 @@ class Broadcast_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_type_applies_green_class_for_success_notice(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_notice_type' ] )
+			->addMethods( ['get_type', 'get_notice_type'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( 'broadcast_notice' );
 		$item->method( 'get_notice_type' )->willReturn( 'success' );
@@ -217,7 +217,7 @@ class Broadcast_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_type_applies_orange_class_for_warning_notice(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_notice_type' ] )
+			->addMethods( ['get_type', 'get_notice_type'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( 'broadcast_notice' );
 		$item->method( 'get_notice_type' )->willReturn( 'warning' );
@@ -233,7 +233,7 @@ class Broadcast_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_type_applies_red_class_for_error_notice(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_notice_type' ] )
+			->addMethods( ['get_type', 'get_notice_type'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( 'broadcast_notice' );
 		$item->method( 'get_notice_type' )->willReturn( 'error' );
@@ -321,7 +321,7 @@ class Broadcast_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_the_content_returns_string_with_title(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_id', 'get_slug', 'get_title', 'get_content' ] )
+			->addMethods( ['get_id', 'get_slug', 'get_title', 'get_content'] )
 			->getMock();
 		$item->method( 'get_id' )->willReturn( 1 );
 		$item->method( 'get_slug' )->willReturn( 'test-broadcast' );

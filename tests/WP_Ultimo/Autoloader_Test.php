@@ -47,7 +47,7 @@ class Autoloader_Test extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	public function test_constructor_is_private() {
-		$ref = new \ReflectionClass(Autoloader::class);
+		$ref         = new \ReflectionClass(Autoloader::class);
 		$constructor = $ref->getConstructor();
 
 		$this->assertTrue($constructor->isPrivate());

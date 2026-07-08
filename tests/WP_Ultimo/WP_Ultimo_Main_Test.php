@@ -256,5 +256,4 @@ class WP_Ultimo_Main_Test extends \WP_UnitTestCase {
 
 		$this->assertSame($repo1, $repo2);
 	}
-
 }

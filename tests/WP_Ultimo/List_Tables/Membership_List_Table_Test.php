@@ -92,7 +92,7 @@ class Membership_List_Table_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'wu_memberships_list_table_columns',
-			function ( $columns ) {
+			function ($columns) {
 				$columns['extra_col'] = 'Extra';
 				return $columns;
 			}
@@ -206,7 +206,7 @@ class Membership_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_status_returns_span_with_label(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_status_label', 'get_status_class' ] )
+			->addMethods( ['get_status_label', 'get_status_class'] )
 			->getMock();
 		$item->method( 'get_status_label' )->willReturn( 'Active' );
 		$item->method( 'get_status_class' )->willReturn( 'wu-bg-green-500' );
@@ -228,7 +228,7 @@ class Membership_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_amount_returns_free_for_zero_amount(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_amount', 'get_initial_amount', 'is_recurring' ] )
+			->addMethods( ['get_amount', 'get_initial_amount', 'is_recurring'] )
 			->getMock();
 		$item->method( 'get_amount' )->willReturn( 0 );
 		$item->method( 'get_initial_amount' )->willReturn( 0 );
@@ -271,7 +271,7 @@ class Membership_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_date_expiration_returns_lifetime_for_empty_date(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_date_expiration' ] )
+			->addMethods( ['get_date_expiration'] )
 			->getMock();
 		$item->method( 'get_date_expiration' )->willReturn( '' );
 
@@ -286,7 +286,7 @@ class Membership_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_date_expiration_returns_lifetime_for_zero_date(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_date_expiration' ] )
+			->addMethods( ['get_date_expiration'] )
 			->getMock();
 		$item->method( 'get_date_expiration' )->willReturn( '0000-00-00 00:00:00' );
 
@@ -301,7 +301,7 @@ class Membership_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_date_expiration_returns_datetime_for_valid_date(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_date_expiration' ] )
+			->addMethods( ['get_date_expiration'] )
 			->getMock();
 		$item->method( 'get_date_expiration' )->willReturn( '2099-12-31 00:00:00' );
 

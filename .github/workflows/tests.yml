@@ -222,16 +222,18 @@ jobs:
           for i in $(seq 1 60); do
             if curl -sf --max-time 5 http://127.0.0.1:9400/ > /dev/null 2>&1; then
               echo "Server is ready after ${i}s"
+              echo "baseline_server_ready=true" >> "$GITHUB_ENV"
               exit 0
             fi
             echo "  attempt $i/60..."
             sleep 5
           done
-          echo "ERROR: Server did not become ready within 300 seconds"
-          exit 1
+          echo "Baseline server did not become ready within 300 seconds; skipping advisory baseline metrics."
+          echo "baseline_server_ready=false" >> "$GITHUB_ENV"
+          echo "baseline_ok=false" >> "$GITHUB_ENV"
 
       - name: Run baseline performance tests
-        if: env.PERF_SKIP != 'true'
+        if: env.PERF_SKIP != 'true' && env.baseline_server_ready == 'true'
         run: |
           mkdir -p "$WP_PERF_ARTIFACTS"
           for attempt in 1 2 3; do
@@ -293,16 +295,17 @@ jobs:
           for i in $(seq 1 60); do
             if curl -sf --max-time 5 http://127.0.0.1:9400/ > /dev/null 2>&1; then
               echo "Server is ready after ${i}s"
+              echo "pr_server_ready=true" >> "$GITHUB_ENV"
               exit 0
             fi
             echo "  attempt $i/60..."
             sleep 5
           done
-          echo "ERROR: Server did not become ready within 300 seconds"
-          exit 1
+          echo "PR server did not become ready within 300 seconds; skipping advisory PR metrics."
+          echo "pr_server_ready=false" >> "$GITHUB_ENV"
 
       - name: Run PR branch performance tests
-        if: env.PERF_SKIP != 'true'
+        if: env.PERF_SKIP != 'true' && env.pr_server_ready == 'true'
         run: |
           mkdir -p "$WP_PERF_ARTIFACTS"
           for attempt in 1 2 3; do

@@ -183,7 +183,7 @@ class Site_List_Table_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'wu_site_list_get_bulk_actions',
-			function ( $actions ) {
+			function ($actions) {
 				$actions['custom_action'] = 'Custom';
 				return $actions;
 			}
@@ -206,7 +206,7 @@ class Site_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_cb_returns_checkbox_with_blog_id(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_id', 'get_membership_id' ] )
+			->addMethods( ['get_type', 'get_id', 'get_membership_id'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( 'customer_owned' );
 		$item->method( 'get_id' )->willReturn( 3 );
@@ -226,7 +226,7 @@ class Site_List_Table_Test extends WP_UnitTestCase {
 		$_REQUEST['type'] = 'pending';
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_id', 'get_membership_id' ] )
+			->addMethods( ['get_type', 'get_id', 'get_membership_id'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( 'pending' );
 		$item->method( 'get_id' )->willReturn( 3 );
@@ -247,7 +247,7 @@ class Site_List_Table_Test extends WP_UnitTestCase {
 		$_REQUEST['type'] = 'all';
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_id', 'get_membership_id' ] )
+			->addMethods( ['get_type', 'get_id', 'get_membership_id'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( 'pending' );
 		$item->method( 'get_id' )->willReturn( 3 );
@@ -267,7 +267,7 @@ class Site_List_Table_Test extends WP_UnitTestCase {
 		unset( $_REQUEST['type'] );
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_id', 'get_membership_id' ] )
+			->addMethods( ['get_type', 'get_id', 'get_membership_id'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( 'pending' );
 		$item->method( 'get_id' )->willReturn( 3 );
@@ -287,7 +287,7 @@ class Site_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_type_returns_span_with_label(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type_label', 'get_type_class' ] )
+			->addMethods( ['get_type_label', 'get_type_class'] )
 			->getMock();
 		$item->method( 'get_type_label' )->willReturn( 'Customer Owned' );
 		$item->method( 'get_type_class' )->willReturn( 'wu-bg-blue-200' );
@@ -309,7 +309,7 @@ class Site_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_blog_id_returns_dash_for_pending(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_blog_id' ] )
+			->addMethods( ['get_type', 'get_blog_id'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( \WP_Ultimo\Database\Sites\Site_Type::PENDING );
 
@@ -324,7 +324,7 @@ class Site_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_blog_id_returns_blog_id_for_non_pending(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_type', 'get_blog_id' ] )
+			->addMethods( ['get_type', 'get_blog_id'] )
 			->getMock();
 		$item->method( 'get_type' )->willReturn( 'customer_owned' );
 		$item->method( 'get_blog_id' )->willReturn( 5 );

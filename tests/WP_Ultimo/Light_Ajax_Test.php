@@ -113,7 +113,7 @@ class Light_Ajax_Test extends WP_UnitTestCase {
 
 		foreach ($allowed_actions as $action) {
 			$_REQUEST['action'] = $action;
-			$result = $method->invoke($instance);
+			$result             = $method->invoke($instance);
 			$this->assertTrue($result, "Action '$action' should skip referer check");
 		}
 
@@ -130,7 +130,7 @@ class Light_Ajax_Test extends WP_UnitTestCase {
 		}
 
 		$_REQUEST['action'] = 'some_random_action';
-		$result = $method->invoke($instance);
+		$result             = $method->invoke($instance);
 		$this->assertFalse($result);
 
 		unset($_REQUEST['action']);
@@ -190,7 +190,7 @@ class Light_Ajax_Test extends WP_UnitTestCase {
 		});
 
 		$_REQUEST['action'] = 'my_custom_action';
-		$result = $method->invoke($instance);
+		$result             = $method->invoke($instance);
 		$this->assertTrue($result);
 
 		unset($_REQUEST['action']);

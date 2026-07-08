@@ -139,7 +139,7 @@ class Faker_Test extends WP_UnitTestCase {
 	public function test_generate_fake_customers_creates_valid_customer_objects() {
 		$this->faker->generate_fake_customers();
 
-		$data = $this->faker->get_fake_data_generated('customers');
+		$data     = $this->faker->get_fake_data_generated('customers');
 		$customer = $data[0];
 
 		$this->assertInstanceOf(\WP_Ultimo\Models\Customer::class, $customer);
@@ -168,7 +168,7 @@ class Faker_Test extends WP_UnitTestCase {
 	public function test_generate_fake_products_creates_valid_product_objects() {
 		$this->faker->generate_fake_products();
 
-		$data = $this->faker->get_fake_data_generated('products');
+		$data    = $this->faker->get_fake_data_generated('products');
 		$product = $data[0];
 
 		$this->assertInstanceOf(\WP_Ultimo\Models\Product::class, $product);
@@ -180,7 +180,7 @@ class Faker_Test extends WP_UnitTestCase {
 		$this->faker->generate_fake_products(5);
 
 		$valid_types = ['plan', 'package', 'service'];
-		$data = $this->faker->get_fake_data_generated('products');
+		$data        = $this->faker->get_fake_data_generated('products');
 
 		foreach ($data as $product) {
 			$this->assertContains($product->get_type(), $valid_types);
@@ -191,7 +191,7 @@ class Faker_Test extends WP_UnitTestCase {
 		$this->faker->generate_fake_products(5);
 
 		$valid_pricing = ['paid', 'free', 'contact_us'];
-		$data = $this->faker->get_fake_data_generated('products');
+		$data          = $this->faker->get_fake_data_generated('products');
 
 		foreach ($data as $product) {
 			$this->assertContains($product->get_pricing_type(), $valid_pricing);
@@ -212,7 +212,7 @@ class Faker_Test extends WP_UnitTestCase {
 	public function test_generate_fake_memberships_creates_valid_membership_objects() {
 		$this->faker->generate_fake_memberships();
 
-		$data = $this->faker->get_fake_data_generated('memberships');
+		$data       = $this->faker->get_fake_data_generated('memberships');
 		$membership = $data[0];
 
 		$this->assertInstanceOf(\WP_Ultimo\Models\Membership::class, $membership);
@@ -224,7 +224,7 @@ class Faker_Test extends WP_UnitTestCase {
 
 		// Should have auto-created a customer and product
 		$customers = $this->faker->get_fake_data_generated('customers');
-		$products = $this->faker->get_fake_data_generated('products');
+		$products  = $this->faker->get_fake_data_generated('products');
 
 		$this->assertNotEmpty($customers);
 		$this->assertNotEmpty($products);
@@ -234,7 +234,7 @@ class Faker_Test extends WP_UnitTestCase {
 		$this->faker->generate_fake_memberships(3);
 
 		$valid_statuses = ['pending', 'active', 'on-hold', 'expired', 'cancelled'];
-		$data = $this->faker->get_fake_data_generated('memberships');
+		$data           = $this->faker->get_fake_data_generated('memberships');
 
 		foreach ($data as $membership) {
 			$this->assertContains($membership->get_status(), $valid_statuses);
@@ -255,7 +255,7 @@ class Faker_Test extends WP_UnitTestCase {
 	public function test_generate_fake_domain_creates_valid_domain_objects() {
 		$this->faker->generate_fake_domain();
 
-		$data = $this->faker->get_fake_data_generated('domains');
+		$data   = $this->faker->get_fake_data_generated('domains');
 		$domain = $data[0];
 
 		$this->assertInstanceOf(\WP_Ultimo\Models\Domain::class, $domain);
@@ -299,7 +299,7 @@ class Faker_Test extends WP_UnitTestCase {
 	public function test_generate_fake_email_creates_valid_objects() {
 		$this->faker->generate_fake_email();
 
-		$data = $this->faker->get_fake_data_generated('emails');
+		$data  = $this->faker->get_fake_data_generated('emails');
 		$email = $data[0];
 
 		$this->assertInstanceOf(\WP_Ultimo\Models\Email::class, $email);
@@ -320,7 +320,7 @@ class Faker_Test extends WP_UnitTestCase {
 	public function test_generate_fake_broadcast_creates_valid_objects() {
 		$this->faker->generate_fake_broadcast();
 
-		$data = $this->faker->get_fake_data_generated('broadcasts');
+		$data      = $this->faker->get_fake_data_generated('broadcasts');
 		$broadcast = $data[0];
 
 		$this->assertInstanceOf(\WP_Ultimo\Models\Broadcast::class, $broadcast);
@@ -331,7 +331,7 @@ class Faker_Test extends WP_UnitTestCase {
 		$this->faker->generate_fake_broadcast(5);
 
 		$valid_types = ['info', 'success', 'warning', 'error'];
-		$data = $this->faker->get_fake_data_generated('broadcasts');
+		$data        = $this->faker->get_fake_data_generated('broadcasts');
 
 		foreach ($data as $broadcast) {
 			$this->assertContains($broadcast->get_notice_type(), $valid_types);
@@ -352,7 +352,7 @@ class Faker_Test extends WP_UnitTestCase {
 	public function test_generate_fake_webhook_creates_valid_objects() {
 		$this->faker->generate_fake_webhook();
 
-		$data = $this->faker->get_fake_data_generated('webhooks');
+		$data    = $this->faker->get_fake_data_generated('webhooks');
 		$webhook = $data[0];
 
 		$this->assertInstanceOf(\WP_Ultimo\Models\Webhook::class, $webhook);
@@ -398,7 +398,7 @@ class Faker_Test extends WP_UnitTestCase {
 		$this->faker->generate_fake_memberships();
 		$this->faker->generate_fake_payment();
 
-		$data = $this->faker->get_fake_data_generated('payments');
+		$data    = $this->faker->get_fake_data_generated('payments');
 		$payment = $data[0];
 
 		$this->assertInstanceOf(\WP_Ultimo\Models\Payment::class, $payment);

@@ -119,7 +119,10 @@ class Amazon_SES_Integration_Test extends WP_UnitTestCase {
 			->getMock();
 
 		$integration->method('ses_api_call')
-			->willReturn(['SendingEnabled' => true, 'SendingQuota' => []]);
+			->willReturn([
+				'SendingEnabled' => true,
+				'SendingQuota'   => [],
+			]);
 
 		$result = $integration->test_connection();
 

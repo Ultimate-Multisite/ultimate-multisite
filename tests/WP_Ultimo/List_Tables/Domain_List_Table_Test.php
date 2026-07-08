@@ -177,7 +177,7 @@ class Domain_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_active_returns_yes_for_active(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'is_active' ] )
+			->addMethods( ['is_active'] )
 			->getMock();
 		$item->method( 'is_active' )->willReturn( true );
 
@@ -192,7 +192,7 @@ class Domain_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_active_returns_no_for_inactive(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'is_active' ] )
+			->addMethods( ['is_active'] )
 			->getMock();
 		$item->method( 'is_active' )->willReturn( false );
 
@@ -211,7 +211,7 @@ class Domain_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_primary_domain_returns_yes_for_primary(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'is_primary_domain' ] )
+			->addMethods( ['is_primary_domain'] )
 			->getMock();
 		$item->method( 'is_primary_domain' )->willReturn( true );
 
@@ -226,7 +226,7 @@ class Domain_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_primary_domain_returns_no_for_non_primary(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'is_primary_domain' ] )
+			->addMethods( ['is_primary_domain'] )
 			->getMock();
 		$item->method( 'is_primary_domain' )->willReturn( false );
 
@@ -245,7 +245,7 @@ class Domain_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_secure_returns_yes_for_secure(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'is_secure' ] )
+			->addMethods( ['is_secure'] )
 			->getMock();
 		$item->method( 'is_secure' )->willReturn( true );
 
@@ -260,7 +260,7 @@ class Domain_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_secure_returns_no_for_non_secure(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'is_secure' ] )
+			->addMethods( ['is_secure'] )
 			->getMock();
 		$item->method( 'is_secure' )->willReturn( false );
 
@@ -279,7 +279,7 @@ class Domain_List_Table_Test extends WP_UnitTestCase {
 	public function test_column_stage_returns_span_with_label(): void {
 
 		$item = $this->getMockBuilder( \stdClass::class )
-			->addMethods( [ 'get_stage_label', 'get_stage_class' ] )
+			->addMethods( ['get_stage_label', 'get_stage_class'] )
 			->getMock();
 		$item->method( 'get_stage_label' )->willReturn( 'Verified' );
 		$item->method( 'get_stage_class' )->willReturn( 'wu-bg-green-200' );

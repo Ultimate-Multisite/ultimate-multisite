@@ -74,7 +74,7 @@ class Date_Functions_Test extends WP_UnitTestCase {
 
 		$this->assertInstanceOf(\DateTime::class, $date);
 		// Should be close to current time
-		$now = new \DateTime();
+		$now  = new \DateTime();
 		$diff = $now->getTimestamp() - $date->getTimestamp();
 		$this->assertLessThan(5, abs($diff)); // Within 5 seconds
 	}
@@ -134,7 +134,7 @@ class Date_Functions_Test extends WP_UnitTestCase {
 	 * Test wu_get_days_ago returns correct value.
 	 */
 	public function test_get_days_ago(): void {
-		$today = date('Y-m-d H:i:s');
+		$today     = date('Y-m-d H:i:s');
 		$yesterday = date('Y-m-d H:i:s', strtotime('-1 day'));
 
 		$days = wu_get_days_ago($yesterday, $today);
@@ -156,7 +156,7 @@ class Date_Functions_Test extends WP_UnitTestCase {
 	 * Test wu_get_days_ago with future date.
 	 */
 	public function test_get_days_ago_future_date(): void {
-		$today = date('Y-m-d H:i:s');
+		$today    = date('Y-m-d H:i:s');
 		$tomorrow = date('Y-m-d H:i:s', strtotime('+1 day'));
 
 		$days = wu_get_days_ago($tomorrow, $today);

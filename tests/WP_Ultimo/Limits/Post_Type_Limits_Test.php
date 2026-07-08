@@ -14,7 +14,7 @@ class Post_Type_Limits_Test extends \WP_UnitTestCase {
 	 */
 	private function get_instance() {
 
-		$ref = new \ReflectionClass(Post_Type_Limits::class);
+		$ref      = new \ReflectionClass(Post_Type_Limits::class);
 		$instance = $ref->newInstanceWithoutConstructor();
 
 		return $instance;
@@ -59,7 +59,10 @@ class Post_Type_Limits_Test extends \WP_UnitTestCase {
 		// Set corrupted data
 		wu_save_setting('emulated_post_types', [
 			'not_an_array',
-			['post_type' => 'test', 'label' => 'Test'],
+			[
+				'post_type' => 'test',
+				'label'     => 'Test',
+			],
 			['invalid_key' => 'value'],
 		]);
 
@@ -300,7 +303,7 @@ class Post_Type_Limits_Test extends \WP_UnitTestCase {
 
 		add_action(
 			'wu_post_type_downgrade_demoted',
-			function($post_id) use (&$demoted_post_ids) {
+			function ($post_id) use (&$demoted_post_ids) {
 				$demoted_post_ids[] = $post_id;
 			}
 		);
@@ -365,8 +368,14 @@ class Post_Type_Limits_Test extends \WP_UnitTestCase {
 		switch_to_blog($site->get_id());
 
 		// Create 2 published posts (limit is 1, so 1 should be demoted).
-		self::factory()->post->create(['post_status' => 'publish', 'post_type' => 'post']);
-		self::factory()->post->create(['post_status' => 'publish', 'post_type' => 'post']);
+		self::factory()->post->create([
+			'post_status' => 'publish',
+			'post_type'   => 'post',
+		]);
+		self::factory()->post->create([
+			'post_status' => 'publish',
+			'post_type'   => 'post',
+		]);
 
 		restore_current_blog();
 
@@ -442,8 +451,14 @@ class Post_Type_Limits_Test extends \WP_UnitTestCase {
 
 		switch_to_blog($site->get_id());
 
-		$post_id_1 = self::factory()->post->create(['post_status' => 'publish', 'post_type' => 'post']);
-		$post_id_2 = self::factory()->post->create(['post_status' => 'publish', 'post_type' => 'post']);
+		$post_id_1 = self::factory()->post->create([
+			'post_status' => 'publish',
+			'post_type'   => 'post',
+		]);
+		$post_id_2 = self::factory()->post->create([
+			'post_status' => 'publish',
+			'post_type'   => 'post',
+		]);
 
 		restore_current_blog();
 

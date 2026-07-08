@@ -294,8 +294,8 @@ class Template_Previewer_Customize_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_preview_url_contains_preview_parameter(): void {
 
-		$url            = $this->page->get_preview_url();
-		$preview_param  = Template_Previewer::get_instance()->get_preview_parameter();
+		$url           = $this->page->get_preview_url();
+		$preview_param = Template_Previewer::get_instance()->get_preview_parameter();
 
 		$this->assertStringContainsString($preview_param . '=1', $url);
 	}

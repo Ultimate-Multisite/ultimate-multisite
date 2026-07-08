@@ -71,7 +71,7 @@ class Stub_Rest_Model {
 	 *
 	 * @param array $data Initial data.
 	 */
-	public function __construct( array $data = [] ) {
+	public function __construct(array $data = []) {
 
 		$this->data = $data;
 	}
@@ -82,7 +82,7 @@ class Stub_Rest_Model {
 	 * @param int $id Item ID.
 	 * @return static|null
 	 */
-	public static function get_by_id( $id ) {
+	public static function get_by_id($id) {
 
 		return static::$items[ $id ] ?? null;
 	}
@@ -93,7 +93,7 @@ class Stub_Rest_Model {
 	 * @param array $args Query args.
 	 * @return array|int
 	 */
-	public static function query( array $args = [] ) {
+	public static function query(array $args = []) {
 
 		if ( ! empty( $args['count'] ) ) {
 			return count( static::$items );
@@ -143,7 +143,7 @@ class Stub_Rest_Model {
 	 * @param array $values Meta values.
 	 * @return void
 	 */
-	public function update_meta_batch( array $values ): void {
+	public function update_meta_batch(array $values): void {
 
 		$this->data['meta'] = $values;
 	}
@@ -154,7 +154,7 @@ class Stub_Rest_Model {
 	 * @param mixed $value Value.
 	 * @return void
 	 */
-	public function set_name( $value ): void {
+	public function set_name($value): void {
 
 		$this->data['name'] = $value;
 	}
@@ -249,7 +249,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 	 * @param mixed $result The result from a trait method.
 	 * @return WP_Error
 	 */
-	private function extract_wp_error( $result ): WP_Error {
+	private function extract_wp_error($result): WP_Error {
 
 		if ( $result instanceof WP_Error ) {
 			return $result;
@@ -303,8 +303,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 
 		$this->manager->enable_rest_api();
 
-		$this->assertGreaterThan( 0, has_action( 'rest_api_init', [ $this->manager, 'register_routes_general' ] ) );
-		$this->assertGreaterThan( 0, has_action( 'rest_api_init', [ $this->manager, 'register_routes_with_id' ] ) );
+		$this->assertGreaterThan( 0, has_action( 'rest_api_init', [$this->manager, 'register_routes_general'] ) );
+		$this->assertGreaterThan( 0, has_action( 'rest_api_init', [$this->manager, 'register_routes_with_id'] ) );
 
 		remove_filter( 'wu_is_api_enabled', '__return_true' );
 	}
@@ -319,8 +319,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$manager = new Stub_Rest_Manager();
 		$manager->enable_rest_api();
 
-		$this->assertFalse( has_action( 'rest_api_init', [ $manager, 'register_routes_general' ] ) );
-		$this->assertFalse( has_action( 'rest_api_init', [ $manager, 'register_routes_with_id' ] ) );
+		$this->assertFalse( has_action( 'rest_api_init', [$manager, 'register_routes_general'] ) );
+		$this->assertFalse( has_action( 'rest_api_init', [$manager, 'register_routes_with_id'] ) );
 
 		remove_filter( 'wu_is_api_enabled', '__return_false' );
 	}
@@ -337,7 +337,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$fired = false;
 		add_action(
 			'wu_rest_register_routes_general',
-			function () use ( &$fired ) {
+			function () use (&$fired) {
 				$fired = true;
 			}
 		);
@@ -374,12 +374,12 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$manager    = new Stub_Rest_Manager();
 		$reflection = new \ReflectionClass( $manager );
 		$prop       = $reflection->getProperty( 'enabled_rest_endpoints' );
-		$prop->setValue( $manager, [ 'get_items' ] );
+		$prop->setValue( $manager, ['get_items'] );
 
 		$fired_routes = null;
 		add_action(
 			'wu_rest_register_routes_general',
-			function ( $routes ) use ( &$fired_routes ) {
+			function ($routes) use (&$fired_routes) {
 				$fired_routes = $routes;
 			}
 		);
@@ -399,12 +399,12 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$manager    = new Stub_Rest_Manager();
 		$reflection = new \ReflectionClass( $manager );
 		$prop       = $reflection->getProperty( 'enabled_rest_endpoints' );
-		$prop->setValue( $manager, [ 'create_item' ] );
+		$prop->setValue( $manager, ['create_item'] );
 
 		$fired_routes = null;
 		add_action(
 			'wu_rest_register_routes_general',
-			function ( $routes ) use ( &$fired_routes ) {
+			function ($routes) use (&$fired_routes) {
 				$fired_routes = $routes;
 			}
 		);
@@ -428,7 +428,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$fired = false;
 		add_action(
 			'wu_rest_register_routes_with_id',
-			function () use ( &$fired ) {
+			function () use (&$fired) {
 				$fired = true;
 			}
 		);
@@ -462,7 +462,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$fired_routes = null;
 		add_action(
 			'wu_rest_register_routes_with_id',
-			function ( $routes ) use ( &$fired_routes ) {
+			function ($routes) use (&$fired_routes) {
 				$fired_routes = $routes;
 			}
 		);
@@ -497,7 +497,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 	 */
 	public function test_get_item_rest_returns_item_when_found(): void {
 
-		$item                       = new Stub_Rest_Model( [ 'name' => 'Test' ] );
+		$item                       = new Stub_Rest_Model( ['name' => 'Test'] );
 		Stub_Rest_Model::$items[42] = $item;
 
 		$request       = new WP_REST_Request( 'GET', '/wu/v2/stub_rest_model/42' );
@@ -520,7 +520,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 
 		// Populate 5 items.
 		for ( $i = 1; $i <= 5; $i++ ) {
-			Stub_Rest_Model::$items[ $i ] = new Stub_Rest_Model( [ 'name' => "Item $i" ] );
+			Stub_Rest_Model::$items[ $i ] = new Stub_Rest_Model( ['name' => "Item $i"] );
 		}
 
 		$request = new WP_REST_Request( 'GET', '/wu/v2/stub_rest_model' );
@@ -569,7 +569,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 	public function test_get_items_rest_second_page(): void {
 
 		for ( $i = 1; $i <= 10; $i++ ) {
-			Stub_Rest_Model::$items[ $i ] = new Stub_Rest_Model( [ 'name' => "Item $i" ] );
+			Stub_Rest_Model::$items[ $i ] = new Stub_Rest_Model( ['name' => "Item $i"] );
 		}
 
 		$request = new WP_REST_Request( 'GET', '/wu/v2/stub_rest_model' );
@@ -632,7 +632,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 	public function test_create_item_rest_success_via_new_instance(): void {
 
 		$request = new WP_REST_Request( 'POST', '/wu/v2/stub_rest_model' );
-		$request->set_body( json_encode( [ 'name' => 'New Item' ] ) );
+		$request->set_body( json_encode( ['name' => 'New Item'] ) );
 
 		$result = $this->manager->create_item_rest( $request );
 
@@ -649,7 +649,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		Stub_Rest_Model::$save_fails = true;
 
 		$request = new WP_REST_Request( 'POST', '/wu/v2/stub_rest_model' );
-		$request->set_body( json_encode( [ 'name' => 'Fail Item' ] ) );
+		$request->set_body( json_encode( ['name' => 'Fail Item'] ) );
 
 		$result = $this->manager->create_item_rest( $request );
 
@@ -665,7 +665,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		Stub_Rest_Model::$save_returns_error = true;
 
 		$request = new WP_REST_Request( 'POST', '/wu/v2/stub_rest_model' );
-		$request->set_body( json_encode( [ 'name' => 'Error Item' ] ) );
+		$request->set_body( json_encode( ['name' => 'Error Item'] ) );
 
 		$result = $this->manager->create_item_rest( $request );
 
@@ -686,7 +686,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		}
 
 		$request = new WP_REST_Request( 'POST', '/wu/v2/stub_rest_model' );
-		$request->set_body( json_encode( [ 'name' => 'Saver Item' ] ) );
+		$request->set_body( json_encode( ['name' => 'Saver Item'] ) );
 
 		$result = $this->manager->create_item_rest( $request );
 
@@ -704,8 +704,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 	public function test_update_item_rest_returns_error_when_not_found(): void {
 
 		$request = new WP_REST_Request( 'PUT', '/wu/v2/stub_rest_model/999' );
-		$request->set_url_params( [ 'id' => 999 ] );
-		$request->set_body( json_encode( [ 'name' => 'Updated' ] ) );
+		$request->set_url_params( ['id' => 999] );
+		$request->set_body( json_encode( ['name' => 'Updated'] ) );
 
 		$result = $this->manager->update_item_rest( $request );
 
@@ -718,12 +718,12 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 	 */
 	public function test_update_item_rest_success_via_setter(): void {
 
-		$item                       = new Stub_Rest_Model( [ 'name' => 'Original' ] );
+		$item                       = new Stub_Rest_Model( ['name' => 'Original'] );
 		Stub_Rest_Model::$items[10] = $item;
 
 		$request = new WP_REST_Request( 'PUT', '/wu/v2/stub_rest_model/10' );
-		$request->set_url_params( [ 'id' => 10 ] );
-		$request->set_body( json_encode( [ 'name' => 'Updated Name' ] ) );
+		$request->set_url_params( ['id' => 10] );
+		$request->set_body( json_encode( ['name' => 'Updated Name'] ) );
 
 		$result = $this->manager->update_item_rest( $request );
 
@@ -741,13 +741,13 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		Stub_Rest_Model::$items[11] = $item;
 
 		$request = new WP_REST_Request( 'PUT', '/wu/v2/stub_rest_model/11' );
-		$request->set_url_params( [ 'id' => 11 ] );
-		$request->set_body( json_encode( [ 'meta' => [ 'key' => 'value' ] ] ) );
+		$request->set_url_params( ['id' => 11] );
+		$request->set_body( json_encode( ['meta' => ['key' => 'value']] ) );
 
 		$result = $this->manager->update_item_rest( $request );
 
 		$this->assertInstanceOf( \WP_REST_Response::class, $result );
-		$this->assertEquals( [ 'key' => 'value' ], $item->data['meta'] );
+		$this->assertEquals( ['key' => 'value'], $item->data['meta'] );
 	}
 
 	/**
@@ -759,8 +759,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		Stub_Rest_Model::$items[12] = $item;
 
 		$request = new WP_REST_Request( 'PUT', '/wu/v2/stub_rest_model/12' );
-		$request->set_url_params( [ 'id' => 12 ] );
-		$request->set_body( json_encode( [ 'nonexistent_field' => 'value' ] ) );
+		$request->set_url_params( ['id' => 12] );
+		$request->set_body( json_encode( ['nonexistent_field' => 'value'] ) );
 
 		$result = $this->manager->update_item_rest( $request );
 
@@ -778,8 +778,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		Stub_Rest_Model::$save_fails = true;
 
 		$request = new WP_REST_Request( 'PUT', '/wu/v2/stub_rest_model/13' );
-		$request->set_url_params( [ 'id' => 13 ] );
-		$request->set_body( json_encode( [ 'name' => 'Updated' ] ) );
+		$request->set_url_params( ['id' => 13] );
+		$request->set_body( json_encode( ['name' => 'Updated'] ) );
 
 		$result = $this->manager->update_item_rest( $request );
 
@@ -797,8 +797,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		Stub_Rest_Model::$save_returns_error = true;
 
 		$request = new WP_REST_Request( 'PUT', '/wu/v2/stub_rest_model/14' );
-		$request->set_url_params( [ 'id' => 14 ] );
-		$request->set_body( json_encode( [ 'name' => 'Updated' ] ) );
+		$request->set_url_params( ['id' => 14] );
+		$request->set_body( json_encode( ['name' => 'Updated'] ) );
 
 		$result = $this->manager->update_item_rest( $request );
 
@@ -815,7 +815,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		Stub_Rest_Model::$items[15] = $item;
 
 		$request = new WP_REST_Request( 'PUT', '/wu/v2/stub_rest_model/15' );
-		$request->set_url_params( [ 'id' => 15 ] );
+		$request->set_url_params( ['id' => 15] );
 		$request->set_body( json_encode( [
 			'name'       => 'Safe',
 			'api_key'    => 'should-be-filtered',
@@ -982,8 +982,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 	public function test_filter_schema_arguments_removes_author_id_for_non_broadcast(): void {
 
 		$args = [
-			'author_id' => [ 'type' => 'integer' ],
-			'name'      => [ 'type' => 'string' ],
+			'author_id' => ['type' => 'integer'],
+			'name'      => ['type' => 'string'],
 		];
 
 		$result = $this->manager->filter_schema_arguments( $args );
@@ -1003,8 +1003,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$prop->setValue( $manager, 'broadcast' );
 
 		$args = [
-			'author_id' => [ 'type' => 'integer' ],
-			'name'      => [ 'type' => 'string' ],
+			'author_id' => ['type' => 'integer'],
+			'name'      => ['type' => 'string'],
 		];
 
 		$result = $manager->filter_schema_arguments( $args );
@@ -1018,8 +1018,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 	public function test_filter_schema_arguments_removes_list_order(): void {
 
 		$args = [
-			'list_order' => [ 'type' => 'integer' ],
-			'name'       => [ 'type' => 'string' ],
+			'list_order' => ['type' => 'integer'],
+			'name'       => ['type' => 'string'],
 		];
 
 		$result = $this->manager->filter_schema_arguments( $args );
@@ -1033,8 +1033,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 	public function test_filter_schema_arguments_removes_status_for_non_status_slugs(): void {
 
 		$args = [
-			'status' => [ 'type' => 'string' ],
-			'name'   => [ 'type' => 'string' ],
+			'status' => ['type' => 'string'],
+			'name'   => ['type' => 'string'],
 		];
 
 		$result = $this->manager->filter_schema_arguments( $args );
@@ -1053,8 +1053,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$prop->setValue( $manager, 'broadcast' );
 
 		$args = [
-			'status' => [ 'type' => 'string' ],
-			'name'   => [ 'type' => 'string' ],
+			'status' => ['type' => 'string'],
+			'name'   => ['type' => 'string'],
 		];
 
 		$result = $manager->filter_schema_arguments( $args );
@@ -1068,8 +1068,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 	public function test_filter_schema_arguments_removes_slug_field_for_non_slug_slugs(): void {
 
 		$args = [
-			'slug' => [ 'type' => 'string' ],
-			'name' => [ 'type' => 'string' ],
+			'slug' => ['type' => 'string'],
+			'name' => ['type' => 'string'],
 		];
 
 		$result = $this->manager->filter_schema_arguments( $args );
@@ -1088,8 +1088,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$prop->setValue( $manager, 'broadcast' );
 
 		$args = [
-			'slug' => [ 'type' => 'string' ],
-			'name' => [ 'type' => 'string' ],
+			'slug' => ['type' => 'string'],
+			'name' => ['type' => 'string'],
 		];
 
 		$result = $manager->filter_schema_arguments( $args );
@@ -1108,8 +1108,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$prop->setValue( $manager, 'product' );
 
 		$args = [
-			'price_variations' => [ 'type' => 'array' ],
-			'name'             => [ 'type' => 'string' ],
+			'price_variations' => ['type' => 'array'],
+			'name'             => ['type' => 'string'],
 		];
 
 		$result = $manager->filter_schema_arguments( $args );
@@ -1128,8 +1128,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$prop->setValue( $manager, 'payment' );
 
 		$args = [
-			'line_items' => [ 'type' => 'array' ],
-			'name'       => [ 'type' => 'string' ],
+			'line_items' => ['type' => 'array'],
+			'name'       => ['type' => 'string'],
 		];
 
 		$result = $manager->filter_schema_arguments( $args );
@@ -1148,9 +1148,9 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$prop->setValue( $manager, 'site' );
 
 		$args = [
-			'duplication_arguments' => [ 'type' => 'array' ],
-			'transient'             => [ 'type' => 'string' ],
-			'name'                  => [ 'type' => 'string' ],
+			'duplication_arguments' => ['type' => 'array'],
+			'transient'             => ['type' => 'string'],
+			'name'                  => ['type' => 'string'],
 		];
 
 		$result = $manager->filter_schema_arguments( $args );
@@ -1171,9 +1171,9 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$prop->setValue( $manager, 'email' );
 
 		$args = [
-			'status'         => [ 'type' => 'string' ],
-			'email_schedule' => [ 'type' => 'string' ],
-			'name'           => [ 'type' => 'string' ],
+			'status'         => ['type' => 'string'],
+			'email_schedule' => ['type' => 'string'],
+			'name'           => ['type' => 'string'],
 		];
 
 		$result = $manager->filter_schema_arguments( $args );
@@ -1194,8 +1194,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		$prop->setValue( $manager, 'broadcast' );
 
 		$args = [
-			'message_targets' => [ 'type' => 'array' ],
-			'name'            => [ 'type' => 'string' ],
+			'message_targets' => ['type' => 'array'],
+			'name'            => ['type' => 'string'],
 		];
 
 		$result = $manager->filter_schema_arguments( $args );
@@ -1209,8 +1209,8 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 	public function test_filter_schema_arguments_removes_billing_address(): void {
 
 		$args = [
-			'billing_address' => [ 'type' => 'object' ],
-			'name'            => [ 'type' => 'string' ],
+			'billing_address' => ['type' => 'object'],
+			'name'            => ['type' => 'string'],
 		];
 
 		$result = $this->manager->filter_schema_arguments( $args );
@@ -1228,7 +1228,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'wu_before_stub_rest_model_api_arguments',
-			function ( $args ) use ( &$before_fired ) {
+			function ($args) use (&$before_fired) {
 				$before_fired = true;
 				return $args;
 			}
@@ -1236,13 +1236,13 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 
 		add_filter(
 			'wu_after_stub_rest_model_api_arguments',
-			function ( $args ) use ( &$after_fired ) {
+			function ($args) use (&$after_fired) {
 				$after_fired = true;
 				return $args;
 			}
 		);
 
-		$this->manager->filter_schema_arguments( [ 'name' => [ 'type' => 'string' ] ] );
+		$this->manager->filter_schema_arguments( ['name' => ['type' => 'string']] );
 
 		$this->assertTrue( $before_fired );
 		$this->assertTrue( $after_fired );
@@ -1264,7 +1264,7 @@ class Rest_Api_Trait_Test extends WP_UnitTestCase {
 		Stub_Rest_Model::$items[30] = $item;
 
 		$request = new WP_REST_Request( 'PUT', '/wu/v2/stub_rest_model/30' );
-		$request->set_url_params( [ 'id' => 30 ] );
+		$request->set_url_params( ['id' => 30] );
 		// Only credential keys — no valid setter, but they should be filtered before reaching setter check.
 		$request->set_body( json_encode( [
 			'api_key'    => 'key',

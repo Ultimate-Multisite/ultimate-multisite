@@ -235,7 +235,7 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * action_links returns an empty array when the object does not exist (new form).
 	 */
 	public function test_action_links_returns_empty_when_object_not_saved(): void {
-		$new_form       = new Checkout_Form();
+		$new_form           = new Checkout_Form();
 		$this->page->object = $new_form;
 
 		$links = $this->page->action_links();
@@ -292,7 +292,10 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['id']     = $this->checkout_form->get_id();
 		$this->page->object = $this->checkout_form;
 
-		$args   = ['per_page' => 20, 'orderby' => 'date'];
+		$args   = [
+			'per_page' => 20,
+			'orderby'  => 'date',
+		];
 		$result = $this->page->query_filter($args);
 
 		$this->assertEquals(20, $result['per_page']);
@@ -459,7 +462,10 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * get_create_field_fields submit button title is "Save Field" when attributes provided.
 	 */
 	public function test_get_create_field_fields_submit_button_title_for_existing_field(): void {
-		$fields = $this->page->get_create_field_fields(['type' => 'text', 'name' => 'My Field']);
+		$fields = $this->page->get_create_field_fields([
+			'type' => 'text',
+			'name' => 'My Field',
+		]);
 
 		$this->assertEquals(__('Save Field', 'ultimate-multisite'), $fields['submit_button']['title']);
 	}

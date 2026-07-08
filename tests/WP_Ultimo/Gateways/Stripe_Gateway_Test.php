@@ -134,7 +134,16 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$customers_mock->method('update')->willReturn($stripe_customer);
 
 		// Default payment method stub.
-		$stripe_pm = \Stripe\PaymentMethod::constructFrom(['id' => 'pm_test123', 'type' => 'card', 'card' => ['brand' => 'visa', 'last4' => '4242', 'exp_month' => 12, 'exp_year' => 2030]]);
+		$stripe_pm = \Stripe\PaymentMethod::constructFrom([
+			'id'   => 'pm_test123',
+			'type' => 'card',
+			'card' => [
+				'brand'     => 'visa',
+				'last4'     => '4242',
+				'exp_month' => 12,
+				'exp_year'  => 2030,
+			],
+		]);
 		$payment_methods_mock->method('retrieve')->willReturn($stripe_pm);
 
 		// Default payment methods list (for get_user_saved_payment_methods).
@@ -393,7 +402,7 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$sections = $settings->get_sections();
 
 		$payment_gateway_fields = $sections['payment-gateways']['fields'] ?? [];
-		$field_ids = array_keys($payment_gateway_fields);
+		$field_ids              = array_keys($payment_gateway_fields);
 
 		$this->assertContains(
 			'stripe_header',
@@ -441,7 +450,11 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$client = $this->build_stripe_client_mock(['paymentIntents' => $payment_intents_mock]);
 		$this->gateway->set_stripe_client($client);
 
-		$context = $this->build_checkout_context(['recurring' => false, 'trial' => false, 'amount' => 50.00]);
+		$context = $this->build_checkout_context([
+			'recurring' => false,
+			'trial'     => false,
+			'amount'    => 50.00,
+		]);
 
 		$result = $this->gateway->run_preflight();
 
@@ -480,7 +493,11 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$client = $this->build_stripe_client_mock(['setupIntents' => $setup_intents_mock]);
 		$this->gateway->set_stripe_client($client);
 
-		$context = $this->build_checkout_context(['recurring' => true, 'trial' => true, 'amount' => 29.00]);
+		$context = $this->build_checkout_context([
+			'recurring' => true,
+			'trial'     => true,
+			'amount'    => 29.00,
+		]);
 
 		$result = $this->gateway->run_preflight();
 
@@ -534,7 +551,11 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$client = $this->build_stripe_client_mock(['paymentIntents' => $payment_intents_mock]);
 		$this->gateway->set_stripe_client($client);
 
-		$context = $this->build_checkout_context(['recurring' => false, 'trial' => false, 'amount' => 50.00]);
+		$context = $this->build_checkout_context([
+			'recurring' => false,
+			'trial'     => false,
+			'amount'    => 50.00,
+		]);
 
 		// Pre-set the payment intent ID on the payment.
 		$context['payment']->update_meta('stripe_payment_intent_id', 'pi_existing123');
@@ -577,7 +598,11 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$client = $this->build_stripe_client_mock(['setupIntents' => $setup_intents_mock]);
 		$this->gateway->set_stripe_client($client);
 
-		$context = $this->build_checkout_context(['recurring' => true, 'trial' => true, 'amount' => 29.00]);
+		$context = $this->build_checkout_context([
+			'recurring' => true,
+			'trial'     => true,
+			'amount'    => 29.00,
+		]);
 
 		// Pre-set the setup intent ID on the payment.
 		$context['payment']->update_meta('stripe_payment_intent_id', 'seti_existing123');
@@ -629,7 +654,11 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$client = $this->build_stripe_client_mock(['paymentIntents' => $payment_intents_mock]);
 		$this->gateway->set_stripe_client($client);
 
-		$context = $this->build_checkout_context(['recurring' => false, 'trial' => false, 'amount' => 50.00]);
+		$context = $this->build_checkout_context([
+			'recurring' => false,
+			'trial'     => false,
+			'amount'    => 50.00,
+		]);
 		$context['payment']->update_meta('stripe_payment_intent_id', 'pi_canceled123');
 
 		$result = $this->gateway->run_preflight();
@@ -760,8 +789,18 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$card_exception = \Stripe\Exception\CardException::factory(
 			'Your card was declined.',
 			402,
-			wp_json_encode(['error' => ['code' => 'card_declined', 'message' => 'Your card was declined.']]),
-			['error' => ['code' => 'card_declined', 'message' => 'Your card was declined.']],
+			wp_json_encode([
+				'error' => [
+					'code'    => 'card_declined',
+					'message' => 'Your card was declined.',
+				],
+			]),
+			[
+				'error' => [
+					'code'    => 'card_declined',
+					'message' => 'Your card was declined.',
+				],
+			],
 			null,
 			'card_declined',
 			'insufficient_funds'
@@ -769,13 +808,22 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 
 		$payment_intents_mock->method('create')->willThrowException($card_exception);
 		$payment_intents_mock->method('retrieve')->willReturn(
-			\Stripe\PaymentIntent::constructFrom(['id' => 'pi_x', 'object' => 'payment_intent', 'status' => 'canceled', 'client_secret' => 'x'])
+			\Stripe\PaymentIntent::constructFrom([
+				'id'            => 'pi_x',
+				'object'        => 'payment_intent',
+				'status'        => 'canceled',
+				'client_secret' => 'x',
+			])
 		);
 
 		$client = $this->build_stripe_client_mock(['paymentIntents' => $payment_intents_mock]);
 		$this->gateway->set_stripe_client($client);
 
-		$context = $this->build_checkout_context(['recurring' => false, 'trial' => false, 'amount' => 50.00]);
+		$context = $this->build_checkout_context([
+			'recurring' => false,
+			'trial'     => false,
+			'amount'    => 50.00,
+		]);
 
 		$result = $this->gateway->run_preflight();
 
@@ -803,13 +851,22 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$payment_intents_mock->method('create')
 			->willThrowException(new \RuntimeException('Something went wrong', 500));
 		$payment_intents_mock->method('retrieve')->willReturn(
-			\Stripe\PaymentIntent::constructFrom(['id' => 'pi_x', 'object' => 'payment_intent', 'status' => 'canceled', 'client_secret' => 'x'])
+			\Stripe\PaymentIntent::constructFrom([
+				'id'            => 'pi_x',
+				'object'        => 'payment_intent',
+				'status'        => 'canceled',
+				'client_secret' => 'x',
+			])
 		);
 
 		$client = $this->build_stripe_client_mock(['paymentIntents' => $payment_intents_mock]);
 		$this->gateway->set_stripe_client($client);
 
-		$context = $this->build_checkout_context(['recurring' => false, 'trial' => false, 'amount' => 50.00]);
+		$context = $this->build_checkout_context([
+			'recurring' => false,
+			'trial'     => false,
+			'amount'    => 50.00,
+		]);
 
 		$result = $this->gateway->run_preflight();
 
@@ -839,8 +896,18 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$retrieve_exception = \Stripe\Exception\InvalidRequestException::factory(
 			'No such customer',
 			404,
-			wp_json_encode(['error' => ['code' => 'resource_missing', 'message' => 'No such customer']]),
-			['error' => ['code' => 'resource_missing', 'message' => 'No such customer']],
+			wp_json_encode([
+				'error' => [
+					'code'    => 'resource_missing',
+					'message' => 'No such customer',
+				],
+			]),
+			[
+				'error' => [
+					'code'    => 'resource_missing',
+					'message' => 'No such customer',
+				],
+			],
 			null,
 			'resource_missing'
 		);
@@ -848,8 +915,18 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$create_exception = \Stripe\Exception\InvalidRequestException::factory(
 			'Invalid customer',
 			400,
-			wp_json_encode(['error' => ['code' => 'invalid_request_error', 'message' => 'Invalid customer']]),
-			['error' => ['code' => 'invalid_request_error', 'message' => 'Invalid customer']],
+			wp_json_encode([
+				'error' => [
+					'code'    => 'invalid_request_error',
+					'message' => 'Invalid customer',
+				],
+			]),
+			[
+				'error' => [
+					'code'    => 'invalid_request_error',
+					'message' => 'Invalid customer',
+				],
+			],
 			null,
 			'invalid_request_error'
 		);
@@ -860,7 +937,11 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$client = $this->build_stripe_client_mock(['customers' => $customers_mock]);
 		$this->gateway->set_stripe_client($client);
 
-		$context = $this->build_checkout_context(['recurring' => false, 'trial' => false, 'amount' => 50.00]);
+		$context = $this->build_checkout_context([
+			'recurring' => false,
+			'trial'     => false,
+			'amount'    => 50.00,
+		]);
 
 		$result = $this->gateway->run_preflight();
 
@@ -889,13 +970,22 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$payment_intents_mock->method('create')
 			->willThrowException(new \RuntimeException('Empty code error', 0));
 		$payment_intents_mock->method('retrieve')->willReturn(
-			\Stripe\PaymentIntent::constructFrom(['id' => 'pi_x', 'object' => 'payment_intent', 'status' => 'canceled', 'client_secret' => 'x'])
+			\Stripe\PaymentIntent::constructFrom([
+				'id'            => 'pi_x',
+				'object'        => 'payment_intent',
+				'status'        => 'canceled',
+				'client_secret' => 'x',
+			])
 		);
 
 		$client = $this->build_stripe_client_mock(['paymentIntents' => $payment_intents_mock]);
 		$this->gateway->set_stripe_client($client);
 
-		$context = $this->build_checkout_context(['recurring' => false, 'trial' => false, 'amount' => 50.00]);
+		$context = $this->build_checkout_context([
+			'recurring' => false,
+			'trial'     => false,
+			'amount'    => 50.00,
+		]);
 
 		$result = $this->gateway->run_preflight();
 
@@ -946,7 +1036,11 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$client = $this->build_stripe_client_mock(['paymentIntents' => $payment_intents_mock]);
 		$this->gateway->set_stripe_client($client);
 
-		$context = $this->build_checkout_context(['recurring' => false, 'trial' => false, 'amount' => 50.00]);
+		$context = $this->build_checkout_context([
+			'recurring' => false,
+			'trial'     => false,
+			'amount'    => 50.00,
+		]);
 
 		$this->gateway->run_preflight();
 
@@ -998,12 +1092,12 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		wp_set_current_user($customer->get_user_id(), $customer->get_username());
 
 		$membership = wu_create_membership([
-			'customer_id'              => $customer->get_id(),
-			'plan_id'                  => 0,
-			'status'                   => Membership_Status::ACTIVE,
-			'gateway_customer_id'      => 'cus_test123',
-			'gateway'                  => 'stripe',
-			'date_expiration'          => gmdate('Y-m-d 23:59:59', strtotime('+30 days')),
+			'customer_id'         => $customer->get_id(),
+			'plan_id'             => 0,
+			'status'              => Membership_Status::ACTIVE,
+			'gateway_customer_id' => 'cus_test123',
+			'gateway'             => 'stripe',
+			'date_expiration'     => gmdate('Y-m-d 23:59:59', strtotime('+30 days')),
 		]);
 
 		$this->gateway->set_customer($customer);
@@ -1318,7 +1412,7 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 
 		// Inject an OAuth error via reflection.
 		$reflection = new \ReflectionClass($gateway);
-		$prop = $reflection->getProperty('oauth_error');
+		$prop       = $reflection->getProperty('oauth_error');
 		$prop->setAccessible(true);
 		$prop->setValue($gateway, 'OAuth connection failed: access_denied');
 

@@ -29,11 +29,11 @@ class Customer_User_Role_Limits {
 	 */
 	public function init(): void {
 
-		add_action( 'in_admin_header', array( $this, 'block_new_user_page' ) );
+		add_action( 'in_admin_header', array($this, 'block_new_user_page') );
 
-		add_action( 'wu_async_after_membership_update_products', array( $this, 'update_site_user_roles' ) );
+		add_action( 'wu_async_after_membership_update_products', array($this, 'update_site_user_roles') );
 
-		add_filter( 'editable_roles', array( $this, 'filter_editable_roles' ) );
+		add_filter( 'editable_roles', array($this, 'filter_editable_roles') );
 
 		if ( ! wu_get_current_site()->has_module_limitation( 'customer_user_role' ) ) {
 			return;
@@ -70,7 +70,7 @@ class Customer_User_Role_Limits {
 		 */
 		$message = apply_filters( 'wu_users_membership_limit_message', $message );
 
-		wp_die( esc_html( $message ), esc_html__( 'Limit Reached', 'ultimate-multisite' ), array( 'back_link' => true ) );
+		wp_die( esc_html( $message ), esc_html__( 'Limit Reached', 'ultimate-multisite' ), array('back_link' => true) );
 	}
 
 	/**
@@ -81,7 +81,7 @@ class Customer_User_Role_Limits {
 	 * @param array $roles The list of available roles.
 	 * @return array
 	 */
-	public function filter_editable_roles( $roles ) {
+	public function filter_editable_roles($roles) {
 		if ( ! is_admin() || ! is_user_logged_in() ) {
 			return $roles;
 		}
@@ -124,7 +124,7 @@ class Customer_User_Role_Limits {
 	 * @param int $membership_id The membership upgraded or downgraded.
 	 * @return void
 	 */
-	public function update_site_user_roles( $membership_id ): void {
+	public function update_site_user_roles($membership_id): void {
 
 		$membership = wu_get_membership( $membership_id );
 
@@ -167,7 +167,7 @@ class Customer_User_Role_Limits {
 	 * @param int $membership_id The membership that was updated.
 	 * @return void
 	 */
-	public function handle_downgrade( $membership_id ): void {
+	public function handle_downgrade($membership_id): void {
 
 		$membership = wu_get_membership( $membership_id );
 
@@ -182,7 +182,6 @@ class Customer_User_Role_Limits {
 		$sites = $membership->get_sites( false );
 
 		foreach ( $sites as $site ) {
-
 			$blog_id = $site->get_id();
 
 			switch_to_blog( $blog_id );
@@ -192,7 +191,6 @@ class Customer_User_Role_Limits {
 			$all_roles = wp_roles()->get_names();
 
 			foreach ( array_keys( $all_roles ) as $role ) {
-
 				$limit = $users_limitation->{$role};
 
 				if ( ! property_exists( $limit, 'enabled' ) || ! $limit->enabled ) {
@@ -225,7 +223,6 @@ class Customer_User_Role_Limits {
 				$users_to_demote = array_slice( $users_in_role, 0, $excess );
 
 				foreach ( $users_to_demote as $user_id ) {
-
 					if ( is_super_admin( $user_id ) ) {
 						continue;
 					}

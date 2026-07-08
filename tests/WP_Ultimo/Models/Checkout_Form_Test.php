@@ -967,7 +967,12 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 		$checkout_form->set_settings([
 			[
 				'id'     => 'step1',
-				'fields' => [['id' => 'field1', 'type' => 'text']],
+				'fields' => [
+					[
+						'id'   => 'field1',
+						'type' => 'text',
+					],
+				],
 			],
 		]);
 
@@ -1199,22 +1204,40 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 			[
 				'id'     => 'step1',
 				'fields' => [
-					['id' => 'f1', 'type' => 'email'],
-					['id' => 'f2', 'type' => 'text'],
+					[
+						'id'   => 'f1',
+						'type' => 'email',
+					],
+					[
+						'id'   => 'f2',
+						'type' => 'text',
+					],
 				],
 			],
 			[
 				'id'     => 'step2',
 				'fields' => [
-					['id' => 'f3', 'type' => 'password'],
-					['id' => 'f4', 'type' => 'site_title'],
-					['id' => 'f5', 'type' => 'submit_button'],
+					[
+						'id'   => 'f3',
+						'type' => 'password',
+					],
+					[
+						'id'   => 'f4',
+						'type' => 'site_title',
+					],
+					[
+						'id'   => 'f5',
+						'type' => 'submit_button',
+					],
 				],
 			],
 			[
 				'id'     => 'step3',
 				'fields' => [
-					['id' => 'f6', 'type' => 'payment'],
+					[
+						'id'   => 'f6',
+						'type' => 'payment',
+					],
 				],
 			],
 		];
@@ -1235,14 +1258,26 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 			[
 				'id'     => 'step1',
 				'fields' => [
-					['id' => 'email', 'type' => 'email', 'name' => 'Email'],
+					[
+						'id'   => 'email',
+						'type' => 'email',
+						'name' => 'Email',
+					],
 				],
 			],
 			[
 				'id'     => 'step2',
 				'fields' => [
-					['id' => 'site_title', 'type' => 'site_title', 'name' => 'Title'],
-					['id' => 'site_url', 'type' => 'site_url', 'name' => 'URL'],
+					[
+						'id'   => 'site_title',
+						'type' => 'site_title',
+						'name' => 'Title',
+					],
+					[
+						'id'   => 'site_url',
+						'type' => 'site_url',
+						'name' => 'URL',
+					],
 				],
 			],
 		];
@@ -1265,7 +1300,7 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 	 */
 	public function test_convert_steps_to_v2_basic(): void {
 		$old_steps = [
-			'begin-signup'  => [
+			'begin-signup'   => [
 				'name'   => 'Begin Signup',
 				'fields' => [],
 			],
@@ -1273,7 +1308,7 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 				'name'   => 'Create Account',
 				'fields' => [],
 			],
-			'account' => [
+			'account'        => [
 				'name'   => 'Account Info',
 				'fields' => [
 					'submit' => [
@@ -1308,15 +1343,15 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 			'account' => [
 				'name'   => 'Account',
 				'fields' => [
-					'user_name' => [
+					'user_name'      => [
 						'name' => 'Username',
 						'type' => 'text',
 					],
-					'user_email' => [
+					'user_email'     => [
 						'name' => 'Email',
 						'type' => 'email',
 					],
-					'user_pass' => [
+					'user_pass'      => [
 						'name' => 'Password',
 						'type' => 'password',
 					],
@@ -1324,11 +1359,11 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 						'name' => 'Confirm Password',
 						'type' => 'password',
 					],
-					'blog_title' => [
+					'blog_title'     => [
 						'name' => 'Blog Title',
 						'type' => 'text',
 					],
-					'blogname' => [
+					'blogname'       => [
 						'name' => 'Blog URL',
 						'type' => 'text',
 					],
@@ -1396,11 +1431,11 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 						'name' => 'URL Preview',
 						'type' => 'text',
 					],
-					'site_url' => [
+					'site_url'    => [
 						'name' => 'Site URL',
 						'type' => 'text',
 					],
-					'user_name' => [
+					'user_name'   => [
 						'name' => 'Username',
 						'type' => 'text',
 					],
@@ -1679,7 +1714,10 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 			[
 				'id'     => 'step1',
 				'fields' => [
-					['id' => 'email', 'type' => 'email'],
+					[
+						'id'   => 'email',
+						'type' => 'email',
+					],
 				],
 			],
 		];
@@ -1719,15 +1757,42 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 	 */
 	private function get_valid_settings(array $extra_fields = []): array {
 		$fields = [
-			['id' => 'username', 'type' => 'username'],
-			['id' => 'password', 'type' => 'password'],
-			['id' => 'email_address', 'type' => 'email'],
-			['id' => 'site_title', 'type' => 'site_title'],
-			['id' => 'site_url', 'type' => 'site_url'],
-			['id' => 'billing_address', 'type' => 'billing_address'],
-			['id' => 'order_summary', 'type' => 'order_summary'],
-			['id' => 'payment', 'type' => 'payment'],
-			['id' => 'submit', 'type' => 'submit_button'],
+			[
+				'id'   => 'username',
+				'type' => 'username',
+			],
+			[
+				'id'   => 'password',
+				'type' => 'password',
+			],
+			[
+				'id'   => 'email_address',
+				'type' => 'email',
+			],
+			[
+				'id'   => 'site_title',
+				'type' => 'site_title',
+			],
+			[
+				'id'   => 'site_url',
+				'type' => 'site_url',
+			],
+			[
+				'id'   => 'billing_address',
+				'type' => 'billing_address',
+			],
+			[
+				'id'   => 'order_summary',
+				'type' => 'order_summary',
+			],
+			[
+				'id'   => 'payment',
+				'type' => 'payment',
+			],
+			[
+				'id'   => 'submit',
+				'type' => 'submit_button',
+			],
 		];
 
 		$fields = array_merge($fields, $extra_fields);
@@ -1746,7 +1811,10 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 	 */
 	public function test_create_checkout_form_via_helper_function(): void {
 		$settings = $this->get_valid_settings([
-			['id' => 'email', 'type' => 'email'],
+			[
+				'id'   => 'email',
+				'type' => 'email',
+			],
 		]);
 
 		$checkout_form = wu_create_checkout_form([
@@ -1802,8 +1870,14 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 	 */
 	public function test_settings_persist_after_save(): void {
 		$settings = $this->get_valid_settings([
-			['id' => 'field1', 'type' => 'email'],
-			['id' => 'field2', 'type' => 'text'],
+			[
+				'id'   => 'field1',
+				'type' => 'email',
+			],
+			[
+				'id'   => 'field2',
+				'type' => 'text',
+			],
 		]);
 
 		$checkout_form = wu_create_checkout_form([
@@ -1927,7 +2001,10 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 			[
 				'id'     => 'no_logged_key',
 				'fields' => [
-					['id' => 'email', 'type' => 'email'],
+					[
+						'id'   => 'email',
+						'type' => 'email',
+					],
 				],
 			],
 		];
@@ -2045,11 +2122,26 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 			[
 				'id'     => 'checkout',
 				'fields' => [
-					['id' => 'email', 'type' => 'email'],
-					['id' => 'pass', 'type' => 'password'],
-					['id' => 'user', 'type' => 'username'],
-					['id' => 'title', 'type' => 'site_title'],
-					['id' => 'url', 'type' => 'site_url'],
+					[
+						'id'   => 'email',
+						'type' => 'email',
+					],
+					[
+						'id'   => 'pass',
+						'type' => 'password',
+					],
+					[
+						'id'   => 'user',
+						'type' => 'username',
+					],
+					[
+						'id'   => 'title',
+						'type' => 'site_title',
+					],
+					[
+						'id'   => 'url',
+						'type' => 'site_url',
+					],
 				],
 			],
 		];
@@ -2361,7 +2453,7 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 		$this->assertInstanceOf(Checkout_Form::class, $form);
 
 		// After save with template='single-step', settings should be populated.
-		$fetched = wu_get_checkout_form($form->get_id());
+		$fetched  = wu_get_checkout_form($form->get_id());
 		$settings = $fetched->get_settings();
 
 		$this->assertNotEmpty($settings);
@@ -2382,7 +2474,7 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 
 		$this->assertNotWPError($form);
 
-		$fetched = wu_get_checkout_form($form->get_id());
+		$fetched  = wu_get_checkout_form($form->get_id());
 		$settings = $fetched->get_settings();
 
 		$this->assertNotEmpty($settings);

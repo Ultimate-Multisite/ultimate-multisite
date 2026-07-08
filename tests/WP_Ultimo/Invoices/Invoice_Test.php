@@ -159,9 +159,9 @@ class Invoice_Test extends WP_UnitTestCase {
 
 		$payment = $this->create_test_payment();
 		$invoice = new Invoice($payment, [
-			'company_name' => 'Test Company',
+			'company_name'  => 'Test Company',
 			'primary_color' => '#ff0000',
-			'font' => 'DejaVuSerifCondensed',
+			'font'          => 'DejaVuSerifCondensed',
 		]);
 
 		$this->assertEquals('Test Company', $invoice->company_name);
@@ -226,7 +226,10 @@ class Invoice_Test extends WP_UnitTestCase {
 	 */
 	public function test_render_contains_payment_total() {
 
-		$payment = $this->create_test_payment(['total' => 110.00, 'currency' => 'USD']);
+		$payment = $this->create_test_payment([
+			'total'    => 110.00,
+			'currency' => 'USD',
+		]);
 		$invoice = new Invoice($payment);
 
 		$html = $invoice->render();
@@ -305,7 +308,7 @@ class Invoice_Test extends WP_UnitTestCase {
 		$payment = $this->create_test_payment();
 		$invoice = new Invoice($payment);
 
-		$folder = Invoice::get_folder();
+		$folder    = Invoice::get_folder();
 		$file_name = 'test-invoice-' . time() . '.pdf';
 
 		$invoice->save_file($file_name);
@@ -328,7 +331,7 @@ class Invoice_Test extends WP_UnitTestCase {
 		$payment = $this->create_test_payment();
 		$invoice = new Invoice($payment);
 
-		$folder = Invoice::get_folder();
+		$folder    = Invoice::get_folder();
 		$file_name = 'test-invoice-content-' . time() . '.pdf';
 
 		$invoice->save_file($file_name);
@@ -351,7 +354,7 @@ class Invoice_Test extends WP_UnitTestCase {
 		$payment = $this->create_test_payment();
 		$invoice = new Invoice($payment);
 
-		$folder = Invoice::get_folder();
+		$folder    = Invoice::get_folder();
 		$file_name = 'test-invoice-header-' . time() . '.pdf';
 
 		$invoice->save_file($file_name);
@@ -373,14 +376,14 @@ class Invoice_Test extends WP_UnitTestCase {
 	public function test_pdf_generation_with_eur_currency() {
 
 		$payment = $this->create_test_payment([
-			'currency' => 'EUR',
-			'total'    => 58.31,
-			'subtotal' => 49.00,
+			'currency'  => 'EUR',
+			'total'     => 58.31,
+			'subtotal'  => 49.00,
 			'tax_total' => 9.31,
 		]);
 		$invoice = new Invoice($payment);
 
-		$folder = Invoice::get_folder();
+		$folder    = Invoice::get_folder();
 		$file_name = 'test-invoice-eur-' . time() . '.pdf';
 
 		$invoice->save_file($file_name);
@@ -420,7 +423,7 @@ class Invoice_Test extends WP_UnitTestCase {
 		]);
 		$invoice = new Invoice($payment);
 
-		$folder = Invoice::get_folder();
+		$folder    = Invoice::get_folder();
 		$file_name = 'test-invoice-free-' . time() . '.pdf';
 
 		$invoice->save_file($file_name);
@@ -462,7 +465,7 @@ class Invoice_Test extends WP_UnitTestCase {
 			'footer_message' => 'Thank you for your business!',
 		]);
 
-		$folder = Invoice::get_folder();
+		$folder    = Invoice::get_folder();
 		$file_name = 'test-invoice-footer-' . time() . '.pdf';
 
 		$invoice->save_file($file_name);
@@ -638,7 +641,7 @@ class Invoice_Test extends WP_UnitTestCase {
 			'company_address' => "Königstraße 42\n10117 Berlin\nDeutschland",
 		]);
 
-		$folder = Invoice::get_folder();
+		$folder    = Invoice::get_folder();
 		$file_name = 'test-invoice-unicode-' . time() . '.pdf';
 
 		$invoice->save_file($file_name);

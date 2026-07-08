@@ -73,11 +73,11 @@ class Screenshot {
 
 		$url = add_query_arg(
 			[
-				'url'              => 'https://' . $clean_domain,
-				'screenshot'       => 'true',
-				'viewport.width'   => $width,
-				'viewport.height'  => $height,
-				'embed'            => 'screenshot.url',
+				'url'             => 'https://' . $clean_domain,
+				'screenshot'      => 'true',
+				'viewport.width'  => $width,
+				'viewport.height' => $height,
+				'embed'           => 'screenshot.url',
 			],
 			'https://api.microlink.io/'
 		);

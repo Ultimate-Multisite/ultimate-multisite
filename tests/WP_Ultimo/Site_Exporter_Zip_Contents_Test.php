@@ -272,7 +272,7 @@ class Site_Exporter_Zip_Contents_Test extends WP_UnitTestCase {
 	 */
 	private function run_export(array $assoc_args): string {
 
-		$zip_path           = $this->tmp_dir . '/export-' . uniqid() . '.zip';
+		$zip_path              = $this->tmp_dir . '/export-' . uniqid() . '.zip';
 		$assoc_args['blog_id'] = $assoc_args['blog_id'] ?? 1;
 
 		$command = new ExportCommand();
@@ -297,13 +297,13 @@ class Site_Exporter_Zip_Contents_Test extends WP_UnitTestCase {
 		$has_json = false;
 
 		foreach ($entries as $entry) {
-			$has_csv  = $has_csv  || (substr($entry, -4) === '.csv');
-			$has_sql  = $has_sql  || (substr($entry, -4) === '.sql');
+			$has_csv  = $has_csv || (substr($entry, -4) === '.csv');
+			$has_sql  = $has_sql || (substr($entry, -4) === '.sql');
 			$has_json = $has_json || (substr($entry, -5) === '.json');
 		}
 
-		$this->assertTrue($has_csv,  'Export must include the users CSV');
-		$this->assertTrue($has_sql,  'Export must include the SQL dump');
+		$this->assertTrue($has_csv, 'Export must include the users CSV');
+		$this->assertTrue($has_sql, 'Export must include the SQL dump');
 		$this->assertTrue($has_json, 'Export must include the meta JSON');
 	}
 
@@ -444,21 +444,21 @@ class Site_Exporter_Zip_Contents_Test extends WP_UnitTestCase {
 
 		$entries = $this->list_zip_entries($zip_path);
 
-		$has_plugin  = false;
-		$has_theme   = false;
-		$has_upload  = false;
-		$has_sql     = false;
+		$has_plugin = false;
+		$has_theme  = false;
+		$has_upload = false;
+		$has_sql    = false;
 
 		foreach ($entries as $entry) {
 			$has_plugin = $has_plugin || (0 === strpos($entry, 'wp-content/plugins/'));
-			$has_theme  = $has_theme  || (0 === strpos($entry, 'wp-content/themes/'));
+			$has_theme  = $has_theme || (0 === strpos($entry, 'wp-content/themes/'));
 			$has_upload = $has_upload || (0 === strpos($entry, 'wp-content/uploads/'));
-			$has_sql    = $has_sql    || (substr($entry, -4) === '.sql');
+			$has_sql    = $has_sql || (substr($entry, -4) === '.sql');
 		}
 
 		$this->assertTrue($has_plugin, 'Combined export must contain plugins');
-		$this->assertTrue($has_theme,  'Combined export must contain themes');
+		$this->assertTrue($has_theme, 'Combined export must contain themes');
 		$this->assertTrue($has_upload, 'Combined export must contain uploads');
-		$this->assertTrue($has_sql,    'Combined export must contain the SQL dump');
+		$this->assertTrue($has_sql, 'Combined export must contain the SQL dump');
 	}
 }

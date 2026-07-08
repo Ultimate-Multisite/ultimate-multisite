@@ -298,7 +298,7 @@ class Logger_Test extends \WP_UnitTestCase {
 	public function test_add_disabled_logging(): void {
 
 		// Directly manipulate the settings array to avoid the is_callable bug
-		$settings                       = \WP_Ultimo()->settings->get_all();
+		$settings                        = \WP_Ultimo()->settings->get_all();
 		$settings['error_logging_level'] = 'disabled';
 		wu_save_option('wp-ultimo_settings', $settings);
 

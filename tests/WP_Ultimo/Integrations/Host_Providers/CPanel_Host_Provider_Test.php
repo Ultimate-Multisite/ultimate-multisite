@@ -100,11 +100,11 @@ class CPanel_Host_Provider_Test extends WP_UnitTestCase {
 		$data         = new \stdClass();
 		$data->reason = $reason;
 
-		$result              = new \stdClass();
-		$result->data        = [$data];
+		$result               = new \stdClass();
+		$result->data         = [$data];
 		$result->cpanelresult = $result; // Self-reference for log_calls.
 
-		$root              = new \stdClass();
+		$root               = new \stdClass();
 		$root->cpanelresult = $result;
 
 		return $root;
@@ -511,7 +511,7 @@ class CPanel_Host_Provider_Test extends WP_UnitTestCase {
 		$cpanelresult       = new \stdClass();
 		$cpanelresult->data = [$data];
 
-		$results              = new \stdClass();
+		$results               = new \stdClass();
 		$results->cpanelresult = $cpanelresult;
 
 		// Should not throw.
@@ -531,7 +531,7 @@ class CPanel_Host_Provider_Test extends WP_UnitTestCase {
 		$cpanelresult       = new \stdClass();
 		$cpanelresult->data = $data; // Object, not array.
 
-		$results              = new \stdClass();
+		$results               = new \stdClass();
 		$results->cpanelresult = $cpanelresult;
 
 		// Should not throw.
@@ -548,7 +548,7 @@ class CPanel_Host_Provider_Test extends WP_UnitTestCase {
 		$cpanelresult       = new \stdClass();
 		$cpanelresult->data = []; // Empty array — no data[0].
 
-		$results              = new \stdClass();
+		$results               = new \stdClass();
 		$results->cpanelresult = $cpanelresult;
 
 		// Should not throw.

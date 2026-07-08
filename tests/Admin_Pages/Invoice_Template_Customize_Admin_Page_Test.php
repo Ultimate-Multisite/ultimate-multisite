@@ -440,7 +440,7 @@ class Invoice_Template_Customize_Admin_Page_Test extends WP_UnitTestCase {
 	 *
 	 * @dataProvider valid_font_provider
 	 */
-	public function test_handle_save_accepts_all_valid_fonts( string $font ): void {
+	public function test_handle_save_accepts_all_valid_fonts(string $font): void {
 		$_POST['font'] = $font;
 
 		ob_start();

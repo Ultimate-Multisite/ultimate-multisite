@@ -182,7 +182,7 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 					[
 						'elType'   => 'widget',
 						'settings' => [
-							'link' => [
+							'link'        => [
 								'url' => 'https://example.com/old-site/services',
 							],
 							'button_link' => [
@@ -367,8 +367,8 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 	public function test_try_replace_does_not_instantiate_known_class_objects() {
 		// stdClass is always available; without allowed_classes: false it would
 		// be instantiated and processed by the object-mutation branch.
-		$obj      = new \stdClass();
-		$obj->url = 'https://example.com/old/page';
+		$obj        = new \stdClass();
+		$obj->url   = 'https://example.com/old/page';
 		$serialized = serialize($obj);
 		$row        = ['meta_value' => $serialized];
 
@@ -381,14 +381,13 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 
 	/**
 	 * Test try_replace with Elementor Kit-like serialized page settings.
-	 *
 
 	 * After URL replacement, all non-URL settings must be preserved
 	 * exactly and the result must be valid serialized data.
 	 */
 	public function test_try_replace_elementor_kit_page_settings() {
 		$kit_settings = [
-			'system_colors'     => [
+			'system_colors'         => [
 				[
 					'_id'   => 'primary',
 					'color' => '#6EC1E4',
@@ -410,28 +409,28 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 					'title' => 'Accent',
 				],
 			],
-			'system_typography' => [
+			'system_typography'     => [
 				[
-					'_id'                       => 'primary',
-					'typography_font_family'     => 'Roboto',
-					'typography_font_weight'     => '600',
-					'typography_typography'      => 'custom',
+					'_id'                    => 'primary',
+					'typography_font_family' => 'Roboto',
+					'typography_font_weight' => '600',
+					'typography_typography'  => 'custom',
 				],
 				[
-					'_id'                       => 'secondary',
-					'typography_font_family'     => 'Roboto Slab',
-					'typography_font_weight'     => '400',
-					'typography_typography'      => 'custom',
+					'_id'                    => 'secondary',
+					'typography_font_family' => 'Roboto Slab',
+					'typography_font_weight' => '400',
+					'typography_typography'  => 'custom',
 				],
 			],
-			'custom_colors'     => [
+			'custom_colors'         => [
 				[
 					'_id'   => 'brand_dark',
 					'color' => '#1A1A2E',
 					'title' => 'Brand Dark',
 				],
 			],
-			'container_width'   => [
+			'container_width'       => [
 				'size' => 1140,
 				'unit' => 'px',
 			],
@@ -439,17 +438,17 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 				'size' => 20,
 				'unit' => 'px',
 			],
-			'page_title_selector' => 'h1.entry-title',
-			'active_breakpoints'  => [
+			'page_title_selector'   => 'h1.entry-title',
+			'active_breakpoints'    => [
 				'viewport_mobile',
 				'viewport_tablet',
 			],
-			'custom_css'        => 'body { font-family: "Roboto", sans-serif; } .site-logo img { max-height: 60px; } .hero-section { background-image: url(https://plantilla2.example.com/wp-content/uploads/sites/97/hero-bg.jpg); }',
-			'site_logo'         => [
+			'custom_css'            => 'body { font-family: "Roboto", sans-serif; } .site-logo img { max-height: 60px; } .hero-section { background-image: url(https://plantilla2.example.com/wp-content/uploads/sites/97/hero-bg.jpg); }',
+			'site_logo'             => [
 				'url' => 'https://plantilla2.example.com/wp-content/uploads/sites/97/logo.png',
 				'id'  => 42,
 			],
-			'site_favicon'      => [
+			'site_favicon'          => [
 				'url' => 'https://plantilla2.example.com/wp-content/uploads/sites/97/favicon.png',
 				'id'  => 43,
 			],
@@ -518,7 +517,7 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 			'old.example.com/wp-content/uploads/sites/97',
 			'new.example.com/wp-content/uploads/sites/200'
 		);
-		$row = ['meta_value' => $result];
+		$row    = ['meta_value' => $result];
 
 		// Pass 2: Blog URL
 		$result = \MUCD_Data::try_replace(
@@ -527,7 +526,7 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 			'old.example.com',
 			'new.example.com'
 		);
-		$row = ['meta_value' => $result];
+		$row    = ['meta_value' => $result];
 
 		// Pass 3: Prefix
 		$result = \MUCD_Data::try_replace(
@@ -820,76 +819,130 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 		// This mirrors the structure found in a typical Elementor-powered template
 		// site and triggers the full range of replacement passes.
 		$kit_settings = [
-			'system_colors'     => [
-				['_id' => 'primary',   'title' => 'Primary',   'color' => '#6EC1E4'],
-				['_id' => 'secondary', 'title' => 'Secondary', 'color' => '#54595F'],
-				['_id' => 'text',      'title' => 'Text',      'color' => '#7A7A7A'],
-				['_id' => 'accent',    'title' => 'Accent',    'color' => '#61CE70'],
+			'system_colors'          => [
+				[
+					'_id'   => 'primary',
+					'title' => 'Primary',
+					'color' => '#6EC1E4',
+				],
+				[
+					'_id'   => 'secondary',
+					'title' => 'Secondary',
+					'color' => '#54595F',
+				],
+				[
+					'_id'   => 'text',
+					'title' => 'Text',
+					'color' => '#7A7A7A',
+				],
+				[
+					'_id'   => 'accent',
+					'title' => 'Accent',
+					'color' => '#61CE70',
+				],
 			],
-			'custom_colors'     => [
-				['_id' => 'brand_dark',  'title' => 'Brand Dark',  'color' => '#1A1A2E'],
-				['_id' => 'brand_light', 'title' => 'Brand Light', 'color' => '#E8E8F0'],
+			'custom_colors'          => [
+				[
+					'_id'   => 'brand_dark',
+					'title' => 'Brand Dark',
+					'color' => '#1A1A2E',
+				],
+				[
+					'_id'   => 'brand_light',
+					'title' => 'Brand Light',
+					'color' => '#E8E8F0',
+				],
 			],
-			'system_typography' => [
+			'system_typography'      => [
 				[
 					'_id'                    => 'primary',
 					'title'                  => 'Primary',
-					'typography_typography'   => 'custom',
-					'typography_font_family'  => 'Roboto',
-					'typography_font_weight'  => '600',
-					'typography_font_size'    => ['unit' => 'px', 'size' => 16],
-					'typography_line_height'  => ['unit' => 'em', 'size' => 1.5],
+					'typography_typography'  => 'custom',
+					'typography_font_family' => 'Roboto',
+					'typography_font_weight' => '600',
+					'typography_font_size'   => [
+						'unit' => 'px',
+						'size' => 16,
+					],
+					'typography_line_height' => [
+						'unit' => 'em',
+						'size' => 1.5,
+					],
 				],
 				[
 					'_id'                    => 'secondary',
 					'title'                  => 'Secondary',
-					'typography_typography'   => 'custom',
-					'typography_font_family'  => 'Roboto Slab',
-					'typography_font_weight'  => '400',
-					'typography_font_size'    => ['unit' => 'px', 'size' => 14],
-					'typography_line_height'  => ['unit' => 'em', 'size' => 1.6],
+					'typography_typography'  => 'custom',
+					'typography_font_family' => 'Roboto Slab',
+					'typography_font_weight' => '400',
+					'typography_font_size'   => [
+						'unit' => 'px',
+						'size' => 14,
+					],
+					'typography_line_height' => [
+						'unit' => 'em',
+						'size' => 1.6,
+					],
 				],
 				[
 					'_id'                    => 'text',
 					'title'                  => 'Text',
-					'typography_typography'   => 'custom',
-					'typography_font_family'  => 'Open Sans',
-					'typography_font_weight'  => '400',
-					'typography_font_size'    => ['unit' => 'px', 'size' => 15],
-					'typography_line_height'  => ['unit' => 'em', 'size' => 1.7],
+					'typography_typography'  => 'custom',
+					'typography_font_family' => 'Open Sans',
+					'typography_font_weight' => '400',
+					'typography_font_size'   => [
+						'unit' => 'px',
+						'size' => 15,
+					],
+					'typography_line_height' => [
+						'unit' => 'em',
+						'size' => 1.7,
+					],
 				],
 				[
 					'_id'                    => 'accent',
 					'title'                  => 'Accent',
-					'typography_typography'   => 'custom',
-					'typography_font_family'  => 'Montserrat',
-					'typography_font_weight'  => '700',
-					'typography_font_size'    => ['unit' => 'px', 'size' => 13],
-					'typography_line_height'  => ['unit' => 'em', 'size' => 1.4],
+					'typography_typography'  => 'custom',
+					'typography_font_family' => 'Montserrat',
+					'typography_font_weight' => '700',
+					'typography_font_size'   => [
+						'unit' => 'px',
+						'size' => 13,
+					],
+					'typography_line_height' => [
+						'unit' => 'em',
+						'size' => 1.4,
+					],
 				],
 			],
-			'custom_typography' => [
+			'custom_typography'      => [
 				[
 					'_id'                    => 'heading_brand',
 					'title'                  => 'Heading Brand',
-					'typography_typography'   => 'custom',
-					'typography_font_family'  => 'Playfair Display',
-					'typography_font_weight'  => '700',
+					'typography_typography'  => 'custom',
+					'typography_font_family' => 'Playfair Display',
+					'typography_font_weight' => '700',
 				],
 			],
-			'container_width'      => ['size' => 1140, 'unit' => 'px'],
-			'space_between_widgets' => ['size' => 20, 'unit' => 'px'],
-			'page_title_selector'  => 'h1.entry-title',
-			'active_breakpoints'   => ['viewport_mobile', 'viewport_tablet'],
-			'site_logo'   => [
+			'container_width'        => [
+				'size' => 1140,
+				'unit' => 'px',
+			],
+			'space_between_widgets'  => [
+				'size' => 20,
+				'unit' => 'px',
+			],
+			'page_title_selector'    => 'h1.entry-title',
+			'active_breakpoints'     => ['viewport_mobile', 'viewport_tablet'],
+			'site_logo'              => [
 				'id'  => 42,
 				'url' => 'https://' . $origin_upload_base . '/2024/01/logo.png',
 			],
-			'site_favicon' => [
+			'site_favicon'           => [
 				'id'  => 43,
 				'url' => 'https://' . $origin_upload_base . '/2024/01/favicon.png',
 			],
-			'custom_css'  => implode("\n", [
+			'custom_css'             => implode("\n", [
 				'/* Brand styles — ' . $origin_site_url . ' */',
 				'body { font-family: "Roboto", sans-serif; color: #7A7A7A; }',
 				'h1, h2, h3 { color: #1A1A2E; font-family: "Playfair Display", serif; }',
@@ -901,8 +954,14 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 				'.cta-button:hover { background-color: #54595F; }',
 			]),
 			'_elementor_page_assets' => [
-				'fonts'   => ['Roboto' => 1, 'Roboto Slab' => 1, 'Open Sans' => 1, 'Montserrat' => 1, 'Playfair Display' => 1],
-				'icons'   => [],
+				'fonts' => [
+					'Roboto'           => 1,
+					'Roboto Slab'      => 1,
+					'Open Sans'        => 1,
+					'Montserrat'       => 1,
+					'Playfair Display' => 1,
+				],
+				'icons' => [],
 			],
 		];
 
@@ -910,7 +969,10 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 		$raw_value      = serialize($kit_settings);
 		$original_bytes = strlen($raw_value);
 
-		$post_id = self::factory()->post->create(['post_title' => 'Elementor Kit', 'post_status' => 'publish']);
+		$post_id = self::factory()->post->create([
+			'post_title'  => 'Elementor Kit',
+			'post_status' => 'publish',
+		]);
 		$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 			$wpdb->postmeta,
 			[
@@ -927,10 +989,10 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 		// Simulate all 7 replacement passes that db_update_data() applies.
 		// Pass order mirrors the string_to_replace array in db_update_data().
 		$passes = [
-			$origin_upload_base                         => $clone_upload_base,
+			$origin_upload_base                          => $clone_upload_base,
 			str_replace('/', '\\/', $origin_upload_base) => str_replace('/', '\\/', $clone_upload_base),
-			$origin_site_url                            => $clone_site_url,
-			str_replace('/', '\\/', $origin_site_url)   => str_replace('/', '\\/', $clone_site_url),
+			$origin_site_url                             => $clone_site_url,
+			str_replace('/', '\\/', $origin_site_url)    => str_replace('/', '\\/', $clone_site_url),
 		];
 
 		foreach ($passes as $from => $to) {
@@ -970,10 +1032,10 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 
 		// Typography entries must be fully intact.
 		$this->assertCount(4, $final_data['system_typography'], 'All 4 typography entries must survive');
-		$this->assertEquals('Roboto',         $final_data['system_typography'][0]['typography_font_family']);
-		$this->assertEquals('Roboto Slab',    $final_data['system_typography'][1]['typography_font_family']);
-		$this->assertEquals('Open Sans',      $final_data['system_typography'][2]['typography_font_family']);
-		$this->assertEquals('Montserrat',     $final_data['system_typography'][3]['typography_font_family']);
+		$this->assertEquals('Roboto', $final_data['system_typography'][0]['typography_font_family']);
+		$this->assertEquals('Roboto Slab', $final_data['system_typography'][1]['typography_font_family']);
+		$this->assertEquals('Open Sans', $final_data['system_typography'][2]['typography_font_family']);
+		$this->assertEquals('Montserrat', $final_data['system_typography'][3]['typography_font_family']);
 
 		// Logo and favicon URLs must be rewritten to the clone.
 		$this->assertStringContainsString($clone_upload_base, $final_data['site_logo']['url'], 'Logo URL must point to clone uploads');

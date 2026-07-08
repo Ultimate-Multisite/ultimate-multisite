@@ -5,7 +5,7 @@
  * Using a fixture file instead of inline wp eval to avoid shell-quoting
  * issues through the npx -> wp-env -> docker exec -> wp eval chain.
  */
-wu_save_setting( 'active_gateways', array( 'manual' ) );
+wu_save_setting( 'active_gateways', array('manual') );
 
 $active = wu_get_setting( 'active_gateways', array() );
 

@@ -267,7 +267,10 @@ class WP_Ultimo_Test extends WP_UnitTestCase {
 	 */
 	public function test_grant_customer_capabilities_no_op_when_cap_not_checked(): void {
 
-		$allcaps = ['read' => true, 'edit_posts' => true];
+		$allcaps = [
+			'read'       => true,
+			'edit_posts' => true,
+		];
 		$caps    = ['edit_posts'];
 		$args    = [];
 		$user    = new \WP_User(self::factory()->user->create());
@@ -325,7 +328,7 @@ class WP_Ultimo_Test extends WP_UnitTestCase {
 			'user_email' => 'admin-customer-test@example.com',
 			'user_login' => 'admin_customer_test_' . wp_rand(1000, 9999),
 		]);
-		$user = new \WP_User($user_id);
+		$user    = new \WP_User($user_id);
 
 		// Create a customer record for this user.
 		$customer = wu_create_customer([

@@ -201,8 +201,14 @@ class WooCommerce_API_Client_Test extends \WP_UnitTestCase {
 			return [
 				'response' => ['code' => 200],
 				'body'     => wp_json_encode([
-					['id' => 1, 'name' => 'Addon 1'],
-					['id' => 2, 'name' => 'Addon 2'],
+					[
+						'id'   => 1,
+						'name' => 'Addon 1',
+					],
+					[
+						'id'   => 2,
+						'name' => 'Addon 2',
+					],
 				]),
 			];
 		}, 10, 3);

@@ -36,7 +36,7 @@ class Dashboard_Statistics_Test extends WP_UnitTestCase {
 			[
 				'start_date' => '2025-01-01',
 				'end_date'   => '2025-12-31',
-				'types'      => [ 'mrr_growth' ],
+				'types'      => ['mrr_growth'],
 			]
 		);
 
@@ -52,7 +52,7 @@ class Dashboard_Statistics_Test extends WP_UnitTestCase {
 
 		$this->assertEquals('2025-01-01', $ref_start->getValue($stats));
 		$this->assertEquals('2025-12-31', $ref_end->getValue($stats));
-		$this->assertEquals([ 'mrr_growth' ], $ref_types->getValue($stats));
+		$this->assertEquals(['mrr_growth'], $ref_types->getValue($stats));
 	}
 
 	// ------------------------------------------------------------------
@@ -67,7 +67,7 @@ class Dashboard_Statistics_Test extends WP_UnitTestCase {
 			[
 				'start_date' => '2025-01-01',
 				'end_date'   => '2025-12-31',
-				'types'      => [ 'mrr_growth' => 'mrr_growth' ],
+				'types'      => ['mrr_growth' => 'mrr_growth'],
 			]
 		);
 

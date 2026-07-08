@@ -439,7 +439,10 @@ class Discount_Code_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * Test query_filter preserves existing args.
 	 */
 	public function test_query_filter_preserves_existing_args(): void {
-		$args   = ['existing_key' => 'existing_value', 'number' => 10];
+		$args   = [
+			'existing_key' => 'existing_value',
+			'number'       => 10,
+		];
 		$result = $this->page->query_filter($args);
 
 		$this->assertEquals('existing_value', $result['existing_key']);
