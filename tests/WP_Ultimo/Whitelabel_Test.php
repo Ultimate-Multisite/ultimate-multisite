@@ -284,7 +284,8 @@ class Whitelabel_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test replace_text replaces lowercase WordPress variant.
+	 * phpcs:ignore WordPress.WP.CapitalPDangit.MisspelledInComment -- Intentional lowercase fixture spelling.
+	 * Test replace_text replaces lowercase wordpress variant.
 	 */
 	public function test_replace_text_replaces_lowercase_wordpress(): void {
 
@@ -294,7 +295,8 @@ class Whitelabel_Test extends WP_UnitTestCase {
 
 		$this->whitelabel->hooks();
 
-		$result = $this->whitelabel->replace_text('powered by WordPress', 'powered by WordPress', 'default');
+		// phpcs:ignore WordPress.WP.CapitalPDangit.MisspelledInText -- Intentional lowercase fixture spelling.
+		$result = $this->whitelabel->replace_text('powered by wordpress', 'powered by wordpress', 'default');
 
 		$this->assertEquals('powered by myplatform', $result);
 	}
@@ -316,7 +318,8 @@ class Whitelabel_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test replace_text replaces "WordPress" variant (common misspelling).
+	 * phpcs:ignore WordPress.WP.CapitalPDangit.MisspelledInComment -- Intentional misspelling fixture.
+	 * Test replace_text replaces "Wordpress" variant (common misspelling).
 	 */
 	public function test_replace_text_replaces_wordpress_misspelling(): void {
 
@@ -326,13 +329,15 @@ class Whitelabel_Test extends WP_UnitTestCase {
 
 		$this->whitelabel->hooks();
 
-		$result = $this->whitelabel->replace_text('WordPress dashboard', 'WordPress dashboard', 'default');
+		// phpcs:ignore WordPress.WP.CapitalPDangit.MisspelledInText -- Intentional misspelling fixture.
+		$result = $this->whitelabel->replace_text('Wordpress dashboard', 'Wordpress dashboard', 'default');
 
 		$this->assertEquals('MyPlatform dashboard', $result);
 	}
 
 	/**
-	 * Test replace_text replaces "WordPress" variant.
+	 * phpcs:ignore WordPress.WP.CapitalPDangit.MisspelledInComment -- Intentional camelcase fixture spelling.
+	 * Test replace_text replaces "wordPress" variant.
 	 */
 	public function test_replace_text_replaces_wordpress_camelcase(): void {
 
@@ -342,7 +347,8 @@ class Whitelabel_Test extends WP_UnitTestCase {
 
 		$this->whitelabel->hooks();
 
-		$result = $this->whitelabel->replace_text('WordPress setup', 'WordPress setup', 'default');
+		// phpcs:ignore WordPress.WP.CapitalPDangit.MisspelledInText -- Intentional camelcase fixture spelling.
+		$result = $this->whitelabel->replace_text('wordPress setup', 'wordPress setup', 'default');
 
 		$this->assertEquals('MyPlatform setup', $result);
 	}
