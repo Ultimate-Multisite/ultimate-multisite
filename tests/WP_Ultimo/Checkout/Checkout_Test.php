@@ -92,6 +92,32 @@ class Checkout_Test extends WP_UnitTestCase {
 		remove_filter('wu_cart_skip_initialization', [$this, 'set_cart_error']);
 		remove_filter('wu_cart_skip_initialization', '__return_true');
 
+		$checkout     = Checkout::get_instance();
+		$reflection   = new \ReflectionClass($checkout);
+		$session_prop = $this->get_session_prop($reflection);
+		$session      = $session_prop->getValue($checkout);
+
+		if ( ! $session instanceof \WP_Ultimo\Contracts\Session) {
+			$session = wu_get_session('signup');
+		}
+
+		$session->clear();
+		$session->destroy();
+		$session_prop->setValue($checkout, null);
+
+		unset(
+			$_COOKIE['wu_session_signup'],
+			$_COOKIE['wu_checkout_intent'],
+			$_REQUEST['checkout_action'],
+			$_REQUEST['checkout_form'],
+			$_REQUEST['payment'],
+			$_REQUEST['payment_id'],
+			$_REQUEST['pre-flight'],
+			$_REQUEST['resume_checkout'],
+			$_REQUEST['step'],
+			$_REQUEST['wu_form']
+		);
+
 		parent::tearDown();
 	}
 
