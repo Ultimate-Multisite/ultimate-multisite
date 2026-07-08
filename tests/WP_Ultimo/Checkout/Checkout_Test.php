@@ -92,6 +92,32 @@ class Checkout_Test extends WP_UnitTestCase {
 		remove_filter('wu_cart_skip_initialization', [$this, 'set_cart_error']);
 		remove_filter('wu_cart_skip_initialization', '__return_true');
 
+		$checkout     = Checkout::get_instance();
+		$reflection   = new \ReflectionClass($checkout);
+		$session_prop = $this->get_session_prop($reflection);
+		$session      = $session_prop->getValue($checkout);
+
+		if ( ! $session instanceof \WP_Ultimo\Contracts\Session) {
+			$session = wu_get_session('signup');
+		}
+
+		$session->clear();
+		$session->destroy();
+		$session_prop->setValue($checkout, null);
+
+		unset(
+			$_COOKIE['wu_session_signup'],
+			$_COOKIE['wu_checkout_intent'],
+			$_REQUEST['checkout_action'],
+			$_REQUEST['checkout_form'],
+			$_REQUEST['payment'],
+			$_REQUEST['payment_id'],
+			$_REQUEST['pre-flight'],
+			$_REQUEST['resume_checkout'],
+			$_REQUEST['step'],
+			$_REQUEST['wu_form']
+		);
+
 		parent::tearDown();
 	}
 
@@ -518,6 +544,63 @@ class Checkout_Test extends WP_UnitTestCase {
 		$this->assertEquals(['a', 'b', 'c'], $result);
 
 		unset($_REQUEST['arr_key']);
+	}
+
+	/**
+	 * Test AJAX step persistence stores account fields for later steps.
+	 */
+	public function test_persist_current_step_to_session_saves_account_fields(): void {
+
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+
+		$this->ensure_session($checkout);
+
+		$session_prop = $this->get_session_prop($reflection);
+		$session      = $session_prop->getValue($checkout);
+
+		$session->set('signup', []);
+
+		$_POST['email_address']   = 'multi-step@example.com';
+		$_POST['username']        = 'multistepuser';
+		$_POST['password']        = 'strong-password';
+		$_POST['password_conf']   = 'strong-password';
+		$_POST['checkout_action'] = 'wu_checkout';
+		$_POST['checkout_step']   = 'account';
+		$_POST['_wpnonce']        = 'nonce';
+
+		$method = $reflection->getMethod('persist_current_step_to_session');
+
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		$saved  = $method->invoke($checkout);
+		$signup = $session->get('signup');
+
+		$this->assertSame('multi-step@example.com', $saved['email_address']);
+		$this->assertSame('multistepuser', $saved['username']);
+		$this->assertSame('strong-password', $saved['password']);
+		$this->assertSame('strong-password', $saved['password_conf']);
+		$this->assertSame('multi-step@example.com', $signup['email_address']);
+		$this->assertSame('multistepuser', $signup['username']);
+		$this->assertSame('strong-password', $signup['password']);
+		$this->assertSame('strong-password', $signup['password_conf']);
+		$this->assertArrayNotHasKey('checkout_action', $saved);
+		$this->assertArrayNotHasKey('checkout_step', $saved);
+		$this->assertArrayNotHasKey('_wpnonce', $saved);
+
+		$session->set('signup', []);
+
+		unset(
+			$_POST['email_address'],
+			$_POST['username'],
+			$_POST['password'],
+			$_POST['password_conf'],
+			$_POST['checkout_action'],
+			$_POST['checkout_step'],
+			$_POST['_wpnonce']
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -2111,7 +2194,7 @@ class Checkout_Test extends WP_UnitTestCase {
 
 		$checkout->setup_checkout();
 
-		$this->assertEquals($user_id, $_REQUEST['user_id']);
+		$this->assertEquals($user_id, (int) wu_request('user_id'));
 
 		// Reset
 		$setup_prop->setValue($checkout, false);
@@ -3852,7 +3935,7 @@ class Checkout_Test extends WP_UnitTestCase {
 		$this->assertNull(
 			$result->get_date_expiration(),
 			'Free membership must have null date_expiration (lifetime). ' .
-			'Got: ' . var_export($result->get_date_expiration(), true)
+			'Got: ' . (string) $result->get_date_expiration()
 		);
 
 		// Consequently, the membership should be identified as lifetime
@@ -5247,7 +5330,7 @@ class Checkout_Test extends WP_UnitTestCase {
 	/**
 	 * Test login_customer_after_checkout uses wp_signon when a password is provided.
 	 *
-	 * wp_signon() internally fires wp_login on success.
+	 * The wp_signon() function internally fires wp_login on success.
 	 */
 	public function test_login_customer_after_checkout_with_password_fires_wp_login(): void {
 

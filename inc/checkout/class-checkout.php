@@ -579,6 +579,14 @@ class Checkout {
 				wp_send_json_error($validation);
 			}
 
+			/*
+			 * Persist the validated step immediately. The front-end still performs a
+			 * native form submit to advance the browser to the next step, but relying on
+			 * that second request can lose first-step account fields before final AJAX
+			 * validation in some multi-step flows.
+			 */
+			$this->persist_current_step_to_session();
+
 			// Auto-save progress to draft payment
 			$this->save_draft_progress();
 
@@ -2989,26 +2997,7 @@ class Checkout {
 			* for later.
 			*/
 		} else {
-			/*
-			 * Cleans data and add it to the session.
-			 *
-			 * Here we remove the items that either
-			 * have checkout_ on their name or start
-			 * with an underscore.
-			 */
-			$to_save = array_filter($_POST, fn($item) => ! str_starts_with((string) $item, 'checkout_') && ! str_starts_with((string) $item, '_'), ARRAY_FILTER_USE_KEY); // phpcs:ignore WordPress.Security.NonceVerification
-
-			if (isset($to_save['pre-flight'])) {
-				unset($to_save['pre-flight']);
-				$this->session->add_values('signup', ['pre_selected' => $to_save]);
-			}
-
-			/*
-			 * Append the cleaned date to the
-			 * active session.
-			 */
-			$this->session->add_values('signup', $to_save);
-			$this->session->commit();
+			$this->persist_current_step_to_session();
 
 			/**
 			 * Whether we should advance to the next step.
@@ -3645,6 +3634,64 @@ class Checkout {
 			$payment->update_meta('checkout_session', $this->session->get());
 			$this->session->commit();
 		}
+	}
+
+	/**
+	 * Returns the current step values that should be stored in the signup session.
+	 *
+	 * Checkout control fields and private nonce fields are intentionally excluded
+	 * so only customer-entered checkout data is carried across steps.
+	 *
+	 * @since 2.6.0
+	 * @return array
+	 */
+	protected function get_current_step_session_values() {
+
+		return array_filter(
+			$_POST, // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			fn($key) => ! str_starts_with((string) $key, 'checkout_') && ! str_starts_with((string) $key, '_'),
+			ARRAY_FILTER_USE_KEY
+		);
+	}
+
+	/**
+	 * Persists the current checkout step values in the signup session.
+	 *
+	 * This is used by both the AJAX validation pass and the subsequent native
+	 * step-advance POST. Saving during AJAX prevents first-step account fields
+	 * from being absent when a later step performs final AJAX validation.
+	 *
+	 * @since 2.6.0
+	 * @return array Values stored for the current step.
+	 */
+	protected function persist_current_step_to_session() {
+
+		if (null === $this->session) {
+			$this->session = wu_get_session('signup');
+		}
+
+		$to_save      = $this->get_current_step_session_values();
+		$needs_commit = false;
+
+		if (isset($to_save['pre-flight'])) {
+			unset($to_save['pre-flight']);
+
+			$this->session->add_values('signup', ['pre_selected' => $to_save]);
+
+			$needs_commit = true;
+		}
+
+		if ( ! empty($to_save)) {
+			$this->session->add_values('signup', $to_save);
+
+			$needs_commit = true;
+		}
+
+		if ($needs_commit) {
+			$this->session->commit();
+		}
+
+		return $to_save;
 	}
 
 	/**
