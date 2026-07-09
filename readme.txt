@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 8.2
 Tested up to: 7.0
-Stable tag: 2.13.1
+Stable tag: 2.14.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -251,6 +251,12 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+Version [2.14.0] - Released on 2026-07-09
+- New: Passwordless login with passkeys, Iranian Toman currency, main-site promotion, OCI Email Delivery, and Cloudflare transactional DNS publishing are now available.
+- Fix: Security hardening now protects customer-panel actions, privileged AJAX endpoints, payment polling, REST credentials, imports, DNS forms, Broadcast output, webhooks, and admin-rendered data.
+- Fix: Checkout, SSO, mapped-domain redirects, site duplication, imports, exports, template selection, recurring cron cleanup, PayPal IPN, and addon-store connections are more reliable.
+- Improved: PHP 8.2 support, dependency patching, test stability, site-exporter scheduling, template table copying, and admin UI resilience were improved.
+
 Version [2.13.1] - Released on 2026-06-08
 - Fix: Pending site provisioning now tolerates longer queues and works on FrankenPHP, reducing checkout timeouts.
 - Fix: Checkout progress no longer shows stale live-state after the active session moves forward.
