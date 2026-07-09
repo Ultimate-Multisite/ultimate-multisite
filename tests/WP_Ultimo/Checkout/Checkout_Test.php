@@ -603,6 +603,51 @@ class Checkout_Test extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * Test pre-flight persistence stores filtered fields under pre_selected.
+	 */
+	public function test_persist_current_step_to_session_handles_pre_flight(): void {
+
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+
+		$this->ensure_session($checkout);
+
+		$session_prop = $this->get_session_prop($reflection);
+		$session      = $session_prop->getValue($checkout);
+
+		$session->set('signup', []);
+
+		$_POST['pre-flight']      = '1';
+		$_POST['email_address']   = 'pre-flight@example.com';
+		$_POST['checkout_action'] = 'wu_checkout';
+		$_POST['_wpnonce']        = 'nonce';
+
+		$method = $reflection->getMethod('persist_current_step_to_session');
+
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		$saved  = $method->invoke($checkout);
+		$signup = $session->get('signup');
+
+		$this->assertArrayNotHasKey('pre-flight', $saved);
+		$this->assertArrayNotHasKey('checkout_action', $saved);
+		$this->assertArrayNotHasKey('_wpnonce', $saved);
+		$this->assertSame('pre-flight@example.com', $saved['email_address']);
+		$this->assertSame('pre-flight@example.com', $signup['pre_selected']['email_address']);
+
+		$session->set('signup', []);
+
+		unset(
+			$_POST['pre-flight'],
+			$_POST['email_address'],
+			$_POST['checkout_action'],
+			$_POST['_wpnonce']
+		);
+	}
+
 	// -------------------------------------------------------------------------
 	// Step navigation — is_first_step
 	// -------------------------------------------------------------------------
