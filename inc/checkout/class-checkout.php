@@ -2192,6 +2192,10 @@ class Checkout {
 
 		$geolocation = \WP_Ultimo\Geolocation::geolocate_ip('', true);
 
+		$billing_country = $this->request_or_session('billing_country', $geolocation['country']);
+
+		$billing_country_data = wu_get_country($billing_country);
+
 		/*
 		 * Set the default variables.
 		 */
@@ -2200,9 +2204,10 @@ class Checkout {
 			'ajaxurl'            => wu_ajax_url(),
 			'late_ajaxurl'       => wu_ajax_url('init'),
 			'baseurl'            => remove_query_arg('pre-flight', wu_get_current_url()),
-			'country'            => $this->request_or_session('billing_country', $geolocation['country']),
+			'country'            => $billing_country,
 			'state'              => $this->request_or_session('billing_state', $geolocation['state']),
 			'city'               => $this->request_or_session('billing_city'),
+			'uses_postal_code'   => $billing_country_data ? $billing_country_data->get_uses_postal_code() : true,
 			'duration'           => $duration,
 			'duration_unit'      => $duration_unit,
 			'site_title'         => $this->request_or_session('site_title'),
@@ -2728,6 +2733,8 @@ class Checkout {
 			'template_selection' => 'template_id',
 		];
 
+		$billing_address_required = false;
+
 		/**
 		 * Add the additional required fields.
 		 */
@@ -2736,6 +2743,18 @@ class Checkout {
 			 * General required fields
 			 */
 			if (wu_get_isset($field, 'required') && wu_get_isset($field, 'id')) {
+				if ('billing_address' === $field['id']) {
+					$billing_address_required = true;
+
+					foreach (['billing_country', 'billing_zip_code'] as $billing_rule_key) {
+						if (isset($validation_rules[ $billing_rule_key ])) {
+							$validation_rules[ $billing_rule_key ] .= '|required';
+						}
+					}
+
+					continue;
+				}
+
 				$rule_key = $field_to_rule_key[ $field['id'] ] ?? $field['id'];
 
 				if (isset($validation_rules[ $rule_key ])) {
@@ -2799,7 +2818,7 @@ class Checkout {
 		 * (e.g. free trials with allow_trial_without_payment_method enabled).
 		 * Country is kept required for tax calculation at renewal time.
 		 */
-		if ( ! $this->should_collect_payment()) {
+		if ( ! $this->should_collect_payment() && ! $billing_address_required) {
 			$validation_rules['billing_zip_code'] = '';
 			$validation_rules['billing_state']    = '';
 			$validation_rules['billing_city']     = '';

@@ -69,7 +69,7 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 	 */
 	public function get_title() {
 
-		return __('Address', 'ultimate-multisite');
+		return __('Billing Address', 'ultimate-multisite');
 	}
 
 	/**
@@ -167,16 +167,21 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 	public function get_fields() {
 
 		return [
-			'zip_and_country' => [
+			'_billing_address_notice' => [
+				'type'  => 'note',
+				'desc'  => __('Payment gateways may collect billing details on their own checkout screens. Use these fields when Ultimate Multisite should collect an address directly, especially for free products.', 'ultimate-multisite'),
+				'order' => 0,
+			],
+			'zip_and_country'         => [
 				'type'  => 'toggle',
 				'title' => __('Display only ZIP and Country?', 'ultimate-multisite'),
 				'desc'  => __('Checking this option will only add the ZIP and country fields, instead of all the normal billing address fields.', 'ultimate-multisite'),
 				'value' => true,
 			],
-			'required'        => [
+			'required'                => [
 				'type'  => 'toggle',
 				'title' => __('Address fields are required?', 'ultimate-multisite'),
-				'desc'  => __('When enabled, the visible billing address fields must be filled in to complete checkout. Turn this off to make the billing address optional — useful for free plans, donations, or stores that only need a country for tax purposes. Stripe and PayPal still collect whatever billing data their own checkout surface requires (Stripe Payment Element: name, country, postal code; Stripe Checkout & PayPal: full address from their hosted page or the payer\'s PayPal account).', 'ultimate-multisite'),
+				'desc'  => __('Require customers to enter their address information.', 'ultimate-multisite'),
 				'value' => true,
 			],
 		];
@@ -332,6 +337,10 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 			$attributes
 		);
 
+		$payment_required_expression = $address_required ? 'true' : '(order === false || order.should_collect_payment)';
+
+		$self_billing_gateways_expression = $address_required ? 'false' : $self_billing_gateways;
+
 		foreach ($fields as $field_key => &$field) {
 			$field['wrapper_classes']              = trim(wu_get_isset($field, 'wrapper_classes', '') . ' ' . $attributes['element_classes']);
 			$field['wrapper_html_attr']['v-cloak'] = 1;
@@ -354,14 +363,14 @@ class Signup_Field_Billing_Address extends Base_Signup_Field {
 			 * instead of throwing a ReferenceError.
 			 */
 			if ('billing_country' === $field_key) {
-				$field['wrapper_html_attr']['v-if'] = "(order === false || order.should_collect_payment) && !($self_billing_gateways)";
+				$field['wrapper_html_attr']['v-if'] = "$payment_required_expression && !($self_billing_gateways_expression)";
 			} elseif ('billing_zip_code' === $field_key) {
-				$field['wrapper_html_attr']['v-if'] = "(order === false || order.should_collect_payment) && !($self_billing_gateways) && (typeof uses_postal_code === 'undefined' || uses_postal_code)";
+				$field['wrapper_html_attr']['v-if'] = "$payment_required_expression && !($self_billing_gateways_expression) && (typeof uses_postal_code === 'undefined' || uses_postal_code)";
 			} elseif ($zip_only) {
 				// Other fields in zip_only mode share the same gateway exclusion.
-				$field['wrapper_html_attr']['v-if'] = "!($self_billing_gateways)";
+				$field['wrapper_html_attr']['v-if'] = "$payment_required_expression && !($self_billing_gateways_expression)";
 			} else {
-				$field['wrapper_html_attr']['v-show'] = 'order === false || order.should_collect_payment';
+				$field['wrapper_html_attr']['v-show'] = $payment_required_expression;
 			}
 		}
 
