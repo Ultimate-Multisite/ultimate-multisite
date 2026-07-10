@@ -636,6 +636,7 @@ class Checkout_Test extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey('checkout_action', $saved);
 		$this->assertArrayNotHasKey('_wpnonce', $saved);
 		$this->assertSame('pre-flight@example.com', $saved['email_address']);
+		$this->assertSame('pre-flight@example.com', $signup['email_address']);
 		$this->assertSame('pre-flight@example.com', $signup['pre_selected']['email_address']);
 
 		$session->set('signup', []);
