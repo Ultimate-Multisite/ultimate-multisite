@@ -240,6 +240,7 @@ jobs:
             echo "--- Baseline attempt $attempt/3 ---"
             if ! curl -sf --max-time 5 http://127.0.0.1:9400/ > /dev/null 2>&1; then
               echo "Server not responding — skipping"
+              [ "$attempt" -lt 3 ] && sleep 10
               continue
             fi
             if npm run test:performance; then
