@@ -264,8 +264,9 @@ class Screenshot {
 	/**
 	 * Checks whether an image body is blank or contains a single solid colour.
 	 *
-	 * A bounded grid is sampled so validation remains inexpensive for large
-	 * provider responses. Images that cannot be decoded are rejected.
+	 * The scan stops as soon as both visible and varied pixels are found, which
+	 * avoids rejecting mostly blank screenshots that contain real content.
+	 * Images that cannot be decoded are rejected.
 	 *
 	 * @since 2.14.2
 	 *
@@ -273,6 +274,12 @@ class Screenshot {
 	 * @return bool True when the image is unusable.
 	 */
 	private static function is_blank_image($body) {
+
+		$image_info = @getimagesizefromstring($body); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Invalid provider data is expected.
+
+		if (false === $image_info) {
+			return true;
+		}
 
 		if ( ! function_exists('imagecreatefromstring')) {
 			return false;
@@ -289,11 +296,9 @@ class Screenshot {
 		$first_color = null;
 		$is_solid    = true;
 		$transparent = true;
-		$x_step      = max(1, (int) floor($width / 20));
-		$y_step      = max(1, (int) floor($height / 20));
 
-		for ($y = 0; $y < $height; $y += $y_step) {
-			for ($x = 0; $x < $width; $x += $x_step) {
+		for ($y = 0; $y < $height; $y++) {
+			for ($x = 0; $x < $width; $x++) {
 				$color = imagecolorsforindex($image, imagecolorat($image, $x, $y));
 				$rgba  = [$color['red'], $color['green'], $color['blue'], $color['alpha']];
 
@@ -305,6 +310,12 @@ class Screenshot {
 
 				if ($color['alpha'] < 127) {
 					$transparent = false;
+				}
+
+				if ( ! $is_solid && ! $transparent) {
+					imagedestroy($image);
+
+					return false;
 				}
 			}
 		}
