@@ -20,6 +20,9 @@
     "autoload": {
         "classmap": [
             "inc"
+        ],
+        "exclude-from-classmap": [
+            "/inc/site-exporter/mu-migration/"
         ]
     },
     "repositories": [

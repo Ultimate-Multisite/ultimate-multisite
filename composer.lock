@@ -4369,7 +4369,7 @@
             "dist": {
                 "type": "path",
                 "url": "composer-plugins/wp-ultimo-autoloader-plugin",
-                "reference": "4177b50593d4ec40b193a6cd3760ec9a26cb7778"
+                "reference": "a77f1410ef182a71034d3227c67dc7e86956b023"
             },
             "require": {
                 "composer-plugin-api": "^1.0 || ^2.0"
@@ -4379,9 +4379,9 @@
                 "class": "WP_Ultimo\\Composer\\WP_Ultimo_Autoloader_Plugin"
             },
             "autoload": {
-                "psr-4": {
-                    "WP_Ultimo\\Composer\\": "src/"
-                }
+                "classmap": [
+                    "src/class-wp-ultimo-autoloader-plugin.php"
+                ]
             },
             "license": [
                 "GPL-3.0-or-later"
