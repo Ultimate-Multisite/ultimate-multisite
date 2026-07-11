@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 8.2
 Tested up to: 7.0
-Stable tag: 2.14.0
+Stable tag: 2.14.1
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -251,6 +251,12 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+Version [2.14.1] - Released on 2026-07-11
+- Fix: Checkout billing address fields now stay visible and validated when required, including free checkout flows and localized postal-code handling.
+- Fix: Admin select-icon fields now load their configured options reliably when editing checkout fields.
+- Fix: Baseline performance checks now handle transient server startup delays more reliably.
+- Improved: Checkout pre-flight email persistence is covered by regression tests to prevent signup session regressions.
+
 Version [2.14.0] - Released on 2026-07-09
 - New: Passwordless login with passkeys, Iranian Toman currency, main-site promotion, OCI Email Delivery, and Cloudflare transactional DNS publishing are now available.
 - Fix: Security hardening now protects customer-panel actions, privileged AJAX endpoints, payment polling, REST credentials, imports, DNS forms, Broadcast output, webhooks, and admin-rendered data.
