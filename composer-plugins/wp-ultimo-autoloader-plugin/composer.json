@@ -7,9 +7,9 @@
         "composer-plugin-api": "^1.0 || ^2.0"
     },
     "autoload": {
-        "psr-4": {
-            "WP_Ultimo\\Composer\\": "src/"
-        }
+        "classmap": [
+            "src/class-wp-ultimo-autoloader-plugin.php"
+        ]
     },
     "extra": {
         "class": "WP_Ultimo\\Composer\\WP_Ultimo_Autoloader_Plugin"

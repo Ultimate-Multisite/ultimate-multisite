@@ -52,4 +52,24 @@ class Autoloader_Test extends WP_UnitTestCase {
 
 		$this->assertTrue($constructor->isPrivate());
 	}
+
+	/**
+	 * The bundled MU-Migration WP-CLI polyfill must only load explicitly.
+	 *
+	 * Third-party plugins commonly use class_exists( 'WP_CLI' ) to detect a
+	 * real CLI process. If either Composer or Jetpack Autoloader maps this
+	 * polyfill, that probe loads a fake global WP_CLI facade during web requests.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_mu_migration_wp_cli_polyfill_is_not_autoloadable() {
+
+		if (class_exists('WP_CLI', false)) {
+			$this->markTestSkipped('Real WP-CLI is loaded.');
+		}
+
+		$this->assertFalse(class_exists('WP_CLI', false), 'The polyfill must not already be loaded on a web request.');
+		$this->assertFalse(class_exists('WP_CLI'), 'The autoloaders must not resolve the MU-Migration WP-CLI polyfill.');
+	}
 }
