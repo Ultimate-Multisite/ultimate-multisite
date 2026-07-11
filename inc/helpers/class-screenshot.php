@@ -177,7 +177,13 @@ class Screenshot {
 			return false;
 		}
 
-		$body = $response['body'];
+		$body = (string) wp_remote_retrieve_body($response);
+
+		if ('' === $body) {
+			wu_log_add('screenshot-generator', $log_prefix . __('Result is an empty screenshot; not saving.', 'ultimate-multisite'), LogLevel::ERROR);
+
+			return false;
+		}
 
 		/*
 		 * Detect image format from magic bytes.
@@ -192,6 +198,12 @@ class Screenshot {
 			return false;
 		}
 
+		if (self::is_blank_image($body)) {
+			wu_log_add('screenshot-generator', $log_prefix . __('Result is a blank or single-colour screenshot; not saving.', 'ultimate-multisite'), LogLevel::ERROR);
+
+			return false;
+		}
+
 		$upload = wp_upload_bits('screenshot-' . gmdate('Y-m-d-H-i-s') . '.' . $extension, null, $body);
 
 		if ( ! empty($upload['error'])) {
@@ -200,7 +212,18 @@ class Screenshot {
 			return false;
 		}
 
-		$file_path        = $upload['file'];
+		$file_path = $upload['file'];
+
+		if ( ! is_file($file_path) || 0 === filesize($file_path)) {
+			if (is_file($file_path)) {
+				wp_delete_file($file_path);
+			}
+
+			wu_log_add('screenshot-generator', $log_prefix . __('Uploaded screenshot is empty; not saving.', 'ultimate-multisite'), LogLevel::ERROR);
+
+			return false;
+		}
+
 		$file_name        = basename($file_path);
 		$file_type        = wp_check_filetype($file_name, null);
 		$attachment_title = sanitize_file_name(pathinfo($file_name, PATHINFO_FILENAME));
@@ -215,7 +238,14 @@ class Screenshot {
 		];
 
 		// Create the attachment
-		$attach_id = wp_insert_attachment($post_info, $file_path);
+		$attach_id = wp_insert_attachment($post_info, $file_path, 0, true);
+
+		if (is_wp_error($attach_id)) {
+			wp_delete_file($file_path);
+			wu_log_add('screenshot-generator', $log_prefix . $attach_id->get_error_message(), LogLevel::ERROR);
+
+			return false;
+		}
 
 		// Include image.php
 		require_once ABSPATH . 'wp-admin/includes/image.php';
@@ -229,5 +259,69 @@ class Screenshot {
 		wu_log_add('screenshot-generator', $log_prefix . __('Success!', 'ultimate-multisite'));
 
 		return $attach_id;
+	}
+
+	/**
+	 * Checks whether an image body is blank or contains a single solid colour.
+	 *
+	 * The scan stops as soon as both visible and varied pixels are found, which
+	 * avoids rejecting mostly blank screenshots that contain real content.
+	 * Images that cannot be decoded are rejected.
+	 *
+	 * @since 2.14.2
+	 *
+	 * @param string $body Raw image body.
+	 * @return bool True when the image is unusable.
+	 */
+	private static function is_blank_image($body) {
+
+		$image_info = @getimagesizefromstring($body); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Invalid provider data is expected.
+
+		if (false === $image_info) {
+			return true;
+		}
+
+		if ( ! function_exists('imagecreatefromstring')) {
+			return false;
+		}
+
+		$image = @imagecreatefromstring($body); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Invalid provider data is expected.
+
+		if (false === $image) {
+			return true;
+		}
+
+		$width       = imagesx($image);
+		$height      = imagesy($image);
+		$first_color = null;
+		$is_solid    = true;
+		$transparent = true;
+
+		for ($y = 0; $y < $height; $y++) {
+			for ($x = 0; $x < $width; $x++) {
+				$color = imagecolorsforindex($image, imagecolorat($image, $x, $y));
+				$rgba  = [$color['red'], $color['green'], $color['blue'], $color['alpha']];
+
+				if (null === $first_color) {
+					$first_color = $rgba;
+				} elseif ($first_color !== $rgba) {
+					$is_solid = false;
+				}
+
+				if ($color['alpha'] < 127) {
+					$transparent = false;
+				}
+
+				if ( ! $is_solid && ! $transparent) {
+					imagedestroy($image);
+
+					return false;
+				}
+			}
+		}
+
+		imagedestroy($image);
+
+		return $is_solid || $transparent;
 	}
 }

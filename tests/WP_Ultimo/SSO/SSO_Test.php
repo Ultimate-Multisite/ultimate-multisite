@@ -368,9 +368,9 @@ class SSO_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test cross-domain return URLs default to the customer admin target.
+	 * Test cross-domain return URLs default to the customer root URL.
 	 */
-	public function test_get_sso_redirect_to_defaults_cross_domain_return_url_to_admin(): void {
+	public function test_get_sso_redirect_to_defaults_cross_domain_return_url_to_root(): void {
 		$sso        = SSO::get_instance();
 		$return_url = 'https://customer.example.com/';
 
@@ -378,7 +378,7 @@ class SSO_Test extends \WP_UnitTestCase {
 		$method->setAccessible(true);
 
 		$this->assertSame(
-			'https://customer.example.com/wp/wp-admin/',
+			'https://customer.example.com/',
 			$method->invoke($sso, $return_url)
 		);
 	}

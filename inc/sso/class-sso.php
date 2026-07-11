@@ -1136,7 +1136,24 @@ class SSO {
 		$return_url = $unwrapped_return_url;
 
 		if ( ! empty($return_url) && $this->is_cross_domain_url($return_url) ) {
-			return esc_url_raw(rtrim($return_url, '/') . '/wp/wp-admin/');
+			/*
+			 * Send the user back to where they were (the return URL), not to a
+			 * hard-coded '/wp/wp-admin/' suffix. The suffix assumed a Bedrock-style
+			 * install; on standard installs it 404s, and the SSO snippet on the 404
+			 * page restarts the flow, appending one more '/wp/wp-admin/' per round
+			 * (site.com/wp/wp-admin/wp/wp-admin/...). A handful of fast 404s is
+			 * enough for security plugins with a 404 lockout (e.g. Defender) to ban
+			 * the customer's IP. Explicit admin intent still arrives through the
+			 * redirect_to branch above. Suffixes already stacked by previous
+			 * versions are collapsed so in-flight URLs self-heal.
+			 */
+			$clean_url = rtrim($return_url, '/');
+
+			while ( preg_match('#/(wp/)?wp-admin$#', $clean_url) ) {
+				$clean_url = rtrim(preg_replace('#/(wp/)?wp-admin$#', '', $clean_url), '/');
+			}
+
+			return esc_url_raw(trailingslashit($clean_url));
 		}
 
 		return esc_url_raw($redirect_to ?: admin_url());

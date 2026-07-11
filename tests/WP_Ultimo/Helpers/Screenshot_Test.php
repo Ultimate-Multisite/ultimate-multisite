@@ -31,11 +31,46 @@ class Screenshot_Test extends WP_UnitTestCase {
 	// ------------------------------------------------------------------
 
 	private function png_body() {
-		return "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a" . str_repeat("\x00", 100);
+		$image = imagecreatetruecolor(10, 10);
+		imagefilledrectangle($image, 0, 0, 9, 9, imagecolorallocate($image, 20, 40, 60));
+		imagesetpixel($image, 5, 5, imagecolorallocate($image, 200, 180, 160));
+		ob_start();
+		imagepng($image);
+		$body = ob_get_clean();
+		imagedestroy($image);
+
+		return $body;
 	}
 
 	private function jpeg_body() {
-		return "\xFF\xD8\xFF\xE0\x00\x10JFIF\x00";
+		$image = imagecreatetruecolor(10, 10);
+		imagefilledrectangle($image, 0, 0, 9, 9, imagecolorallocate($image, 20, 40, 60));
+		imagesetpixel($image, 5, 5, imagecolorallocate($image, 200, 180, 160));
+		ob_start();
+		imagejpeg($image);
+		$body = ob_get_clean();
+		imagedestroy($image);
+
+		return $body;
+	}
+
+	private function solid_png_body($transparent = false) {
+		$image = imagecreatetruecolor(10, 10);
+
+		if ($transparent) {
+			imagesavealpha($image, true);
+			$color = imagecolorallocatealpha($image, 255, 255, 255, 127);
+		} else {
+			$color = imagecolorallocate($image, 255, 255, 255);
+		}
+
+		imagefilledrectangle($image, 0, 0, 9, 9, $color);
+		ob_start();
+		imagepng($image);
+		$body = ob_get_clean();
+		imagedestroy($image);
+
+		return $body;
 	}
 
 	// ------------------------------------------------------------------
@@ -161,6 +196,59 @@ class Screenshot_Test extends WP_UnitTestCase {
 
 		$result = Screenshot::save_image_from_url('https://example.com/test');
 		$this->assertFalse($result);
+	}
+
+	public function test_save_image_returns_false_for_empty_body() {
+		add_filter(
+			'pre_http_request',
+			function () {
+				return [
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => '',
+				];
+			}
+		);
+
+		$this->assertFalse(Screenshot::save_image_from_url('https://example.com/test'));
+	}
+
+	public function test_save_image_returns_false_for_all_white_png() {
+		$body = $this->solid_png_body();
+		add_filter(
+			'pre_http_request',
+			function () use ($body) {
+				return [
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => $body,
+				];
+			}
+		);
+
+		$this->assertFalse(Screenshot::save_image_from_url('https://example.com/test'));
+	}
+
+	public function test_save_image_returns_false_for_all_transparent_png() {
+		$body = $this->solid_png_body(true);
+		add_filter(
+			'pre_http_request',
+			function () use ($body) {
+				return [
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => $body,
+				];
+			}
+		);
+
+		$this->assertFalse(Screenshot::save_image_from_url('https://example.com/test'));
 	}
 
 	public function test_save_image_returns_false_on_http_error() {
@@ -313,6 +401,34 @@ class Screenshot_Test extends WP_UnitTestCase {
 
 		$this->assertIsInt($result, 'Expected fallback (thum.io) to succeed after Microlink failure.');
 		$this->assertSame(2, $call_count, 'Expected 2 HTTP calls: 1 Microlink (failed) + 1 thum.io.');
+	}
+
+	public function test_take_screenshot_falls_back_when_primary_is_blank() {
+		$call_count = 0;
+		$blank_body = $this->solid_png_body();
+		$valid_body = $this->png_body();
+
+		add_filter(
+			'pre_http_request',
+			function ($preempt, $args, $url) use (&$call_count, $blank_body, $valid_body) {
+				$call_count++;
+
+				return [
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => false !== strpos($url, 'microlink') ? $blank_body : $valid_body,
+				];
+			},
+			10,
+			3
+		);
+
+		$result = Screenshot::take_screenshot('example.com');
+
+		$this->assertIsInt($result);
+		$this->assertSame(2, $call_count);
 	}
 
 	public function test_take_screenshot_does_not_call_fallback_when_primary_succeeds() {
