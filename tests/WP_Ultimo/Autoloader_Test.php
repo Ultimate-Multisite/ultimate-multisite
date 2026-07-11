@@ -65,7 +65,7 @@ class Autoloader_Test extends WP_UnitTestCase {
 	 */
 	public function test_mu_migration_wp_cli_polyfill_is_not_autoloadable() {
 
-		if (defined('WP_CLI') && WP_CLI) {
+		if (class_exists('WP_CLI', false)) {
 			$this->markTestSkipped('Real WP-CLI is loaded.');
 		}
 

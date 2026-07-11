@@ -136,6 +136,16 @@ class WP_Ultimo_Autoloader_Plugin implements PluginInterface, EventSubscriberInt
 		$pattern  = "/\n\t'[^']+' => array\(\n\t\t'version' => '[^']+',\n\t\t'path'\s*=> [^\n]*\\/inc\\/site-exporter\\/mu-migration\\/[^\n]*\n\t\),/";
 		$filtered = preg_replace($pattern, '', $content);
 
-		return is_string($filtered) ? $filtered : $content;
+		if ( ! is_string($filtered) ) {
+			return $content;
+		}
+
+		if ( $filtered === $content && strpos($content, '/inc/site-exporter/mu-migration/') !== false ) {
+			$this->io->write(
+				'<warning>MU-Migration entries found in Jetpack classmap but the exclusion pattern did not match. The classmap format may have changed.</warning>'
+			);
+		}
+
+		return $filtered;
 	}
 }
