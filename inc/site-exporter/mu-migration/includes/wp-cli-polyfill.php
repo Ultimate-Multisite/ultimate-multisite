@@ -105,6 +105,43 @@ namespace {
 					'stderr'      => '',
 				];
 			}
+
+			/**
+			 * Minimal runner stub outside WP-CLI.
+			 *
+			 * Third-party plugins probe `class_exists( 'WP_CLI' )` and then call
+			 * `WP_CLI::get_runner()` to decide whether a real CLI command is
+			 * running (e.g. WooCommerce Subscriptions' is_plugin_being_activated()
+			 * reads `WP_CLI::get_runner()->arguments`). Because this facade is
+			 * defined on web/AJAX requests, a missing get_runner() fatals the whole
+			 * request. Return a runner-like object whose `arguments` is an empty
+			 * list so those checks safely conclude no CLI command is running.
+			 *
+			 * @return object
+			 */
+			public static function get_runner() {
+
+				return (object) [
+					'arguments'      => [],
+					'assoc_args'     => [],
+					'runtime_config' => [],
+				];
+			}
+
+			/**
+			 * No-op fallback for any other static method a third-party plugin may
+			 * call once this facade is present. This facade only exists because the
+			 * real WP-CLI is not loaded, so an unknown method must never fatal a
+			 * web request.
+			 *
+			 * @param string $name      Method name.
+			 * @param array  $arguments Method arguments.
+			 * @return null
+			 */
+			public static function __callStatic($name, $arguments) {
+
+				return null;
+			}
 		}
 	}
 }
