@@ -40,7 +40,7 @@ class Visits_Manager {
 		 * Due to how caching plugins work, we need to count visits via ajax.
 		 * This adds the ajax endpoint that performs the counting.
 		 */
-		add_action('wp_ajax_nopriv_wu_count_visits', [$this, 'count_visits'], 10, 2);
+		add_action('wp_ajax_nopriv_wu_count_visits', [$this, 'count_visits']);
 
 		add_action('wp_enqueue_scripts', [$this, 'enqueue_visit_counter_script']);
 
@@ -61,16 +61,36 @@ class Visits_Manager {
 			return;
 		}
 
-		/*
-		 * Case unlimited visits
-		 */
-		if (empty($site->get_limitations()->visits->get_limit())) {
-			return;
-		}
+		$status = $this->get_visit_lock_status($site);
 
-		if ($site->has_limitations() && $site->get_visits_count() > $site->get_limitations()->visits->get_limit()) {
+		if ($status['locked']) {
 			wp_die(esc_html__('This site is not available at this time.', 'ultimate-multisite'), esc_html__('Not available', 'ultimate-multisite'), 404);
 		}
+	}
+
+	/**
+	 * Get the read-only visit lock status for a site.
+	 *
+	 * This is the canonical decision used by both frontend enforcement and
+	 * authenticated availability diagnostics.
+	 *
+	 * @since 2.15.0
+	 * @param \WP_Ultimo\Models\Site $site Site to inspect.
+	 * @return array{enabled: bool, limit: int, count: int, locked: bool}
+	 */
+	public function get_visit_lock_status($site) {
+
+		$enabled = (bool) wu_get_setting('enable_visits_limiting', true);
+		$limit   = $enabled ? (int) $site->get_limitations()->visits->get_limit() : 0;
+		$count   = $enabled && $limit > 0 ? (int) $site->get_visits_count() : 0;
+		$locked  = $enabled && $limit > 0 && $site->has_limitations() && $count > $limit;
+
+		return [
+			'enabled' => $enabled,
+			'limit'   => $limit,
+			'count'   => $count,
+			'locked'  => $locked,
+		];
 	}
 
 	/**
@@ -105,17 +125,6 @@ class Visits_Manager {
 		 * Add a new visit.
 		 */
 		$visits_manager->add_visit();
-
-		/*
-		 * Checks against the limitations.
-		 */
-		if (false) {
-			Cache_Manager::get_instance()->flush_known_caches();
-
-			echo 'flushing caches';
-
-			die('2');
-		}
 
 		die('1');
 	}

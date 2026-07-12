@@ -64,6 +64,8 @@ class Site_Manager extends Base_Manager {
 
 		$this->enable_mcp_abilities();
 
+		add_action('wu_mcp_abilities_registered', [$this, 'register_availability_diagnostic_ability'], 10, 3);
+
 		$this->enable_command_palette();
 
 		add_action('after_setup_theme', [$this, 'additional_thumbnail_sizes']);
@@ -122,6 +124,138 @@ class Site_Manager extends Base_Manager {
 
 		// Handle "go live" action requests from site admins.
 		add_action('wp', [$this, 'handle_go_live_action']);
+	}
+
+	/**
+	 * Register the authenticated site availability diagnostic ability.
+	 *
+	 * @since 2.15.0
+	 * @param string $ability_prefix Ability prefix.
+	 * @param string $model_name Model name.
+	 * @param object $manager Entity manager.
+	 * @return void
+	 */
+	public function register_availability_diagnostic_ability($ability_prefix, $model_name, $manager): void {
+
+		unset($ability_prefix);
+
+		if ('site' !== $model_name || $manager !== $this || wp_get_ability('multisite-ultimate/site-availability-diagnose')) {
+			return;
+		}
+
+		wp_register_ability(
+			'multisite-ultimate/site-availability-diagnose',
+			[
+				'label'               => __('Diagnose site availability', 'ultimate-multisite'),
+				'description'         => __('Resolve a tenant site and report authenticated, read-only frontend availability diagnostics.', 'ultimate-multisite'),
+				'category'            => 'ultimate-multisite',
+				'execute_callback'    => [$this, 'mcp_diagnose_site_availability'],
+				'permission_callback' => [$this, 'mcp_permission_callback'],
+				'input_schema'        => [
+					'type'                 => 'object',
+					'properties'           => [
+						'site_id' => [
+							'type'    => 'integer',
+							'minimum' => 1,
+						],
+						'domain'  => ['type' => 'string'],
+					],
+					'additionalProperties' => false,
+				],
+				'output_schema'       => ['type' => 'object'],
+				'meta'                => [
+					'mcp'         => [
+						'public' => true,
+						'type'   => 'tool',
+					],
+					'annotations' => ['readOnlyHint' => true],
+				],
+			]
+		);
+	}
+
+	/**
+	 * Diagnose why a tenant frontend is or is not available.
+	 *
+	 * @since 2.15.0
+	 * @param array $input_data Ability input data.
+	 * @return array|\WP_Error
+	 */
+	public function mcp_diagnose_site_availability(array $input_data) {
+
+		$site           = false;
+		$mapped_domain  = false;
+		$requested_host = '';
+
+		if ( ! empty($input_data['site_id'])) {
+			$site = wu_get_site(absint($input_data['site_id']));
+		} elseif ( ! empty($input_data['domain'])) {
+			$requested_host = strtolower((string) wp_parse_url('https://' . preg_replace('#^https?://#i', '', trim($input_data['domain'])), PHP_URL_HOST));
+			$mapped_domain  = wu_get_domain_by_domain($requested_host);
+			$site           = $mapped_domain ? wu_get_site($mapped_domain->get_blog_id()) : false;
+
+			if ( ! $site) {
+				$blog_id = get_blog_id_from_url($requested_host, '/');
+				$site    = $blog_id ? wu_get_site($blog_id) : false;
+			}
+		} else {
+			$site = wu_get_current_site();
+		}
+
+		if ( ! $site) {
+			return new \WP_Error('wu_site_not_found', __('No site could be resolved from the supplied input.', 'ultimate-multisite'), ['status' => 404]);
+		}
+
+		if ( ! $mapped_domain && $requested_host) {
+			$mapped_domain = wu_get_domain_by_domain($requested_host);
+		}
+
+		$primary_domain = $site->get_primary_mapped_domain();
+		$domain         = $mapped_domain ?: $primary_domain;
+		$visits         = Visits_Manager::get_instance()->get_visit_lock_status($site);
+		$lock_reason    = 'none';
+
+		if ($site->is_deleted()) {
+			$lock_reason = 'site_deleted';
+		} elseif ($site->is_spam()) {
+			$lock_reason = 'site_spam';
+		} elseif ($site->is_archived()) {
+			$lock_reason = 'site_archived';
+		} elseif ($visits['locked']) {
+			$lock_reason = 'visits_exceeded';
+		}
+
+		$available = 'none' === $lock_reason;
+
+		return [
+			'site'               => [
+				'blog_id'       => (int) $site->get_id(),
+				'domain'        => $site->get_domain(),
+				'path'          => $site->get_path(),
+				'public'        => (bool) $site->get_public(),
+				'archived'      => (bool) $site->is_archived(),
+				'spam'          => (bool) $site->is_spam(),
+				'deleted'       => (bool) $site->is_deleted(),
+				'mature'        => (bool) $site->is_mature(),
+				'type'          => $site->get_type(),
+				'customer_id'   => (int) $site->get_customer_id(),
+				'membership_id' => (int) $site->get_membership_id(),
+				'template_id'   => (int) $site->get_template_id(),
+			],
+			'domain_mapping'     => $domain ? [
+				'domain'         => $domain->get_domain(),
+				'active'         => $domain->is_active(),
+				'primary_domain' => $domain->is_primary_domain(),
+				'secure'         => $domain->is_secure(),
+				'stage'          => $domain->get_stage(),
+			] : null,
+			'limitations'        => ['visits' => $visits],
+			'frontend_available' => $available,
+			'lock_reason'        => $lock_reason,
+			'message'            => $available
+				? __('The site frontend is available.', 'ultimate-multisite')
+				: __('The site frontend is unavailable. Review the reported lock reason.', 'ultimate-multisite'),
+		];
 	}
 
 	/**
