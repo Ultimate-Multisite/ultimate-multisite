@@ -40,7 +40,7 @@ class Visits_Manager {
 		 * Due to how caching plugins work, we need to count visits via ajax.
 		 * This adds the ajax endpoint that performs the counting.
 		 */
-		add_action('wp_ajax_nopriv_wu_count_visits', [$this, 'count_visits'], 10, 2);
+		add_action('wp_ajax_nopriv_wu_count_visits', [$this, 'count_visits']);
 
 		add_action('wp_enqueue_scripts', [$this, 'enqueue_visit_counter_script']);
 
@@ -69,7 +69,7 @@ class Visits_Manager {
 		}
 
 		if ($site->has_limitations() && $site->get_visits_count() > $site->get_limitations()->visits->get_limit()) {
-			wp_die(esc_html__('This site is not available at this time.', 'ultimate-multisite'), esc_html__('Not available', 'ultimate-multisite'), 404);
+			wp_die(esc_html__('This site is not available at this time.', 'ultimate-multisite'), esc_html__('Not available', 'ultimate-multisite'), 503);
 		}
 	}
 
@@ -105,17 +105,6 @@ class Visits_Manager {
 		 * Add a new visit.
 		 */
 		$visits_manager->add_visit();
-
-		/*
-		 * Checks against the limitations.
-		 */
-		if (false) {
-			Cache_Manager::get_instance()->flush_known_caches();
-
-			echo 'flushing caches';
-
-			die('2');
-		}
 
 		die('1');
 	}
