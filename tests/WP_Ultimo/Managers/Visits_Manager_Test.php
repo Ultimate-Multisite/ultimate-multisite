@@ -8,7 +8,7 @@
 namespace WP_Ultimo\Tests\Managers;
 
 use WP_Ultimo\Managers\Visits_Manager;
-use WP_Ultimo\Models\Site_Type;
+use WP_Ultimo\Database\Sites\Site_Type;
 use WP_Ultimo\Objects\Visits;
 
 class Visits_Manager_Test extends \WP_UnitTestCase {
