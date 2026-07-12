@@ -25,7 +25,10 @@ class Site_Availability_Diagnostic_Test extends \WP_UnitTestCase {
 		$manager->register_ability_category();
 		$manager->register_abilities();
 
-		$this->assertNotNull(wp_get_ability('multisite-ultimate/site-availability-diagnose'));
+		$ability = wp_get_ability('multisite-ultimate/site-availability-diagnose');
+
+		$this->assertNotNull($ability);
+		$this->assertTrue($ability->get_meta_item('annotations')['readonly']);
 	}
 
 	/**
