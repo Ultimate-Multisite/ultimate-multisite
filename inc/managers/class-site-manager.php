@@ -139,7 +139,7 @@ class Site_Manager extends Base_Manager {
 
 		unset($ability_prefix);
 
-		if ('site' !== $model_name || $manager !== $this || wp_get_ability('multisite-ultimate/site-availability-diagnose')) {
+		if ('site' !== $model_name || $manager !== $this || wp_has_ability('multisite-ultimate/site-availability-diagnose')) {
 			return;
 		}
 
