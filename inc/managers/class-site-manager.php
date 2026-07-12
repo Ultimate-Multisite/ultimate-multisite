@@ -168,7 +168,7 @@ class Site_Manager extends Base_Manager {
 						'public' => true,
 						'type'   => 'tool',
 					],
-					'annotations' => ['readOnlyHint' => true],
+					'annotations' => ['readonly' => true],
 				],
 			]
 		);
@@ -186,16 +186,20 @@ class Site_Manager extends Base_Manager {
 		$site           = false;
 		$mapped_domain  = false;
 		$requested_host = '';
+		$requested_path = '/';
 
 		if ( ! empty($input_data['site_id'])) {
 			$site = wu_get_site(absint($input_data['site_id']));
 		} elseif ( ! empty($input_data['domain'])) {
-			$requested_host = strtolower((string) wp_parse_url('https://' . preg_replace('#^https?://#i', '', trim($input_data['domain'])), PHP_URL_HOST));
+			$requested_url  = 'https://' . preg_replace('#^https?://#i', '', trim($input_data['domain']));
+			$requested_host = strtolower((string) wp_parse_url($requested_url, PHP_URL_HOST));
+			$requested_path = (string) wp_parse_url($requested_url, PHP_URL_PATH) ?: '/';
+			$requested_path = '/' . trim($requested_path, '/') . ('/' === $requested_path ? '' : '/');
 			$mapped_domain  = wu_get_domain_by_domain($requested_host);
 			$site           = $mapped_domain ? wu_get_site($mapped_domain->get_blog_id()) : false;
 
 			if ( ! $site) {
-				$blog_id = get_blog_id_from_url($requested_host, '/');
+				$blog_id = get_blog_id_from_url($requested_host, $requested_path);
 				$site    = $blog_id ? wu_get_site($blog_id) : false;
 			}
 		} else {
