@@ -117,6 +117,22 @@ class Visits_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test diagnostics can request the real count while limiting is disabled.
+	 */
+	public function test_get_visit_lock_status_forces_count_when_disabled(): void {
+		wu_save_setting('enable_visits_limiting', false);
+
+		$site = $this->createMock(\WP_Ultimo\Models\Site::class);
+		$site->method('get_visits_count')->willReturn(7);
+
+		$status = Visits_Manager::get_instance()->get_visit_lock_status($site, true);
+
+		$this->assertFalse($status['locked']);
+		$this->assertSame(0, $status['limit']);
+		$this->assertSame(7, $status['count']);
+	}
+
+	/**
 	 * Test enabled but unlimited visits never lock a site.
 	 */
 	public function test_get_visit_lock_status_ignores_unlimited_visits(): void {

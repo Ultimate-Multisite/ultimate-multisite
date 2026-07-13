@@ -83,7 +83,7 @@ class Visits_Manager {
 
 		$enabled = (bool) wu_get_setting('enable_visits_limiting', true);
 		$limit   = $enabled ? (int) $site->get_limitations()->visits->get_limit() : 0;
-		$count   = $enabled && ($limit > 0 || $force_count) ? (int) $site->get_visits_count() : 0;
+		$count   = $force_count || ($enabled && $limit > 0) ? (int) $site->get_visits_count() : 0;
 		$locked  = $enabled && $limit > 0 && $site->has_limitations() && $count > $limit;
 
 		return [

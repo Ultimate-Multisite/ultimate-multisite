@@ -165,7 +165,10 @@ class Site_Manager extends Base_Manager {
 								'dns'            => ['type' => 'string'],
 								'transport'      => ['type' => 'string'],
 								'effective_url'  => ['type' => 'string'],
-								'redirect_chain' => ['type' => 'array'],
+								'redirect_chain' => [
+									'type'  => 'array',
+									'items' => ['type' => 'string'],
+								],
 								'http_status'    => ['type' => 'integer'],
 								'title'          => ['type' => 'string'],
 								'body'           => ['type' => 'string'],
@@ -242,6 +245,7 @@ class Site_Manager extends Base_Manager {
 		$primary_domain = $site->get_primary_mapped_domain();
 		$domain         = $mapped_domain ?: $primary_domain;
 		$visits         = Visits_Manager::get_instance()->get_visit_lock_status($site, true);
+		$site_lock      = $this->evaluate_site_lock($site);
 		$lock_reason    = 'none';
 
 		if ($site->is_deleted()) {
@@ -256,6 +260,8 @@ class Site_Manager extends Base_Manager {
 			$lock_reason = 'domain_not_primary';
 		} elseif ($mapped_domain && 'done' !== $mapped_domain->get_stage()) {
 			$lock_reason = 'domain_stage_not_done';
+		} elseif ($site_lock['locked']) {
+			$lock_reason = $site_lock['reason'];
 		} elseif ($visits['locked']) {
 			$lock_reason = 'visits_exceeded';
 		}
@@ -310,6 +316,7 @@ class Site_Manager extends Base_Manager {
 	 */
 	public function fingerprint_frontend_smoke(array $smoke) {
 
+		$redirects   = array_filter((array) ($smoke['redirect_chain'] ?? []), 'is_string');
 		$body        = isset($smoke['body']) ? sanitize_textarea_field($smoke['body']) : '';
 		$fingerprint = $body ? wp_html_excerpt(preg_replace('/\s+/', ' ', $body), 200, '&hellip;') : '';
 		$known_lock  = str_contains($body, 'This site is not available at this time.');
@@ -317,12 +324,62 @@ class Site_Manager extends Base_Manager {
 		return [
 			'dns'              => sanitize_text_field($smoke['dns'] ?? 'not_checked'),
 			'transport'        => sanitize_text_field($smoke['transport'] ?? 'not_checked'),
-			'redirect_chain'   => array_map('esc_url_raw', (array) ($smoke['redirect_chain'] ?? [])),
+			'redirect_chain'   => array_map('esc_url_raw', $redirects),
 			'effective_url'    => esc_url_raw($smoke['effective_url'] ?? ''),
 			'http_status'      => absint($smoke['http_status'] ?? 0),
 			'title'            => sanitize_text_field($smoke['title'] ?? ''),
 			'body_fingerprint' => $fingerprint,
 			'known_lock'       => $known_lock ? 'visits_exceeded' : 'none',
+		];
+	}
+
+	/**
+	 * Evaluate site and membership states that block the public frontend.
+	 *
+	 * @since 2.15.0
+	 * @param \WP_Ultimo\Models\Site $site Site to inspect.
+	 * @return array{locked: bool, reason: string, use_block_page: bool}
+	 */
+	public function evaluate_site_lock($site) {
+
+		if ($site->is_keep_until_live()) {
+			return [
+				'locked'         => true,
+				'reason'         => 'demo_not_live',
+				'use_block_page' => false,
+			];
+		}
+
+		if ( ! $site->is_active()) {
+			return [
+				'locked'         => true,
+				'reason'         => 'site_inactive',
+				'use_block_page' => false,
+			];
+		}
+
+		$membership = $site->get_membership();
+		$status     = $membership ? $membership->get_status() : false;
+		$cancelled  = Membership_Status::CANCELLED === $status;
+		$inactive   = $status && ! $membership->is_active() && Membership_Status::TRIALING !== $status;
+
+		if ($cancelled || ($inactive && wu_get_setting('block_frontend', false))) {
+			$grace_period    = $cancelled ? 0 : (int) wu_get_setting('block_frontend_grace_period', 0);
+			$expiration_time = wu_date($membership->get_date_expiration())->getTimestamp() + $grace_period * DAY_IN_SECONDS;
+
+			if ($expiration_time < wu_date()->getTimestamp()) {
+				return [
+					'locked'         => true,
+					'reason'         => 'membership_inactive',
+					'use_block_page' => (bool) wu_get_setting('block_frontend', false),
+				];
+			}
+		}
+
+		return [
+			'locked'         => false,
+			'reason'         => 'none',
+			'use_block_page' => false,
 		];
 	}
 
@@ -606,11 +663,9 @@ class Site_Manager extends Base_Manager {
 			return;
 		}
 
-		$can_access = true;
-
-		$redirect_url = null;
-
-		$site = wu_get_current_site();
+		$site       = wu_get_current_site();
+		$site_lock  = $this->evaluate_site_lock($site);
+		$membership = $site->get_membership();
 
 		/*
 		 * Block frontend for keep-until-live demo sites.
@@ -620,7 +675,7 @@ class Site_Manager extends Base_Manager {
 		 * explicitly activates the site. Site administrators are allowed through
 		 * so they can preview their work.
 		 */
-		if ($site->is_keep_until_live()) {
+		if ('demo_not_live' === $site_lock['reason']) {
 			if (current_user_can('manage_options') || is_super_admin()) {
 				// Site admins can see the frontend — let them through.
 				return;
@@ -638,36 +693,7 @@ class Site_Manager extends Base_Manager {
 			);
 		}
 
-		if ( ! $site->is_active()) {
-			$can_access = false;
-		}
-
-		$membership = $site->get_membership();
-
-		$status = $membership ? $membership->get_status() : false;
-
-		$is_cancelled = Membership_Status::CANCELLED === $status;
-
-		$is_inactive = $status && ! $membership->is_active() && Membership_Status::TRIALING !== $status;
-
-		if ($is_cancelled || ($is_inactive && wu_get_setting('block_frontend', false))) {
-
-			// If membership is cancelled we do not add the grace period
-			$grace_period = Membership_Status::CANCELLED !== $status ? (int) wu_get_setting('block_frontend_grace_period', 0) : 0;
-
-			$expiration_time = wu_date($membership->get_date_expiration())->getTimestamp() + $grace_period * DAY_IN_SECONDS;
-
-			if ($expiration_time < wu_date()->getTimestamp()) {
-				$checkout_pages = \WP_Ultimo\Checkout\Checkout_Pages::get_instance();
-
-				// We only show the url field when block_frontend is true
-				$redirect_url = wu_get_setting('block_frontend', false) ? $checkout_pages->get_page_url('block_frontend') : false;
-
-				$can_access = false;
-			}
-		}
-
-		if (false === $can_access) {
+		if ($site_lock['locked']) {
 			/*
 			 * Allow plugins to provide a reactivation URL for blocked sites.
 			 *
@@ -690,7 +716,10 @@ class Site_Manager extends Base_Manager {
 				exit;
 			}
 
-			if ($redirect_url) {
+			if ($site_lock['use_block_page']) {
+				$checkout_pages = \WP_Ultimo\Checkout\Checkout_Pages::get_instance();
+				$redirect_url   = $checkout_pages->get_page_url('block_frontend');
+
 				wp_safe_redirect($redirect_url);
 
 				exit;

@@ -36,6 +36,7 @@ class Site_Availability_Diagnostic_Test extends \WP_UnitTestCase {
 	 * visit lock when visit limiting is disabled.
 	 */
 	public function test_availability_diagnostic_resolves_mapped_domain(): void {
+		$original_setting = wu_get_setting('enable_visits_limiting', true);
 		wu_save_setting('enable_visits_limiting', false);
 
 		$blog_id = self::factory()->blog->create();
@@ -52,18 +53,21 @@ class Site_Availability_Diagnostic_Test extends \WP_UnitTestCase {
 
 		$this->assertNotWPError($domain);
 
-		$result = Site_Manager::get_instance()->mcp_diagnose_site_availability(['domain' => $domain->get_domain()]);
+		try {
+			$result = Site_Manager::get_instance()->mcp_diagnose_site_availability(['domain' => $domain->get_domain()]);
 
-		$this->assertNotWPError($result);
-		$this->assertSame($blog_id, $result['site']['blog_id']);
-		$this->assertSame($domain->get_domain(), $result['domain_mapping']['domain']);
-		$this->assertTrue($result['domain_mapping']['active']);
-		$this->assertTrue($result['domain_mapping']['primary_domain']);
-		$this->assertTrue($result['frontend_available']);
-		$this->assertSame('none', $result['lock_reason']);
-
-		$domain->delete();
-		wp_delete_site($blog_id);
+			$this->assertNotWPError($result);
+			$this->assertSame($blog_id, $result['site']['blog_id']);
+			$this->assertSame($domain->get_domain(), $result['domain_mapping']['domain']);
+			$this->assertTrue($result['domain_mapping']['active']);
+			$this->assertTrue($result['domain_mapping']['primary_domain']);
+			$this->assertTrue($result['frontend_available']);
+			$this->assertSame('none', $result['lock_reason']);
+		} finally {
+			wu_save_setting('enable_visits_limiting', $original_setting);
+			$domain->delete();
+			wp_delete_site($blog_id);
+		}
 	}
 
 	/**
