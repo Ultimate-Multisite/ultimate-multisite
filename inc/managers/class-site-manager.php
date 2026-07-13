@@ -154,15 +154,40 @@ class Site_Manager extends Base_Manager {
 				'input_schema'        => [
 					'type'                 => 'object',
 					'properties'           => [
-						'site_id' => [
+						'site_id'        => [
 							'type'    => 'integer',
 							'minimum' => 1,
 						],
-						'domain'  => ['type' => 'string'],
+						'domain'         => ['type' => 'string'],
+						'frontend_smoke' => [
+							'type'                 => 'object',
+							'properties'           => [
+								'dns'            => ['type' => 'string'],
+								'transport'      => ['type' => 'string'],
+								'effective_url'  => ['type' => 'string'],
+								'redirect_chain' => ['type' => 'array'],
+								'http_status'    => ['type' => 'integer'],
+								'title'          => ['type' => 'string'],
+								'body'           => ['type' => 'string'],
+							],
+							'additionalProperties' => false,
+						],
 					],
 					'additionalProperties' => false,
 				],
-				'output_schema'       => ['type' => 'object'],
+				'output_schema'       => [
+					'type'       => 'object',
+					'properties' => [
+						'site'                => ['type' => 'object'],
+						'targeting'           => ['type' => 'object'],
+						'domain_mapping'      => ['type' => ['object', 'null']],
+						'limitations'         => ['type' => 'object'],
+						'public_availability' => ['type' => 'object'],
+						'frontend_available'  => ['type' => 'boolean'],
+						'lock_reason'         => ['type' => 'string'],
+						'message'             => ['type' => 'string'],
+					],
+				],
 				'meta'                => [
 					'mcp'         => [
 						'public' => true,
@@ -191,7 +216,7 @@ class Site_Manager extends Base_Manager {
 		if ( ! empty($input_data['site_id'])) {
 			$site = wu_get_site(absint($input_data['site_id']));
 		} elseif ( ! empty($input_data['domain'])) {
-			$requested_url  = 'https://' . preg_replace('#^https?://#i', '', trim($input_data['domain']));
+			$requested_url  = 'https://' . preg_replace('#^https?://#i', '', sanitize_text_field($input_data['domain']));
 			$requested_host = strtolower((string) wp_parse_url($requested_url, PHP_URL_HOST));
 			$requested_path = (string) wp_parse_url($requested_url, PHP_URL_PATH) ?: '/';
 			$requested_path = '/' . trim($requested_path, '/') . ('/' === $requested_path ? '' : '/');
@@ -216,7 +241,7 @@ class Site_Manager extends Base_Manager {
 
 		$primary_domain = $site->get_primary_mapped_domain();
 		$domain         = $mapped_domain ?: $primary_domain;
-		$visits         = Visits_Manager::get_instance()->get_visit_lock_status($site);
+		$visits         = Visits_Manager::get_instance()->get_visit_lock_status($site, true);
 		$lock_reason    = 'none';
 
 		if ($site->is_deleted()) {
@@ -225,6 +250,12 @@ class Site_Manager extends Base_Manager {
 			$lock_reason = 'site_spam';
 		} elseif ($site->is_archived()) {
 			$lock_reason = 'site_archived';
+		} elseif ($mapped_domain && ! $mapped_domain->is_active()) {
+			$lock_reason = 'domain_inactive';
+		} elseif ($mapped_domain && ! $mapped_domain->is_primary_domain()) {
+			$lock_reason = 'domain_not_primary';
+		} elseif ($mapped_domain && 'done' !== $mapped_domain->get_stage()) {
+			$lock_reason = 'domain_stage_not_done';
 		} elseif ($visits['locked']) {
 			$lock_reason = 'visits_exceeded';
 		}
@@ -232,7 +263,7 @@ class Site_Manager extends Base_Manager {
 		$available = 'none' === $lock_reason;
 
 		return [
-			'site'               => [
+			'site'                => [
 				'blog_id'       => (int) $site->get_id(),
 				'domain'        => $site->get_domain(),
 				'path'          => $site->get_path(),
@@ -246,19 +277,52 @@ class Site_Manager extends Base_Manager {
 				'membership_id' => (int) $site->get_membership_id(),
 				'template_id'   => (int) $site->get_template_id(),
 			],
-			'domain_mapping'     => $domain ? [
+			'domain_mapping'      => $domain ? [
 				'domain'         => $domain->get_domain(),
 				'active'         => $domain->is_active(),
 				'primary_domain' => $domain->is_primary_domain(),
 				'secure'         => $domain->is_secure(),
 				'stage'          => $domain->get_stage(),
 			] : null,
-			'limitations'        => ['visits' => $visits],
-			'frontend_available' => $available,
-			'lock_reason'        => $lock_reason,
-			'message'            => $available
+			'targeting'           => [
+				'abspath'      => ABSPATH,
+				'home_url'     => get_home_url($site->get_id()),
+				'site_url'     => get_site_url($site->get_id()),
+				'blog_id'      => (int) $site->get_id(),
+				'request_host' => $requested_host ?: $site->get_domain(),
+			],
+			'limitations'         => ['visits' => $visits],
+			'public_availability' => $this->fingerprint_frontend_smoke($input_data['frontend_smoke'] ?? []),
+			'frontend_available'  => $available,
+			'lock_reason'         => $lock_reason,
+			'message'             => $available
 				? __('The site frontend is available.', 'ultimate-multisite')
 				: __('The site frontend is unavailable. Review the reported lock reason.', 'ultimate-multisite'),
+		];
+	}
+
+	/**
+	 * Normalize a caller-supplied frontend smoke result without making outbound requests.
+	 *
+	 * @since 2.15.0
+	 * @param array $smoke Frontend smoke result.
+	 * @return array
+	 */
+	public function fingerprint_frontend_smoke(array $smoke) {
+
+		$body        = isset($smoke['body']) ? sanitize_textarea_field($smoke['body']) : '';
+		$fingerprint = $body ? wp_html_excerpt(preg_replace('/\s+/', ' ', $body), 200, '&hellip;') : '';
+		$known_lock  = str_contains($body, 'This site is not available at this time.');
+
+		return [
+			'dns'              => sanitize_text_field($smoke['dns'] ?? 'not_checked'),
+			'transport'        => sanitize_text_field($smoke['transport'] ?? 'not_checked'),
+			'redirect_chain'   => array_map('esc_url_raw', (array) ($smoke['redirect_chain'] ?? [])),
+			'effective_url'    => esc_url_raw($smoke['effective_url'] ?? ''),
+			'http_status'      => absint($smoke['http_status'] ?? 0),
+			'title'            => sanitize_text_field($smoke['title'] ?? ''),
+			'body_fingerprint' => $fingerprint,
+			'known_lock'       => $known_lock ? 'visits_exceeded' : 'none',
 		];
 	}
 

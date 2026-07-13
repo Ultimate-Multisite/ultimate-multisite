@@ -65,4 +65,24 @@ class Site_Availability_Diagnostic_Test extends \WP_UnitTestCase {
 		$domain->delete();
 		wp_delete_site($blog_id);
 	}
+
+	/**
+	 * Test the known frontend lock message is identified from a smoke fixture.
+	 */
+	public function test_frontend_smoke_fingerprints_known_lock_message(): void {
+		$result = Site_Manager::get_instance()->fingerprint_frontend_smoke(
+			[
+				'http_status' => 503,
+				'title'       => 'Not available',
+				'body'        => '<p>This site is not available at this time.</p>',
+			]
+		);
+
+		$this->assertSame(503, $result['http_status']);
+		$this->assertSame('Not available', $result['title']);
+		$this->assertStringContainsString('This site is not available at this time.', $result['body_fingerprint']);
+		$this->assertSame('visits_exceeded', $result['known_lock']);
+		$this->assertSame('not_checked', $result['dns']);
+		$this->assertSame('not_checked', $result['transport']);
+	}
 }

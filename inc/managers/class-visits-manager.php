@@ -75,14 +75,15 @@ class Visits_Manager {
 	 * authenticated availability diagnostics.
 	 *
 	 * @since 2.15.0
-	 * @param \WP_Ultimo\Models\Site $site Site to inspect.
+	 * @param \WP_Ultimo\Models\Site $site        Site to inspect.
+	 * @param bool                   $force_count Fetch the count for diagnostics even when visits are unlimited.
 	 * @return array{enabled: bool, limit: int, count: int, locked: bool}
 	 */
-	public function get_visit_lock_status($site) {
+	public function get_visit_lock_status($site, $force_count = false) {
 
 		$enabled = (bool) wu_get_setting('enable_visits_limiting', true);
 		$limit   = $enabled ? (int) $site->get_limitations()->visits->get_limit() : 0;
-		$count   = $enabled && $limit > 0 ? (int) $site->get_visits_count() : 0;
+		$count   = $enabled && ($limit > 0 || $force_count) ? (int) $site->get_visits_count() : 0;
 		$locked  = $enabled && $limit > 0 && $site->has_limitations() && $count > $limit;
 
 		return [
