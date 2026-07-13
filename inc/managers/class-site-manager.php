@@ -720,9 +720,11 @@ class Site_Manager extends Base_Manager {
 				$checkout_pages = \WP_Ultimo\Checkout\Checkout_Pages::get_instance();
 				$redirect_url   = $checkout_pages->get_page_url('block_frontend');
 
-				wp_safe_redirect($redirect_url);
+				if ($redirect_url) {
+					wp_safe_redirect($redirect_url);
 
-				exit;
+					exit;
+				}
 			}
 
 			wp_die(

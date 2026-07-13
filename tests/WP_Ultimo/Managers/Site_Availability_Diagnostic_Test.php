@@ -5,11 +5,25 @@
  * @package WP_Ultimo\Tests\Managers
  */
 
-namespace WP_Ultimo\Tests\Managers;
+namespace WP_Ultimo\Managers;
 
-use WP_Ultimo\Managers\Site_Manager;
+use WP_Ultimo\Tests\Managers\Manager_Test_Trait;
 
 class Site_Availability_Diagnostic_Test extends \WP_UnitTestCase {
+
+	use Manager_Test_Trait;
+
+	protected function get_manager_class(): string {
+		return Site_Manager::class;
+	}
+
+	protected function get_expected_slug(): ?string {
+		return 'site';
+	}
+
+	protected function get_expected_model_class(): ?string {
+		return \WP_Ultimo\Models\Site::class;
+	}
 
 	/**
 	 * Test the availability diagnostic is registered as a read-only ability.
