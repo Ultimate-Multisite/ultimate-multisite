@@ -390,6 +390,19 @@ class SSO {
 		if ($this->input($sso_path) && $this->input($sso_path) !== 'done') {
 			return true;
 		}
+		/*
+		 * A request that already carries a cookie-less SSO token must not kick
+		 * off a new SSO round-trip: handle_cookie_less_sso_token() (init:4) is
+		 * about to consume it and set the auth cookies. Without this
+		 * short-circuit, wp-admin URLs like customize.php?wu_sso_token=... are
+		 * redirected to the main /login/ BEFORE consumption, the main site mints
+		 * yet another token and the browser loops forever between customize.php
+		 * and /login/ (~2 rounds/sec observed in production access logs). This
+		 * mirrors the $sso_path short-circuit right above.
+		 */
+		if ('' !== (string) $this->input('wu_sso_token', '')) {
+			return true;
+		}
 
 		$should_skip_redirect = $this->get_isset($_COOKIE, 'wu_sso_denied', false);
 
