@@ -390,6 +390,7 @@ class SSO {
 		if ($this->input($sso_path) && $this->input($sso_path) !== 'done') {
 			return true;
 		}
+
 		/*
 		 * A request that already carries a cookie-less SSO token must not kick
 		 * off a new SSO round-trip: handle_cookie_less_sso_token() (init:4) is
@@ -400,7 +401,9 @@ class SSO {
 		 * and /login/ (~2 rounds/sec observed in production access logs). This
 		 * mirrors the $sso_path short-circuit right above.
 		 */
-		if ('' !== (string) $this->input('wu_sso_token', '')) {
+		$wu_sso_token = $this->input('wu_sso_token', '');
+
+		if (is_string($wu_sso_token) && '' !== $wu_sso_token) {
 			return true;
 		}
 
@@ -1181,7 +1184,7 @@ class SSO {
 	public function handle_cookie_less_sso_token(): void {
 		$token = $this->input('wu_sso_token', '');
 
-		if ( empty($token) ) {
+		if ( ! is_string($token) || empty($token) ) {
 			return;
 		}
 
