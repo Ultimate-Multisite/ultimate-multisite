@@ -1066,6 +1066,12 @@ class Limitations_Test extends WP_UnitTestCase {
 		$limits = $limits->merge($plan_data);
 		$limits = $limits->merge($addon_data);
 
+		$this->assertSame(
+			'choose_available_templates',
+			$limits->site_templates->get_mode(),
+			'A default-mode addon must not remove the plan template restriction.'
+		);
+
 		$available = $limits->site_templates->get_available_site_templates();
 
 		$this->assertContains(5, $available, 'Template 5 should be available');
@@ -1073,6 +1079,34 @@ class Limitations_Test extends WP_UnitTestCase {
 
 		// Disk space should be additive
 		$this->assertEquals(600, $limits->disk_space->get_limit(), 'Disk space should be summed');
+	}
+
+	/**
+	 * Regression test for issue #1637: default mode must allow all templates.
+	 *
+	 * Saved template data can remain after an administrator switches a product
+	 * back to the default mode. That stale list must not restrict checkout
+	 * template validation.
+	 */
+	public function test_default_template_mode_ignores_saved_template_list(): void {
+
+		$limitations = new Limitations(
+			[
+				'site_templates' => [
+					'enabled' => true,
+					'mode'    => 'default',
+					'limit'   => [
+						'123' => ['behavior' => 'available'],
+						'456' => ['behavior' => 'not_available'],
+					],
+				],
+			]
+		);
+
+		$this->assertFalse(
+			$limitations->site_templates->get_available_site_templates(),
+			'Default mode must return false so checkout validation treats all templates as available.'
+		);
 	}
 
 	/**
