@@ -224,7 +224,11 @@ abstract class Base_Element {
 	 */
 	public function init() {
 
-		add_action('plugins_loaded', [$this, 'register_form']);
+		if (did_action('plugins_loaded')) {
+			$this->register_form();
+		} else {
+			add_action('plugins_loaded', [$this, 'register_form']);
+		}
 
 		add_action('init', [$this, 'register_shortcode']);
 
@@ -745,9 +749,13 @@ abstract class Base_Element {
 				$shows = [];
 
 				foreach ($required as $key => $value) {
-					$value = is_string($value) ? "\"$value\"" : $value;
+					$attribute = sprintf('attributes[%s]', wp_json_encode((string) $key));
 
-					$shows[] = "attributes.{$key} == $value";
+					if (is_array($value)) {
+						$shows[] = sprintf('%s.includes(%s)', wp_json_encode(array_values($value)), $attribute);
+					} else {
+						$shows[] = sprintf('%s == %s', $attribute, wp_json_encode($value));
+					}
 				}
 
 				$field['wrapper_html_attr'] = [

@@ -171,6 +171,36 @@ class Magic_Link_Url_Element_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test array-based field requirements do not trigger PHP warnings.
+	 */
+	public function test_generator_modal_supports_array_field_requirements(): void {
+
+		$warnings = [];
+
+		set_error_handler( // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler
+			static function ($error_number, $error_message) use (&$warnings) {
+				if (E_WARNING === $error_number) {
+					$warnings[] = $error_message;
+				}
+
+				return true;
+			}
+		);
+
+		ob_start();
+
+		try {
+			Magic_Link_Url_Element::get_instance()->render_generator_modal();
+			$html = ob_get_clean();
+		} finally {
+			restore_error_handler();
+		}
+
+		$this->assertSame([], $warnings);
+		$this->assertStringContainsString('includes', $html);
+	}
+
+	/**
 	 * Invoke the protected site resolution method.
 	 *
 	 * @param array $atts Shortcode attributes.

@@ -66,6 +66,9 @@
 						}
 						if (this.attributes[ key + "_shortcode_requires" ]) {
 							const hide = Object.entries(this.attributes[ key + "_shortcode_requires" ]).some(([ k, v ]) => {
+								if (Array.isArray(v)) {
+									return ! v.includes(this.attributes[ k ]);
+								}
 								return this.attributes[ k ] !== v;
 							});
 							if (hide) {
