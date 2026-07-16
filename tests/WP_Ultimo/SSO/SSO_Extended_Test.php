@@ -51,7 +51,6 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 		remove_all_filters('wu_sso_logger');
 		remove_all_filters('wu_sso_server_request');
 		remove_all_filters('wu_sso_get_broker');
-		remove_all_filters('wu_is_same_domain');
 		remove_all_filters('mercator.sso.enabled');
 		remove_all_filters('allowed_http_origins');
 
@@ -64,7 +63,6 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 		unset($_REQUEST['wu_sso_token']);
 		unset($_REQUEST['action']);
 		unset($_REQUEST['loggedout']);
-		unset($_SERVER['REQUEST_URI']);
 		unset($_COOKIE['wu_sso_denied']);
 
 		parent::tearDown();
@@ -312,12 +310,17 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 
 	/**
 	 * Test handle_auth_redirect only short-circuits for string cookie-less tokens.
+	 *
+	 * The logged-in user prevents the fallback redirect branch from exiting after
+	 * the token guard falls through, while the old array-to-string guard would
+	 * still return true before reaching that branch.
 	 */
 	public function test_handle_auth_redirect_ignores_non_string_cookie_less_token(): void {
+		$user_id = self::factory()->user->create();
+		wp_set_current_user($user_id);
+
 		$_REQUEST['wu_sso_token'] = ['bad-token'];
 		$_SERVER['REQUEST_URI']   = '/wp-admin/customize.php?wu_sso_token[]=bad-token';
-
-		add_filter('wu_is_same_domain', '__return_true');
 
 		add_filter(
 			'wu_sso_get_broker',
@@ -328,10 +331,14 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 			}
 		);
 
-		$sso    = SSO::get_instance();
-		$result = $sso->handle_auth_redirect();
+		try {
+			$sso    = SSO::get_instance();
+			$result = $sso->handle_auth_redirect();
 
-		$this->assertNull($result);
+			$this->assertNull($result);
+		} finally {
+			wp_set_current_user(0);
+		}
 	}
 
 	/**
