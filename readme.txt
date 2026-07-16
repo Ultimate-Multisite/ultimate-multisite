@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 8.2
 Tested up to: 7.0
-Stable tag: 2.14.1
+Stable tag: 2.14.2
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -251,6 +251,12 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+Version [2.14.2] - Released on 2026-07-16
+- New: Authenticated site availability diagnostics now report domain, lock, visit-limit, and frontend smoke-test details for support and automation.
+- Fix: Cross-domain SSO now preserves the correct admin destination and handles cookie-less token redirects more safely.
+- Fix: Visit-limit lock pages now return HTTP 503, blank screenshots are rejected, and MU-Migration WP-CLI probes no longer trigger autoload errors.
+- Fix: Shortcode generator fields, late add-on forms, and default template availability now load reliably.
+
 Version [2.14.1] - Released on 2026-07-11
 - Fix: Checkout billing address fields now stay visible and validated when required, including free checkout flows and localized postal-code handling.
 - Fix: Admin select-icon fields now load their configured options reliably when editing checkout fields.
