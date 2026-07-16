@@ -25,6 +25,15 @@ class Testable_Product_Edit_Admin_Page extends Product_Edit_Admin_Page {
 	public function public_get_product_option_sections(): array {
 		return $this->get_product_option_sections();
 	}
+
+	/**
+	 * Expose get_product_type_options as public.
+	 *
+	 * @return array
+	 */
+	public function public_get_product_type_options(): array {
+		return $this->get_product_type_options();
+	}
 }
 
 /**
@@ -204,6 +213,29 @@ class Product_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 		$this->assertIsString($title);
 		$this->assertEquals('Edit Product', $title);
+	}
+
+	/**
+	 * Test product types registered by add-ons are available in the editor.
+	 */
+	public function test_product_type_options_include_addon_types(): void {
+		$register_email_type = static function (array $types): array {
+			$types['email'] = 'Email';
+
+			return $types;
+		};
+
+		add_filter('wu_product_type_to_array', $register_email_type);
+
+		try {
+			$options = $this->page->public_get_product_type_options();
+		} finally {
+			remove_filter('wu_product_type_to_array', $register_email_type);
+		}
+
+		$this->assertArrayHasKey('email', $options);
+		$this->assertSame('Email', $options['email']);
+		$this->assertStringContainsString('Subscription tier', $options[ Product_Type::PLAN ]);
 	}
 
 	// -------------------------------------------------------------------------

@@ -695,12 +695,14 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 	 */
 	protected function get_product_type_options() {
 
-		return [
-			Product_Type::PLAN    => __('Plan — Subscription tier that creates and manages customer sites.', 'ultimate-multisite'),
-			Product_Type::PACKAGE => __('Package — Add-on sold with plans to unlock extra features or resources.', 'ultimate-multisite'),
-			Product_Type::SERVICE => __('Service — Work or support customers can buy without creating a site.', 'ultimate-multisite'),
-			Product_Type::DEMO    => __('Demo — Temporary trial site for prospects to test before buying.', 'ultimate-multisite'),
-		];
+		$options = Product_Type::to_array();
+
+		$options[ Product_Type::PLAN ]    = __('Plan — Subscription tier that creates and manages customer sites.', 'ultimate-multisite');
+		$options[ Product_Type::PACKAGE ] = __('Package — Add-on sold with plans to unlock extra features or resources.', 'ultimate-multisite');
+		$options[ Product_Type::SERVICE ] = __('Service — Work or support customers can buy without creating a site.', 'ultimate-multisite');
+		$options[ Product_Type::DEMO ]    = __('Demo — Temporary trial site for prospects to test before buying.', 'ultimate-multisite');
+
+		return $options;
 	}
 
 	/**
