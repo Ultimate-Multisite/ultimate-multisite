@@ -223,22 +223,22 @@ class Product_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		// Ensure another Enum::to_array() call cannot leak its cached instance.
 		Payment_Status::to_array();
 
-		$register_email_type = static function (array $types): array {
-			$types['email'] = 'Email — Mailbox plan that lets customers create and manage email accounts.';
+		$register_addon_type = static function (array $types): array {
+			$types['addon'] = 'Add-on Product';
 
 			return $types;
 		};
 
-		add_filter('wu_product_type_to_array', $register_email_type);
+		add_filter('wu_product_type_to_array', $register_addon_type);
 
 		try {
 			$options = $this->page->public_get_product_type_options();
 		} finally {
-			remove_filter('wu_product_type_to_array', $register_email_type);
+			remove_filter('wu_product_type_to_array', $register_addon_type);
 		}
 
-		$this->assertArrayHasKey('email', $options);
-		$this->assertSame('Email — Mailbox plan that lets customers create and manage email accounts.', $options['email']);
+		$this->assertArrayHasKey('addon', $options);
+		$this->assertSame('Add-on Product', $options['addon']);
 		$this->assertStringContainsString('Subscription tier', $options[ Product_Type::PLAN ]);
 	}
 
