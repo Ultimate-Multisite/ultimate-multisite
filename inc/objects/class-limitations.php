@@ -274,6 +274,14 @@ class Limitations implements \JsonSerializable {
 				continue;
 			}
 
+			if ( ! $override && is_array($results['site_templates'] ?? null) && is_array($limitation['site_templates'] ?? null) && 'default' !== ($results['site_templates']['mode'] ?? 'default') && 'default' === ($limitation['site_templates']['mode'] ?? 'default')) {
+				/*
+				 * The default site-template mode contributes no restriction. Do not let
+				 * an addon using it weaken a previously merged plan restriction.
+				 */
+				$limitation['site_templates']['mode'] = $results['site_templates']['mode'];
+			}
+
 			$this->merge_recursive($results, $limitation, ! $override);
 		}
 

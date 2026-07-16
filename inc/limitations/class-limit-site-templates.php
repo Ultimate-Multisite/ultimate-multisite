@@ -204,18 +204,15 @@ class Limit_Site_Templates extends Limit {
 	 * @return array|false Array of available template IDs, or false when MODE_DEFAULT (unrestricted).
 	 */
 	public function get_available_site_templates() {
-
-		$limits = $this->get_limit();
-
 		/*
-		 * MODE_DEFAULT means "allow all templates" only when there is no explicit
-		 * template list. A merged plan can preserve its list while an addon with a
-		 * null/default template limitation contributes no restrictions; in that case
-		 * the list remains authoritative and must be returned for validation.
+		 * MODE_DEFAULT means "allow all templates" — no restriction.
+		 * Return false so callers that check is_array() treat this as unrestricted.
 		 */
-		if (self::MODE_DEFAULT === $this->mode && ! $limits) {
+		if (self::MODE_DEFAULT === $this->mode) {
 			return false;
 		}
+
+		$limits = $this->get_limit();
 
 		if ( ! $limits) {
 			return [];
