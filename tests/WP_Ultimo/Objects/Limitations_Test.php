@@ -949,7 +949,7 @@ class Limitations_Test extends WP_UnitTestCase {
 			[
 				'site_templates' => [
 					'enabled' => true,
-					'mode'    => 'default',
+					'mode'    => 'choose_available_templates',
 					'limit'   => [
 						'2' => ['behavior' => 'available'],
 						'3' => ['behavior' => 'pre_selected'],
