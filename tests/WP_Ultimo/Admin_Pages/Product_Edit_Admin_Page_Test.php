@@ -220,7 +220,7 @@ class Product_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 */
 	public function test_product_type_options_include_addon_types(): void {
 		$register_email_type = static function (array $types): array {
-			$types['email'] = 'Email';
+			$types['email'] = 'Email — Mailbox plan that lets customers create and manage email accounts.';
 
 			return $types;
 		};
@@ -234,7 +234,7 @@ class Product_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		}
 
 		$this->assertArrayHasKey('email', $options);
-		$this->assertSame('Email', $options['email']);
+		$this->assertSame('Email — Mailbox plan that lets customers create and manage email accounts.', $options['email']);
 		$this->assertStringContainsString('Subscription tier', $options[ Product_Type::PLAN ]);
 	}
 
