@@ -9,6 +9,7 @@ namespace WP_Ultimo\Admin_Pages;
 
 use WP_UnitTestCase;
 use WP_Ultimo\Models\Product;
+use WP_Ultimo\Database\Payments\Payment_Status;
 use WP_Ultimo\Database\Products\Product_Type;
 use WP_Ultimo\Limitations\Limit_Site_Templates;
 
@@ -219,6 +220,9 @@ class Product_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 * Test product types registered by add-ons are available in the editor.
 	 */
 	public function test_product_type_options_include_addon_types(): void {
+		// Ensure another Enum::to_array() call cannot leak its cached instance.
+		Payment_Status::to_array();
+
 		$register_email_type = static function (array $types): array {
 			$types['email'] = 'Email — Mailbox plan that lets customers create and manage email accounts.';
 

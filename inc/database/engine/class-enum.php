@@ -62,7 +62,7 @@ abstract class Enum {
 	 * Returns an array with values => labels.
 	 *
 	 * @since 2.0.0
-	 * @return void
+	 * @return array
 	 */
 	abstract protected function labels();
 
@@ -198,11 +198,15 @@ abstract class Enum {
 	 */
 	public static function to_array() {
 
-		static $instance;
+		static $instances = [];
 
-		if (null === $instance) {
-			$instance = new static();
+		$class_name = static::class;
+
+		if ( ! isset($instances[ $class_name ])) {
+			$instances[ $class_name ] = new static();
 		}
+
+		$instance = $instances[ $class_name ];
 
 		$hook = $instance::get_hook_name();
 
