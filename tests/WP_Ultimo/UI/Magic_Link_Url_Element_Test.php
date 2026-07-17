@@ -181,9 +181,11 @@ class Magic_Link_Url_Element_Test extends WP_UnitTestCase {
 			static function ($error_number, $error_message) use (&$warnings) {
 				if (E_WARNING === $error_number) {
 					$warnings[] = $error_message;
+
+					return true;
 				}
 
-				return true;
+				return false;
 			}
 		);
 
