@@ -342,6 +342,35 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test zero-like cookie-less tokens do not bypass the auth redirect.
+	 */
+	public function test_handle_auth_redirect_ignores_zero_cookie_less_token(): void {
+		$user_id = self::factory()->user->create();
+		wp_set_current_user($user_id);
+
+		$_REQUEST['wu_sso_token'] = '0';
+		$_SERVER['REQUEST_URI']   = '/wp-admin/customize.php?wu_sso_token=0';
+
+		add_filter(
+			'wu_sso_get_broker',
+			function () {
+				$mock = $this->createMock(SSO_Broker::class);
+				$mock->method('is_must_redirect_call')->willReturn(false);
+				return $mock;
+			}
+		);
+
+		try {
+			$sso    = SSO::get_instance();
+			$result = $sso->handle_auth_redirect();
+
+			$this->assertNull($result);
+		} finally {
+			wp_set_current_user(0);
+		}
+	}
+
+	/**
 	 * Test malformed array cookie-less tokens do not reach string validation.
 	 */
 	public function test_handle_cookie_less_sso_token_ignores_non_string_token(): void {
@@ -860,6 +889,20 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 		$result = $sso->input('nonexistent_key', 'fallback');
 
 		$this->assertSame('fallback', $result);
+	}
+
+	/**
+	 * Test input rejects array values before they reach typed SSO handlers.
+	 */
+	public function test_input_returns_default_for_array_value(): void {
+		$_REQUEST['test_key'] = ['unexpected'];
+
+		$sso    = SSO::get_instance();
+		$result = $sso->input('test_key', 'fallback');
+
+		$this->assertSame('fallback', $result);
+
+		unset($_REQUEST['test_key']);
 	}
 
 	// ------------------------------------------------------------------
