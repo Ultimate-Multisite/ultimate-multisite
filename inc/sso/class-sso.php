@@ -145,7 +145,9 @@ class SSO {
 	 * @return mixed
 	 */
 	public function input($key, $default_content = false) {
-		return wu_request($key, $default_content);
+		$value = wu_request($key, $default_content);
+
+		return is_array($value) ? $default_content : $value;
 	}
 
 	/**
@@ -403,7 +405,7 @@ class SSO {
 		 */
 		$wu_sso_token = $this->input('wu_sso_token', '');
 
-		if (is_string($wu_sso_token) && '' !== $wu_sso_token) {
+		if (is_string($wu_sso_token) && ! empty($wu_sso_token)) {
 			return true;
 		}
 
