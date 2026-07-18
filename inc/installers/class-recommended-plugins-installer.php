@@ -64,6 +64,54 @@ class Recommended_Plugins_Installer extends Base_Installer {
 			'checked'     => true,
 		];
 
+		$locale                    = function_exists('determine_locale') ? determine_locale() : get_locale();
+		$is_english_locale         = 'en' === $locale || str_starts_with($locale, 'en_') || str_starts_with($locale, 'en-');
+		$language_packs_is_checked = ! $is_english_locale;
+
+		// Recommended for non-English networks: Superdav AI Language Packs.
+		$language_packs_slug                               = 'superdav-ai-language-packs';
+		$steps[ 'install_plugin_' . $language_packs_slug ] = [
+			'done'        => $this->is_plugin_installed($language_packs_slug),
+			'title'       => __('Superdav AI Language Packs', 'ultimate-multisite'),
+			'description' => __('Add AI-powered language packs to translate your network.', 'ultimate-multisite'),
+			'pending'     => __('Pending', 'ultimate-multisite'),
+			'installing'  => __('Installing Superdav AI Language Packs...', 'ultimate-multisite'),
+			'success'     => __('Installed!', 'ultimate-multisite'),
+			'checked'     => $language_packs_is_checked,
+		];
+
+		$steps[ 'activate_plugin_' . $language_packs_slug ] = [
+			'done'        => $this->is_plugin_active($language_packs_slug),
+			'title'       => __('Activate Superdav AI Language Packs', 'ultimate-multisite'),
+			'description' => __('Activate Superdav AI Language Packs for your network.', 'ultimate-multisite'),
+			'pending'     => __('Pending', 'ultimate-multisite'),
+			'installing'  => __('Activating Superdav AI Language Packs...', 'ultimate-multisite'),
+			'success'     => __('Activated!', 'ultimate-multisite'),
+			'checked'     => $language_packs_is_checked,
+		];
+
+		// Optional: Superdav AI Agent.
+		$ai_agent_slug                               = 'superdav-ai-agent';
+		$steps[ 'install_plugin_' . $ai_agent_slug ] = [
+			'done'        => $this->is_plugin_installed($ai_agent_slug),
+			'title'       => __('Superdav AI Agent', 'ultimate-multisite'),
+			'description' => __('Use an AI assistant to help manage and support your network.', 'ultimate-multisite'),
+			'pending'     => __('Pending', 'ultimate-multisite'),
+			'installing'  => __('Installing Superdav AI Agent...', 'ultimate-multisite'),
+			'success'     => __('Installed!', 'ultimate-multisite'),
+			'checked'     => false,
+		];
+
+		$steps[ 'activate_plugin_' . $ai_agent_slug ] = [
+			'done'        => $this->is_plugin_active($ai_agent_slug),
+			'title'       => __('Activate Superdav AI Agent', 'ultimate-multisite'),
+			'description' => __('Activate Superdav AI Agent for your network.', 'ultimate-multisite'),
+			'pending'     => __('Pending', 'ultimate-multisite'),
+			'installing'  => __('Activating Superdav AI Agent...', 'ultimate-multisite'),
+			'success'     => __('Activated!', 'ultimate-multisite'),
+			'checked'     => false,
+		];
+
 		return $steps;
 	}
 
