@@ -324,6 +324,26 @@ class Integration {
 	}
 
 	/**
+	 * Determines whether a credential has been configured without decrypting it.
+	 *
+	 * This is intentionally limited to setup checks. Consumers that need the
+	 * credential value must continue to use get_credential().
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param string $constant_name The credential constant name.
+	 * @return bool True when a constant or stored credential is present.
+	 */
+	private function has_credential(string $constant_name): bool {
+
+		if (defined($constant_name) && constant($constant_name)) {
+			return true;
+		}
+
+		return ! empty(get_network_option(null, 'wu_hosting_credential_' . $constant_name, ''));
+	}
+
+	/**
 	 * Saves credential values as encrypted network options.
 	 *
 	 * @since 2.5.0
@@ -371,7 +391,7 @@ class Integration {
 			$found     = false;
 
 			foreach ($constants as $name) {
-				if ($this->get_credential($name)) {
+				if ($this->has_credential($name)) {
 					$found = true;
 
 					break;
@@ -401,7 +421,7 @@ class Integration {
 			$found     = false;
 
 			foreach ($constants as $name) {
-				if ($this->get_credential($name)) {
+				if ($this->has_credential($name)) {
 					$found = true;
 
 					break;
