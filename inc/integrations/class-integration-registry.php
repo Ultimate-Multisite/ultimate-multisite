@@ -396,7 +396,7 @@ class Integration_Registry {
 	 */
 	public function register_admin_notices(): void {
 
-		if (\WP_Ultimo()->is_loaded() === false) {
+		if ( ! is_network_admin() || \WP_Ultimo()->is_loaded() === false) {
 			return;
 		}
 

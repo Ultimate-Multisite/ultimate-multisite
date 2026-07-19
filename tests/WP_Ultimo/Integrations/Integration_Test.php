@@ -172,6 +172,22 @@ class Integration_Test extends WP_UnitTestCase {
 		$this->assertTrue($this->integration->is_setup());
 	}
 
+	public function test_is_setup_checks_stored_credential_presence_without_decrypting(): void {
+
+		update_network_option(
+			null,
+			'wu_hosting_credential_CONST_A',
+			'$wu_enc$eA=='
+		);
+		update_network_option(
+			null,
+			'wu_hosting_credential_CONST_B',
+			'$wu_enc$eA=='
+		);
+
+		$this->assertTrue($this->integration->is_setup());
+	}
+
 	public function test_is_setup_with_grouped_constants_accepts_either(): void {
 
 		$integration = new Integration('grouped', 'Grouped');
