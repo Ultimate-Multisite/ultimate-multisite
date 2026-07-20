@@ -27,11 +27,13 @@ class Recommended_Plugins_Installer_Test extends WP_UnitTestCase {
 		};
 
 		add_filter('locale', $locale_filter);
+		add_filter('determine_locale', $locale_filter);
 
 		try {
 			return Recommended_Plugins_Installer::get_instance()->get_steps();
 		} finally {
 			remove_filter('locale', $locale_filter);
+			remove_filter('determine_locale', $locale_filter);
 		}
 	}
 
