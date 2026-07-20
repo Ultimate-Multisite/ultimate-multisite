@@ -56,7 +56,7 @@ class Recommended_Plugins_Installer_Test extends WP_UnitTestCase {
 	public function test_ai_plugin_descriptions_explain_their_purpose(): void {
 		$steps = $this->get_steps_for_locale('en_US');
 
-		$this->assertSame('Add AI-powered language packs to translate your network.', $steps['install_plugin_superdav-ai-language-packs']['description']);
-		$this->assertSame('Use an AI assistant to help manage and support your network.', $steps['install_plugin_superdav-ai-agent']['description']);
+		$this->assertSame('Add AI-powered language packs for plugin and theme translates, fully localize Ultimate Multisite and all community plugins.', $steps['install_plugin_superdav-ai-language-packs']['description']);
+		$this->assertSame('Use an AI Agent fully control all of WordPress. Create content, products, custom plugins and more. Like Claude code or Cursor running inside of wp-admin.', $steps['install_plugin_superdav-ai-agent']['description']);
 	}
 }
