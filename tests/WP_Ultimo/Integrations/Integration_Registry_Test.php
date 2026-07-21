@@ -30,6 +30,7 @@ class Integration_Registry_Test extends WP_UnitTestCase {
 		$this->assertNotNull($this->registry->get('cloudways'));
 		$this->assertNotNull($this->registry->get('runcloud'));
 		$this->assertNotNull($this->registry->get('cpanel'));
+		$this->assertNotNull($this->registry->get('directadmin'));
 		$this->assertNotNull($this->registry->get('serverpilot'));
 		$this->assertNotNull($this->registry->get('gridpane'));
 		$this->assertNotNull($this->registry->get('cloudflare'));
@@ -61,6 +62,7 @@ class Integration_Registry_Test extends WP_UnitTestCase {
 			'cloudways',
 			'runcloud',
 			'cpanel',
+			'directadmin',
 			'serverpilot',
 			'gridpane',
 			'cloudflare',
