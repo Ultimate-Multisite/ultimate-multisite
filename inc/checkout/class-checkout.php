@@ -2799,7 +2799,8 @@ class Checkout {
 			'billing_zip_code' => '',
 		];
 
-		$billing_rule_fields = $this->checkout_form ? $this->checkout_form->get_all_fields() : $this->step['fields'];
+		$billing_rule_fields           = $this->checkout_form ? $this->checkout_form->get_all_fields() : $this->step['fields'];
+		$has_optional_billing_address = false;
 
 		foreach ($billing_rule_fields as $field_key => $field) {
 			if ( ! is_array($field)) {
@@ -2808,8 +2809,24 @@ class Checkout {
 
 			$field_id = wu_get_isset($field, 'id', is_string($field_key) ? $field_key : '');
 
+			/*
+			 * Checkout_Form::get_all_fields() returns the configured composite
+			 * field, rather than the billing_country and billing_zip_code fields
+			 * generated when it is rendered.
+			 */
+			if ('billing_address' === $field_id && ! wu_get_isset($field, 'required')) {
+				$has_optional_billing_address = true;
+				continue;
+			}
+
 			if (isset($optional_billing_rules[ $field_id ]) && ! wu_get_isset($field, 'required')) {
 				$validation_rules[ $field_id ] = $optional_billing_rules[ $field_id ];
+			}
+		}
+
+		if ($has_optional_billing_address) {
+			foreach ($optional_billing_rules as $field_id => $rule) {
+				$validation_rules[ $field_id ] = $rule;
 			}
 		}
 

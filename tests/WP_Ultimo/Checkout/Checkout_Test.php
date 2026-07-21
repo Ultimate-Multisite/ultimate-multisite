@@ -1787,7 +1787,7 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test optional billing fields on earlier checkout steps relax final validation.
+	 * Test an optional billing address element on an earlier step relaxes final validation.
 	 */
 	public function test_get_validation_rules_relaxes_optional_billing_address_fields_from_all_steps(): void {
 
@@ -1800,12 +1800,10 @@ class Checkout_Test extends WP_UnitTestCase {
 					'name'   => 'Billing Step',
 					'fields' => [
 						[
-							'id'   => 'billing_country',
-							'type' => 'select',
-						],
-						[
-							'id'   => 'billing_zip_code',
-							'type' => 'text',
+							'id'              => 'billing_address',
+							'type'            => 'billing_address',
+							'required'        => false,
+							'zip_and_country' => '1',
 						],
 					],
 				],
@@ -1832,17 +1830,15 @@ class Checkout_Test extends WP_UnitTestCase {
 
 		unset($_REQUEST['pre-flight'], $_REQUEST['checkout_form']);
 
-		$_REQUEST['billing_country']  = 'US';
-		$_REQUEST['billing_zip_code'] = '';
-		$_REQUEST['user_id']          = self::$customer->get_user_id();
+		$_REQUEST['user_id'] = self::$customer->get_user_id();
 
 		$rules = $checkout->get_validation_rules();
 
-		$this->assertSame('country', $rules['billing_country']);
+		$this->assertSame('', $rules['billing_country']);
 		$this->assertSame('', $rules['billing_zip_code']);
 		$this->assertTrue($checkout->validate($rules));
 
-		unset($_REQUEST['billing_country'], $_REQUEST['billing_zip_code'], $_REQUEST['user_id']);
+		unset($_REQUEST['user_id']);
 
 		$checkout->checkout_form = null;
 	}
