@@ -26,7 +26,7 @@ class Documentation implements \WP_Ultimo\Interfaces\Singleton {
 	/**
 	 * Holds the links so we can retrieve them later
 	 *
-	 * @var array
+	 * @var array|null
 	 */
 	protected $links;
 
@@ -56,12 +56,30 @@ class Documentation implements \WP_Ultimo\Interfaces\Singleton {
 	];
 
 	/**
-	 * Set the default links.
+	 * Schedule the default links after WordPress finishes loading plugins.
 	 *
 	 * @since 2.0.0
 	 * @return void
 	 */
 	public function init(): void {
+
+		add_action('init', [$this, 'setup_links'], 0);
+	}
+
+	/**
+	 * Set the default links.
+	 *
+	 * The links are also initialized lazily for callers that request
+	 * documentation before the init hook runs.
+	 *
+	 * @since 2.15.0
+	 * @return void
+	 */
+	public function setup_links(): void {
+
+		if (is_array($this->links)) {
+			return;
+		}
 
 		$base = $this->get_docs_base_url();
 
@@ -105,7 +123,8 @@ class Documentation implements \WP_Ultimo\Interfaces\Singleton {
 		// Multiple Accounts
 		$links['multiple-accounts'] = $base . 'user-guide/configuration/customizing-your-registration-form';
 
-		$this->links = apply_filters('wu_documentation_links_list', $links);
+		$this->links = $links;
+		$this->links = apply_filters('wu_documentation_links_list', $this->links);
 	}
 
 	/**
@@ -118,7 +137,8 @@ class Documentation implements \WP_Ultimo\Interfaces\Singleton {
 
 		$base = 'https://ultimatemultisite.com/docs/';
 
-		$wp_locale = determine_locale();
+		$cookies_ready = defined('AUTH_COOKIE') && defined('SECURE_AUTH_COOKIE') && defined('LOGGED_IN_COOKIE');
+		$wp_locale     = $cookies_ready ? determine_locale() : get_locale();
 
 		// Try exact match first (e.g., pt_BR)
 		if (isset(self::$locale_map[ $wp_locale ])) {
@@ -159,6 +179,8 @@ class Documentation implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function get_link($slug, $return_default = true) {
 
+		$this->setup_links();
+
 		$default = $return_default ? $this->default_link : false;
 
 		$link = wu_get_isset($this->links, $slug, $default);
@@ -184,6 +206,8 @@ class Documentation implements \WP_Ultimo\Interfaces\Singleton {
 	 * @return void
 	 */
 	public function register_link($slug, $link): void {
+
+		$this->setup_links();
 
 		$this->links[ $slug ] = $link;
 	}
