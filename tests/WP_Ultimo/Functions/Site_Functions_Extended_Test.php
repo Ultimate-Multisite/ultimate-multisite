@@ -162,6 +162,17 @@ class Site_Functions_Extended_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test wu_generate_site_url_from_title pads short slugs for WordPress.
+	 */
+	public function test_generate_site_url_from_title_pads_short_slug(): void {
+
+		$result = wu_generate_site_url_from_title('me');
+
+		$this->assertEquals('me00', $result);
+		$this->assertGreaterThanOrEqual(4, strlen($result));
+	}
+
+	/**
 	 * Test wu_generate_site_title_from_email with valid email.
 	 */
 	public function test_generate_site_title_from_email(): void {
