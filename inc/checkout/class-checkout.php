@@ -2799,7 +2799,7 @@ class Checkout {
 			'billing_zip_code' => '',
 		];
 
-		$billing_rule_fields           = $this->checkout_form ? $this->checkout_form->get_all_fields() : $this->step['fields'];
+		$billing_rule_fields          = $this->checkout_form ? $this->checkout_form->get_all_fields() : $this->step['fields'];
 		$has_optional_billing_address = false;
 
 		foreach ($billing_rule_fields as $field_key => $field) {
