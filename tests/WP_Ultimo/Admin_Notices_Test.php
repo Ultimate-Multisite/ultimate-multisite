@@ -272,4 +272,46 @@ class Admin_Notices_Test extends \WP_UnitTestCase {
 
 		remove_all_filters('wu_admin_notices');
 	}
+
+	/**
+	 * Test recent error log notice is added on Ultimate Multisite network pages.
+	 */
+	public function test_recent_error_notice_added_on_ultimate_multisite_network_page(): void {
+
+		$user_id = self::factory()->user->create(['role' => 'administrator']);
+		grant_super_admin($user_id);
+		wp_set_current_user($user_id);
+
+		$_REQUEST['page'] = 'wp-ultimo-events';
+
+		update_site_option(
+			'wu_recent_error_log_entry',
+			[
+				'handle'    => 'integration-hostinger',
+				'message'   => 'Hostinger API failed',
+				'level'     => \Psr\Log\LogLevel::ERROR,
+				'timestamp' => time(),
+			]
+		);
+
+		$reflection = new \ReflectionClass($this->notices);
+		$method     = $reflection->getMethod('maybe_add_recent_error_notice');
+
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		$method->invoke($this->notices, 'network-admin');
+
+		$notices = $this->notices->get_notices('network-admin', false);
+		$notice  = reset($notices);
+
+		$this->assertCount(1, $notices);
+		$this->assertSame('error', $notice['type']);
+		$this->assertStringContainsString('integration-hostinger.log', $notice['message']);
+		$this->assertArrayHasKey('view-logs', $notice['actions']);
+
+		unset($_REQUEST['page']);
+		delete_site_option('wu_recent_error_log_entry');
+	}
 }
