@@ -122,6 +122,7 @@ class Provider_Integration_Test extends WP_UnitTestCase {
 			'cloudways'   => ['cloudways'],
 			'runcloud'    => ['runcloud'],
 			'cpanel'      => ['cpanel'],
+			'directadmin' => ['directadmin'],
 			'serverpilot' => ['serverpilot'],
 			'gridpane'    => ['gridpane'],
 			'cloudflare'  => ['cloudflare'],

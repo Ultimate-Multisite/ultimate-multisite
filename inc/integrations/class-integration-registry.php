@@ -123,6 +123,7 @@ class Integration_Registry {
 		$this->register(new Providers\Cloudways\Cloudways_Integration());
 		$this->register(new Providers\RunCloud\RunCloud_Integration());
 		$this->register(new Providers\CPanel\CPanel_Integration());
+		$this->register(new Providers\DirectAdmin\DirectAdmin_Integration());
 		$this->register(new Providers\ServerPilot\ServerPilot_Integration());
 		$this->register(new Providers\GridPane\GridPane_Integration());
 		$this->register(new Providers\Cloudflare\Cloudflare_Integration());
@@ -175,6 +176,7 @@ class Integration_Registry {
 		$this->add_capability('cloudways', new Providers\Cloudways\Cloudways_Domain_Mapping());
 		$this->add_capability('runcloud', new Providers\RunCloud\RunCloud_Domain_Mapping());
 		$this->add_capability('cpanel', new Providers\CPanel\CPanel_Domain_Mapping());
+		$this->add_capability('directadmin', new Providers\DirectAdmin\DirectAdmin_Domain_Mapping());
 		$this->add_capability('serverpilot', new Providers\ServerPilot\ServerPilot_Domain_Mapping());
 		$this->add_capability('gridpane', new Providers\GridPane\GridPane_Domain_Mapping());
 		$this->add_capability('cloudflare', new Providers\Cloudflare\Cloudflare_Domain_Mapping());

@@ -1,0 +1,7 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="directadmin-title">
+  <title id="directadmin-title">DirectAdmin</title>
+  <rect width="64" height="64" rx="14" fill="#1F6FB2"/>
+  <path d="M17 17H35C43.2843 17 50 23.7157 50 32C50 40.2843 43.2843 47 35 47H17V17Z" fill="white"/>
+  <path d="M27 27H35C37.7614 27 40 29.2386 40 32C40 34.7614 37.7614 37 35 37H27V27Z" fill="#1F6FB2"/>
+  <path d="M14 49L29 15H38L23 49H14Z" fill="#EC2027"/>
+</svg>
