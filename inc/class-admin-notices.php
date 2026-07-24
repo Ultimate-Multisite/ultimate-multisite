@@ -114,7 +114,7 @@ class Admin_Notices implements \WP_Ultimo\Interfaces\Singleton {
 		 * @param array  $notices List of notices for that particular panel.
 		 * @param array  $all_notices List of notices added, segregated by panel.
 		 * @param string $panel Panel to retrieve the notices.
-		 * @param string $filter If the dismissable notices have been filtered out.
+		 * @param bool   $filter If the dismissable notices have been filtered out.
 		 * @param array  $dismissed_messages List of dismissed notice keys.
 		* @return array
 		 */
@@ -163,6 +163,8 @@ class Admin_Notices implements \WP_Ultimo\Interfaces\Singleton {
 
 		$panel = $this->get_current_panel();
 
+		$this->maybe_add_recent_error_notice($panel);
+
 		$notices = $this->get_notices($panel);
 
 		wu_get_template(
@@ -170,6 +172,60 @@ class Admin_Notices implements \WP_Ultimo\Interfaces\Singleton {
 			[
 				'notices' => $notices,
 				'nonce'   => wp_create_nonce('wu-dismiss-admin-notice'),
+			]
+		);
+	}
+
+	/**
+	 * Adds a dismissible notice for the latest recent error log entry.
+	 *
+	 * @since 2.14.3
+	 *
+	 * @param string $panel Current admin panel.
+	 * @return void
+	 */
+	private function maybe_add_recent_error_notice(string $panel): void {
+
+		if ('network-admin' !== $panel || ! current_user_can('manage_network')) {
+			return;
+		}
+
+		$page = sanitize_key(wu_request('page'));
+
+		if ('ultimate-multisite' !== $page && ! str_starts_with($page, 'wp-ultimo')) {
+			return;
+		}
+
+		$error = Logger::get_recent_error();
+
+		if ( ! $error) {
+			return;
+		}
+
+		$handle    = $error['handle'] ?? __('unknown', 'ultimate-multisite');
+		$message   = $error['message'] ?? __('No details available.', 'ultimate-multisite');
+		$timestamp = (int) ($error['timestamp'] ?? 0);
+		$level     = $error['level'] ?? '';
+
+		$dismissible_key = 'wu-recent-error-log-' . md5(wp_json_encode([$timestamp, $handle, $message, $level]));
+
+		$notice = sprintf(
+			/* translators: 1: Log handle, 2: error message. */
+			__('A recent Ultimate Multisite error was logged in %1$s: %2$s', 'ultimate-multisite'),
+			esc_html($handle . '.log'),
+			esc_html($message)
+		);
+
+		$this->add(
+			$notice,
+			'error',
+			'network-admin',
+			$dismissible_key,
+			[
+				'view-logs' => [
+					'title' => __('View Logs', 'ultimate-multisite'),
+					'url'   => wu_network_admin_url('wp-ultimo-view-logs'),
+				],
 			]
 		);
 	}

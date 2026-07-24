@@ -47,6 +47,11 @@ defined('ABSPATH') || exit;
 			<?php esc_html_e('Job Queue', 'ultimate-multisite'); ?>
 		</a>
 		</li>
+		<li class="wu-inline-block wu-mx-1">
+		<a href="<?php echo esc_attr(wu_network_admin_url('wp-ultimo-view-logs')); ?>" class="wu-text-gray-500 hover:wu-text-gray-600">
+			<?php esc_html_e('View Logs', 'ultimate-multisite'); ?>
+		</a>
+		</li>
 
 	<?php endif; ?>
 

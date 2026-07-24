@@ -27,6 +27,22 @@ class Logger extends AbstractLogger {
 	use \WP_Ultimo\Traits\Singleton;
 
 	/**
+	 * Site option that stores the latest error-level log entry.
+	 *
+	 * @since 2.14.3
+	 * @var string
+	 */
+	private const RECENT_ERROR_OPTION = 'wu_recent_error_log_entry';
+
+	/**
+	 * How long an error log entry should be considered recent.
+	 *
+	 * @since 2.14.3
+	 * @var int
+	 */
+	private const RECENT_ERROR_TTL = DAY_IN_SECONDS;
+
+	/**
 	 * Holds the log file path.
 	 *
 	 * @since 2.1
@@ -109,7 +125,60 @@ class Logger extends AbstractLogger {
 
 		$instance->log($log_level, $message);
 
+		self::maybe_store_recent_error($handle, (string) $message, $log_level);
+
 		do_action('wu_log_add', $handle, $message, $log_level);
+	}
+
+	/**
+	 * Stores the latest error-level log entry for admin notices.
+	 *
+	 * @since 2.14.3
+	 *
+	 * @param string $handle    Name of the log file written to.
+	 * @param string $message   Log message written.
+	 * @param string $log_level PSR-3 log level.
+	 * @return void
+	 */
+	private static function maybe_store_recent_error(string $handle, string $message, string $log_level): void {
+
+		if ( ! in_array($log_level, [LogLevel::EMERGENCY, LogLevel::ALERT, LogLevel::CRITICAL, LogLevel::ERROR], true)) {
+			return;
+		}
+
+		$message = wp_strip_all_tags($message);
+
+		update_site_option(
+			self::RECENT_ERROR_OPTION,
+			[
+				'handle'    => sanitize_key($handle),
+				'message'   => substr($message, 0, 300),
+				'level'     => $log_level,
+				'timestamp' => time(),
+			]
+		);
+	}
+
+	/**
+	 * Returns the latest recent error-level log entry.
+	 *
+	 * @since 2.14.3
+	 *
+	 * @return array|false Latest error entry, or false when none is recent.
+	 */
+	public static function get_recent_error() {
+
+		$entry = get_site_option(self::RECENT_ERROR_OPTION, false);
+
+		if ( ! is_array($entry) || empty($entry['timestamp'])) {
+			return false;
+		}
+
+		if ((int) $entry['timestamp'] < time() - self::RECENT_ERROR_TTL) {
+			return false;
+		}
+
+		return $entry;
 	}
 
 	/**

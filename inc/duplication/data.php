@@ -811,7 +811,11 @@ if ( ! class_exists('MUCD_Data') ) {
 			}
 
 			if ('' !== $wpdb->last_error) {
-				self::sql_error($sql_query, $wpdb->last_error);
+				$last_error = $wpdb->last_error;
+
+				self::sql_error($sql_query, $last_error);
+
+				$wpdb->last_error = $last_error;
 			}
 
 			$wpdb->suppress_errors(false);
