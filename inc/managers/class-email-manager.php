@@ -161,7 +161,7 @@ class Email_Manager extends Base_Manager {
 			/*
 			 * Add the invoice attachment, if need be.
 			 */
-			if (wu_get_isset($payload, 'payment_id') && wu_get_setting('attach_invoice_pdf', true)) {
+			if (wu_get_isset($payload, 'payment_id') && wu_get_setting('attach_invoice_pdf', true) && (! isset($payload['payment_is_paid']) || $payload['payment_is_paid'])) {
 				$invoice_payment = wu_get_payment($payload['payment_id']);
 
 				if ($invoice_payment) {
@@ -391,28 +391,29 @@ class Email_Manager extends Base_Manager {
 	 */
 	public function register_all_default_system_emails(): void {
 		/*
-		 * Payment Successful - Admin
+		 * Checkout Completed - Admin
 		 */
 		$this->register_default_system_email(
 			[
 				'event'   => 'payment_received',
 				'slug'    => 'payment_received_admin',
 				'target'  => 'admin',
-				'title'   => __('You got a new payment!', 'ultimate-multisite'),
+				'title'   => '{{payment_email_admin_subject}}',
 				'content' => wu_get_template_contents('emails/admin/payment-received'),
 			]
 		);
 
 		/*
-		 * Payment Successful - Customer
+		 * Checkout Completed - Customer
 		 */
 		$this->register_default_system_email(
 			[
-				'event'   => 'payment_received',
-				'slug'    => 'payment_received_customer',
-				'target'  => 'customer',
-				'title'   => __('We got your payment!', 'ultimate-multisite'),
-				'content' => wu_get_template_contents('emails/customer/payment-received'),
+				'event'              => 'payment_received',
+				'slug'               => 'payment_received_customer',
+				'target'             => 'customer',
+				'title'              => '{{payment_email_customer_subject}}',
+				'content'            => wu_get_template_contents('emails/customer/payment-received'),
+				'send_copy_to_admin' => false,
 			]
 		);
 

@@ -127,6 +127,93 @@ class Payment_Manager extends Base_Manager {
 			}
 		}
 
+		$has_trial = $membership && $membership->is_trialing();
+		$is_paid   = 0 < (float) $payment->get_total();
+
+		$payload['payment_is_paid']        = $is_paid;
+		$payload['payment_is_free_signup'] = ! $is_paid && ! $has_trial;
+		$payload['payment_is_trial']       = $has_trial;
+
+		if ($has_trial && $is_paid) {
+			$payload['payment_email_customer_subject'] = __('Payment confirmed - your trial has started', 'ultimate-multisite');
+			$payload['payment_email_customer_intro']   = sprintf(
+				/* translators: 1: payment total, 2: product names. */
+				__('Your payment of %1$s for %2$s was successful. Your trial is now active.', 'ultimate-multisite'),
+				$payload['payment_total'],
+				$payload['payment_product_names']
+			);
+			$payload['payment_email_admin_subject'] = sprintf(
+				/* translators: 1: payment total, 2: customer name. */
+				__('Payment received: %1$s from %2$s', 'ultimate-multisite'),
+				$payload['payment_total'],
+				$payload['customer_name']
+			);
+			$payload['payment_email_admin_intro'] = sprintf(
+				/* translators: 1: payment total, 2: customer name, 3: product names. */
+				__('Received %1$s from %2$s for %3$s. Their trial is now active.', 'ultimate-multisite'),
+				$payload['payment_total'],
+				$payload['customer_name'],
+				$payload['payment_product_names']
+			);
+		} elseif ($is_paid) {
+			$payload['payment_email_customer_subject'] = __('Payment confirmed', 'ultimate-multisite');
+			$payload['payment_email_customer_intro']   = sprintf(
+				/* translators: 1: payment total, 2: product names. */
+				__('Your payment of %1$s for %2$s was successful.', 'ultimate-multisite'),
+				$payload['payment_total'],
+				$payload['payment_product_names']
+			);
+			$payload['payment_email_admin_subject'] = sprintf(
+				/* translators: 1: payment total, 2: customer name. */
+				__('Payment received: %1$s from %2$s', 'ultimate-multisite'),
+				$payload['payment_total'],
+				$payload['customer_name']
+			);
+			$payload['payment_email_admin_intro'] = sprintf(
+				/* translators: 1: payment total, 2: customer name, 3: product names. */
+				__('Received %1$s from %2$s for %3$s.', 'ultimate-multisite'),
+				$payload['payment_total'],
+				$payload['customer_name'],
+				$payload['payment_product_names']
+			);
+		} elseif ($has_trial) {
+			$payload['payment_email_customer_subject'] = __('Your free trial has started', 'ultimate-multisite');
+			$payload['payment_email_customer_intro']   = sprintf(
+				/* translators: %s: product names. */
+				__('Your %s free trial is now active. You will not be charged today.', 'ultimate-multisite'),
+				$payload['payment_product_names']
+			);
+			$payload['payment_email_admin_subject'] = sprintf(
+				/* translators: %s: customer name. */
+				__('New trial started: %s', 'ultimate-multisite'),
+				$payload['customer_name']
+			);
+			$payload['payment_email_admin_intro'] = sprintf(
+				/* translators: 1: customer name, 2: product names. */
+				__('A free trial for %2$s has started for %1$s. No payment was collected today.', 'ultimate-multisite'),
+				$payload['customer_name'],
+				$payload['payment_product_names']
+			);
+		} else {
+			$payload['payment_email_customer_subject'] = __('Your free membership is active', 'ultimate-multisite');
+			$payload['payment_email_customer_intro']   = sprintf(
+				/* translators: %s: product names. */
+				__('Your free %s is now active. No payment was required.', 'ultimate-multisite'),
+				$payload['payment_product_names']
+			);
+			$payload['payment_email_admin_subject'] = sprintf(
+				/* translators: %s: customer name. */
+				__('New free membership: %s', 'ultimate-multisite'),
+				$payload['customer_name']
+			);
+			$payload['payment_email_admin_intro'] = sprintf(
+				/* translators: 1: customer name, 2: product names. */
+				__('A free membership for %2$s has been created for %1$s. No payment was collected.', 'ultimate-multisite'),
+				$payload['customer_name'],
+				$payload['payment_product_names']
+			);
+		}
+
 		wu_do_event('payment_received', $payload);
 	}
 

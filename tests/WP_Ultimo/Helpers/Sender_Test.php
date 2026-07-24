@@ -157,6 +157,28 @@ class Sender_Test extends WP_UnitTestCase {
 		$this->assertStringContainsString('42', $result);
 	}
 
+	/**
+	 * Test process_shortcodes renders conditional blocks for truthy payload values.
+	 */
+	public function test_process_shortcodes_renders_truthy_conditional_blocks() {
+		$content = 'Hello {{#payment_is_paid}}payment received{{/payment_is_paid}}!';
+
+		$result = Sender::process_shortcodes($content, ['payment_is_paid' => true]);
+
+		$this->assertEquals('Hello payment received!', $result);
+	}
+
+	/**
+	 * Test process_shortcodes removes conditional blocks for false payload values.
+	 */
+	public function test_process_shortcodes_removes_false_conditional_blocks() {
+		$content = 'Hello {{#payment_is_paid}}payment received{{/payment_is_paid}}!';
+
+		$result = Sender::process_shortcodes($content, ['payment_is_paid' => false]);
+
+		$this->assertEquals('Hello !', $result);
+	}
+
 	// ------------------------------------------------------------------
 	// send_mail — BCC strategy regression coverage (#1195 / GDPR fix +
 	// recipient validation fix for the 'undisclosed-recipients:;'
@@ -242,6 +264,7 @@ class Sender_Test extends WP_UnitTestCase {
 	public function test_send_mail_returns_false_when_all_bcc_recipients_are_filtered_out() {
 		$wp_mail_called = false;
 		$callback       = function ($short_circuit, $atts) use (&$wp_mail_called) {
+			unset($short_circuit, $atts);
 			$wp_mail_called = true;
 			return true;
 		};
@@ -284,6 +307,7 @@ class Sender_Test extends WP_UnitTestCase {
 	 */
 	public function test_send_mail_catches_throwable_from_wp_mail() {
 		$callback = function ($short_circuit, $atts) {
+			unset($short_circuit, $atts);
 			throw new \RuntimeException( 'Simulated SMTP plugin failure' );
 		};
 		add_filter( 'pre_wp_mail', $callback, 10, 2 );

@@ -93,6 +93,9 @@ class Email_Manager_Test extends \WP_UnitTestCase {
 		$this->assertArrayHasKey('payment_received_customer', $registered_emails);
 		$this->assertArrayHasKey('site_published_admin', $registered_emails);
 		$this->assertArrayHasKey('site_published_customer', $registered_emails);
+		$this->assertSame('{{payment_email_admin_subject}}', $registered_emails['payment_received_admin']['title']);
+		$this->assertSame('{{payment_email_customer_subject}}', $registered_emails['payment_received_customer']['title']);
+		$this->assertFalse($registered_emails['payment_received_customer']['send_copy_to_admin']);
 	}
 
 	/**
