@@ -2600,12 +2600,20 @@ final class Site_Exporter {
 	 */
 	public function maybe_run_imports(): void {
 
-		if (wu_exporter_get_pending_imports() && ! wp_next_scheduled('wu_import_site')) {
+		$pending_site_imports = wu_exporter_get_pending_imports();
+
+		if ($pending_site_imports && ! wp_next_scheduled('wu_import_site')) {
 			wp_schedule_event(time() + 10, 'wu_site_every_minute', 'wu_import_site');
+		} elseif (! $pending_site_imports && wp_next_scheduled('wu_import_site')) {
+			wp_clear_scheduled_hook('wu_import_site');
 		}
 
-		if (wu_exporter_get_pending_network_imports() && ! wp_next_scheduled('wu_import_network')) {
+		$pending_network_imports = wu_exporter_get_pending_network_imports();
+
+		if ($pending_network_imports && ! wp_next_scheduled('wu_import_network')) {
 			wp_schedule_event(time() + 10, 'wu_site_every_minute', 'wu_import_network');
+		} elseif (! $pending_network_imports && wp_next_scheduled('wu_import_network')) {
+			wp_clear_scheduled_hook('wu_import_network');
 		}
 	}
 

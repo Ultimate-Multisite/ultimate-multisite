@@ -421,6 +421,25 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test that maybe_run_imports clears stale import events when no imports are pending.
+	 */
+	public function test_maybe_run_imports_clears_stale_events_without_pending_imports(): void {
+
+		wp_schedule_event(time() + 60, 'wu_site_every_minute', 'wu_import_site');
+		wp_schedule_event(time() + 60, 'wu_site_every_minute', 'wu_import_network');
+
+		$this->assertNotFalse(wp_next_scheduled('wu_import_site'), 'Test requires a stale site import event');
+		$this->assertNotFalse(wp_next_scheduled('wu_import_network'), 'Test requires a stale network import event');
+		$this->assertEmpty(wu_exporter_get_pending_imports(), 'Test requires no pending site imports');
+		$this->assertEmpty(wu_exporter_get_pending_network_imports(), 'Test requires no pending network imports');
+
+		$this->exporter->maybe_run_imports();
+
+		$this->assertFalse(wp_next_scheduled('wu_import_site'), 'Stale wu_import_site event must be cleared without pending imports');
+		$this->assertFalse(wp_next_scheduled('wu_import_network'), 'Stale wu_import_network event must be cleared without pending imports');
+	}
+
+	/**
 	 * Test that maybe_run_imports schedules the wu_import_site event when a site import is pending.
 	 */
 	public function test_maybe_run_imports_schedules_site_event_when_site_import_is_pending(): void {
