@@ -94,7 +94,9 @@ class DirectAdmin_Integration extends Integration {
 			return $response;
 		}
 
-		if (isset($response['raw']) && false !== stripos((string) $response['raw'], '<html')) {
+		$raw_response = $response['_raw_response'] ?? $response['raw'] ?? '';
+
+		if (false !== stripos((string) $raw_response, '<html')) {
 			return new \WP_Error('directadmin-login-test-failed', __('DirectAdmin returned the login page instead of an API response. Check the username and Login Key or password.', 'ultimate-multisite'));
 		}
 
@@ -297,6 +299,8 @@ class DirectAdmin_Integration extends Integration {
 			parse_str($body, $parsed);
 
 			if ( ! empty($parsed)) {
+				$parsed['_raw_response'] = $body;
+
 				return $parsed;
 			}
 		}
