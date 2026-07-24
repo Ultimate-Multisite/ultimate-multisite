@@ -17,11 +17,20 @@ use WP_Ultimo\Logger;
 class Logger_Recent_Error_Test extends \WP_UnitTestCase {
 
 	/**
+	 * The error logging level before each test.
+	 *
+	 * @var string
+	 */
+	private $error_logging_level;
+
+	/**
 	 * Clean the recent error marker before each test.
 	 */
 	public function set_up(): void {
 
 		parent::set_up();
+
+		$this->error_logging_level = wu_get_setting('error_logging_level', 'default');
 
 		delete_site_option('wu_recent_error_log_entry');
 		wu_save_setting('error_logging_level', 'all');
@@ -33,6 +42,7 @@ class Logger_Recent_Error_Test extends \WP_UnitTestCase {
 	public function tear_down(): void {
 
 		delete_site_option('wu_recent_error_log_entry');
+		wu_save_setting('error_logging_level', $this->error_logging_level);
 
 		parent::tear_down();
 	}

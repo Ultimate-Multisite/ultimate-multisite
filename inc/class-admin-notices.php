@@ -205,6 +205,9 @@ class Admin_Notices implements \WP_Ultimo\Interfaces\Singleton {
 		$handle    = $error['handle'] ?? __('unknown', 'ultimate-multisite');
 		$message   = $error['message'] ?? __('No details available.', 'ultimate-multisite');
 		$timestamp = (int) ($error['timestamp'] ?? 0);
+		$level     = $error['level'] ?? '';
+
+		$dismissible_key = 'wu-recent-error-log-' . md5(wp_json_encode([$timestamp, $handle, $message, $level]));
 
 		$notice = sprintf(
 			/* translators: 1: Log handle, 2: error message. */
@@ -217,7 +220,7 @@ class Admin_Notices implements \WP_Ultimo\Interfaces\Singleton {
 			$notice,
 			'error',
 			'network-admin',
-			'wu-recent-error-log-' . $timestamp,
+			$dismissible_key,
 			[
 				'view-logs' => [
 					'title' => __('View Logs', 'ultimate-multisite'),
