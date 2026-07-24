@@ -129,26 +129,25 @@ class DirectAdmin_Integration_Test extends WP_UnitTestCase {
 				}
 			);
 
-		add_filter(
-			'pre_http_request',
-			function () {
-				return [
-					'headers'  => [],
-					'body'     => '<html><body><input name="username" value="admin"></body></html>',
-					'response' => [
-						'code'    => 200,
-						'message' => 'OK',
-					],
-					'cookies'  => [],
-					'filename' => null,
-				];
-			}
-		);
+		$pre_http_request = function () {
+			return [
+				'headers'  => [],
+				'body'     => 'raw=server-value&error=0&message=<html><body><input name="username" value="admin"></body></html>',
+				'response' => [
+					'code'    => 200,
+					'message' => 'OK',
+				],
+				'cookies'  => [],
+				'filename' => null,
+			];
+		};
+
+		add_filter('pre_http_request', $pre_http_request);
 
 		try {
 			$result = $integration->test_connection();
 		} finally {
-			remove_all_filters('pre_http_request');
+			remove_filter('pre_http_request', $pre_http_request);
 		}
 
 		$this->assertInstanceOf(\WP_Error::class, $result);
