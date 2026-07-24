@@ -437,6 +437,25 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 
 		$this->assertFalse(wp_next_scheduled('wu_import_site'), 'Stale wu_import_site event must be cleared without pending imports');
 		$this->assertFalse(wp_next_scheduled('wu_import_network'), 'Stale wu_import_network event must be cleared without pending imports');
+
+		$this->add_pending_site_import();
+		wp_schedule_event(time() + 60, 'wu_site_every_minute', 'wu_import_site');
+		wp_schedule_event(time() + 60, 'wu_site_every_minute', 'wu_import_network');
+
+		$this->exporter->maybe_run_imports();
+
+		$this->assertNotFalse(wp_next_scheduled('wu_import_site'), 'Active wu_import_site event must remain scheduled with pending site imports');
+		$this->assertFalse(wp_next_scheduled('wu_import_network'), 'Stale wu_import_network event must be cleared without pending network imports');
+
+		$this->clear_import_cron_events();
+		$this->add_pending_network_import();
+		wp_schedule_event(time() + 60, 'wu_site_every_minute', 'wu_import_site');
+		wp_schedule_event(time() + 60, 'wu_site_every_minute', 'wu_import_network');
+
+		$this->exporter->maybe_run_imports();
+
+		$this->assertFalse(wp_next_scheduled('wu_import_site'), 'Stale wu_import_site event must be cleared without pending site imports');
+		$this->assertNotFalse(wp_next_scheduled('wu_import_network'), 'Active wu_import_network event must remain scheduled with pending network imports');
 	}
 
 	/**
