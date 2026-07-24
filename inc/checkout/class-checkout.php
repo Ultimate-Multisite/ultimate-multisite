@@ -1578,7 +1578,7 @@ class Checkout {
 		 */
 		if (empty($site_url) || in_array($auto_generate_url, ['username', 'site_title'], true)) {
 			if ('username' === $auto_generate_url) {
-				$site_url   = $this->customer->get_username();
+				$site_url   = wu_generate_unique_site_url($this->customer->get_username(), $this->request_or_session('site_domain'));
 				$site_title = $site_title ?: $site_url;
 			} elseif ('site_title' === $auto_generate_url && $site_title) {
 				/*
