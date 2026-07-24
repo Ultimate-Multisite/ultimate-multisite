@@ -440,6 +440,17 @@ function wu_generate_site_url_from_title($site_title) {
 		// Ensure it starts with a letter (WordPress requirement)
 		$slug = 'site' . $slug;
 	}
+
+	/*
+	 * WordPress rejects network site names shorter than four characters.
+	 * Auto-generated usernames can legitimately be shorter (for example,
+	 * "me" from me@example.com), so pad generated slugs before checkout
+	 * validates or provisions the site.
+	 */
+	if (strlen($slug) < 4) {
+		$slug = str_pad($slug, 4, '0');
+	}
+
 	return $slug;
 }
 
