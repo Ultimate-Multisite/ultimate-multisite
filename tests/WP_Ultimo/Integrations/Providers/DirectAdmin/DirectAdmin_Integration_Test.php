@@ -110,6 +110,51 @@ class DirectAdmin_Integration_Test extends WP_UnitTestCase {
 		$this->assertSame('directadmin-login-test-failed', $result->get_error_code());
 	}
 
+	public function test_test_connection_detects_url_encoded_login_page_response(): void {
+
+		$integration = $this->getMockBuilder(DirectAdmin_Integration::class)
+			->onlyMethods(['get_credential'])
+			->getMock();
+
+		$integration->method('get_credential')
+			->willReturnCallback(
+				function (string $key) {
+					$credentials = [
+						'WU_DIRECTADMIN_HOST'      => 'server.example.com',
+						'WU_DIRECTADMIN_USERNAME'  => 'admin',
+						'WU_DIRECTADMIN_API_TOKEN' => 'login-key',
+					];
+
+					return $credentials[ $key ] ?? '';
+				}
+			);
+
+		add_filter(
+			'pre_http_request',
+			function () {
+				return [
+					'headers'  => [],
+					'body'     => '<html><body><input name="username" value="admin"></body></html>',
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'cookies'  => [],
+					'filename' => null,
+				];
+			}
+		);
+
+		try {
+			$result = $integration->test_connection();
+		} finally {
+			remove_all_filters('pre_http_request');
+		}
+
+		$this->assertInstanceOf(\WP_Error::class, $result);
+		$this->assertSame('directadmin-login-test-failed', $result->get_error_code());
+	}
+
 	public function test_directadmin_api_request_returns_error_when_host_missing(): void {
 
 		$integration = $this->getMockBuilder(DirectAdmin_Integration::class)

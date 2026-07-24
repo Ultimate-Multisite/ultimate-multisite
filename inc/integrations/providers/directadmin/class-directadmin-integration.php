@@ -297,6 +297,8 @@ class DirectAdmin_Integration extends Integration {
 			parse_str($body, $parsed);
 
 			if ( ! empty($parsed)) {
+				$parsed['raw'] = $body;
+
 				return $parsed;
 			}
 		}
