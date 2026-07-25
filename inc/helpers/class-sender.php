@@ -242,6 +242,19 @@ class Sender {
 			return $content;
 		}
 
+		/*
+		 * Allow templates to include a block only when the matching payload
+		 * value is truthy. This keeps a single transactional email template
+		 * useful for related outcomes, such as paid checkouts and free trials.
+		 */
+		$content = preg_replace_callback(
+			'/{{#([a-zA-Z0-9_]+)}}(.*?){{\/\1}}/s',
+			function ($matches) use ($payload) {
+				return ! empty($payload[ $matches[1] ]) ? $matches[2] : '';
+			},
+			$content
+		);
+
 		$match = [];
 
 		preg_match_all('/{{(.*?)}}/', $content, $match);
