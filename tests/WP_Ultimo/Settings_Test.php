@@ -30,6 +30,9 @@ class Settings_Test extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
+		$this->settings->save_setting('allow_trial_without_payment_method', 0);
+		$this->settings->save_setting('company_name', '');
+
 		remove_all_filters('wu_get_setting');
 		remove_all_filters('wu_save_setting');
 		remove_all_filters('wu_settings_get_sections');
@@ -102,6 +105,19 @@ class Settings_Test extends WP_UnitTestCase {
 		$result = $this->settings->get_setting('totally_missing_setting_abc');
 		// Returns false or the default from get_setting_defaults
 		$this->assertNotNull($result);
+	}
+
+	public function test_get_setting_treats_literal_false_string_as_missing_for_text_defaults() {
+		$this->settings->save_setting('company_name', 'false');
+
+		$this->assertSame('', $this->settings->get_setting('company_name'));
+		$this->assertSame('', $this->settings->get_setting('company_name', ''));
+	}
+
+	public function test_get_setting_preserves_literal_false_string_for_toggle_defaults() {
+		$this->settings->save_setting('allow_trial_without_payment_method', 'false');
+
+		$this->assertSame('false', $this->settings->get_setting('allow_trial_without_payment_method'));
 	}
 
 	public function test_save_setting_returns_boolean() {

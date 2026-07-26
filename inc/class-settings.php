@@ -242,21 +242,20 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			_doing_it_wrong(esc_html($setting), esc_html__('Dashes are no longer supported when registering a setting. You should change it to underscores in later versions.', 'ultimate-multisite'), '2.0.0');
 		}
 
+		$setting_exists = isset($settings[ $setting ]);
+
 		/*
-		 * Treat the literal string "false" as "not set" when reading a
-		 * setting. Earlier versions of the settings save flow could
-		 * persist the four-letter string "false" for any text field
-		 * that was empty when the user clicked Save (the Vue data-state
-		 * round-tripped a boolean false through v-model and back to
-		 * PHP as the string "false"). Recovering existing installs
-		 * without forcing a manual DB clean-up means treating that
-		 * sentinel as missing so the caller's default (or the field
-		 * default) takes precedence. The bug that produced these values
-		 * is fixed in add_field()'s value/display_value closures, so new
-		 * saves cannot reintroduce the string — this read-side guard
-		 * exists purely for already-corrupted databases.
+		 * Treat the literal string "false" as "not set" only for settings
+		 * whose fallback is text-like. Earlier versions could persist the
+		 * four-letter string "false" for empty text fields, but applying
+		 * that recovery to every setting changed legacy truthiness for
+		 * toggle/numeric values that already had the string saved.
 		 */
-		if (isset($settings[ $setting ]) && 'false' !== $settings[ $setting ]) {
+		if ($setting_exists && 'false' === $settings[ $setting ] && $this->should_treat_false_string_as_missing($setting, $default_value)) {
+			$setting_exists = false;
+		}
+
+		if ($setting_exists) {
 			$setting_value = $settings[ $setting ];
 		} elseif (false !== $default_value) {
 			$setting_value = $default_value;
@@ -266,6 +265,34 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 		}
 
 		return apply_filters('wu_get_setting', $setting_value, $setting, $default_value, $settings);
+	}
+
+	/**
+	 * Determines whether a saved literal "false" string should fall back.
+	 *
+	 * The string is a known corruption pattern for empty text fields, but it
+	 * must not be treated as missing for toggle/numeric defaults because older
+	 * versions exposed that saved value as truthy.
+	 *
+	 * @since 2.14.3
+	 *
+	 * @param string $setting       Settings name to inspect.
+	 * @param mixed  $default_value Default value passed to get_setting().
+	 * @return bool
+	 */
+	private function should_treat_false_string_as_missing($setting, $default_value): bool {
+
+		if (false !== $default_value) {
+			return is_string($default_value);
+		}
+
+		$defaults = static::get_setting_defaults();
+
+		if (array_key_exists($setting, $defaults)) {
+			return is_string($defaults[ $setting ]);
+		}
+
+		return true;
 	}
 
 	/**
