@@ -13,6 +13,39 @@ let currentElementsMode = null;
 let currentElementsAmount = null;
 
 /**
+ * Check if the current checkout should collect Stripe details.
+ *
+ * @param {Object} checkout Checkout form instance.
+ * @return {boolean} True when Stripe should collect a new payment method.
+ */
+const shouldCollectStripePayment = function (checkout) {
+
+	return checkout &&
+		checkout.order &&
+		checkout.order.should_collect_payment &&
+		checkout.payment_method === 'add-new';
+};
+
+/**
+ * Unmount the current Payment Element instance.
+ */
+const resetStripeElements = function () {
+
+	if (paymentElement) {
+		try {
+			paymentElement.unmount();
+		} catch (error) {
+			// Silence
+		}
+	}
+
+	paymentElement = null;
+	elements = null;
+	currentElementsMode = null;
+	currentElementsAmount = null;
+};
+
+/**
  * Initialize Stripe and set up Payment Element.
  *
  * @param {string} publicKey Stripe publishable key.
@@ -29,7 +62,7 @@ const stripeElements = function (publicKey) {
 		'nextpress/wp-ultimo',
 		function (promises, checkout, gateway) {
 
-			if (gateway === 'stripe' && checkout.order.totals.total > 0) {
+			if (gateway === 'stripe' && shouldCollectStripePayment(checkout)) {
 
 				const paymentEl = document.getElementById('payment-element');
 
@@ -66,6 +99,11 @@ const stripeElements = function (publicKey) {
 		function (checkout, results) {
 
 			if (checkout.gateway !== 'stripe') {
+				return;
+			}
+
+			if (!checkout.order || !checkout.order.should_collect_payment) {
+				checkout.set_prevent_submission(false);
 				return;
 			}
 
@@ -131,17 +169,14 @@ const stripeElements = function (publicKey) {
 			form.set_prevent_submission(false);
 
 			// Destroy elements if switching away from Stripe
-			if (paymentElement) {
-				try {
-					paymentElement.unmount();
-				} catch (error) {
-					// Silence
-				}
-				paymentElement = null;
-				elements = null;
-				currentElementsMode = null;
-				currentElementsAmount = null;
-			}
+			resetStripeElements();
+
+			return;
+		}
+
+		if (!form.order || !form.order.should_collect_payment) {
+			form.set_prevent_submission(false);
+			resetStripeElements();
 
 			return;
 		}
