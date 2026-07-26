@@ -204,4 +204,48 @@ class Cart_Should_Collect_Payment_Test extends WP_UnitTestCase {
 			'Documents the 2026-05-27 outage configuration: with allow_trial_without_payment_method ON, a trial cart skips payment collection and routes through the free gateway (which bypasses WooCommerce). If this ever changes, the change must be reviewed deliberately — this setting must stay OFF in production.'
 		);
 	}
+
+	/**
+	 * Legacy databases may have the setting saved as the literal string "false".
+	 *
+	 * Older releases exposed that non-empty string as truthy, which meant the
+	 * checkout skipped card collection for free trials. The settings recovery for
+	 * empty text fields must not silently flip that legacy checkout behaviour.
+	 *
+	 * @return void
+	 */
+	public function test_legacy_false_string_setting_keeps_trial_without_payment_method(): void {
+		wu_save_setting( self::TRIAL_SETTING, 'false' );
+
+		wp_set_current_user( 0 );
+
+		$product = wu_create_product(
+			[
+				'name'                => 'Trial Plan (legacy false string)',
+				'slug'                => 'trial-plan-legacy-false-' . uniqid(),
+				'amount'              => 19.99,
+				'type'                => 'plan',
+				'active'              => true,
+				'recurring'           => true,
+				'duration'            => 1,
+				'duration_unit'       => 'month',
+				'trial_duration'      => 14,
+				'trial_duration_unit' => 'day',
+			]
+		);
+
+		if ( is_wp_error( $product ) ) {
+			$this->markTestSkipped( 'Could not create product: ' . $product->get_error_message() );
+			return;
+		}
+
+		$cart = $this->build_cart_for_product( $product->get_id() );
+
+		$this->assertTrue( $cart->has_trial(), 'Sanity check: must be a trial cart for this branch.' );
+
+		$this->assertFalse(
+			$cart->should_collect_payment(),
+			'A saved literal string "false" must preserve legacy no-payment trial behaviour instead of forcing Stripe card collection after an update.'
+		);
+	}
 }
