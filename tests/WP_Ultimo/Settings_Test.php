@@ -32,6 +32,7 @@ class Settings_Test extends WP_UnitTestCase {
 	public function tear_down() {
 		$this->settings->save_setting('allow_trial_without_payment_method', 0);
 		$this->settings->save_setting('company_name', '');
+		$this->settings->save_setting('precision', '2');
 
 		remove_all_filters('wu_get_setting');
 		remove_all_filters('wu_save_setting');
@@ -118,6 +119,12 @@ class Settings_Test extends WP_UnitTestCase {
 		$this->settings->save_setting('allow_trial_without_payment_method', 'false');
 
 		$this->assertSame('false', $this->settings->get_setting('allow_trial_without_payment_method'));
+	}
+
+	public function test_get_setting_preserves_literal_false_string_for_numeric_string_defaults() {
+		$this->settings->save_setting('precision', 'false');
+
+		$this->assertSame('false', $this->settings->get_setting('precision'));
 	}
 
 	public function test_save_setting_returns_boolean() {

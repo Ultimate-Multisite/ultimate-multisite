@@ -283,16 +283,32 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 	private function should_treat_false_string_as_missing($setting, $default_value): bool {
 
 		if (false !== $default_value) {
-			return is_string($default_value);
+			return $this->is_text_like_setting_default($default_value);
 		}
 
 		$defaults = static::get_setting_defaults();
 
 		if (array_key_exists($setting, $defaults)) {
-			return is_string($defaults[ $setting ]);
+			return $this->is_text_like_setting_default($defaults[ $setting ]);
 		}
 
 		return true;
+	}
+
+	/**
+	 * Determines whether a default value represents a text-like setting.
+	 *
+	 * Numeric strings are stored as strings for some settings, but should follow
+	 * numeric compatibility rules when recovering saved literal "false" values.
+	 *
+	 * @since 2.14.3
+	 *
+	 * @param mixed $default_value Default value to classify.
+	 * @return bool
+	 */
+	private function is_text_like_setting_default($default_value): bool {
+
+		return is_string($default_value) && ! is_numeric($default_value);
 	}
 
 	/**
