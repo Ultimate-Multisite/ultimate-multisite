@@ -43,23 +43,14 @@ class Recommended_Plugins_Installer extends Base_Installer {
 		// Recommended: User Switching (https://wordpress.org/plugins/user-switching/)
 		$user_switching_slug                               = 'user-switching';
 		$steps[ 'install_plugin_' . $user_switching_slug ] = [
-			'done'        => $this->is_plugin_installed($user_switching_slug),
+			'done'        => $this->is_plugin_active($user_switching_slug),
 			'title'       => __('User Switching', 'ultimate-multisite'),
 			'description' => __('Quickly switch between users for testing and support.', 'ultimate-multisite'),
 			'pending'     => __('Pending', 'ultimate-multisite'),
 			'installing'  => __('Installing User Switching...', 'ultimate-multisite'),
-			'success'     => __('Installed!', 'ultimate-multisite'),
-			'help'        => 'https://wordpress.org/plugins/user-switching/',
-			'checked'     => true,
-		];
-
-		$steps[ 'activate_plugin_' . $user_switching_slug ] = [
-			'done'        => $this->is_plugin_active($user_switching_slug),
-			'title'       => __('Activate User Switching', 'ultimate-multisite'),
-			'description' => __('Activate the User Switching plugin.', 'ultimate-multisite'),
-			'pending'     => __('Pending', 'ultimate-multisite'),
-			'installing'  => __('Activating User Switching...', 'ultimate-multisite'),
-			'success'     => __('Activated!', 'ultimate-multisite'),
+			'activation'  => 'activate_plugin_' . $user_switching_slug,
+			'activating'  => __('Activating User Switching...', 'ultimate-multisite'),
+			'success'     => __('Installed and activated!', 'ultimate-multisite'),
 			'help'        => 'https://wordpress.org/plugins/user-switching/',
 			'checked'     => true,
 		];
@@ -71,23 +62,14 @@ class Recommended_Plugins_Installer extends Base_Installer {
 		// Recommended for non-English networks: Superdav AI Language Packs.
 		$language_packs_slug                               = 'superdav-ai-language-packs';
 		$steps[ 'install_plugin_' . $language_packs_slug ] = [
-			'done'        => $this->is_plugin_installed($language_packs_slug),
+			'done'        => $this->is_plugin_active($language_packs_slug),
 			'title'       => __('AI Language Packs', 'ultimate-multisite'),
 			'description' => __('Add AI-powered language packs for plugin and theme translates, fully localize Ultimate Multisite and all community plugins.', 'ultimate-multisite'),
 			'pending'     => __('Pending', 'ultimate-multisite'),
 			'installing'  => __('Installing AI Language Packs...', 'ultimate-multisite'),
-			'success'     => __('Installed!', 'ultimate-multisite'),
-			'help'        => 'https://wordpress.org/plugins/superdav-ai-language-packs/',
-			'checked'     => $language_packs_is_checked,
-		];
-
-		$steps[ 'activate_plugin_' . $language_packs_slug ] = [
-			'done'        => $this->is_plugin_active($language_packs_slug),
-			'title'       => __('Activate Superdav AI Language Packs', 'ultimate-multisite'),
-			'description' => __('Activate Superdav AI Language Packs for your network.', 'ultimate-multisite'),
-			'pending'     => __('Pending', 'ultimate-multisite'),
-			'installing'  => __('Activating Superdav AI Language Packs...', 'ultimate-multisite'),
-			'success'     => __('Activated!', 'ultimate-multisite'),
+			'activation'  => 'activate_plugin_' . $language_packs_slug,
+			'activating'  => __('Activating AI Language Packs...', 'ultimate-multisite'),
+			'success'     => __('Installed and activated!', 'ultimate-multisite'),
 			'help'        => 'https://wordpress.org/plugins/superdav-ai-language-packs/',
 			'checked'     => $language_packs_is_checked,
 		];
@@ -95,23 +77,14 @@ class Recommended_Plugins_Installer extends Base_Installer {
 		// Optional: Superdav AI Agent.
 		$ai_agent_slug                               = 'superdav-ai-agent';
 		$steps[ 'install_plugin_' . $ai_agent_slug ] = [
-			'done'        => $this->is_plugin_installed($ai_agent_slug),
+			'done'        => $this->is_plugin_active($ai_agent_slug),
 			'title'       => __('SD AI Agent', 'ultimate-multisite'),
 			'description' => __('Use an AI Agent fully control all of WordPress. Create content, products, custom plugins and more. Like Claude code or Cursor running inside of wp-admin.', 'ultimate-multisite'),
 			'pending'     => __('Pending', 'ultimate-multisite'),
 			'installing'  => __('Installing Superdav AI Agent...', 'ultimate-multisite'),
-			'success'     => __('Installed!', 'ultimate-multisite'),
-			'help'        => 'https://wordpress.org/plugins/superdav-ai-agent/',
-			'checked'     => false,
-		];
-
-		$steps[ 'activate_plugin_' . $ai_agent_slug ] = [
-			'done'        => $this->is_plugin_active($ai_agent_slug),
-			'title'       => __('Activate SD AI Agent', 'ultimate-multisite'),
-			'description' => __('Activate SD AI Agent for your network.', 'ultimate-multisite'),
-			'pending'     => __('Pending', 'ultimate-multisite'),
-			'installing'  => __('Activating SD AI Agent...', 'ultimate-multisite'),
-			'success'     => __('Activated!', 'ultimate-multisite'),
+			'activation'  => 'activate_plugin_' . $ai_agent_slug,
+			'activating'  => __('Activating Superdav AI Agent...', 'ultimate-multisite'),
+			'success'     => __('Installed and activated!', 'ultimate-multisite'),
 			'help'        => 'https://wordpress.org/plugins/superdav-ai-agent/',
 			'checked'     => false,
 		];
