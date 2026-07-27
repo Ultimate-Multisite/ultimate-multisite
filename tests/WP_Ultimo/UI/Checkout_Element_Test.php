@@ -69,9 +69,8 @@ class Checkout_Element_Test extends WP_UnitTestCase {
 
 		$this->assertNotWPError($form);
 
-		$property = new \ReflectionProperty($this->element, 'pre_loaded_attributes');
-
-		$property->setValue($this->element, false);
+		$property                       = new \ReflectionProperty($this->element, 'pre_loaded_attributes');
+		$original_pre_loaded_attributes = $property->getValue($this->element);
 
 		if ( ! wp_style_is('wu-checkout', 'registered')) {
 			wp_register_style('wu-checkout', false, [], 'test');
@@ -85,17 +84,74 @@ class Checkout_Element_Test extends WP_UnitTestCase {
 
 		add_filter('wu_checkout_skip_output', $skip_output);
 
-		$this->element->display(['slug' => $slug]);
+		try {
+			$property->setValue($this->element, false);
 
-		remove_filter('wu_checkout_skip_output', $skip_output);
+			$this->element->display(['slug' => $slug]);
 
-		$this->element->register_scripts();
+			$this->element->register_scripts();
 
-		$styles = wp_styles()->get_data('wu-checkout', 'after');
+			$styles = wp_styles()->get_data('wu-checkout', 'after');
 
-		$this->assertSame($slug, $this->element->get_pre_loaded_attribute('slug'));
-		$this->assertIsArray($styles);
-		$this->assertStringContainsString('.wu_checkout_form_' . $slug . ' .wu-custom-css-test', implode("\n", $styles));
+			$this->assertSame($slug, $this->element->get_pre_loaded_attribute('slug'));
+			$this->assertIsArray($styles);
+			$this->assertStringContainsString('.wu_checkout_form_' . $slug . ' .wu-custom-css-test', implode("\n", $styles));
+		} finally {
+			remove_filter('wu_checkout_skip_output', $skip_output);
+			$property->setValue($this->element, $original_pre_loaded_attributes);
+		}
+	}
+
+	/**
+	 * Test checkout scripts use the default form when attributes were not pre-loaded.
+	 */
+	public function test_register_scripts_uses_default_slug_without_pre_loaded_attributes(): void {
+		$custom_css = '.wu-default-custom-css-test { color: red; }';
+		$form       = wu_get_checkout_form_by_slug('main-form');
+		$old_css    = false;
+
+		if (! $form) {
+			$form = wu_create_checkout_form(
+				[
+					'name'       => 'Main Form',
+					'slug'       => 'main-form',
+					'custom_css' => $custom_css,
+				]
+			);
+		} else {
+			$old_css = $form->get_custom_css();
+			$form->set_custom_css($custom_css);
+			$form->save();
+		}
+
+		$this->assertNotWPError($form);
+
+		$property                       = new \ReflectionProperty($this->element, 'pre_loaded_attributes');
+		$original_pre_loaded_attributes = $property->getValue($this->element);
+
+		if ( ! wp_style_is('wu-checkout', 'registered')) {
+			wp_register_style('wu-checkout', false, [], 'test');
+		}
+
+		wp_enqueue_style('wu-checkout');
+
+		try {
+			$property->setValue($this->element, false);
+
+			$this->element->register_scripts();
+
+			$styles = wp_styles()->get_data('wu-checkout', 'after');
+
+			$this->assertIsArray($styles);
+			$this->assertStringContainsString('.wu_checkout_form_main-form .wu-default-custom-css-test', implode("\n", $styles));
+		} finally {
+			$property->setValue($this->element, $original_pre_loaded_attributes);
+
+			if (false !== $old_css) {
+				$form->set_custom_css($old_css);
+				$form->save();
+			}
+		}
 	}
 
 	/**

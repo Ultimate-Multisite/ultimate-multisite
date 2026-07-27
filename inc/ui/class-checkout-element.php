@@ -366,7 +366,12 @@ class Checkout_Element extends Base_Element {
 	 * @return void
 	 */
 	public function register_scripts() {
-		$slug          = $this->get_pre_loaded_attribute('slug', $this->defaults()['slug']);
+		$slug = $this->get_pre_loaded_attribute('slug');
+
+		if (! $slug) {
+			$slug = $this->defaults()['slug'];
+		}
+
 		$checkout_form = wu_get_checkout_form_by_slug($slug);
 
 		if (! $checkout_form) {
