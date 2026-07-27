@@ -261,6 +261,24 @@ class Checkout_Element extends Base_Element {
 	}
 
 	/**
+	 * Retains the current block or shortcode attributes for script registration.
+	 *
+	 * Block templates can render without a post whose content contains the block,
+	 * so the early element scan cannot always preload the configured slug.
+	 *
+	 * @since 2.4.15
+	 *
+	 * @param array $atts Element attributes.
+	 * @return void
+	 */
+	public function display($atts) {
+
+		$this->pre_loaded_attributes = wp_parse_args($atts, $this->defaults());
+
+		parent::display($atts);
+	}
+
+	/**
 	 * Checks if we are on a thank you page.
 	 *
 	 * @since 2.0.0
@@ -348,7 +366,12 @@ class Checkout_Element extends Base_Element {
 	 * @return void
 	 */
 	public function register_scripts() {
-		$slug          = $this->get_pre_loaded_attribute('slug');
+		$slug = $this->get_pre_loaded_attribute('slug');
+
+		if (! $slug) {
+			$slug = $this->defaults()['slug'];
+		}
+
 		$checkout_form = wu_get_checkout_form_by_slug($slug);
 
 		if (! $checkout_form) {
