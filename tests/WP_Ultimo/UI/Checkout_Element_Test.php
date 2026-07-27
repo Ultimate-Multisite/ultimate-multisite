@@ -55,6 +55,50 @@ class Checkout_Element_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test block attributes remain available when checkout scripts are registered during rendering.
+	 */
+	public function test_display_retains_block_slug_for_late_script_registration(): void {
+		$slug = 'custom-css-form-' . wp_generate_uuid4();
+		$form = wu_create_checkout_form(
+			[
+				'name'       => 'Custom CSS Form',
+				'slug'       => $slug,
+				'custom_css' => '.wu-custom-css-test { color: red; }',
+			]
+		);
+
+		$this->assertNotWPError($form);
+
+		$property = new \ReflectionProperty($this->element, 'pre_loaded_attributes');
+
+		$property->setValue($this->element, false);
+
+		if ( ! wp_style_is('wu-checkout', 'registered')) {
+			wp_register_style('wu-checkout', false, [], 'test');
+		}
+
+		wp_enqueue_style('wu-checkout');
+
+		$skip_output = static function () {
+			return true;
+		};
+
+		add_filter('wu_checkout_skip_output', $skip_output);
+
+		$this->element->display(['slug' => $slug]);
+
+		remove_filter('wu_checkout_skip_output', $skip_output);
+
+		$this->element->register_scripts();
+
+		$styles = wp_styles()->get_data('wu-checkout', 'after');
+
+		$this->assertSame($slug, $this->element->get_pre_loaded_attribute('slug'));
+		$this->assertIsArray($styles);
+		$this->assertStringContainsString('.wu_checkout_form_' . $slug . ' .wu-custom-css-test', implode("\n", $styles));
+	}
+
+	/**
 	 * Test deferred output renders a cache-safe placeholder instead of live checkout markup.
 	 */
 	public function test_deferred_output_renders_placeholder_without_nocache_action(): void {
