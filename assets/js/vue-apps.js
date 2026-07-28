@@ -147,6 +147,9 @@
 					if (Object.prototype.toString.call(value) === "[object Array]") {
 						return value.indexOf(this[ data ]) > -1;
 					}
+					if ([ "string", "number", "boolean" ].includes(typeof this[ data ]) && [ "string", "number", "boolean" ].includes(typeof value)) {
+						return String(this[ data ]) === String(value);
+					}
 					return this[ data ] === value;
 				},
 				open($event) {
