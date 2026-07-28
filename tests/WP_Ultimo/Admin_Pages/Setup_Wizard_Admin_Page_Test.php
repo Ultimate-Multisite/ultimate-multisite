@@ -291,6 +291,15 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 		$this->assertArrayHasKey('recommended-plugins', $this->page->get_sections());
 	}
 
+	public function test_recommended_plugins_description_covers_installation_and_activation(): void {
+		$sections = $this->page->get_sections();
+
+		$this->assertSame(
+			'Optionally install and activate helpful plugins. We will install and activate them one by one and report progress.',
+			$sections['recommended-plugins']['description']
+		);
+	}
+
 	public function test_welcome_section_has_required_keys(): void {
 		$sections = $this->page->get_sections();
 		$this->assertArrayHasKey('title', $sections['welcome']);

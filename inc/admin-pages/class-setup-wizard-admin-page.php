@@ -542,7 +542,7 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 		// Recommended Plugins step (runs like other installer steps)
 		$sections['recommended-plugins'] = [
 			'title'        => __('Recommended Plugins', 'ultimate-multisite'),
-			'description'  => __('Optionally install helpful plugins. We will install them one by one and report progress.', 'ultimate-multisite'),
+			'description'  => __('Optionally install and activate helpful plugins. We will install and activate them one by one and report progress.', 'ultimate-multisite'),
 			'next_label'   => Recommended_Plugins_Installer::get_instance()->all_done() ? __('Go to the Next Step &rarr;', 'ultimate-multisite') : __('Install', 'ultimate-multisite'),
 			'disable_next' => true,
 			'fields'       => [

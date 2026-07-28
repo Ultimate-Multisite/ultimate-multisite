@@ -96,66 +96,113 @@
 					.find('.spinner').addClass('is-active').end()
 					.find('a.help').slideUp();
 
-				// Ajax request
-				$.ajax({
-					url: ajaxurl,
-					method: 'post',
-					data: {
-						action: wu_setup_settings.ajax_action || 'wu_setup_install',
-						installer: content,
-						'dry-run': wu_setup_settings.dry_run,
-						_wpnonce: wu_setup_settings.install_nonce,
-					},
-					success(data) {
+				/**
+				 * Move to the next selected installer row.
+				 */
+				function process_next_item() {
 
-						if (data.success === true) {
+					index++;
 
-							$item.find('td.status')
-								.attr('class', '')
-								.addClass('status wu-text-green-600')
-								.find('> span').html(wu_setup[ content ].success).end()
-								.find('.spinner').removeClass('is-active');
+					process_queue_item(queue.eq(index));
 
-							$item.removeAttr('data-content');
+				} // end process_next_item;
 
-							successes++;
+				/**
+				 * Display an installer error and continue processing the queue.
+				 *
+				 * @param {string} errorMessage The message to display.
+				 */
+				function show_error(errorMessage) {
 
-						} else {
+					$item.find('td.status')
+						.attr('class', '')
+						.addClass('status wu-text-red-400')
+						.find('> span').html(errorMessage).end()
+						.find('.spinner').removeClass('is-active').end()
+						.find('a.help').slideDown();
 
-							$item.find('td.status')
-								.attr('class', '')
-								.addClass('status wu-text-red-400')
-								.find('> span').html(data.data[ 0 ].message).end()
-								.find('.spinner').removeClass('is-active').end()
-								.find('a.help').slideDown();
+					process_next_item();
 
-						} // end if;
+				} // end show_error;
 
-						index++;
+				/**
+				 * Mark the current row complete after all of its actions succeed.
+				 */
+				function mark_complete() {
 
-						process_queue_item(queue.eq(index));
+					$item.find('td.status')
+						.attr('class', '')
+						.addClass('status wu-text-green-600')
+						.find('> span').html(wu_setup[ content ].success).end()
+						.find('.spinner').removeClass('is-active');
 
-					},
-					error(jqXHR) {
+					$item.removeAttr('data-content');
 
-						let errorMessage = wu_setup_settings.generic_error_message || 'An error occurred.';
+					successes++;
 
-						if (jqXHR.responseJSON && jqXHR.responseJSON.data && jqXHR.responseJSON.data[ 0 ]) {
-							errorMessage = jqXHR.responseJSON.data[ 0 ].message || errorMessage;
-						}
+					process_next_item();
 
-						$item.find('td.status')
-							.attr('class', '')
-							.addClass('status wu-text-red-400')
-							.find('> span').html(errorMessage).end()
-							.find('.spinner').removeClass('is-active').end()
-							.find('a.help').slideDown();
+				} // end mark_complete;
 
-						index++;
+				/**
+				 * Run one installer action for the current row.
+				 *
+				 * @param {string}   installer The installer action name.
+				 * @param {Function} onSuccess Callback after the action succeeds.
+				 */
+				function run_installer(installer, onSuccess) {
 
-						process_queue_item(queue.eq(index));
+					$.ajax({
+						url: ajaxurl,
+						method: 'post',
+						data: {
+							action: wu_setup_settings.ajax_action || 'wu_setup_install',
+							installer,
+							'dry-run': wu_setup_settings.dry_run,
+							_wpnonce: wu_setup_settings.install_nonce,
+						},
+						success(data) {
 
-					},
+							if (data.success === true) {
+
+								onSuccess();
+
+								return;
+
+							} // end if;
+
+							show_error(data.data[ 0 ].message);
+
+						},
+						error(jqXHR) {
+
+							let errorMessage = wu_setup_settings.generic_error_message || 'An error occurred.';
+
+							if (jqXHR.responseJSON && jqXHR.responseJSON.data && jqXHR.responseJSON.data[ 0 ]) {
+								errorMessage = jqXHR.responseJSON.data[ 0 ].message || errorMessage;
+							}
+
+							show_error(errorMessage);
+
+						},
+					});
+
+				} // end run_installer;
+
+				run_installer(content, function() {
+
+					if (wu_setup[ content ].activation) {
+
+						$item.find('td.status > span').html(wu_setup[ content ].activating);
+
+						run_installer(wu_setup[ content ].activation, mark_complete);
+
+						return;
+
+					} // end if;
+
+					mark_complete();
+
 				});
 
 			} // end process_queue_item;
