@@ -13,6 +13,119 @@ let currentElementsMode = null;
 let currentElementsAmount = null;
 
 /**
+ * Check if the current checkout should collect Stripe details.
+ *
+ * @param {Object} checkout Checkout form instance.
+ * @return {boolean} True when Stripe should collect a new payment method.
+ */
+const shouldCollectStripePayment = function (checkout) {
+
+	return checkout &&
+		checkout.order &&
+		checkout.order.should_collect_payment &&
+		checkout.payment_method === 'add-new';
+};
+
+/**
+ * Check if Stripe should confirm a previously saved payment method.
+ *
+ * @param {Object} checkout Checkout form instance.
+ * @return {boolean} True when using a saved Stripe payment method.
+ */
+const shouldConfirmSavedStripePayment = function (checkout) {
+
+	return checkout &&
+		checkout.order &&
+		checkout.order.should_collect_payment &&
+		checkout.payment_method &&
+		checkout.payment_method !== 'add-new' &&
+		(
+			checkout.order.totals.total > 0 ||
+			checkout.order.totals.recurring.total > 0
+		);
+};
+
+/**
+ * Unmount the current Payment Element instance.
+ */
+const resetStripeElements = function () {
+
+	if (paymentElement) {
+		try {
+			paymentElement.unmount();
+		} catch (error) {
+			// Silence
+		}
+	}
+
+	paymentElement = null;
+	elements = null;
+	currentElementsMode = null;
+	currentElementsAmount = null;
+};
+
+/**
+ * Confirm a Stripe intent returned by the checkout endpoint.
+ *
+ * @param {Object}  checkout Checkout form instance.
+ * @param {Object}  results Checkout response payload.
+ * @param {boolean} useElements Whether to confirm through the Payment Element.
+ */
+const confirmStripeIntent = function (checkout, results, useElements) {
+
+	// Check if we received a client_secret from the server
+	if (!results.gateway.data.stripe_client_secret) {
+		checkout.set_prevent_submission(false);
+		return;
+	}
+
+	const clientSecret = results.gateway.data.stripe_client_secret;
+	const intentType = results.gateway.data.stripe_intent_type;
+
+	checkout.set_prevent_submission(false);
+
+	// Determine the confirmation method based on intent type
+	const confirmMethod = intentType === 'payment_intent'
+		? 'confirmPayment'
+		: 'confirmSetup';
+
+	const confirmParams = {
+		confirmParams: {
+			return_url: window.location.href,
+		},
+		redirect: 'if_required',
+	};
+
+	if (useElements) {
+		confirmParams.elements = elements;
+
+		// Only pass name and email — Stripe's Payment Element
+		// already collects country and postal code natively.
+		confirmParams.confirmParams.payment_method_data = {
+			billing_details: {
+				name: results.customer.display_name,
+				email: results.customer.user_email,
+			},
+		};
+	}
+
+	// Add clientSecret for confirmation
+	confirmParams.clientSecret = clientSecret;
+
+	_stripe[confirmMethod](confirmParams).then(function (result) {
+
+		if (result.error) {
+			wu_checkout_form.unblock();
+			wu_checkout_form.errors.push(result.error);
+		} else {
+			// Payment succeeded - resubmit form to complete checkout
+			wu_checkout_form.resubmit();
+		}
+
+	});
+};
+
+/**
  * Initialize Stripe and set up Payment Element.
  *
  * @param {string} publicKey Stripe publishable key.
@@ -29,7 +142,7 @@ const stripeElements = function (publicKey) {
 		'nextpress/wp-ultimo',
 		function (promises, checkout, gateway) {
 
-			if (gateway === 'stripe' && checkout.order.totals.total > 0) {
+			if (gateway === 'stripe' && shouldCollectStripePayment(checkout)) {
 
 				const paymentEl = document.getElementById('payment-element');
 
@@ -69,56 +182,22 @@ const stripeElements = function (publicKey) {
 				return;
 			}
 
+			if (!shouldCollectStripePayment(checkout)) {
+				checkout.set_prevent_submission(false);
+				resetStripeElements();
+
+				if (shouldConfirmSavedStripePayment(checkout)) {
+					confirmStripeIntent(checkout, results, false);
+				}
+
+				return;
+			}
+
 			if (checkout.order.totals.total <= 0 && checkout.order.totals.recurring.total <= 0) {
 				return;
 			}
 
-			// Check if we received a client_secret from the server
-			if (!results.gateway.data.stripe_client_secret) {
-				checkout.set_prevent_submission(false);
-				return;
-			}
-
-			const clientSecret = results.gateway.data.stripe_client_secret;
-			const intentType = results.gateway.data.stripe_intent_type;
-
-			checkout.set_prevent_submission(false);
-
-			// Determine the confirmation method based on intent type
-			const confirmMethod = intentType === 'payment_intent'
-				? 'confirmPayment'
-				: 'confirmSetup';
-
-			// Only pass name and email — Stripe's Payment Element
-			// already collects country and postal code natively.
-			const confirmParams = {
-				elements: elements,
-				confirmParams: {
-					return_url: window.location.href,
-					payment_method_data: {
-						billing_details: {
-							name: results.customer.display_name,
-							email: results.customer.user_email,
-						},
-					},
-				},
-				redirect: 'if_required',
-			};
-
-			// Add clientSecret for confirmation
-			confirmParams.clientSecret = clientSecret;
-
-			_stripe[confirmMethod](confirmParams).then(function (result) {
-
-				if (result.error) {
-					wu_checkout_form.unblock();
-					wu_checkout_form.errors.push(result.error);
-				} else {
-					// Payment succeeded - resubmit form to complete checkout
-					wu_checkout_form.resubmit();
-				}
-
-			});
+			confirmStripeIntent(checkout, results, true);
 		}
 	);
 
@@ -131,17 +210,14 @@ const stripeElements = function (publicKey) {
 			form.set_prevent_submission(false);
 
 			// Destroy elements if switching away from Stripe
-			if (paymentElement) {
-				try {
-					paymentElement.unmount();
-				} catch (error) {
-					// Silence
-				}
-				paymentElement = null;
-				elements = null;
-				currentElementsMode = null;
-				currentElementsAmount = null;
-			}
+			resetStripeElements();
+
+			return;
+		}
+
+		if (!shouldCollectStripePayment(form)) {
+			form.set_prevent_submission(false);
+			resetStripeElements();
 
 			return;
 		}
@@ -170,11 +246,7 @@ const stripeElements = function (publicKey) {
 
 		if (!needsReinit) {
 			// Already initialized with correct mode, just update prevent submission state
-			form.set_prevent_submission(
-				form.order &&
-				form.order.should_collect_payment &&
-				form.payment_method === 'add-new'
-			);
+			form.set_prevent_submission(shouldCollectStripePayment(form));
 			return;
 		}
 
@@ -240,11 +312,7 @@ const stripeElements = function (publicKey) {
 			});
 
 			// Set prevent submission until payment element is ready
-			form.set_prevent_submission(
-				form.order &&
-				form.order.should_collect_payment &&
-				form.payment_method === 'add-new'
-			);
+			form.set_prevent_submission(shouldCollectStripePayment(form));
 
 		} catch (error) {
 			// Log error but don't break the form
