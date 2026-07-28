@@ -165,7 +165,7 @@ class Recommended_Plugins_Installer extends Base_Installer {
 	}
 
 	/**
-	 * Determine if a plugin is active by slug.
+	 * Determine if a plugin is network active by slug.
 	 *
 	 * @since 2.0.0
 	 * @param string $plugin_slug Plugin slug (e.g. 'user-switching').
@@ -178,7 +178,7 @@ class Recommended_Plugins_Installer extends Base_Installer {
 			return false;
 		}
 
-		return is_plugin_active($plugin_file);
+		return is_plugin_active_for_network($plugin_file);
 	}
 
 	/**
@@ -276,13 +276,13 @@ class Recommended_Plugins_Installer extends Base_Installer {
 			return new \WP_Error('plugin-not-found', __('Plugin not found.', 'ultimate-multisite'));
 		}
 
-		// If already active, succeed early.
-		if (is_plugin_active($plugin_file)) {
+		// If already network active, succeed early.
+		if (is_plugin_active_for_network($plugin_file)) {
 			return true;
 		}
 
-		// Activate the plugin.
-		$result = activate_plugin($plugin_file);
+		// Activate the plugin across the network.
+		$result = activate_plugin($plugin_file, '', true);
 
 		if (is_wp_error($result)) {
 			return $result;

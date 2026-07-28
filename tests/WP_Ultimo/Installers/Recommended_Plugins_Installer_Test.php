@@ -71,6 +71,41 @@ class Recommended_Plugins_Installer_Test extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_activation_action_network_activates_a_locally_active_plugin(): void {
+		global $wp_filesystem;
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+
+		$plugin_slug = 'recommended-plugin-network-activation-test';
+		$plugin_dir  = WP_PLUGIN_DIR . '/' . $plugin_slug;
+		$plugin_file = $plugin_slug . '/' . $plugin_slug . '.php';
+		$plugin_path = WP_PLUGIN_DIR . '/' . $plugin_file;
+
+		$this->assertTrue(WP_Filesystem());
+		$this->assertTrue(wp_mkdir_p($plugin_dir));
+		$this->assertTrue($wp_filesystem->put_contents($plugin_path, "<?php\n/* Plugin Name: Recommended Plugin Network Activation Test */\n"));
+
+		wp_clean_plugins_cache();
+
+		try {
+			$local_activation = activate_plugin($plugin_file, '', false, true);
+
+			$this->assertNotWPError($local_activation);
+			$this->assertTrue(is_plugin_active($plugin_file));
+			$this->assertFalse(is_plugin_active_for_network($plugin_file));
+
+			$result = Recommended_Plugins_Installer::get_instance()->handle(true, 'activate_plugin_' . $plugin_slug, $this);
+
+			$this->assertTrue($result);
+			$this->assertTrue(is_plugin_active_for_network($plugin_file));
+		} finally {
+			deactivate_plugins($plugin_file, true, true);
+			deactivate_plugins($plugin_file, true, false);
+			wp_clean_plugins_cache();
+			$wp_filesystem->delete($plugin_dir, true);
+		}
+	}
+
 	public function test_ai_plugin_descriptions_explain_their_purpose(): void {
 		$steps = $this->get_steps_for_locale('en_US');
 
