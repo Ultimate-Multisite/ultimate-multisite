@@ -229,10 +229,10 @@ const stripeElements = function (publicKey) {
 			return;
 		}
 
-		// Determine the correct mode based on order total
-		// Use 'payment' mode when there's an immediate charge, 'setup' for trials/$0
+		// Match the server-side intent selection: trials collect a card for
+		// off-session renewal with a SetupIntent, even when their renewal total is positive.
 		const orderTotal = form.order ? form.order.totals.total : 0;
-		const hasImmediateCharge = orderTotal > 0;
+		const hasImmediateCharge = orderTotal > 0 && ! form.order.has_trial;
 		const requiredMode = hasImmediateCharge ? 'payment' : 'setup';
 
 		// Convert amount to cents for Stripe (integer)
