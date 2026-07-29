@@ -265,6 +265,7 @@ const stripeElements = function (publicKey) {
 			// Build elements options based on mode
 			const elementsOptions = {
 				currency: wu_stripe.currency || 'usd',
+				excludedPaymentMethodTypes: wu_stripe.excluded_payment_method_types || ['klarna'],
 				appearance: {
 					theme: 'stripe',
 				},

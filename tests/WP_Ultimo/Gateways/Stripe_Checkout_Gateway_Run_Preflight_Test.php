@@ -439,6 +439,16 @@ class Stripe_Checkout_Gateway_Run_Preflight_Test extends \WP_UnitTestCase {
 			$this->captured_session_args['mode'],
 			'Recurring checkout must use subscription mode'
 		);
+		$this->assertSame(
+			['card'],
+			$this->captured_session_args['payment_method_types'],
+			'Stripe Checkout must preserve its card-only default'
+		);
+		$this->assertSame(
+			['klarna'],
+			$this->captured_session_args['excluded_payment_method_types'],
+			'Stripe Checkout must exclude Klarna'
+		);
 
 		// Verify line_items exist and use price IDs (not deprecated format)
 		$this->assertArrayHasKey(

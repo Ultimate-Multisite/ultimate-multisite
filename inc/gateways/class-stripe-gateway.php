@@ -452,11 +452,12 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 				$intent_args = wp_parse_args(
 					$intent_args,
 					[
-						'amount'              => $this->order->get_total() * wu_stripe_get_currency_multiplier(),
-						'confirmation_method' => 'automatic',
-						'setup_future_usage'  => 'off_session',
-						'currency'            => strtolower((string) wu_get_setting('currency_symbol', 'USD')),
-						'confirm'             => false,
+						'amount'                        => $this->order->get_total() * wu_stripe_get_currency_multiplier(),
+						'confirmation_method'           => 'automatic',
+						'setup_future_usage'            => 'off_session',
+						'excluded_payment_method_types' => $this->get_excluded_payment_method_types(),
+						'currency'                      => strtolower((string) wu_get_setting('currency_symbol', 'USD')),
+						'confirm'                       => false,
 					]
 				);
 
@@ -518,7 +519,8 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 				$intent_args = wp_parse_args(
 					$intent_args,
 					[
-						'usage' => 'off_session',
+						'usage'                         => 'off_session',
+						'excluded_payment_method_types' => $this->get_excluded_payment_method_types(),
 					]
 				);
 

@@ -82,6 +82,26 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$this->gateway->set_stripe_client($this->stripe_client_mock);
 	}
 
+	public function test_excluded_payment_method_types_include_klarna(): void {
+		$this->assertSame(['klarna'], $this->gateway->get_excluded_payment_method_types());
+	}
+
+	public function test_excluded_payment_method_types_can_be_customized(): void {
+		$filter = static function ($payment_method_types) {
+			$payment_method_types[] = 'paypal';
+
+			return $payment_method_types;
+		};
+
+		add_filter('wu_stripe_excluded_payment_method_types', $filter);
+
+		try {
+			$this->assertSame(['klarna', 'paypal'], $this->gateway->get_excluded_payment_method_types());
+		} finally {
+			remove_filter('wu_stripe_excluded_payment_method_types', $filter);
+		}
+	}
+
 	// -------------------------------------------------------------------------
 	// Helper: build a fully-wired Stripe client mock
 	// -------------------------------------------------------------------------
@@ -432,6 +452,7 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 	 */
 	public function test_run_preflight_creates_payment_intent_for_paid_order(): void {
 		// Build a payment intent mock that expects create() to be called.
+		$created_args   = null;
 		$payment_intent = \Stripe\PaymentIntent::constructFrom([
 			'id'            => 'pi_new123',
 			'object'        => 'payment_intent',
@@ -444,7 +465,13 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 			->getMock();
 		$payment_intents_mock->expects($this->once())
 			->method('create')
-			->willReturn($payment_intent);
+			->willReturnCallback(
+				static function ($args) use (&$created_args, $payment_intent) {
+					$created_args = $args;
+
+					return $payment_intent;
+				}
+			);
 		$payment_intents_mock->method('retrieve')->willReturn($payment_intent);
 
 		$client = $this->build_stripe_client_mock(['paymentIntents' => $payment_intents_mock]);
@@ -462,6 +489,8 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$this->assertArrayHasKey('stripe_client_secret', $result, 'Result must include stripe_client_secret');
 		$this->assertArrayHasKey('stripe_intent_type', $result, 'Result must include stripe_intent_type');
 		$this->assertSame('payment_intent', $result['stripe_intent_type']);
+		$this->assertSame(['klarna'], $created_args['excluded_payment_method_types']);
+		$this->assertArrayNotHasKey('payment_method_types', $created_args);
 
 		// Cleanup.
 		$context['payment']->delete();
@@ -475,6 +504,7 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 	 * @return void
 	 */
 	public function test_run_preflight_creates_setup_intent_for_trial_order(): void {
+		$created_args = null;
 		$setup_intent = \Stripe\SetupIntent::constructFrom([
 			'id'            => 'seti_new123',
 			'object'        => 'setup_intent',
@@ -487,7 +517,13 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 			->getMock();
 		$setup_intents_mock->expects($this->once())
 			->method('create')
-			->willReturn($setup_intent);
+			->willReturnCallback(
+				static function ($args) use (&$created_args, $setup_intent) {
+					$created_args = $args;
+
+					return $setup_intent;
+				}
+			);
 		$setup_intents_mock->method('retrieve')->willReturn($setup_intent);
 
 		$client = $this->build_stripe_client_mock(['setupIntents' => $setup_intents_mock]);
@@ -505,6 +541,8 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$this->assertArrayHasKey('stripe_client_secret', $result);
 		$this->assertArrayHasKey('stripe_intent_type', $result);
 		$this->assertSame('setup_intent', $result['stripe_intent_type']);
+		$this->assertSame(['klarna'], $created_args['excluded_payment_method_types']);
+		$this->assertArrayNotHasKey('payment_method_types', $created_args);
 
 		// Cleanup.
 		$context['payment']->delete();
@@ -1015,7 +1053,7 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 	public function test_run_preflight_applies_payment_intent_args_filter(): void {
 		$captured_args = null;
 
-		add_filter('wu_stripe_create_payment_intent_args', function ($args, $gateway) use (&$captured_args) {
+		add_filter('wu_stripe_create_payment_intent_args', function ($args) use (&$captured_args) {
 			$captured_args = $args;
 			return $args;
 		}, 10, 2);
@@ -1049,6 +1087,8 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$this->assertNotNull($captured_args, 'wu_stripe_create_payment_intent_args filter must be applied');
 		$this->assertArrayHasKey('amount', $captured_args, 'Filter args must include amount');
 		$this->assertArrayHasKey('currency', $captured_args, 'Filter args must include currency');
+		$this->assertSame(['klarna'], $captured_args['excluded_payment_method_types']);
+		$this->assertArrayNotHasKey('payment_method_types', $captured_args);
 
 		// Cleanup.
 		$context['payment']->delete();

@@ -919,13 +919,14 @@ class Base_Stripe_Gateway extends Base_Gateway {
 				$subscription_data = apply_filters(
 					'wu_stripe_checkout_subscription_data',
 					[
-						'payment_method_types'       => $allowed_payment_method_types,
-						'mode'                       => 'setup',
-						'success_url'                => $return_url,
-						'cancel_url'                 => wu_get_current_url(),
-						'billing_address_collection' => 'required',
-						'client_reference_id'        => $customer_id,
-						'customer'                   => $s_customer_id,
+						'payment_method_types'          => $allowed_payment_method_types,
+						'excluded_payment_method_types' => $this->get_excluded_payment_method_types(),
+						'mode'                          => 'setup',
+						'success_url'                   => $return_url,
+						'cancel_url'                    => wu_get_current_url(),
+						'billing_address_collection'    => 'required',
+						'client_reference_id'           => $customer_id,
+						'customer'                      => $s_customer_id,
 					],
 					$gateway
 				);
@@ -3449,6 +3450,20 @@ class Base_Stripe_Gateway extends Base_Gateway {
 	}
 
 	/**
+	 * Returns payment method types excluded from Stripe payment flows.
+	 *
+	 * @since 2.6.0
+	 * @return string[] The excluded Stripe payment method types.
+	 */
+	public function get_excluded_payment_method_types() {
+		return apply_filters(
+			'wu_stripe_excluded_payment_method_types',
+			['klarna'],
+			$this
+		);
+	}
+
+	/**
 	 * Register stripe scripts.
 	 *
 	 * @since 2.0.0
@@ -3474,11 +3489,12 @@ class Base_Stripe_Gateway extends Base_Gateway {
 			"wu-{$this->get_id()}",
 			$obj_name,
 			[
-				'pk_key'                  => $this->publishable_key,
-				'request_billing_address' => $this->request_billing_address,
-				'add_new_card'            => empty($saved_cards),
-				'payment_method'          => empty($saved_cards) ? 'add-new' : current(array_keys($saved_cards)),
-				'currency'                => strtolower((string) wu_get_setting('currency_symbol', 'USD')),
+				'pk_key'                        => $this->publishable_key,
+				'request_billing_address'       => $this->request_billing_address,
+				'add_new_card'                  => empty($saved_cards),
+				'payment_method'                => empty($saved_cards) ? 'add-new' : current(array_keys($saved_cards)),
+				'excluded_payment_method_types' => $this->get_excluded_payment_method_types(),
+				'currency'                      => strtolower((string) wu_get_setting('currency_symbol', 'USD')),
 			]
 		);
 

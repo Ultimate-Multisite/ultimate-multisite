@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a7c66a4c175ca451efc114556a00cf44",
+    "content-hash": "806b6fa04ebbe4b7402822d0d95d9948",
     "packages": [
         {
             "name": "amphp/amp",
@@ -3372,28 +3372,28 @@
         },
         {
             "name": "stripe/stripe-php",
-            "version": "v17.6.0",
+            "version": "v21.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/stripe/stripe-php.git",
-                "reference": "a6219df5df1324a0d3f1da25fb5e4b8a3307ea16"
+                "reference": "0498d20d0c33490c38df956dd7cef49b3a2ad6f0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/stripe/stripe-php/zipball/a6219df5df1324a0d3f1da25fb5e4b8a3307ea16",
-                "reference": "a6219df5df1324a0d3f1da25fb5e4b8a3307ea16",
+                "url": "https://api.github.com/repos/stripe/stripe-php/zipball/0498d20d0c33490c38df956dd7cef49b3a2ad6f0",
+                "reference": "0498d20d0c33490c38df956dd7cef49b3a2ad6f0",
                 "shasum": ""
             },
             "require": {
                 "ext-curl": "*",
                 "ext-json": "*",
                 "ext-mbstring": "*",
-                "php": ">=5.6.0"
+                "php": ">=7.2.0"
             },
             "require-dev": {
-                "friendsofphp/php-cs-fixer": "3.72.0",
+                "friendsofphp/php-cs-fixer": "3.94.0",
                 "phpstan/phpstan": "^1.2",
-                "phpunit/phpunit": "^5.7 || ^9.0"
+                "phpunit/phpunit": "^8.0 || ^9.0"
             },
             "type": "library",
             "extra": {
@@ -3402,6 +3402,9 @@
                 }
             },
             "autoload": {
+                "files": [
+                    "lib/version_check.php"
+                ],
                 "psr-4": {
                     "Stripe\\": "lib/"
                 }
@@ -3425,9 +3428,9 @@
             ],
             "support": {
                 "issues": "https://github.com/stripe/stripe-php/issues",
-                "source": "https://github.com/stripe/stripe-php/tree/v17.6.0"
+                "source": "https://github.com/stripe/stripe-php/tree/v21.0.0"
             },
-            "time": "2025-08-27T19:32:42+00:00"
+            "time": "2026-07-16T00:34:23+00:00"
         },
         {
             "name": "symfony/deprecation-contracts",

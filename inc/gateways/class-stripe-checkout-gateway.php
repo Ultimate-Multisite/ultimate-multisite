@@ -306,13 +306,14 @@ class Stripe_Checkout_Gateway extends Base_Stripe_Gateway {
 		}
 
 		$subscription_data = [
-			'payment_method_types'       => $allowed_payment_method_types,
-			'success_url'                => $redirect_url,
-			'cancel_url'                 => $this->get_cancel_url(),
-			'billing_address_collection' => 'required',
-			'client_reference_id'        => $this->customer->get_id(),
-			'customer'                   => $s_customer->id,
-			'metadata'                   => $metadata,
+			'payment_method_types'          => $allowed_payment_method_types,
+			'excluded_payment_method_types' => $this->get_excluded_payment_method_types(),
+			'success_url'                   => $redirect_url,
+			'cancel_url'                    => $this->get_cancel_url(),
+			'billing_address_collection'    => 'required',
+			'client_reference_id'           => $this->customer->get_id(),
+			'customer'                      => $s_customer->id,
+			'metadata'                      => $metadata,
 		];
 
 		if ($this->order->should_auto_renew() && $this->order->has_recurring()) {
