@@ -1996,6 +1996,30 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test maybe_redirect_to_admin_panel allows Cornerstone preview requests.
+	 */
+	public function test_maybe_redirect_to_admin_panel_allows_cornerstone_preview(): void {
+
+		$user_id = self::factory()->user->create(['role' => 'subscriber']);
+		wp_set_current_user($user_id);
+
+		$login_page_id = self::factory()->post->create(['post_type' => 'page']);
+		wu_save_setting('default_login_page', $login_page_id);
+
+		global $post;
+		$post = get_post($login_page_id);
+
+		$_REQUEST['cs_preview_state'] = 'preview-state';
+
+		$this->pages->maybe_redirect_to_admin_panel();
+
+		unset($_REQUEST['cs_preview_state']);
+		wp_set_current_user(0);
+
+		$this->assertTrue(true);
+	}
+
+	/**
 	 * Test maybe_redirect_to_admin_panel exclusion list filter is applied.
 	 */
 	public function test_maybe_redirect_to_admin_panel_exclusion_filter(): void {

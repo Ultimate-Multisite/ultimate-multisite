@@ -705,6 +705,7 @@ class Checkout_Pages {
 				'elementor-preview', // Elementor
 				'brizy-edit',        // Brizy
 				'brizy-edit-iframe', // Brizy
+				'cs_preview_state',  // Cornerstone
 			],
 			$custom_login_page,
 			$post,
