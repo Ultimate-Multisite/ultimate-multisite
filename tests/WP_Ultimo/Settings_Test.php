@@ -517,6 +517,22 @@ class Settings_Test extends WP_UnitTestCase {
 		$this->assertEquals('administrator', $all['default_role']);
 	}
 
+	public function test_get_all_with_defaults_includes_newsletter_optin_when_db_is_empty() {
+		// Simulate a fresh install with no saved settings.
+		wu_save_option(Settings::KEY, []);
+
+		$ref = new \ReflectionProperty(Settings::class, 'settings');
+		if (PHP_VERSION_ID < 80100) {
+			$ref->setAccessible(true);
+		}
+		$ref->setValue($this->settings, null);
+
+		$all = $this->settings->get_all_with_defaults();
+
+		$this->assertArrayHasKey('newsletter_optin', $all);
+		$this->assertSame('1', $all['newsletter_optin']);
+	}
+
 	public function test_get_all_with_defaults_preserves_saved_values() {
 		// When a value IS saved in the DB it must be preserved.
 		$this->settings->save_setting('default_role', 'editor');
