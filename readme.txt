@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 8.2
 Tested up to: 7.0
-Stable tag: 2.14.2
+Stable tag: 2.15.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -251,6 +251,13 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+Version [2.15.0] - Released on 2026-07-30
+- New: DirectAdmin hosting integration now supports domain mapping and guided setup.
+- New: Administrators can review recent log errors directly from the dashboard.
+- Fix: Stripe trials, free checkouts, checkout styling, billing fields, notifications, and legacy settings now behave reliably across more configurations.
+- Fix: Site imports, exports, duplication, cron cleanup, setup recommendations, API key visibility, and generated site names now handle edge cases safely.
+- Fix: DirectAdmin responses and dependency handling are more resilient, including security updates.
+
 Version [2.14.2] - Released on 2026-07-16
 - New: Authenticated site availability diagnostics now report domain, lock, visit-limit, and frontend smoke-test details for support and automation.
 - Fix: Cross-domain SSO now preserves the correct admin destination and handles cookie-less token redirects more safely.
