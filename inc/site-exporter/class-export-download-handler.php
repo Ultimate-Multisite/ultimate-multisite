@@ -198,32 +198,90 @@ class Export_Download_Handler {
 
 		$file_size = (int) filesize($file_path);
 
+		$this->prepare_streaming_environment();
+
 		nocache_headers();
+		status_header(200);
 
 		header('Content-Type: application/zip');
-		header('Content-Disposition: attachment; filename="' . rawurlencode($filename) . '"');
+		header('Content-Disposition: attachment; filename="' . sanitize_file_name($filename) . '"; filename*=UTF-8\'\'' . rawurlencode($filename));
 		header('Content-Length: ' . $file_size);
 		header('Content-Transfer-Encoding: binary');
+		header('X-Content-Type-Options: nosniff');
 
 		/*
-		 * Flush any buffered output before streaming to avoid memory issues
-		 * with large export files.
+		 * A HEAD request only needs validated metadata. Streaming a multi-GB
+		 * archive on HEAD wastes server resources and can trip PHP/LiteSpeed
+		 * buffering safeguards before the browser starts the real download.
 		 */
-		if (ob_get_level()) {
-			ob_end_clean();
+		$request_method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_key(wp_unslash($_SERVER['REQUEST_METHOD'])) : '';
+
+		if ('head' === $request_method) {
+			exit;
 		}
 
 		$handle = fopen($file_path, 'rb'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
 
 		if ($handle) {
 			while (! feof($handle)) {
-				echo fread($handle, 8192); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped, WordPress.WP.AlternativeFunctions.file_system_operations_fread
+				$chunk = fread($handle, 8192); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread
+
+				if (false === $chunk) {
+					break;
+				}
+
+				echo $chunk; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Binary ZIP stream.
 				flush();
+
+				if (connection_aborted()) {
+					break;
+				}
 			}
 
 			fclose($handle); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		}
 
 		exit;
+	}
+
+	/**
+	 * Prepares PHP to stream large export archives without buffering them in memory.
+	 *
+	 * Some hosts leave multiple output buffers active in wp-admin requests. Cleaning
+	 * only one buffer causes large ZIP downloads to accumulate in the remaining
+	 * buffer until PHP exhausts memory. Close every removable buffer before sending
+	 * binary file chunks.
+	 *
+	 * @since 2.5.1
+	 *
+	 * @param int $minimum_level Lowest output buffer level to preserve. Used by tests.
+	 * @return void
+	 */
+	private function prepare_streaming_environment(int $minimum_level = 0): void {
+
+		if (function_exists('ignore_user_abort')) {
+			ignore_user_abort(true);
+		}
+
+		if (function_exists('set_time_limit')) {
+			@set_time_limit(0); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Best-effort for large authenticated downloads.
+		}
+
+		if (function_exists('ini_set')) {
+			@ini_set('zlib.output_compression', 'Off'); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.PHP.IniSet.Risky -- Best-effort for binary streams.
+			@ini_set('output_buffering', 'Off'); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.PHP.IniSet.Risky -- Best-effort for binary streams.
+		}
+
+		while (ob_get_level() > $minimum_level) {
+			$status = ob_get_status();
+
+			if (isset($status['del']) && ! $status['del']) {
+				break;
+			}
+
+			if (! @ob_end_clean()) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Avoid corrupting download output if a host buffer refuses cleanup.
+				break;
+			}
+		}
 	}
 }

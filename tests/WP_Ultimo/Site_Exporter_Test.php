@@ -247,6 +247,79 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test site export filtering matches an exact site ID prefix.
+	 */
+	public function test_filter_exports_by_site_matches_exact_site_prefix(): void {
+
+		$exports = [
+			[
+				'file' => 'wu-site-export-1-2026-07-31-1785528884.zip',
+			],
+			[
+				'file' => 'wu-site-export-10-2026-07-31-1785528884.zip',
+			],
+		];
+
+		$method = new \ReflectionMethod($this->exporter, 'filter_exports_by_site');
+		$method->setAccessible(true);
+
+		$filtered = $method->invoke($this->exporter, $exports, 1);
+
+		$this->assertCount(1, $filtered);
+		$this->assertSame('wu-site-export-1-2026-07-31-1785528884.zip', array_values($filtered)[0]['file']);
+	}
+
+	/**
+	 * Test the site edit widget links to the dedicated exports page.
+	 */
+	public function test_site_exports_list_links_to_dedicated_download_page(): void {
+
+		$method = new \ReflectionMethod($this->exporter, 'render_site_exports_list');
+		$method->setAccessible(true);
+
+		$html = $method->invoke(
+			$this->exporter,
+			[
+				[
+					'file' => 'wu-site-export-1-2026-07-31-1785528884.zip',
+					'url'  => 'https://example.test/download',
+					'date' => '31 July 2026 9:33 pm',
+				],
+			],
+			null,
+			'https://example.test/wp-admin/network/sites.php?page=wu-site-export&site_id=1'
+		);
+
+		$this->assertStringContainsString('Open Downloads Page', $html);
+		$this->assertStringContainsString('site_id=1', $html);
+	}
+
+	/**
+	 * Test the download handler clears nested output buffers before streaming.
+	 */
+	public function test_export_download_handler_clears_nested_output_buffers(): void {
+
+		$handler  = Export_Download_Handler::get_instance();
+		$method   = new \ReflectionMethod($handler, 'prepare_streaming_environment');
+		$baseline = ob_get_level();
+
+		$method->setAccessible(true);
+
+		ob_start();
+		ob_start();
+
+		try {
+			$method->invoke($handler, $baseline);
+
+			$this->assertSame($baseline, ob_get_level(), 'Nested buffers above the requested baseline must be cleared before streaming');
+		} finally {
+			while (ob_get_level() > $baseline) {
+				ob_end_clean();
+			}
+		}
+	}
+
+	/**
 	 * Test that bulk exports include the main site instead of silently skipping it.
 	 */
 	public function test_wp_sites_bulk_export_includes_main_site(): void {

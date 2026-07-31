@@ -742,7 +742,7 @@ final class Site_Exporter {
 			<?php elseif ('promote_main_site' === $action && $site_id) : ?>
 				<?php $this->render_promote_main_site_form($site_id); ?>
 			<?php else : ?>
-				<?php $this->render_export_import_dashboard($exports, $pending_exports, $pending_imports); ?>
+				<?php $this->render_export_import_dashboard($exports, $pending_exports, $pending_imports, $site_id); ?>
 			<?php endif; ?>
 		</div>
 		<?php
@@ -927,9 +927,16 @@ final class Site_Exporter {
 	 * @param array $exports         Completed exports.
 	 * @param array $pending_exports Pending exports.
 	 * @param array $pending_imports Pending imports.
+	 * @param int   $site_id         Optional site ID to filter completed exports.
 	 * @return void
 	 */
-	private function render_export_import_dashboard(array $exports, array $pending_exports, array $pending_imports): void {
+	private function render_export_import_dashboard(array $exports, array $pending_exports, array $pending_imports, int $site_id = 0): void {
+
+		$site_details = $site_id ? get_blog_details($site_id) : false;
+
+		if ($site_id) {
+			$exports = $this->filter_exports_by_site($exports, $site_id);
+		}
 
 		?>
 		<div class="card" style="max-width: 800px; margin-bottom: 20px;">
@@ -995,10 +1002,38 @@ final class Site_Exporter {
 		<?php endif; ?>
 
 		<div class="card" style="max-width: 800px; margin-bottom: 20px;">
-			<h2><?php esc_html_e('Completed Exports', 'ultimate-multisite'); ?></h2>
+			<h2>
+				<?php
+				if ($site_details) {
+					printf(
+						/* translators: %s: site name */
+						esc_html__('Completed Exports for %s', 'ultimate-multisite'),
+						esc_html($site_details->blogname)
+					);
+				} else {
+					esc_html_e('Completed Exports', 'ultimate-multisite');
+				}
+				?>
+			</h2>
+
+			<?php if ($site_id) : ?>
+				<p>
+					<a href="<?php echo esc_url(network_admin_url('sites.php?page=wu-site-export')); ?>">
+						<?php esc_html_e('View exports for all sites', 'ultimate-multisite'); ?>
+					</a>
+				</p>
+			<?php endif; ?>
 
 			<?php if (empty($exports)) : ?>
-				<p><?php esc_html_e('No exports available yet. Export a site to see it here.', 'ultimate-multisite'); ?></p>
+				<p>
+					<?php
+					echo esc_html(
+						$site_id
+							? __('No exports are available for this site yet. Export it to see downloads here.', 'ultimate-multisite')
+							: __('No exports available yet. Export a site to see it here.', 'ultimate-multisite')
+					);
+					?>
+				</p>
 			<?php else : ?>
 				<table class="wp-list-table widefat fixed striped">
 					<thead>
@@ -2321,14 +2356,16 @@ final class Site_Exporter {
 		}
 
 		$exports      = wu_exporter_get_all_exports();
-		$site_exports = array_filter(
-			$exports,
-			function ($export) use ($site) {
-				return strpos($export['file'], 'wu-site-export-' . $site->get_id() . '-') !== false;
-			}
-		);
+		$site_exports = $this->filter_exports_by_site($exports, (int) $site->get_id());
 
-		$export_url = wu_get_form_url('export_site', ['id' => $site->get_id()]);
+		$export_url         = wu_get_form_url('export_site', ['id' => $site->get_id()]);
+		$manage_exports_url = add_query_arg(
+			[
+				'page'    => 'wu-site-export',
+				'site_id' => (int) $site->get_id(),
+			],
+			network_admin_url('sites.php')
+		);
 
 		$page->add_fields_widget(
 			'site_export',
@@ -2347,10 +2384,32 @@ final class Site_Exporter {
 					],
 					'export_list'   => [
 						'type'    => 'html',
-						'content' => $this->render_site_exports_list($site_exports, $site),
+						'content' => $this->render_site_exports_list($site_exports, $site, $manage_exports_url),
 					],
 				],
 			]
+		);
+	}
+
+	/**
+	 * Filter completed export records to a single site ID.
+	 *
+	 * @since 2.5.1
+	 *
+	 * @param array $exports Completed export records.
+	 * @param int   $site_id Site ID.
+	 * @return array
+	 */
+	private function filter_exports_by_site(array $exports, int $site_id): array {
+
+		$prefix = 'wu-site-export-' . $site_id . '-';
+
+		return array_filter(
+			$exports,
+			static function ($export) use ($prefix) {
+
+				return isset($export['file']) && 0 === strpos($export['file'], $prefix);
+			}
 		);
 	}
 
@@ -2359,16 +2418,19 @@ final class Site_Exporter {
 	 *
 	 * @since 2.5.0
 	 *
-	 * @param array                  $exports The exports list.
-	 * @param \WP_Ultimo\Models\Site $site    The site object (reserved for future use).
+	 * @param array                  $exports            The exports list.
+	 * @param \WP_Ultimo\Models\Site $site               The site object (reserved for future use).
+	 * @param string                 $manage_exports_url Dedicated exports page URL for this site.
 	 * @return string
 	 */
-	private function render_site_exports_list(array $exports, $site): string { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+	private function render_site_exports_list(array $exports, $site, string $manage_exports_url): string { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 
 		if (empty($exports)) {
 			return sprintf(
-				'<p class="wu-text-gray-600 wu-text-sm wu-m-0 wu-mt-4">%s</p>',
-				__('No exports available for this site.', 'ultimate-multisite')
+				'<p class="wu-text-gray-600 wu-text-sm wu-m-0 wu-mt-4">%s</p><p class="wu-m-0 wu-mt-3"><a href="%s" class="button button-secondary wu-w-full wu-text-center">%s</a></p>',
+				__('No exports available for this site.', 'ultimate-multisite'),
+				esc_url($manage_exports_url),
+				__('Open Downloads Page', 'ultimate-multisite')
 			);
 		}
 
@@ -2389,7 +2451,11 @@ final class Site_Exporter {
 			);
 		}
 
-		$html .= '</ul></div>';
+		$html .= sprintf(
+			'</ul><p class="wu-m-0 wu-mt-3"><a href="%s" class="button button-secondary wu-w-full wu-text-center">%s</a></p></div>',
+			esc_url($manage_exports_url),
+			__('Open Downloads Page', 'ultimate-multisite')
+		);
 
 		return $html;
 	}
@@ -2660,7 +2726,16 @@ final class Site_Exporter {
 
 		$export_name = sprintf('wu-site-export-%s-%s-%s.zip', $site_id, gmdate('Y-m-d'), time());
 
-		$command = new \TenUp\MU_Migration\Commands\ExportCommand();
+		$command_class = implode('\\', ['TenUp', 'MU_Migration', 'Commands', 'ExportCommand']);
+
+		if (! class_exists($command_class)) {
+			return new \WP_Error(
+				'export-dependency-missing',
+				__('The site export command could not be loaded. Please check the plugin installation.', 'ultimate-multisite')
+			);
+		}
+
+		$command = new $command_class();
 
 		$base_path = wu_maybe_create_folder('wu-site-exports');
 
@@ -2683,7 +2758,7 @@ final class Site_Exporter {
 		$start = microtime(true);
 
 		try {
-			$command->all([$base_path . $export_name], $args);
+			call_user_func([$command, 'all'], [$base_path . $export_name], $args);
 		} catch (\Exception $e) {
 			// Log the exception for server admins and return a user-friendly error.
 			error_log('WP Ultimo site export error: ' . $e->getMessage()); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -2820,7 +2895,17 @@ final class Site_Exporter {
 
 		$this->load_dependencies();
 
-		$command = new \TenUp\MU_Migration\Commands\ImportCommand();
+		$command_class = implode('\\', ['TenUp', 'MU_Migration', 'Commands', 'ImportCommand']);
+
+		if (! class_exists($command_class)) {
+			wu_exporter_delete_transient("wu_pending_site_import_{$hash}");
+
+			error_log('WP Ultimo site import error: import command could not be loaded.'); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+			return false;
+		}
+
+		$command = new $command_class();
 
 		$defaults = [
 			'url'                      => '',
@@ -2835,7 +2920,7 @@ final class Site_Exporter {
 		$start = microtime(true);
 
 		try {
-			$command->all([$file_name], $args);
+			call_user_func([$command, 'all'], [$file_name], $args);
 		} catch (\RuntimeException $exception) {
 			wu_exporter_delete_transient("wu_pending_site_import_{$hash}");
 
