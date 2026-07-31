@@ -2149,6 +2149,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			'thousand_separator'                 => ',',
 			'precision'                          => '2',
 			'enable_beta_updates'                => 0,
+			'newsletter_optin'                   => '1',
 
 			// Login & Registration
 			'enable_registration'                => 1,
