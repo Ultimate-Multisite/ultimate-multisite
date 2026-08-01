@@ -200,6 +200,28 @@ class Export_Download_Handler {
 
 		$this->prepare_streaming_environment();
 
+		/*
+		 * A HEAD request only needs validated metadata. Streaming a multi-GB
+		 * archive on HEAD wastes server resources and can trip PHP/LiteSpeed
+		 * buffering safeguards before the browser starts the real download.
+		 */
+		$request_method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_key(wp_unslash($_SERVER['REQUEST_METHOD'])) : '';
+		$handle         = null;
+
+		if ('head' !== $request_method) {
+			$handle = @fopen($file_path, 'rb'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen, WordPress.PHP.NoSilencedErrors.Discouraged -- A warning here would corrupt the download response.
+
+			if (false === $handle) {
+				error_log('WP Ultimo export download open error: ' . $filename); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Preserve the failed archive name for server administrators.
+
+				wp_die(
+					esc_html__('Cannot open the export file for download.', 'ultimate-multisite'),
+					esc_html__('Download Failed', 'ultimate-multisite'),
+					['response' => 500]
+				);
+			}
+		}
+
 		nocache_headers();
 		status_header(200);
 
@@ -209,37 +231,27 @@ class Export_Download_Handler {
 		header('Content-Transfer-Encoding: binary');
 		header('X-Content-Type-Options: nosniff');
 
-		/*
-		 * A HEAD request only needs validated metadata. Streaming a multi-GB
-		 * archive on HEAD wastes server resources and can trip PHP/LiteSpeed
-		 * buffering safeguards before the browser starts the real download.
-		 */
-		$request_method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_key(wp_unslash($_SERVER['REQUEST_METHOD'])) : '';
-
 		if ('head' === $request_method) {
 			exit;
 		}
 
-		$handle = fopen($file_path, 'rb'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		while (! feof($handle)) {
+			$chunk = fread($handle, 8192); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread
 
-		if ($handle) {
-			while (! feof($handle)) {
-				$chunk = fread($handle, 8192); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread
-
-				if (false === $chunk) {
-					break;
-				}
-
-				echo $chunk; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Binary ZIP stream.
-				flush();
-
-				if (connection_aborted()) {
-					break;
-				}
+			if (false === $chunk) {
+				error_log('WP Ultimo export download read error: ' . $filename); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Preserve the failed archive name for server administrators.
+				break;
 			}
 
-			fclose($handle); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+			echo $chunk; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Binary ZIP stream.
+			flush();
+
+			if (connection_aborted()) {
+				break;
+			}
 		}
+
+		fclose($handle); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 
 		exit;
 	}

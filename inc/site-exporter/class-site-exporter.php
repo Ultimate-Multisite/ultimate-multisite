@@ -2835,6 +2835,10 @@ final class Site_Exporter {
 		$command_class = implode('\\', ['TenUp', 'MU_Migration', 'Commands', 'ExportCommand']);
 
 		if (! class_exists($command_class)) {
+			if ( ! empty($hash)) {
+				wu_exporter_delete_transient("wu_pending_site_export_{$hash}");
+			}
+
 			return new \WP_Error(
 				'export-dependency-missing',
 				__('The site export command could not be loaded. Please check the plugin installation.', 'ultimate-multisite')
