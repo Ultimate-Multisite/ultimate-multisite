@@ -1954,9 +1954,10 @@ final class Site_Exporter {
 	public function render_import_site_modal(): void {
 
 		$this->reset_upload_limits();
+		$server_export_options = $this->get_server_export_options();
 
 		$fields = [
-			'zip_file'      => [
+			'zip_file'        => [
 				'type'        => 'text',
 				'title'       => __('ZIP File URL', 'ultimate-multisite'),
 				'placeholder' => __('https://example.com/export.zip', 'ultimate-multisite'),
@@ -1965,7 +1966,14 @@ final class Site_Exporter {
 					'id' => 'wu-import-zip-url',
 				],
 			],
-			'upload_btn'    => [
+			'server_zip_file' => [
+				'type'        => 'select',
+				'title'       => __('Server-side ZIP', 'ultimate-multisite'),
+				'placeholder' => __('Select a ZIP uploaded via File Manager or SFTP', 'ultimate-multisite'),
+				'desc'        => __('For large imports, upload the ZIP to wp-content/uploads/wu-site-exports using File Manager or SFTP, then select it here. This avoids browser upload limits.', 'ultimate-multisite'),
+				'options'     => $server_export_options,
+			],
+			'upload_btn'      => [
 				'type'            => 'html',
 				'content'         => sprintf(
 					'<button type="button" class="button wu-w-full" id="wu-upload-zip-btn">%s</button>',
@@ -1973,19 +1981,19 @@ final class Site_Exporter {
 				),
 				'wrapper_classes' => 'wu-mb-4',
 			],
-			'new_url'       => [
+			'new_url'         => [
 				'type'        => 'text',
 				'title'       => __('New Site URL', 'ultimate-multisite'),
 				'placeholder' => is_subdomain_install() ? 'newsite.example.com' : 'example.com/newsite',
 				'desc'        => __('The URL for the new imported site.', 'ultimate-multisite'),
 			],
-			'remove_zip'    => [
+			'remove_zip'      => [
 				'type'  => 'toggle',
 				'title' => __('Delete ZIP After Import', 'ultimate-multisite'),
 				'desc'  => __('Remove the ZIP file after successful import.', 'ultimate-multisite'),
 				'value' => true,
 			],
-			'submit_button' => [
+			'submit_button'   => [
 				'type'            => 'submit',
 				'title'           => __('Import Site', 'ultimate-multisite'),
 				'value'           => 'save',
@@ -2024,14 +2032,20 @@ final class Site_Exporter {
 	 */
 	public function handle_import_site_modal(): void {
 
-		$zip_url = wu_request('zip_file', '');
-		$new_url = wu_request('new_url', '');
+		$zip_url         = (string) wu_request('zip_file', '');
+		$server_zip_file = (string) wu_request('server_zip_file', '');
+		$new_url         = wu_request('new_url', '');
 
-		if (empty($zip_url)) {
-			wp_send_json_error(new \WP_Error('no-file', __('Please provide a ZIP file URL.', 'ultimate-multisite')));
+		if ('' !== $server_zip_file) {
+			$file_path = $this->get_server_export_path($server_zip_file);
+			$zip_url   = $this->get_server_export_url($server_zip_file);
+		} else {
+			if (empty($zip_url)) {
+				wp_send_json_error(new \WP_Error('no-file', __('Please provide a ZIP file URL or select a server-side ZIP.', 'ultimate-multisite')));
+			}
+
+			$file_path = $this->url_to_path($zip_url);
 		}
-
-		$file_path = $this->url_to_path($zip_url);
 
 		if (! $file_path || ! file_exists($file_path)) {
 			wp_send_json_error(new \WP_Error('file-not-found', __('ZIP file not found.', 'ultimate-multisite')));
@@ -2053,10 +2067,11 @@ final class Site_Exporter {
 		$result = wu_exporter_import(
 			$file_path,
 			[
-				'delete_file' => wu_request('remove_zip'),
-				'zip_url'     => $zip_url,
-				'url'         => $new_url,
-				'new_url'     => $new_url,
+				'delete_file'     => wu_request('remove_zip'),
+				'zip_url'         => $zip_url,
+				'server_zip_file' => $server_zip_file,
+				'url'             => $new_url,
+				'new_url'         => $new_url,
 			]
 		);
 
@@ -2081,40 +2096,48 @@ final class Site_Exporter {
 
 		$this->reset_upload_limits();
 
-		$zip_url = wu_request('zip_file', '');
-		$fields  = [
-			'zip_file'       => [
+		$zip_url               = wu_request('zip_file', '');
+		$server_export_options = $this->get_server_export_options();
+		$fields                = [
+			'zip_file'        => [
 				'type'        => 'text',
 				'title'       => __('Network ZIP File URL', 'ultimate-multisite'),
 				'placeholder' => __('https://example.com/network-export.zip', 'ultimate-multisite'),
 				'desc'        => __('Enter the URL to a network export ZIP file. Network bundles can be large; use WP-CLI for very large imports.', 'ultimate-multisite'),
 				'value'       => $zip_url,
 			],
-			'selected_sites' => [
+			'server_zip_file' => [
+				'type'        => 'select',
+				'title'       => __('Server-side ZIP', 'ultimate-multisite'),
+				'placeholder' => __('Select a ZIP uploaded via File Manager or SFTP', 'ultimate-multisite'),
+				'desc'        => __('For large imports, upload the ZIP to wp-content/uploads/wu-site-exports using File Manager or SFTP, then select it here. This avoids browser upload limits.', 'ultimate-multisite'),
+				'options'     => $server_export_options,
+			],
+			'selected_sites'  => [
 				'type'        => 'text',
 				'title'       => __('Sites to Import', 'ultimate-multisite'),
 				'placeholder' => __('Leave empty to import all sites, or enter blog IDs separated by commas.', 'ultimate-multisite'),
 				'desc'        => __('Network bundles are detected by network.json. Selected blog IDs must be listed in network.json.included_blog_ids.', 'ultimate-multisite'),
 			],
-			'url_overrides'  => [
+			'url_overrides'   => [
 				'type'        => 'textarea',
 				'title'       => __('URL Overrides', 'ultimate-multisite'),
 				'placeholder' => "1=https://example.com\n2=https://site.example.com",
 				'desc'        => __('Optional. Enter one source blog ID and target URL per line. Use this to map source sites to the target domain.', 'ultimate-multisite'),
 			],
-			'remove_zip'     => [
+			'remove_zip'      => [
 				'type'  => 'toggle',
 				'title' => __('Delete ZIP After Import', 'ultimate-multisite'),
 				'desc'  => __('Remove the ZIP file after successful import.', 'ultimate-multisite'),
 				'value' => false,
 			],
-			'background_run' => [
+			'background_run'  => [
 				'type'  => 'toggle',
 				'title' => __('Run in Background', 'ultimate-multisite'),
 				'desc'  => __('Network imports can take a long time. Background import is recommended.', 'ultimate-multisite'),
 				'value' => true,
 			],
-			'submit_button'  => [
+			'submit_button'   => [
 				'type'            => 'submit',
 				'title'           => __('Import Network', 'ultimate-multisite'),
 				'value'           => 'save',
@@ -2144,14 +2167,21 @@ final class Site_Exporter {
 	 */
 	public function handle_import_network_modal(): void {
 
-		$zip_url    = wu_request('zip_file', '');
-		$background = (bool) wu_request('background_run', true);
+		$zip_url         = (string) wu_request('zip_file', '');
+		$server_zip_file = (string) wu_request('server_zip_file', '');
+		$background      = (bool) wu_request('background_run', true);
 
-		if (empty($zip_url)) {
-			wp_send_json_error(new \WP_Error('no-file', __('Please provide a ZIP file URL.', 'ultimate-multisite')));
+		if ('' !== $server_zip_file) {
+			$file_path = $this->get_server_export_path($server_zip_file);
+			$zip_url   = $this->get_server_export_url($server_zip_file);
+		} else {
+			if (empty($zip_url)) {
+				wp_send_json_error(new \WP_Error('no-file', __('Please provide a ZIP file URL or select a server-side ZIP.', 'ultimate-multisite')));
+			}
+
+			$file_path = $this->url_to_path($zip_url);
 		}
 
-		$file_path = $this->url_to_path($zip_url);
 		if (! $file_path || ! file_exists($file_path)) {
 			wp_send_json_error(new \WP_Error('file-not-found', __('ZIP file not found.', 'ultimate-multisite')));
 		}
@@ -2169,9 +2199,10 @@ final class Site_Exporter {
 		$url_overrides  = $this->parse_network_import_url_overrides((string) wu_request('url_overrides', ''));
 
 		$options = [
-			'delete_file'   => wu_request('remove_zip'),
-			'zip_url'       => $zip_url,
-			'url_overrides' => $url_overrides,
+			'delete_file'     => wu_request('remove_zip'),
+			'zip_url'         => $zip_url,
+			'server_zip_file' => $server_zip_file,
+			'url_overrides'   => $url_overrides,
 		];
 
 		if (! empty($selected_sites)) {
@@ -2502,9 +2533,7 @@ final class Site_Exporter {
 	 */
 	public function reset_upload_limits(): void {
 
-		@ini_set('upload_max_size', '2048M'); // phpcs:ignore
-		@ini_set('post_max_size', '2064M');   // phpcs:ignore
-		@ini_set('max_execution_time', '0');  // phpcs:ignore
+		@ini_set('max_execution_time', '0'); // phpcs:ignore
 
 		if (is_main_site()) {
 			add_filter(
@@ -2590,6 +2619,83 @@ final class Site_Exporter {
 		$path = wu_exporter_url_to_path($url);
 
 		return ! empty($path) ? $path : false;
+	}
+
+	/**
+	 * Returns ZIP files that are already available in the protected export folder.
+	 *
+	 * @since 2.15.1
+	 * @return array<string,string>
+	 */
+	private function get_server_export_options(): array {
+
+		$folder  = wu_maybe_create_folder('wu-site-exports');
+		$entries = is_dir($folder) ? scandir($folder) : false;
+		$options = [];
+
+		if (false === $entries) {
+			return $options;
+		}
+
+		foreach ($entries as $entry) {
+			$path = $this->get_server_export_path($entry);
+
+			if (! $path) {
+				continue;
+			}
+
+			$options[ $entry ] = sprintf(
+				/* translators: 1: ZIP file name, 2: ZIP file size. */
+				__('%1$s (%2$s)', 'ultimate-multisite'),
+				$entry,
+				size_format((int) filesize($path), 2)
+			);
+		}
+
+		krsort($options, SORT_NATURAL);
+
+		return $options;
+	}
+
+	/**
+	 * Resolves a selected server-side ZIP without allowing paths outside exports.
+	 *
+	 * @since 2.15.1
+	 * @param string $file_name ZIP file name from the import form.
+	 * @return string|false ZIP path, or false when the selection is invalid.
+	 */
+	private function get_server_export_path(string $file_name) {
+
+		if (basename($file_name) !== $file_name || sanitize_file_name($file_name) !== $file_name || ! preg_match('/\.zip$/i', $file_name)) {
+			return false;
+		}
+
+		$folder      = wu_maybe_create_folder('wu-site-exports');
+		$folder_path = realpath($folder);
+		$file_path   = realpath($folder . $file_name);
+
+		if (false === $folder_path || false === $file_path || ! is_file($file_path)) {
+			return false;
+		}
+
+		$folder_path = trailingslashit(wp_normalize_path($folder_path));
+		$file_path   = wp_normalize_path($file_path);
+
+		return 0 === strpos($file_path, $folder_path) ? $file_path : false;
+	}
+
+	/**
+	 * Returns the canonical uploads URL for a selected server-side ZIP.
+	 *
+	 * @since 2.15.1
+	 * @param string $file_name ZIP file name from the import form.
+	 * @return string
+	 */
+	private function get_server_export_url(string $file_name): string {
+
+		$upload_dir = wp_upload_dir();
+
+		return trailingslashit($upload_dir['baseurl']) . 'wu-site-exports/' . $file_name;
 	}
 
 	/**
@@ -2938,9 +3044,16 @@ final class Site_Exporter {
 		$delete_file = ! empty($options['delete_file']);
 
 		if ($delete_file) {
-			$attachment_id = attachment_url_to_postid($options['zip_url']);
+			$server_zip_file = (string) ($options['server_zip_file'] ?? '');
+			$server_zip_path = $this->get_server_export_path($server_zip_file);
 
-			wp_delete_attachment($attachment_id, true);
+			if ($server_zip_path && wp_normalize_path($server_zip_path) === wp_normalize_path($file_name)) {
+				wp_delete_file($server_zip_path);
+			} else {
+				$attachment_id = attachment_url_to_postid($options['zip_url']);
+
+				wp_delete_attachment($attachment_id, true);
+			}
 		}
 
 		return true;
@@ -2977,6 +3090,15 @@ final class Site_Exporter {
 		$result = Network_Importer::get_instance()->import($file_name, $options);
 
 		wu_exporter_delete_transient("wu_pending_network_import_{$hash}");
+
+		if (! is_wp_error($result) && ! empty($options['delete_file'])) {
+			$server_zip_file = (string) ($options['server_zip_file'] ?? '');
+			$server_zip_path = $this->get_server_export_path($server_zip_file);
+
+			if ($server_zip_path && wp_normalize_path($server_zip_path) === wp_normalize_path($file_name)) {
+				wp_delete_file($server_zip_path);
+			}
+		}
 
 		return ! is_wp_error($result);
 	}

@@ -34,6 +34,13 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	private array $pending_import_hashes = [];
 
 	/**
+	 * Server-side export ZIP paths created during tests.
+	 *
+	 * @var string[]
+	 */
+	private array $server_export_files = [];
+
+	/**
 	 * Set up test fixtures.
 	 */
 	public function set_up(): void {
@@ -58,7 +65,14 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 			wu_exporter_delete_transient("wu_pending_network_import_{$hash}");
 		}
 
+		foreach ($this->server_export_files as $file) {
+			if (file_exists($file)) {
+				wp_delete_file($file);
+			}
+		}
+
 		$this->pending_import_hashes = [];
+		$this->server_export_files   = [];
 
 		parent::tear_down();
 	}
@@ -204,6 +218,30 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 		$this->pending_import_hashes[] = $hash;
 
 		return $hash;
+	}
+
+	/**
+	 * Create a server-side export ZIP fixture.
+	 *
+	 * @return array{0:string,1:string} ZIP file name and path.
+	 */
+	private function create_server_export_zip(): array {
+
+		$folder    = wu_maybe_create_folder('wu-site-exports');
+		$file      = 'server-import-' . wp_generate_uuid4() . '.zip';
+		$file_path = $folder . $file;
+		$zip       = new \ZipArchive();
+
+		if (true !== $zip->open($file_path, \ZipArchive::CREATE)) {
+			$this->markTestSkipped('Unable to create a server-side ZIP fixture');
+		}
+
+		$zip->addFromString('manifest.json', '{}');
+		$zip->close();
+
+		$this->server_export_files[] = $file_path;
+
+		return [$file, $file_path];
 	}
 
 	/**
@@ -713,5 +751,32 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 		$this->assertSame(0, $warnings);
 		$this->assertStringContainsString($old_url, $result);
 		$this->assertStringContainsString('https://example.com/new/page', $result);
+	}
+
+	/**
+	 * Test server-side imports are constrained to ZIPs in the protected export folder.
+	 */
+	public function test_server_export_path_only_accepts_zip_in_export_folder(): void {
+
+		[$file, $file_path] = $this->create_server_export_zip();
+		$method             = new \ReflectionMethod($this->exporter, 'get_server_export_path');
+		$method->setAccessible(true);
+
+		$this->assertSame($file_path, $method->invoke($this->exporter, $file));
+		$this->assertFalse($method->invoke($this->exporter, '../' . $file));
+		$this->assertFalse($method->invoke($this->exporter, str_replace('.zip', '.txt', $file)));
+	}
+
+	/**
+	 * Test server-side ZIPs are offered to network administrators.
+	 */
+	public function test_server_export_options_include_available_zip(): void {
+
+		[$file] = $this->create_server_export_zip();
+		$method = new \ReflectionMethod($this->exporter, 'get_server_export_options');
+		$method->setAccessible(true);
+		$options = $method->invoke($this->exporter);
+
+		$this->assertArrayHasKey($file, $options);
 	}
 }
