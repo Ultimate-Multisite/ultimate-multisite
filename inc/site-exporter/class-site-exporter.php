@@ -1420,10 +1420,14 @@ final class Site_Exporter {
 		 * registered on the parent page using event delegation so it is present
 		 * before the modal opens.
 		 *
-		 * Hook: "wp-ultimo_page_wp-ultimo-sites" (network admin submenu under
-		 * parent slug "wp-ultimo", menu slug "wp-ultimo-sites").
+		 * The `wp-ultimo` parent is an admin-bar menu rather than a registered
+		 * WordPress admin-menu parent. WordPress therefore emits
+		 * `admin_page_wp-ultimo-sites` for the network Sites page. Keep the
+		 * legacy submenu hook too for installations that register that parent.
 		 */
-		if ('wp-ultimo_page_wp-ultimo-sites' === $hook) {
+		$wp_sites_hooks = ['admin_page_wp-ultimo-sites', 'wp-ultimo_page_wp-ultimo-sites'];
+
+		if (in_array($hook, $wp_sites_hooks, true)) {
 			wp_enqueue_media();
 
 			wp_add_inline_script(
