@@ -3537,7 +3537,7 @@ class Checkout {
 	}
 
 	/**
-	 * Cleans up expired draft and pending payments (older than two hours).
+	 * Cleans up draft and pending payments strictly older than 30 days.
 	 *
 	 * When a pending payment is cancelled, the associated membership is also
 	 * cancelled if it is still in the `pending` state. This ensures that any
@@ -3553,7 +3553,7 @@ class Checkout {
 
 		$expired_date_query = [
 			'column'    => 'date_created',
-			'before'    => '-2 hours',
+			'before'    => '-30 days',
 			'inclusive' => false,
 		];
 
@@ -3578,7 +3578,7 @@ class Checkout {
 
 				/*
 				 * Also cancel the associated membership if it is still in
-				 * `pending` state. An unconfirmed payment older than two hours
+				 * `pending` state. An unconfirmed payment older than 30 days
 				 * means the customer did not complete the signup; keeping the
 				 * membership in `pending` would leave any pending_site meta
 				 * orphaned because no active membership owns it. Cancelling via

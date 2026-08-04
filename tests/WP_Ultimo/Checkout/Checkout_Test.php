@@ -5842,7 +5842,7 @@ class Checkout_Test extends WP_UnitTestCase {
 
 	/**
 	 * GH#982: when cleanup_expired_drafts cancels a pending payment older than
-	 * two hours, its pending membership must be cancelled and pending_site must
+	 * 30 days, its pending membership must be cancelled and pending_site must
 	 * be removed through the wu_transition_membership_status hook chain.
 	 */
 	public function test_cleanup_expired_drafts_cleans_up_pending_site(): void {
@@ -5877,7 +5877,7 @@ class Checkout_Test extends WP_UnitTestCase {
 		$this->assertNotWPError($payment);
 
 		global $wpdb;
-		$old_date = gmdate('Y-m-d H:i:s', strtotime('-3 hours'));
+		$old_date = gmdate('Y-m-d H:i:s', strtotime('-31 days'));
 		$wpdb->update(
 			"{$wpdb->prefix}wu_payments",
 			['date_created' => $old_date],
