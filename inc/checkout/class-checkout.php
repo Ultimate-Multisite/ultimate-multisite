@@ -3537,7 +3537,7 @@ class Checkout {
 	}
 
 	/**
-	 * Cleans up expired draft and pending payments (older than 30 days).
+	 * Cleans up expired draft and pending payments (older than two hours).
 	 *
 	 * When a pending payment is cancelled, the associated membership is also
 	 * cancelled if it is still in the `pending` state. This ensures that any
@@ -3551,21 +3551,23 @@ class Checkout {
 	 */
 	public function cleanup_expired_drafts(): void {
 
-		global $wpdb;
-
-		$expired_date = gmdate('Y-m-d H:i:s', strtotime('-30 days'));
+		$expired_date_query = [
+			'column'    => 'date_created',
+			'before'    => '-2 hours',
+			'inclusive' => false,
+		];
 
 		$expired_drafts = wu_get_payments(
 			[
-				'status'           => Payment_Status::DRAFT,
-				'date_created__lt' => $expired_date,
+				'status'     => Payment_Status::DRAFT,
+				'date_query' => $expired_date_query,
 			]
 		);
 
 		$expired_pendings = wu_get_payments(
 			[
-				'status'           => Payment_Status::PENDING,
-				'date_created__lt' => $expired_date,
+				'status'     => Payment_Status::PENDING,
+				'date_query' => $expired_date_query,
 			]
 		);
 
@@ -3576,10 +3578,10 @@ class Checkout {
 
 				/*
 				 * Also cancel the associated membership if it is still in
-				 * `pending` state. A 30-day-old unconfirmed payment means the
-				 * customer never completed the signup; keeping the membership
-				 * in `pending` would leave any pending_site meta orphaned
-				 * because no active membership owns it. Cancelling via
+				 * `pending` state. An unconfirmed payment older than two hours
+				 * means the customer did not complete the signup; keeping the
+				 * membership in `pending` would leave any pending_site meta
+				 * orphaned because no active membership owns it. Cancelling via
 				 * cancel() fires wu_transition_membership_status, which
 				 * invokes handle_pending_site_on_cancellation() to move the
 				 * pending_site to a 24-hour transient for potential reclaim
