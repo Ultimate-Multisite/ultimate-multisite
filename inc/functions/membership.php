@@ -324,6 +324,27 @@ function wu_membership_create_new_payment($membership, $should_cancel_pending_pa
 		$new_payment->remove_non_recurring_items();
 	}
 
+	/**
+	 * Fires before a membership payment has its totals recalculated.
+	 *
+	 * Addons can add auditable line items to renewal payments without
+	 * changing the membership's recurring amount or invoking a gateway.
+	 *
+	 * @since 2.15.1
+	 *
+	 * @param \WP_Ultimo\Models\Payment $new_payment         Unsaved payment object.
+	 * @param Membership                $membership          Membership being billed.
+	 * @param bool                      $remove_non_recurring Whether non-recurring items were removed.
+	 * @param bool                      $save                 Whether the payment will be saved.
+	 */
+	do_action(
+		'wu_membership_new_payment_pre_totals',
+		$new_payment,
+		$membership,
+		$remove_non_recurring,
+		$save
+	);
+
 	$new_payment->recalculate_totals();
 
 	if ( ! $save) {
