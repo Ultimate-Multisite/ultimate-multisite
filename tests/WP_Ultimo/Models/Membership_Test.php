@@ -1451,7 +1451,7 @@ class Membership_Test extends \WP_UnitTestCase {
 	/**
 	 * Test renew() DOES clear date_cancellation when reactivating a cancelled membership.
 	 *
-	 * renew() is called by reactivate(), and also directly by gateways via IPN/webhook.
+	 * Renew() is called by reactivate(), and also directly by gateways via IPN/webhook.
 	 * It must clear the cancellation timestamp when the previous status was CANCELLED
 	 * so that cancelled membership records are cleaned up in a single save.
 	 */
