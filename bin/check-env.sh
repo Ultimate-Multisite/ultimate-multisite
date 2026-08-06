@@ -39,12 +39,19 @@ else
 	info "Fix: composer install"
 fi
 
-# 3. Node modules
-if [ -f "node_modules/.bin/eslint" ]; then
-	ok "npm install — node_modules/.bin/eslint found"
+# 3. pnpm and Node modules
+if command -v pnpm >/dev/null 2>&1; then
+	ok "pnpm found: $(pnpm --version 2>/dev/null || echo "(version unknown)")"
 else
-	fail "npm install not run — node_modules/.bin/eslint missing"
-	info "Fix: npm install"
+	fail "pnpm not in PATH"
+	info "Fix: corepack enable"
+fi
+
+if [ -f "node_modules/.bin/eslint" ]; then
+	ok "pnpm install — node_modules/.bin/eslint found"
+else
+	fail "pnpm install not run — node_modules/.bin/eslint missing"
+	info "Fix: pnpm install --frozen-lockfile"
 fi
 
 # 4. WP-CLI

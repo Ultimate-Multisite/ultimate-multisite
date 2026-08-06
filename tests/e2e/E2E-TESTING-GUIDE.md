@@ -7,20 +7,20 @@ This comprehensive guide covers all end-to-end tests for WP Multisite Ultimate, 
 ### Prerequisites Checklist
 - [ ] WordPress Multisite network installed
 - [ ] WP Multisite Ultimate plugin uploaded but not yet configured
-- [ ] Node.js and npm installed
-- [ ] Cypress installed (`npm install cypress --save-dev`)
+- [ ] Node.js 22 and pnpm installed (`corepack enable`)
+- [ ] Cypress installed (`pnpm install --frozen-lockfile`)
 - [ ] Test environment running on `http://localhost:8889`
 
 ### First Time Setup
 ```bash
 # 1. Complete the setup wizard (MUST run first)
-npx cypress run --spec "tests/e2e/cypress/integration/setup-wizard-complete.spec.js"
+pnpm exec cypress run --spec "tests/e2e/cypress/integration/setup-wizard-complete.spec.js"
 
 # 2. Run all checkout tests
-npx cypress run --spec "tests/e2e/cypress/integration/checkout-*.spec.js"
+pnpm exec cypress run --spec "tests/e2e/cypress/integration/checkout-*.spec.js"
 
 # 3. Or run everything
-npx cypress run
+pnpm exec cypress run
 ```
 
 ## 📋 Test Suite Overview
@@ -239,28 +239,28 @@ cy.selectSiteTemplate(0)                    // Choose site template
 # Install WP Multisite Ultimate plugin (don't activate yet)
 
 # Complete setup wizard
-npx cypress run --spec "tests/e2e/cypress/integration/setup-wizard-complete.spec.js"
+pnpm exec cypress run --spec "tests/e2e/cypress/integration/setup-wizard-complete.spec.js"
 ```
 
 #### 2. Development Testing
 ```bash
 # Test specific functionality
-npx cypress open --spec "tests/e2e/cypress/integration/checkout-registration.spec.js"
+pnpm exec cypress open --spec "tests/e2e/cypress/integration/checkout-registration.spec.js"
 
 # Run validation tests
-npx cypress run --spec "tests/e2e/cypress/integration/checkout-validation.spec.js"
+pnpm exec cypress run --spec "tests/e2e/cypress/integration/checkout-validation.spec.js"
 
 # Test all scenarios
-npx cypress run --spec "tests/e2e/cypress/integration/checkout-scenarios.spec.js"
+pnpm exec cypress run --spec "tests/e2e/cypress/integration/checkout-scenarios.spec.js"
 ```
 
 #### 3. Full Test Suite
 ```bash
 # Run all tests (setup wizard + checkout flow)
-npx cypress run
+pnpm exec cypress run
 
 # Run only checkout tests (assumes setup is complete)
-npx cypress run --spec "tests/e2e/cypress/integration/checkout-*.spec.js"
+pnpm exec cypress run --spec "tests/e2e/cypress/integration/checkout-*.spec.js"
 ```
 
 ### CI/CD Pipeline
@@ -281,19 +281,19 @@ jobs:
           # Your WordPress setup commands here
 
       - name: Install Dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run Setup Tests
         uses: cypress-io/github-action@v4
         with:
-          start: npm run start:test
+          start: pnpm run start:test
           wait-on: 'http://localhost:8889'
           spec: tests/e2e/cypress/integration/setup-wizard-complete.spec.js
 
       - name: Run Checkout Tests
         uses: cypress-io/github-action@v4
         with:
-          start: npm run start:test
+          start: pnpm run start:test
           wait-on: 'http://localhost:8889'
           spec: tests/e2e/cypress/integration/checkout-*.spec.js
 ```
@@ -334,13 +334,13 @@ jobs:
 
 ```bash
 # Debug specific test with detailed output
-DEBUG=cypress:* npx cypress run --spec "path/to/test.spec.js"
+DEBUG=cypress:* pnpm exec cypress run --spec "path/to/test.spec.js"
 
 # Run in headed mode for visual debugging
-npx cypress open --spec "path/to/test.spec.js"
+pnpm exec cypress open --spec "path/to/test.spec.js"
 
 # Generate video recordings
-npx cypress run --record --key <your-key>
+pnpm exec cypress run --record --key <your-key>
 ```
 
 ### Test Data Reset
@@ -352,7 +352,7 @@ If you need to reset test data:
 wp db reset --yes
 
 # Re-run setup wizard
-npx cypress run --spec "tests/e2e/cypress/integration/setup-wizard-complete.spec.js"
+pnpm exec cypress run --spec "tests/e2e/cypress/integration/setup-wizard-complete.spec.js"
 ```
 
 ## 📊 Test Coverage

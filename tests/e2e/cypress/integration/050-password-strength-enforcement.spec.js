@@ -6,7 +6,7 @@ describe("Password Strength Enforcement", () => {
 		const containerPath =
 			"/var/www/html/wp-content/plugins/ultimate-multisite/tests/e2e/cypress/fixtures/set-password-strength.php";
 		cy.exec(
-			`npx wp-env run tests-cli wp eval-file ${containerPath} -- ${level}`,
+			`pnpm exec wp-env run tests-cli wp eval-file ${containerPath} -- ${level}`,
 			{ timeout: 60000 }
 		).then((result) => {
 			const data = JSON.parse(result.stdout.trim());
