@@ -169,7 +169,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Checkout wp-performance-action
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -179,6 +179,7 @@ jobs:
           path: .wp-performance-action
 
       - name: Install performance action dependencies
+        # This vendored workflow dependency owns its npm lockfile and tooling.
         run: npm ci
         working-directory: .wp-performance-action/env
 

@@ -42,14 +42,18 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Install PHP dependencies
         run: composer install
 
       - name: Install Node dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Verify version matches
         run: |
@@ -81,7 +85,7 @@ jobs:
           fi
 
       - name: Run build process
-        run: npm run build
+        run: pnpm run build
         env:
           MU_CLIENT_ID: ${{ secrets.MU_CLIENT_ID }}
           MU_CLIENT_SECRET: ${{ secrets.MU_CLIENT_SECRET }}

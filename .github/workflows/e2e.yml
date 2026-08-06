@@ -36,16 +36,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 18
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
-      - name: Cache NPM dependencies
-        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-cache
+      - name: Enable Corepack
+        run: corepack enable
 
-      - name: Install NPM dependencies
-        run: npm ci
+      - name: Install pnpm dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Cache Composer dependencies
         uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
@@ -85,7 +84,7 @@ jobs:
           set +e
           for attempt in 1 2 3; do
             echo "Attempt $attempt: starting WordPress test environment..."
-            npm run env:start:test
+            pnpm run env:start:test
             EXIT_CODE=$?
             if [ $EXIT_CODE -eq 0 ]; then
               echo "✅ WordPress environment started (attempt $attempt)"
@@ -94,7 +93,7 @@ jobs:
             echo "⚠️ Attempt $attempt failed (exit $EXIT_CODE)"
             if [ $attempt -lt 3 ]; then
               echo "Stopping any partial environment and retrying in 30s..."
-              npm run env:stop 2>/dev/null || true
+              pnpm run env:stop 2>/dev/null || true
               sleep 30
             else
               echo "❌ All 3 attempts failed — giving up"
@@ -128,15 +127,15 @@ jobs:
 
           # Network-activate so wu_save_setting() and other functions
           # are fully bootstrapped for all wp eval / eval-file calls.
-          npx wp-env run tests-cli wp plugin activate "$PLUGIN_SLUG" --network || \
-            npx wp-env run tests-cli wp plugin activate ultimate-multisite --network || \
+          pnpm exec wp-env run tests-cli wp plugin activate "$PLUGIN_SLUG" --network || \
+            pnpm exec wp-env run tests-cli wp plugin activate ultimate-multisite --network || \
             echo "⚠️  Could not network-activate by directory name, listing plugins..."
 
           echo "Plugin list after activation attempt:"
-          npx wp-env run tests-cli wp plugin list --status=active --format=table
+          pnpm exec wp-env run tests-cli wp plugin list --status=active --format=table
 
           echo "Verifying wu_save_setting() is available:"
-          npx wp-env run tests-cli wp eval "var_dump(function_exists('wu_save_setting'));" || true
+          pnpm exec wp-env run tests-cli wp eval "var_dump(function_exists('wu_save_setting'));" || true
 
       - name: Comprehensive WordPress Debug
         run: |
@@ -186,7 +185,7 @@ jobs:
         id: setup-test
         run: |
           echo "=== Starting Setup Test ==="
-          npx cypress run \
+          pnpm exec cypress run \
             --config-file cypress.config.test.js \
             --spec "tests/e2e/cypress/integration/000-setup.spec.js" \
             --browser ${{ matrix.browser }}
@@ -197,7 +196,7 @@ jobs:
           echo "=== Container logs (last 100 lines) ==="
           docker logs $(docker ps -q --filter "name=tests-wordpress") 2>&1 | tail -100 || echo "Could not get container logs"
           echo "=== PHP error log ==="
-          npx wp-env run tests-cli cat /var/www/html/wp-content/debug.log 2>&1 | tail -100 || echo "No debug.log found"
+          pnpm exec wp-env run tests-cli cat /var/www/html/wp-content/debug.log 2>&1 | tail -100 || echo "No debug.log found"
 
       - name: Run Sanity Tests (login, mail)
         id: sanity-tests
@@ -218,7 +217,7 @@ jobs:
           for TEST_SPEC in "${SANITY_TESTS[@]}"; do
             echo "Running: $TEST_SPEC"
 
-            npx cypress run \
+            pnpm exec cypress run \
               --config-file cypress.config.test.js \
               --spec "$TEST_SPEC" \
               --browser ${{ matrix.browser }}
@@ -252,7 +251,7 @@ jobs:
           # running, then re-marks setup complete at the end — safe to run after
           # 000-setup. This regression-guards the addslashes/TypeError class of
           # bugs that only surface when the wizard form actually POSTs.
-          npx cypress run \
+          pnpm exec cypress run \
             --config-file cypress.config.test.js \
             --spec "tests/e2e/cypress/integration/wizard.spec.js" \
             --browser ${{ matrix.browser }}
@@ -268,9 +267,9 @@ jobs:
           # their session-setup hook. 000-setup.spec.js calls this same
           # fixture defensively in its before() hook for the same reason.
           PLUGIN_SLUG=$(basename "$PWD")
-          npx wp-env run tests-cli wp eval-file \
+          pnpm exec wp-env run tests-cli wp eval-file \
             "/var/www/html/wp-content/plugins/$PLUGIN_SLUG/tests/e2e/cypress/fixtures/setup-disable-custom-login.php" || \
-            npx wp-env run tests-cli wp eval-file \
+            pnpm exec wp-env run tests-cli wp eval-file \
               "/var/www/html/wp-content/plugins/ultimate-multisite/tests/e2e/cypress/fixtures/setup-disable-custom-login.php"
 
       - name: Run Regression & UI Tests (After Setup)
@@ -294,7 +293,7 @@ jobs:
           for TEST_SPEC in "${REGRESSION_TESTS[@]}"; do
             echo "Running: $TEST_SPEC"
 
-            npx cypress run \
+            pnpm exec cypress run \
               --config-file cypress.config.test.js \
               --spec "$TEST_SPEC" \
               --browser ${{ matrix.browser }}
@@ -343,7 +342,7 @@ jobs:
           for TEST_SPEC in "${CHECKOUT_TESTS[@]}"; do
             echo "Running: $TEST_SPEC"
 
-            npx cypress run \
+            pnpm exec cypress run \
               --config-file cypress.config.test.js \
               --spec "$TEST_SPEC" \
               --browser ${{ matrix.browser }}
@@ -381,7 +380,7 @@ jobs:
           for TEST_SPEC in "${SSO_TESTS[@]}"; do
             echo "Running: $TEST_SPEC"
 
-            npx cypress run \
+            pnpm exec cypress run \
               --config-file cypress.config.test.js \
               --spec "$TEST_SPEC" \
               --browser ${{ matrix.browser }}
@@ -438,7 +437,7 @@ jobs:
           for TEST_SPEC in "${STRIPE_TESTS[@]}"; do
             echo "Running: $TEST_SPEC"
 
-            npx cypress run \
+            pnpm exec cypress run \
               --config-file cypress.config.test.js \
               --spec "$TEST_SPEC" \
               --browser ${{ matrix.browser }}
@@ -495,7 +494,7 @@ jobs:
           for TEST_SPEC in "${PAYPAL_TESTS[@]}"; do
             echo "Running: $TEST_SPEC"
 
-            npx cypress run \
+            pnpm exec cypress run \
               --config-file cypress.config.test.js \
               --spec "$TEST_SPEC" \
               --browser ${{ matrix.browser }} \
@@ -547,7 +546,7 @@ jobs:
         if: always()
         run: |
           if [ -f package.json ]; then
-            npm run env:stop
+            pnpm run env:stop
           else
             echo "package.json not found; skipping WordPress environment stop."
           fi

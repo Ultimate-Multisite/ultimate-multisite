@@ -118,15 +118,15 @@ if [ -n "$STAGED_JS_CSS_FILES" ]; then
     echo -e "${YELLOW}Checking JS/CSS files:${NC}"
     echo "$STAGED_JS_CSS_FILES"
 
-    if command -v npx &> /dev/null; then
+    if command -v pnpm &> /dev/null; then
         echo -e "${YELLOW}Running lint-staged...${NC}"
-        if ! npx lint-staged; then
+        if ! pnpm exec lint-staged; then
             HAS_ERRORS=1
             echo -e "${RED}lint-staged found errors.${NC}"
         fi
     else
-        echo -e "${YELLOW}Warning: npx not found. Skipping JS/CSS linting.${NC}"
-        echo -e "${YELLOW}Run 'npm install' to set up the development environment.${NC}"
+        echo -e "${YELLOW}Warning: pnpm not found. Skipping JS/CSS linting.${NC}"
+        echo -e "${YELLOW}Run 'pnpm install --frozen-lockfile' to set up the development environment.${NC}"
     fi
 else
     echo -e "${GREEN}No JS/CSS files to check.${NC}"

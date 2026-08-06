@@ -18,7 +18,7 @@ console.log(`🔧 Starting minifying process for .js files`);
 files.forEach((file) => {
   const outFile = file.replace(/\.js$/, ".min.js");
   console.log(`Uglifying: ${file} → ${outFile}`);
-  execSync(`npx uglifyjs "${file}" -c -m -o "${outFile}"`);
+  execSync(`uglifyjs "${file}" -c -m -o "${outFile}"`);
 });
 
 console.log(`✅ DONE creating minified .js files`);

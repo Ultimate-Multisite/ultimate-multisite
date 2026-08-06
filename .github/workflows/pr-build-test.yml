@@ -23,9 +23,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: 'package-lock.json'
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Setup PHP
         uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2
@@ -36,14 +39,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm ci
+          pnpm install --frozen-lockfile
           composer install
 
       - name: Build plugin
         env:
           MU_CLIENT_ID: ${{ secrets.MU_CLIENT_ID }}
           MU_CLIENT_SECRET: ${{ secrets.MU_CLIENT_SECRET }}
-        run: npm run build
+        run: pnpm run build
 
       - name: Prepare artifact for upload
         id: artifact
