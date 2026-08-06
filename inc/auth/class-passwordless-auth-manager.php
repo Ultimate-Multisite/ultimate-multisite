@@ -728,7 +728,7 @@ class Passwordless_Auth_Manager {
 	 * @since 2.13.2
 	 * @return bool
 	 */
-	protected function is_password_fallback() {
+	public function is_password_fallback() {
 
 		return isset($_GET['wu_password_fallback']); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	}
