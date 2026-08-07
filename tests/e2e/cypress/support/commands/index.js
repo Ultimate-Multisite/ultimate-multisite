@@ -2,8 +2,106 @@ import "./login";
 import "./wizard";
 import "./domain-mapping";
 
+const validateWpCliCommand = (command) => {
+	if ("string" !== typeof command || command.includes("\n") || command.includes("\r")) {
+		throw new Error("WP-CLI commands must be a single command line.");
+	}
+
+	const argumentsList = [];
+	let argument = "";
+	let quote = "";
+	let escaped = false;
+	let hasArgument = false;
+	const shellOperators = [
+		"|",
+		"&",
+		";",
+		"<",
+		">",
+		"(",
+		")",
+		"$",
+		"{",
+		"}",
+		"[",
+		"]",
+		"*",
+		"?",
+		"!",
+		"#",
+		"~",
+		String.fromCharCode(96),
+	];
+
+	for (const character of command) {
+		if (escaped) {
+			argument += character;
+			escaped = false;
+			hasArgument = true;
+			continue;
+		}
+
+		if ("\\" === character && "'" !== quote) {
+			escaped = true;
+			hasArgument = true;
+			continue;
+		}
+
+		if (quote) {
+			if (character === quote) {
+				quote = "";
+			} else {
+				argument += character;
+			}
+
+			hasArgument = true;
+			continue;
+		}
+
+		if ("'" === character || '"' === character) {
+			quote = character;
+			hasArgument = true;
+		} else if (/\s/.test(character)) {
+			if (hasArgument) {
+				argumentsList.push(argument);
+				argument = "";
+				hasArgument = false;
+			}
+		} else if (shellOperators.includes(character)) {
+			throw new Error("WP-CLI commands cannot contain unquoted shell operators.");
+		} else {
+			argument += character;
+			hasArgument = true;
+		}
+	}
+
+	if (escaped || quote || !hasArgument) {
+		throw new Error("WP-CLI commands must contain balanced arguments.");
+	}
+
+	argumentsList.push(argument);
+
+	return argumentsList
+		.map((item) => `'${item.replace(/'/g, "'\"'\"'")}'`)
+		.join(" ");
+};
+
+const validateWpCliFilePath = (filePath) => {
+	if (
+		"string" !== typeof filePath ||
+		filePath.includes("..") ||
+		!/^[A-Za-z0-9_./-]+\.php$/.test(filePath)
+	) {
+		throw new Error("WP-CLI file paths must be relative PHP file paths.");
+	}
+
+	return filePath;
+};
+
 Cypress.Commands.add("wpCli", (command, options = {}) => {
-  cy.exec(`pnpm exec wp-env run tests-cli wp ${command}`, {
+	const safeCommand = validateWpCliCommand(command);
+
+	cy.exec(`pnpm exec wp-env run tests-cli wp ${safeCommand}`, {
     ...options,
     timeout: options.timeout || 60000,
   });
@@ -14,9 +112,10 @@ Cypress.Commands.add("wpCli", (command, options = {}) => {
  * Path is relative to the plugin root inside the container.
  */
 Cypress.Commands.add("wpCliFile", (filePath, options = {}) => {
-  const containerPath = `/var/www/html/wp-content/plugins/ultimate-multisite/${filePath}`;
+	const safeFilePath = validateWpCliFilePath(filePath);
+	const containerPath = `/var/www/html/wp-content/plugins/ultimate-multisite/${safeFilePath}`;
 
-  cy.exec(`pnpm exec wp-env run tests-cli wp eval-file ${containerPath}`, {
+	cy.exec(`pnpm exec wp-env run tests-cli wp eval-file ${containerPath}`, {
     ...options,
     timeout: options.timeout || 60000,
   });

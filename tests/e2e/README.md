@@ -41,7 +41,7 @@ pnpm run cy:open:dev
 ```
 
 Testing environment
-```
+```bash
 pnpm run cy:open:test
 ```
 
@@ -55,7 +55,7 @@ pnpm run cy:run:dev
 ```
 
 Testing environment
-```
+```bash
 pnpm run cy:run:test
 ```
 
