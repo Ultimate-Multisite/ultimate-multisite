@@ -121,29 +121,31 @@ class Requirements_Test extends \WP_UnitTestCase {
 	 */
 	public function test_check_wp_cron_null_override(): void {
 
-		$native_check_called = false;
-		$http_filter         = static function () use (&$native_check_called) {
-			$native_check_called = true;
+		$native_result = Requirements::check_wp_cron();
 
-			return [
-				'response' => [
-					'code'    => 500,
-					'message' => 'Cron unavailable',
-				],
-			];
+		delete_site_transient('wp-ultimo-cron-test-ok');
+		delete_transient('wp-ultimo-cron-test-ok');
+
+		$override_called = false;
+		$override_input  = false;
+		$override_filter = static function ($status) use (&$override_called, &$override_input) {
+			$override_called = true;
+			$override_input  = $status;
+
+			return null;
 		};
 
-		add_filter('pre_http_request', $http_filter);
-		add_filter('wu_wp_cron_status_override', '__return_null');
+		add_filter('wu_wp_cron_status_override', $override_filter);
 
 		try {
-			$result = Requirements::check_wp_cron();
+			$override_result = Requirements::check_wp_cron();
 		} finally {
-			remove_filter('pre_http_request', $http_filter);
+			remove_filter('wu_wp_cron_status_override', $override_filter);
 		}
 
-		$this->assertTrue($native_check_called);
-		$this->assertFalse($result);
+		$this->assertTrue($override_called);
+		$this->assertNull($override_input);
+		$this->assertSame($native_result, $override_result);
 	}
 
 	/**
