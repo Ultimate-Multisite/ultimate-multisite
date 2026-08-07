@@ -8,7 +8,7 @@ console.log(`🔧 Starting minifying process for .css files`);
 files.forEach((file) => {
   const outFile = file.replace(/\.css$/, ".min.css");
   console.log(`Minifying: ${file} → ${outFile}`);
-  execSync(`cleancss -o "${outFile}" "${file}"`);
+	execSync(`cleancss -o "${outFile}" "${file}"`);
 });
 
 console.log(`✅ DONE creating minified .css files`);

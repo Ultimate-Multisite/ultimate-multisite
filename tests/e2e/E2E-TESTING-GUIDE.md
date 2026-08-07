@@ -275,6 +275,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack
+        run: corepack enable
+
       # Setup WordPress Multisite environment
       - name: Setup WordPress
         run: |
@@ -286,14 +293,14 @@ jobs:
       - name: Run Setup Tests
         uses: cypress-io/github-action@v4
         with:
-          start: pnpm run start:test
+          start: pnpm run env:start:test
           wait-on: 'http://localhost:8889'
           spec: tests/e2e/cypress/integration/setup-wizard-complete.spec.js
 
       - name: Run Checkout Tests
         uses: cypress-io/github-action@v4
         with:
-          start: pnpm run start:test
+          start: pnpm run env:start:test
           wait-on: 'http://localhost:8889'
           spec: tests/e2e/cypress/integration/checkout-*.spec.js
 ```

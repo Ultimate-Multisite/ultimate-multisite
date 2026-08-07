@@ -3,7 +3,7 @@ import "./wizard";
 import "./domain-mapping";
 
 Cypress.Commands.add("wpCli", (command, options = {}) => {
-  cy.exec(`pnpm exec wp-env run tests-cli wp ${command}`, {
+	cy.exec(`pnpm exec wp-env run tests-cli wp ${command}`, {
     ...options,
     timeout: options.timeout || 60000,
   });
@@ -16,7 +16,7 @@ Cypress.Commands.add("wpCli", (command, options = {}) => {
 Cypress.Commands.add("wpCliFile", (filePath, options = {}) => {
   const containerPath = `/var/www/html/wp-content/plugins/ultimate-multisite/${filePath}`;
 
-  cy.exec(`pnpm exec wp-env run tests-cli wp eval-file ${containerPath}`, {
+	cy.exec(`pnpm exec wp-env run tests-cli wp eval-file ${containerPath}`, {
     ...options,
     timeout: options.timeout || 60000,
   });
