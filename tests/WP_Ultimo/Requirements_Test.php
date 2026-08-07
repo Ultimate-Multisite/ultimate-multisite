@@ -24,6 +24,7 @@ class Requirements_Test extends \WP_UnitTestCase {
 		Requirements::$met = null;
 		remove_all_filters('wu_wp_cron_status_override');
 		delete_site_transient('wp-ultimo-cron-test-ok');
+		delete_transient('wp-ultimo-cron-test-ok');
 	}
 
 	/**
@@ -32,6 +33,7 @@ class Requirements_Test extends \WP_UnitTestCase {
 	public function tear_down(): void {
 		remove_all_filters('wu_wp_cron_status_override');
 		delete_site_transient('wp-ultimo-cron-test-ok');
+		delete_transient('wp-ultimo-cron-test-ok');
 
 		parent::tear_down();
 	}
@@ -119,10 +121,29 @@ class Requirements_Test extends \WP_UnitTestCase {
 	 */
 	public function test_check_wp_cron_null_override(): void {
 
-		set_site_transient('wp-ultimo-cron-test-ok', 1, HOUR_IN_SECONDS);
+		$native_check_called = false;
+		$http_filter         = static function () use (&$native_check_called) {
+			$native_check_called = true;
+
+			return [
+				'response' => [
+					'code'    => 500,
+					'message' => 'Cron unavailable',
+				],
+			];
+		};
+
+		add_filter('pre_http_request', $http_filter);
 		add_filter('wu_wp_cron_status_override', '__return_null');
 
-		$this->assertTrue(Requirements::check_wp_cron());
+		try {
+			$result = Requirements::check_wp_cron();
+		} finally {
+			remove_filter('pre_http_request', $http_filter);
+		}
+
+		$this->assertTrue($native_check_called);
+		$this->assertFalse($result);
 	}
 
 	/**
