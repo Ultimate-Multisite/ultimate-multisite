@@ -180,7 +180,7 @@ We welcome contributions to Ultimate Multisite! Here's how you can contribute ef
    - Make your changes with tests
    - Git hooks will automatically run PHPCS and PHPStan on changed files
    - Commit using conventional format: `feat(scope): description`
-    - Run `pnpm run check` before pushing
+   - Run `pnpm run check` before pushing
    - Push and create a Pull Request
 
 4. **Code Quality:**
