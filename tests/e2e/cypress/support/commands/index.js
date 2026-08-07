@@ -2,15 +2,88 @@ import "./login";
 import "./wizard";
 import "./domain-mapping";
 
-const hasUnsafeShellCharacters = (value) =>
-	/[|&;<>()$*?![\]{}\\\n\r]/.test(value) || value.includes(String.fromCharCode(96));
-
 const validateWpCliCommand = (command) => {
-	if ("string" !== typeof command || hasUnsafeShellCharacters(command)) {
-		throw new Error("WP-CLI commands cannot contain shell control characters.");
+	if ("string" !== typeof command || command.includes("\n") || command.includes("\r")) {
+		throw new Error("WP-CLI commands must be a single command line.");
 	}
 
-	return command;
+	const argumentsList = [];
+	let argument = "";
+	let quote = "";
+	let escaped = false;
+	let hasArgument = false;
+	const shellOperators = [
+		"|",
+		"&",
+		";",
+		"<",
+		">",
+		"(",
+		")",
+		"$",
+		"{",
+		"}",
+		"[",
+		"]",
+		"*",
+		"?",
+		"!",
+		"#",
+		"~",
+		String.fromCharCode(96),
+	];
+
+	for (const character of command) {
+		if (escaped) {
+			argument += character;
+			escaped = false;
+			hasArgument = true;
+			continue;
+		}
+
+		if ("\\" === character && "'" !== quote) {
+			escaped = true;
+			hasArgument = true;
+			continue;
+		}
+
+		if (quote) {
+			if (character === quote) {
+				quote = "";
+			} else {
+				argument += character;
+			}
+
+			hasArgument = true;
+			continue;
+		}
+
+		if ("'" === character || '"' === character) {
+			quote = character;
+			hasArgument = true;
+		} else if (/\s/.test(character)) {
+			if (hasArgument) {
+				argumentsList.push(argument);
+				argument = "";
+				hasArgument = false;
+			}
+		} else if (shellOperators.includes(character)) {
+			throw new Error("WP-CLI commands cannot contain unquoted shell operators.");
+		} else {
+			argument += character;
+			hasArgument = true;
+		}
+	}
+
+	if (escaped || quote || !hasArgument) {
+		throw new Error("WP-CLI commands must contain balanced arguments.");
+	}
+
+	argumentsList.push(argument);
+
+	return argumentsList
+		.map((item) => `'${item.replace(/'/g, "'\"'\"'")}'`)
+		.join(" ");
 };
 
 const validateWpCliFilePath = (filePath) => {
