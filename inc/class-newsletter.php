@@ -80,6 +80,7 @@ class Newsletter {
 							'status'     => 'confirmed',
 							'first_name' => $settings['company_name'],
 							'country'    => $settings['company_country'],
+							'language'   => determine_locale(),
 						]
 					),
 					'headers' => [
