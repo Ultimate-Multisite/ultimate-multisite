@@ -152,4 +152,85 @@ class Rocket_Domain_Mapping_Test extends WP_UnitTestCase {
 
 		$this->assertNotNull($result);
 	}
+
+	/**
+	 * @dataProvider rocket_access_token_response_provider
+	 */
+	public function test_get_rocket_access_token_uses_login_endpoint_and_supported_token_response(array $response_body, string $expected_token): void {
+
+		delete_site_transient('wu_rocket_token');
+
+		$integration = $this->getMockBuilder(Rocket_Integration::class)
+			->onlyMethods(['get_credential'])
+			->getMock();
+
+		$integration->method('get_credential')
+			->willReturnMap(
+				[
+					['WU_ROCKET_EMAIL', 'rocket-user@example.com'],
+					['WU_ROCKET_PASSWORD', 'rocket-password'],
+				]
+			);
+
+		$request_seen = false;
+		$http_filter  = function ($preempt, array $args, string $url) use (&$request_seen, $response_body) {
+			$request_seen = true;
+
+			$this->assertSame('https://api.rocket.net/v1/login', $url);
+			$this->assertSame('POST', $args['method']);
+			$this->assertSame('application/json', $args['headers']['Content-Type']);
+			$this->assertSame('application/json', $args['headers']['Accept']);
+			$this->assertSame(
+				[
+					'username' => 'rocket-user@example.com',
+					'password' => 'rocket-password',
+				],
+				json_decode($args['body'], true)
+			);
+
+			return [
+				'headers'  => [],
+				'body'     => wp_json_encode($response_body),
+				'response' => [
+					'code'    => 200,
+					'message' => 'OK',
+				],
+				'cookies'  => [],
+			];
+		};
+
+		add_filter('pre_http_request', $http_filter, 10, 3);
+
+		try {
+			$token = $integration->get_rocket_access_token();
+		} finally {
+			remove_filter('pre_http_request', $http_filter, 10);
+			delete_site_transient('wu_rocket_token');
+		}
+
+		$this->assertTrue($request_seen);
+		$this->assertSame($expected_token, $token);
+	}
+
+	public function rocket_access_token_response_provider(): array {
+
+		return [
+			'direct token'          => [
+				['token' => 'direct-token'],
+				'direct-token',
+			],
+			'direct access token'   => [
+				['access_token' => 'direct-access-token'],
+				'direct-access-token',
+			],
+			'nested token'          => [
+				['result' => ['token' => 'nested-token']],
+				'nested-token',
+			],
+			'nested access token'   => [
+				['result' => ['access_token' => 'nested-access-token']],
+				'nested-access-token',
+			],
+		];
+	}
 }
