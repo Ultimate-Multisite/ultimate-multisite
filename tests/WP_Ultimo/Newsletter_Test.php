@@ -71,4 +71,57 @@ class Newsletter_Test extends WP_UnitTestCase {
 
 		$this->assertSame($settings, $result);
 	}
+
+	/**
+	 * Test confirmed newsletter subscriptions include the resolved locale.
+	 */
+	public function test_confirmed_subscription_includes_resolved_locale(): void {
+
+		$newsletter       = \WP_Ultimo\Newsletter::get_instance();
+		$captured_payload = [];
+		$settings         = [
+			'company_email'   => 'test@example.com',
+			'company_name'    => 'Test Company',
+			'company_country' => 'US',
+		];
+
+		$locale_filter = static function () {
+			return 'fr_FR';
+		};
+
+		$http_request_filter = static function ($preempt, $args) use (&$captured_payload) {
+			$captured_payload = json_decode($args['body'], true);
+
+			return [
+				'body'     => '',
+				'headers'  => [],
+				'response' => [
+					'code'    => 200,
+					'message' => 'OK',
+				],
+			];
+		};
+
+		add_filter('determine_locale', $locale_filter);
+		add_filter('pre_http_request', $http_request_filter, 10, 2);
+
+		try {
+			$result = $newsletter->maybe_update_newsletter_subscription($settings, ['newsletter_optin' => '1'], []);
+		} finally {
+			remove_filter('pre_http_request', $http_request_filter, 10);
+			remove_filter('determine_locale', $locale_filter);
+		}
+
+		$this->assertSame($settings, $result);
+		$this->assertSame(
+			[
+				'email'      => 'test@example.com',
+				'status'     => 'confirmed',
+				'first_name' => 'Test Company',
+				'country'    => 'US',
+				'language'   => 'fr_FR',
+			],
+			$captured_payload
+		);
+	}
 }
