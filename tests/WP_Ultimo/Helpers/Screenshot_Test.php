@@ -97,6 +97,11 @@ class Screenshot_Test extends WP_UnitTestCase {
 		$this->assertStringContainsString('screenshot=true', $url);
 	}
 
+	public function test_api_url_requests_png_screenshot_output() {
+		$url = Screenshot::api_url('example.com');
+		$this->assertStringContainsString('screenshot.type=png', $url);
+	}
+
 	public function test_api_url_includes_embed_param() {
 		$url = Screenshot::api_url('example.com');
 		$this->assertStringContainsString('embed=screenshot.url', $url);

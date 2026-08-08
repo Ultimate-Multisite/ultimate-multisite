@@ -55,8 +55,9 @@ class Screenshot {
 	/**
 	 * Returns the primary (Microlink) API URL for a screenshot.
 	 *
-	 * Microlink returns a PNG image directly when the `embed=screenshot.url`
-	 * parameter is used. Free tier allows 50 requests/day without an API key.
+	 * Request PNG explicitly to avoid formats, such as WebP, that are not
+	 * supported by every WordPress host. Free tier allows 50 requests/day
+	 * without an API key.
 	 *
 	 * @since 2.0.11
 	 *
@@ -75,6 +76,7 @@ class Screenshot {
 			[
 				'url'             => 'https://' . $clean_domain,
 				'screenshot'      => 'true',
+				'screenshot.type' => 'png',
 				'viewport.width'  => $width,
 				'viewport.height' => $height,
 				'embed'           => 'screenshot.url',
