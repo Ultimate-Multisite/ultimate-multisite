@@ -9,6 +9,9 @@ namespace WP_Ultimo\Helpers;
 
 use WP_UnitTestCase;
 
+require_once __DIR__ . '/screenshot-test-imagecreatefromstring.php';
+require_once __DIR__ . '/class-imagick-webp-test-editor.php';
+
 /**
  * Tests for the Screenshot helper class.
  *
@@ -22,6 +25,7 @@ class Screenshot_Test extends WP_UnitTestCase {
 	public function tear_down() {
 		remove_all_filters('wu_screenshot_api_url');
 		remove_all_filters('wu_screenshot_fallback_api_url');
+		remove_all_filters('wu_screenshot_test_imagecreatefromstring');
 		remove_all_filters('wp_image_editors');
 		remove_all_filters('pre_http_request');
 		parent::tear_down();
@@ -373,6 +377,21 @@ class Screenshot_Test extends WP_UnitTestCase {
 
 		$this->assertIsInt($result);
 		$this->assertGreaterThan(0, $result);
+	}
+
+	public function test_blank_image_accepts_webp_when_imagick_supports_it_without_gd() {
+		add_filter(
+			'wp_image_editors',
+			function () {
+				return [Imagick_WebP_Test_Editor::class];
+			}
+		);
+		add_filter('wu_screenshot_test_imagecreatefromstring', '__return_false');
+
+		$method = new \ReflectionMethod(Screenshot::class, 'is_blank_image');
+		$result = $method->invoke(null, $this->webp_body(), 'webp');
+
+		$this->assertFalse($result);
 	}
 
 	// ------------------------------------------------------------------

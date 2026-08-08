@@ -236,7 +236,7 @@ class Screenshot {
 			return false;
 		}
 
-		if (self::is_blank_image($body)) {
+		if (self::is_blank_image($body, $extension)) {
 			wu_log_add('screenshot-generator', $log_prefix . __('Result is a blank or single-colour screenshot; not saving.', 'ultimate-multisite'), LogLevel::ERROR);
 
 			return false;
@@ -304,14 +304,16 @@ class Screenshot {
 	 *
 	 * The scan stops as soon as both visible and varied pixels are found, which
 	 * avoids rejecting mostly blank screenshots that contain real content.
-	 * Images that cannot be decoded are rejected.
+	 * Images that cannot be decoded are rejected, except for WebP images that
+	 * WordPress can process with a non-GD image editor.
 	 *
 	 * @since 2.14.2
 	 *
-	 * @param string $body Raw image body.
+	 * @param string $body      Raw image body.
+	 * @param string $extension Detected image file extension.
 	 * @return bool True when the image is unusable.
 	 */
-	private static function is_blank_image($body) {
+	private static function is_blank_image($body, $extension) {
 
 		$image_info = @getimagesizefromstring($body); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Invalid provider data is expected.
 
@@ -326,6 +328,10 @@ class Screenshot {
 		$image = @imagecreatefromstring($body); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Invalid provider data is expected.
 
 		if (false === $image) {
+			if ('webp' === $extension && 'webp' === self::get_screenshot_format()) {
+				return false;
+			}
+
 			return true;
 		}
 
