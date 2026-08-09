@@ -84,24 +84,33 @@ class Cron_Test extends WP_UnitTestCase {
 		$site             = get_site($site_id);
 		$this->assertInstanceOf(\WP_Site::class, $site);
 
-		switch_to_blog($site_id);
-		$table_names = [
-			$wpdb->prefix . 'actionscheduler_actions',
-			$wpdb->prefix . 'actionscheduler_claims',
-			$wpdb->prefix . 'actionscheduler_groups',
-			$wpdb->prefix . 'actionscheduler_logs',
-		];
-		foreach ($table_names as $table_name) {
-			$wpdb->query("DROP TABLE IF EXISTS `{$table_name}`"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		}
-
-		// The WordPress test suite rewrites CREATE/DROP TABLE to temporary tables.
-		// Action Scheduler checks table existence with SHOW TABLES, which cannot
-		// see temporary tables, so exercise the repair with normal tables first.
-		remove_filter('query', [$this, '_create_temporary_tables']);
-		remove_filter('query', [$this, '_drop_temporary_tables']);
-
+		$table_names     = [];
+		$filters_removed = false;
 		try {
+			switch_to_blog($site_id);
+			$table_names = [
+				$wpdb->prefix . 'actionscheduler_actions',
+				$wpdb->prefix . 'actionscheduler_claims',
+				$wpdb->prefix . 'actionscheduler_groups',
+				$wpdb->prefix . 'actionscheduler_logs',
+			];
+
+			// Remove the temporary schemas created by wp_initialize_site().
+			foreach ($table_names as $table_name) {
+				$wpdb->query("DROP TABLE IF EXISTS `{$table_name}`"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			}
+
+			// Exercise dbDelta() with normal tables because SHOW TABLES cannot see
+			// the temporary tables created by the WordPress PHPUnit filters.
+			remove_filter('query', [$this, '_create_temporary_tables']);
+			remove_filter('query', [$this, '_drop_temporary_tables']);
+			$filters_removed = true;
+
+			// Remove any leaked regular schemas so this always exercises repair.
+			foreach ($table_names as $table_name) {
+				$wpdb->query("DROP TABLE IF EXISTS `{$table_name}`"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			}
+
 			$this->assertTrue($this->cron->ensure_action_scheduler_tables());
 
 			foreach ($table_names as $table_name) {
@@ -129,6 +138,11 @@ class Cron_Test extends WP_UnitTestCase {
 				);
 			}
 		} finally {
+			if ( ! $filters_removed) {
+				remove_filter('query', [$this, '_create_temporary_tables']);
+				remove_filter('query', [$this, '_drop_temporary_tables']);
+			}
+
 			if (get_current_blog_id() !== $site_id) {
 				switch_to_blog($site_id);
 			}

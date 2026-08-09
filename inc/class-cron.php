@@ -30,6 +30,8 @@ class Cron implements \WP_Ultimo\Interfaces\Singleton {
 
 	use \WP_Ultimo\Traits\Singleton;
 
+	private const ACTION_SCHEDULER_SCHEMA_CHECK_TRANSIENT = 'wu_action_scheduler_schema_checked';
+
 	/**
 	 * Instantiate the necessary hooks.
 	 *
@@ -83,7 +85,17 @@ class Cron implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function maybe_ensure_action_scheduler_tables(): void {
 
-		$this->ensure_action_scheduler_tables();
+		if (false !== get_transient(self::ACTION_SCHEDULER_SCHEMA_CHECK_TRANSIENT)) {
+			return;
+		}
+
+		if ($this->ensure_action_scheduler_tables()) {
+			set_transient(
+				self::ACTION_SCHEDULER_SCHEMA_CHECK_TRANSIENT,
+				1,
+				5 * MINUTE_IN_SECONDS
+			);
+		}
 	}
 
 	/**
