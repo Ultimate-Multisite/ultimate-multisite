@@ -80,6 +80,7 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 		wu_save_setting( 'default_login_page', 0 );
 		wu_save_setting( 'default_registration_page', 0 );
 		wu_save_setting( 'enable_custom_login_page', 0 );
+		remove_all_filters( 'wp_image_editors' );
 
 		parent::tearDown();
 	}
@@ -111,6 +112,20 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 		$a = Default_Content_Installer::get_instance();
 		$b = Default_Content_Installer::get_instance();
 		$this->assertSame( $a, $b );
+	}
+
+	/**
+	 * Test wizard images use PNG when the image editor does not support WebP.
+	 */
+	public function test_get_wizard_image_urls_uses_png_without_webp_support(): void {
+		add_filter( 'wp_image_editors', '__return_empty_array' );
+
+		$method = new \ReflectionMethod( Default_Content_Installer::class, 'get_wizard_image_urls' );
+		$images = $method->invoke( $this->installer );
+
+		$this->assertStringEndsWith( '/free.png', $images['free'] );
+		$this->assertStringEndsWith( '/premium.png', $images['premium'] );
+		$this->assertStringEndsWith( '/seo.png', $images['seo'] );
 	}
 
 	// -----------------------------------------------------------------------

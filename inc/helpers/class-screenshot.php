@@ -39,6 +39,27 @@ class Screenshot {
 	const JPEG_MAGIC = "\xFF\xD8\xFF";
 
 	/**
+	 * WebP RIFF header.
+	 *
+	 * @since 2.15.1
+	 */
+	const WEBP_RIFF_MAGIC = 'RIFF';
+
+	/**
+	 * WebP format header offset.
+	 *
+	 * @since 2.15.1
+	 */
+	const WEBP_FORMAT_OFFSET = 8;
+
+	/**
+	 * WebP format header.
+	 *
+	 * @since 2.15.1
+	 */
+	const WEBP_FORMAT_MAGIC = 'WEBP';
+
+	/**
 	 * Default viewport width for screenshots.
 	 *
 	 * @since 2.0.11
@@ -55,8 +76,8 @@ class Screenshot {
 	/**
 	 * Returns the primary (Microlink) API URL for a screenshot.
 	 *
-	 * Microlink returns a PNG image directly when the `embed=screenshot.url`
-	 * parameter is used. Free tier allows 50 requests/day without an API key.
+	 * Requests WebP when the active WordPress image editor supports it, and PNG
+	 * otherwise. Free tier allows 50 requests/day without an API key.
 	 *
 	 * @since 2.0.11
 	 *
@@ -75,6 +96,7 @@ class Screenshot {
 			[
 				'url'             => 'https://' . $clean_domain,
 				'screenshot'      => 'true',
+				'screenshot.type' => self::get_screenshot_format(),
 				'viewport.width'  => $width,
 				'viewport.height' => $height,
 				'embed'           => 'screenshot.url',
@@ -83,6 +105,20 @@ class Screenshot {
 		);
 
 		return apply_filters('wu_screenshot_api_url', $url, $domain);
+	}
+
+	/**
+	 * Returns the best screenshot format supported by the active image editor.
+	 *
+	 * @since 2.15.1
+	 *
+	 * @return string WebP when supported, otherwise PNG.
+	 */
+	public static function get_screenshot_format(): string {
+
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		return wp_image_editor_supports(['mime_type' => 'image/webp']) ? 'webp' : 'png';
 	}
 
 	/**
@@ -143,11 +179,11 @@ class Screenshot {
 	/**
 	 * Downloads the image from the URL and saves it as a WordPress attachment.
 	 *
-	 * Accepts both PNG and JPEG responses — the file extension and MIME type
+	 * Accepts PNG, JPEG, and WebP responses — the file extension and MIME type
 	 * are determined from the actual response body, not assumed.
 	 *
 	 * @since 2.0.0
-	 * @since 2.0.11 Accepts both PNG and JPEG; format auto-detected from response body.
+	 * @since 2.0.11 Accepts PNG, JPEG, and WebP; format auto-detected from response body.
 	 *
 	 * @param string $url Image URL to download.
 	 * @return int|false Attachment ID on success, false on failure.
@@ -192,13 +228,15 @@ class Screenshot {
 			$extension = 'png';
 		} elseif (str_starts_with($body, self::JPEG_MAGIC)) {
 			$extension = 'jpg';
+		} elseif (self::WEBP_RIFF_MAGIC === substr($body, 0, strlen(self::WEBP_RIFF_MAGIC)) && self::WEBP_FORMAT_MAGIC === substr($body, self::WEBP_FORMAT_OFFSET, strlen(self::WEBP_FORMAT_MAGIC))) {
+			$extension = 'webp';
 		} else {
-			wu_log_add('screenshot-generator', $log_prefix . __('Result is not a valid image file (expected PNG or JPEG).', 'ultimate-multisite'), LogLevel::ERROR);
+			wu_log_add('screenshot-generator', $log_prefix . __('Result is not a valid image file (expected PNG, JPEG, or WebP).', 'ultimate-multisite'), LogLevel::ERROR);
 
 			return false;
 		}
 
-		if (self::is_blank_image($body)) {
+		if (self::is_blank_image($body, $extension)) {
 			wu_log_add('screenshot-generator', $log_prefix . __('Result is a blank or single-colour screenshot; not saving.', 'ultimate-multisite'), LogLevel::ERROR);
 
 			return false;
@@ -266,14 +304,16 @@ class Screenshot {
 	 *
 	 * The scan stops as soon as both visible and varied pixels are found, which
 	 * avoids rejecting mostly blank screenshots that contain real content.
-	 * Images that cannot be decoded are rejected.
+	 * Images that cannot be decoded are rejected, except for WebP images that
+	 * WordPress can process with a non-GD image editor.
 	 *
 	 * @since 2.14.2
 	 *
-	 * @param string $body Raw image body.
+	 * @param string $body      Raw image body.
+	 * @param string $extension Detected image file extension.
 	 * @return bool True when the image is unusable.
 	 */
-	private static function is_blank_image($body) {
+	private static function is_blank_image($body, $extension) {
 
 		$image_info = @getimagesizefromstring($body); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Invalid provider data is expected.
 
@@ -288,6 +328,10 @@ class Screenshot {
 		$image = @imagecreatefromstring($body); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Invalid provider data is expected.
 
 		if (false === $image) {
+			if ('webp' === $extension && 'webp' === self::get_screenshot_format()) {
+				return false;
+			}
+
 			return true;
 		}
 

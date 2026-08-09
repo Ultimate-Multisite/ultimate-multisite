@@ -21,6 +21,7 @@ defined('ABSPATH') || exit;
  */
 class Default_Content_Installer extends Base_Installer {
 
+	// phpcs:disable PSR2.Methods.MethodDeclaration.Underscore -- Installer step names are invoked dynamically.
 	use \WP_Ultimo\Traits\Singleton;
 
 	/**
@@ -273,14 +274,31 @@ class Default_Content_Installer extends Base_Installer {
 	}
 
 	/**
-	 * Creates a example products.
+	 * Returns the default product image URLs compatible with the active host.
+	 *
+	 * @since 2.15.1
+	 *
+	 * @return array<string, string>
+	 */
+	protected function get_wizard_image_urls(): array {
+
+		$extension = \WP_Ultimo\Helpers\Screenshot::get_screenshot_format();
+
+		return [
+			'free'    => wu_get_asset('free.' . $extension, 'img/wizards'),
+			'premium' => wu_get_asset('premium.' . $extension, 'img/wizards'),
+			'seo'     => wu_get_asset('seo.' . $extension, 'img/wizards'),
+		];
+	}
+
+	/**
+	 * Creates example products.
 	 *
 	 * @since 2.0.0
 	 * @throws \Exception When the network already has products.
 	 * @return void
 	 */
 	public function _install_create_products(): void {
-
 		/*
 		 * Guarantee that currency settings (especially `precision`) are
 		 * stored with valid defaults before product validation runs.
@@ -293,11 +311,7 @@ class Default_Content_Installer extends Base_Installer {
 		/*
 		 * Saves Images
 		 */
-		$images = [
-			'free'    => wu_get_asset('free.webp', 'img/wizards'),
-			'premium' => wu_get_asset('premium.webp', 'img/wizards'),
-			'seo'     => wu_get_asset('seo.webp', 'img/wizards'),
-		];
+		$images = $this->get_wizard_image_urls();
 
 		$images = array_map([\WP_Ultimo\Helpers\Screenshot::class, 'save_image_from_url'], $images);
 
@@ -384,7 +398,6 @@ class Default_Content_Installer extends Base_Installer {
 	 * @return void
 	 */
 	public function _install_create_checkout(): void {
-
 		/*
 		 * Ensure currency defaults are set before the checkout form template
 		 * renders any price formatting (e.g. the format specifier for precision).

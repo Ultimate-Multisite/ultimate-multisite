@@ -9,6 +9,9 @@ namespace WP_Ultimo\Helpers;
 
 use WP_UnitTestCase;
 
+require_once __DIR__ . '/screenshot-test-imagecreatefromstring.php';
+require_once __DIR__ . '/class-imagick-webp-test-editor.php';
+
 /**
  * Tests for the Screenshot helper class.
  *
@@ -22,6 +25,8 @@ class Screenshot_Test extends WP_UnitTestCase {
 	public function tear_down() {
 		remove_all_filters('wu_screenshot_api_url');
 		remove_all_filters('wu_screenshot_fallback_api_url');
+		remove_all_filters('wu_screenshot_test_imagecreatefromstring');
+		remove_all_filters('wp_image_editors');
 		remove_all_filters('pre_http_request');
 		parent::tear_down();
 	}
@@ -48,6 +53,18 @@ class Screenshot_Test extends WP_UnitTestCase {
 		imagesetpixel($image, 5, 5, imagecolorallocate($image, 200, 180, 160));
 		ob_start();
 		imagejpeg($image);
+		$body = ob_get_clean();
+		imagedestroy($image);
+
+		return $body;
+	}
+
+	private function webp_body() {
+		$image = imagecreatetruecolor(10, 10);
+		imagefilledrectangle($image, 0, 0, 9, 9, imagecolorallocate($image, 20, 40, 60));
+		imagesetpixel($image, 5, 5, imagecolorallocate($image, 200, 180, 160));
+		ob_start();
+		imagewebp($image);
 		$body = ob_get_clean();
 		imagedestroy($image);
 
@@ -95,6 +112,22 @@ class Screenshot_Test extends WP_UnitTestCase {
 	public function test_api_url_includes_screenshot_param() {
 		$url = Screenshot::api_url('example.com');
 		$this->assertStringContainsString('screenshot=true', $url);
+	}
+
+	public function test_api_url_requests_webp_screenshot_output_when_supported() {
+		if ( ! wp_image_editor_supports(['mime_type' => 'image/webp'])) {
+			$this->markTestSkipped('The active image editor does not support WebP.');
+		}
+
+		$url = Screenshot::api_url('example.com');
+		$this->assertStringContainsString('screenshot.type=webp', $url);
+	}
+
+	public function test_api_url_requests_png_screenshot_output_without_webp_support() {
+		add_filter('wp_image_editors', '__return_empty_array');
+
+		$url = Screenshot::api_url('example.com');
+		$this->assertStringContainsString('screenshot.type=png', $url);
 	}
 
 	public function test_api_url_includes_embed_param() {
@@ -320,6 +353,45 @@ class Screenshot_Test extends WP_UnitTestCase {
 
 		$this->assertIsInt($result);
 		$this->assertGreaterThan(0, $result);
+	}
+
+	public function test_save_image_accepts_webp_body() {
+		if ( ! function_exists('imagewebp')) {
+			$this->markTestSkipped('GD does not support creating WebP images.');
+		}
+
+		add_filter(
+			'pre_http_request',
+			function () {
+				return [
+					'response' => [
+						'code'    => 200,
+						'message' => 'OK',
+					],
+					'body'     => $this->webp_body(),
+				];
+			}
+		);
+
+		$result = Screenshot::save_image_from_url('https://example.com/test');
+
+		$this->assertIsInt($result);
+		$this->assertGreaterThan(0, $result);
+	}
+
+	public function test_blank_image_accepts_webp_when_imagick_supports_it_without_gd() {
+		add_filter(
+			'wp_image_editors',
+			function () {
+				return [Imagick_WebP_Test_Editor::class];
+			}
+		);
+		add_filter('wu_screenshot_test_imagecreatefromstring', '__return_false');
+
+		$method = new \ReflectionMethod(Screenshot::class, 'is_blank_image');
+		$result = $method->invoke(null, $this->webp_body(), 'webp');
+
+		$this->assertFalse($result);
 	}
 
 	// ------------------------------------------------------------------
