@@ -64,10 +64,86 @@ class Cron_Test extends WP_UnitTestCase {
 		$this->cron->init();
 
 		$this->assertGreaterThan(0, has_action('init', [$this->cron, 'create_schedules']));
+		$this->assertSame(2, has_action('init', [$this->cron, 'maybe_ensure_action_scheduler_tables']));
+		$this->assertSame(200, has_action('wp_initialize_site', [$this->cron, 'initialize_site_action_scheduler_tables']));
 		$this->assertGreaterThan(0, has_action('init', [$this->cron, 'schedule_membership_check']));
 		$this->assertGreaterThan(0, has_action('wu_membership_check', [$this->cron, 'membership_renewal_check']));
 		$this->assertGreaterThan(0, has_action('wu_membership_check', [$this->cron, 'membership_trial_check']));
 		$this->assertGreaterThan(0, has_action('wu_membership_check', [$this->cron, 'membership_expired_check']));
+	}
+
+	/**
+	 * Test missing Action Scheduler tables are recreated for a site.
+	 */
+	public function test_initialize_site_action_scheduler_tables_repairs_missing_tables(): void {
+
+		global $wpdb;
+
+		$original_site_id = get_current_blog_id();
+		$site_id          = self::factory()->blog->create();
+		$site             = get_site($site_id);
+		$this->assertInstanceOf(\WP_Site::class, $site);
+
+		switch_to_blog($site_id);
+		$table_names = [
+			$wpdb->prefix . 'actionscheduler_actions',
+			$wpdb->prefix . 'actionscheduler_claims',
+			$wpdb->prefix . 'actionscheduler_groups',
+			$wpdb->prefix . 'actionscheduler_logs',
+		];
+		foreach ($table_names as $table_name) {
+			$wpdb->query("DROP TABLE IF EXISTS `{$table_name}`"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		}
+
+		// The WordPress test suite rewrites CREATE/DROP TABLE to temporary tables.
+		// Action Scheduler checks table existence with SHOW TABLES, which cannot
+		// see temporary tables, so exercise the repair with normal tables first.
+		remove_filter('query', [$this, '_create_temporary_tables']);
+		remove_filter('query', [$this, '_drop_temporary_tables']);
+
+		try {
+			$this->assertTrue($this->cron->ensure_action_scheduler_tables());
+
+			foreach ($table_names as $table_name) {
+				$this->assertSame(
+					$table_name,
+					$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table_name))),
+					"Action Scheduler table was not recreated: {$table_name}"
+				);
+			}
+
+			foreach ($table_names as $table_name) {
+				$wpdb->query("DROP TABLE IF EXISTS `{$table_name}`"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			}
+
+			restore_current_blog();
+			$this->cron->initialize_site_action_scheduler_tables($site);
+			$this->assertSame($original_site_id, get_current_blog_id());
+
+			switch_to_blog($site_id);
+			foreach ($table_names as $table_name) {
+				$this->assertSame(
+					$table_name,
+					$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table_name))),
+					"Action Scheduler table was not recreated by the site initialization hook: {$table_name}"
+				);
+			}
+		} finally {
+			if (get_current_blog_id() !== $site_id) {
+				switch_to_blog($site_id);
+			}
+
+			foreach ($table_names as $table_name) {
+				$wpdb->query("DROP TABLE IF EXISTS `{$table_name}`"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			}
+
+			while (ms_is_switched()) {
+				restore_current_blog();
+			}
+
+			add_filter('query', [$this, '_create_temporary_tables']);
+			add_filter('query', [$this, '_drop_temporary_tables']);
+		}
 	}
 
 	/**

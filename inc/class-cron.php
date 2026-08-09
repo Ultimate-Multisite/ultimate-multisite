@@ -38,6 +38,13 @@ class Cron implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function init(): void {
 		/*
+		 * Action Scheduler does not create per-site tables when WordPress merely
+		 * switches blogs. Repair skipped template-clone schemas before scheduling.
+		 */
+		add_action('init', [$this, 'maybe_ensure_action_scheduler_tables'], 2);
+		add_action('wp_initialize_site', [$this, 'initialize_site_action_scheduler_tables'], 200);
+
+		/*
 		 * Creates general schedules for general uses.
 		 */
 		add_action('init', [$this, 'create_schedules']);
@@ -66,6 +73,95 @@ class Cron implements \WP_Ultimo\Interfaces\Singleton {
 		add_action('wu_membership_check', [$this, 'membership_expired_check'], 20);
 
 		add_action('wu_async_mark_membership_as_expired', [$this, 'async_mark_membership_as_expired'], 10);
+	}
+
+	/**
+	 * Repair the current site's Action Scheduler tables when needed.
+	 *
+	 * @since 2.15.1
+	 * @return void
+	 */
+	public function maybe_ensure_action_scheduler_tables(): void {
+
+		$this->ensure_action_scheduler_tables();
+	}
+
+	/**
+	 * Ensure the current site's Action Scheduler tables exist.
+	 *
+	 * Action Scheduler normally gates dbDelta() behind schema-version options.
+	 * Site duplication intentionally excludes queue tables, so a destination can
+	 * retain a current schema option while the corresponding tables are absent.
+	 * Force an idempotent schema pass only when one of the required tables is
+	 * missing.
+	 *
+	 * @since 2.15.1
+	 * @return bool Whether all Action Scheduler tables exist after the repair.
+	 */
+	public function ensure_action_scheduler_tables(): bool {
+
+		$schema_classes = [
+			'ActionScheduler_StoreSchema',
+			'ActionScheduler_LoggerSchema',
+		];
+
+		foreach ($schema_classes as $schema_class) {
+			if ( ! class_exists($schema_class) || ! method_exists($schema_class, 'tables_exist')) {
+				return false;
+			}
+
+			$schema = new $schema_class();
+			if ($schema->tables_exist()) {
+				continue;
+			}
+
+			if (method_exists($schema, 'init')) {
+				$schema->init();
+			}
+
+			if ( ! method_exists($schema, 'register_tables')) {
+				return false;
+			}
+
+			$schema->register_tables(true);
+			if ( ! $schema->tables_exist()) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Create empty Action Scheduler tables while WordPress initializes a site.
+	 *
+	 * The tables are created before Ultimate Multisite copies a template. Queue
+	 * tables remain excluded from the copy, while the new site's empty schemas
+	 * and schema-version options survive the duplication process.
+	 *
+	 * @since 2.15.1
+	 * @param \WP_Site $site Newly initialized site.
+	 * @return void
+	 */
+	public function initialize_site_action_scheduler_tables(\WP_Site $site): void {
+
+		$site_id = (int) $site->blog_id;
+		if ($site_id < 1) {
+			return;
+		}
+
+		$switched = get_current_blog_id() !== $site_id;
+		if ($switched) {
+			switch_to_blog($site_id);
+		}
+
+		try {
+			$this->ensure_action_scheduler_tables();
+		} finally {
+			if ($switched) {
+				restore_current_blog();
+			}
+		}
 	}
 
 	/**
