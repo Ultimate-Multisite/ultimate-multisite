@@ -236,7 +236,7 @@ class Magic_Link {
 			return false;
 		}
 
-		if (is_user_member_of_blog($user_id, $site_id)) {
+		if (is_super_admin($user_id) || is_user_member_of_blog($user_id, $site_id)) {
 			return true;
 		}
 		// Check if the site is the dashboard site in WP Frontend Admin which the user would not be a member of.
