@@ -53,7 +53,6 @@ class Passwordless_Auth_Manager {
 		}
 
 		add_action('init', [$this, 'register_assets']);
-		add_action('init', [$this, 'maybe_install_tables'], 5);
 
 		add_action('login_enqueue_scripts', [$this, 'enqueue_login_assets']);
 		add_action('login_form', [$this, 'render_wp_login_form']);
@@ -124,53 +123,6 @@ class Passwordless_Auth_Manager {
 			add_action('wp_ajax_' . $action, [$this, $method]);
 			add_action('wu_ajax_' . $action, [$this, $method]);
 		}
-	}
-
-	/**
-	 * Installs auth tables when an upgraded site first needs them.
-	 *
-	 * @since 2.13.2
-	 * @return void
-	 */
-	public function maybe_install_tables() {
-
-		$table_names = [
-			'passkey_credential_table',
-			'webauthn_challenge_table',
-			'email_otp_attempt_table',
-		];
-
-		foreach ($table_names as $table_name) {
-			$table = WP_Ultimo()->tables->{$table_name} ?? null;
-
-			if ($table && method_exists($table, 'install') && ! $this->table_exists($table->table_name)) {
-				$table->install();
-			}
-		}
-	}
-
-	/**
-	 * Checks if a database table already exists.
-	 *
-	 * BerlinDB caches table existence early in the request, so upgraded/test
-	 * environments need a direct SHOW TABLES check before calling install().
-	 *
-	 * @since 2.13.2
-	 * @param string $table_name Fully qualified table name.
-	 * @return bool
-	 */
-	protected function table_exists($table_name) {
-
-		global $wpdb;
-
-		$table_name = sanitize_key($table_name);
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$found = $wpdb->get_var(
-			$wpdb->prepare('SHOW TABLES LIKE %s', $table_name)
-		);
-
-		return $found === $table_name;
 	}
 
 	/**
