@@ -184,6 +184,26 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Tests auth tables use the standard versioned table upgrade lifecycle.
+	 */
+	public function test_auth_tables_use_standard_upgrade_hooks() {
+
+		$manager = Passwordless_Auth_Manager::get_instance();
+
+		$this->assertFalse(method_exists($manager, 'maybe_install_tables'));
+
+		$tables = [
+			WP_Ultimo()->tables->passkey_credential_table,
+			WP_Ultimo()->tables->webauthn_challenge_table,
+			WP_Ultimo()->tables->email_otp_attempt_table,
+		];
+
+		foreach ($tables as $table) {
+			$this->assertSame(10, has_action('admin_init', [$table, 'maybe_upgrade']));
+		}
+	}
+
+	/**
 	 * Tests passkey authentication fails closed when usage cannot be persisted.
 	 */
 	public function test_passkey_authentication_fails_when_usage_update_fails() {
