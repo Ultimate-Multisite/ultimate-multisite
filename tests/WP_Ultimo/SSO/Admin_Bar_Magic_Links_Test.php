@@ -239,8 +239,12 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 		$magic_link        = 'https://admin-bar-magic-links.example.test/wp-admin/?wu_magic_token=test-token';
 		$redirect          = array();
 		$redirect_to       = '';
-		$magic_link_filter = static function ($url, $filter_user_id, $filter_site_id, $filter_redirect_to) use (&$redirect_to, $magic_link) {
-			$redirect_to = $filter_redirect_to;
+		$filter_user_id    = 0;
+		$filter_site_id    = 0;
+		$magic_link_filter = static function ($url, $magic_link_user_id, $magic_link_site_id, $filter_redirect_to) use (&$filter_user_id, &$filter_site_id, &$redirect_to, $magic_link) {
+			$filter_user_id = $magic_link_user_id;
+			$filter_site_id = $magic_link_site_id;
+			$redirect_to    = $filter_redirect_to;
 
 			return $magic_link;
 		};
@@ -270,6 +274,8 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 
 		$this->assertSame($magic_link, $redirect['location']);
 		$this->assertSame(302, $redirect['status']);
+		$this->assertSame($user_id, $filter_user_id);
+		$this->assertSame($site_id, $filter_site_id);
 		$this->assertSame(get_admin_url($site_id), $redirect_to);
 	}
 
@@ -300,6 +306,7 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 
 			try {
 				$this->magic_links->handle_admin_bar_magic_link();
+				$this->fail('Expected the invalid nonce request to terminate via wp_die().');
 			} catch (\WPDieException $e) {
 				$this->assertSame('The requested site link is invalid.', $e->getMessage());
 			}
@@ -312,6 +319,7 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 
 			try {
 				$this->magic_links->handle_admin_bar_magic_link();
+				$this->fail('Expected the inaccessible site request to terminate via wp_die().');
 			} catch (\WPDieException $e) {
 				$this->assertSame('You do not have permission to access this site.', $e->getMessage());
 			}
