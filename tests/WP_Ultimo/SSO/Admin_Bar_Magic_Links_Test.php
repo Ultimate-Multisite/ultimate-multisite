@@ -104,8 +104,12 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 		};
 
 		add_filter('wu_magic_link_url', $magic_link_filter);
-		$this->magic_links->modify_my_sites_menu($admin_bar);
-		remove_filter('wu_magic_link_url', $magic_link_filter);
+
+		try {
+			$this->magic_links->modify_my_sites_menu($admin_bar);
+		} finally {
+			remove_filter('wu_magic_link_url', $magic_link_filter);
+		}
 
 		$dashboard_node = $admin_bar->get_node('blog-' . $site_id . '-d');
 		$site_node      = $admin_bar->get_node('blog-' . $site_id . '-c');
