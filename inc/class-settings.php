@@ -1411,6 +1411,17 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 		$this->add_field(
 			'sites',
+			'optimize_frontend_my_sites_toolbar',
+			[
+				'title'   => __('Optimize the front-end My Sites toolbar', 'ultimate-multisite'),
+				'desc'    => __('Show only the current site in the front-end toolbar to reduce processing on large networks. The complete site list remains available from the My Sites administration page.', 'ultimate-multisite'),
+				'type'    => 'toggle',
+				'default' => 0,
+			]
+		);
+
+		$this->add_field(
+			'sites',
 			'wordpress_features_heading',
 			[
 				'title' => __('WordPress Features', 'ultimate-multisite'),
@@ -2177,6 +2188,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			// Sites
 			'enable_visits_limiting'             => 1,
 			'enable_screenshot_generator'        => 1,
+			'optimize_frontend_my_sites_toolbar' => 0,
 			'menu_items_plugin'                  => 1,
 			'add_new_users'                      => 1,
 			'allow_template_switching'           => 1,

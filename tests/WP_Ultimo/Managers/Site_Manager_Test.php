@@ -2958,6 +2958,80 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 		wp_set_current_user(0);
 	}
 
+	/**
+	 * Test front-end My Sites toolbar optimization requires the admin bar call stack.
+	 */
+	public function test_frontend_my_sites_toolbar_optimization_requires_admin_bar_initialization(): void {
+
+		$manager = $this->get_manager_instance();
+		$user_id = $this->factory()->user->create(['role' => 'administrator']);
+		$method  = new \ReflectionMethod(Site_Manager::class, 'is_frontend_my_sites_toolbar_request');
+		$filter  = function ($value, $setting) {
+			return 'optimize_frontend_my_sites_toolbar' === $setting ? 1 : $value;
+		};
+
+		wp_set_current_user($user_id);
+		add_filter('wu_get_setting', $filter, 10, 2);
+		add_filter('show_admin_bar', '__return_true');
+
+		try {
+			$this->assertTrue(
+				$method->invoke($manager, [
+					[
+						'class'    => 'WP_Admin_Bar',
+						'function' => 'initialize',
+					],
+				])
+			);
+			$this->assertFalse($method->invoke($manager, []));
+		} finally {
+			remove_filter('wu_get_setting', $filter, 10);
+			remove_filter('show_admin_bar', '__return_true');
+			wp_set_current_user(0);
+		}
+	}
+
+	/**
+	 * Test front-end My Sites toolbar optimization remains disabled by default.
+	 */
+	public function test_frontend_my_sites_toolbar_optimization_is_disabled_by_default(): void {
+
+		$manager = $this->get_manager_instance();
+		$user_id = $this->factory()->user->create(['role' => 'administrator']);
+		$method  = new \ReflectionMethod(Site_Manager::class, 'is_frontend_my_sites_toolbar_request');
+
+		wp_set_current_user($user_id);
+		add_filter('show_admin_bar', '__return_true');
+
+		try {
+			$this->assertFalse(
+				$method->invoke($manager, [
+					[
+						'class'    => 'WP_Admin_Bar',
+						'function' => 'initialize',
+					],
+				])
+			);
+		} finally {
+			remove_filter('show_admin_bar', '__return_true');
+			wp_set_current_user(0);
+		}
+	}
+
+	/**
+	 * Test the toolbar optimization supplies only the active site.
+	 */
+	public function test_frontend_my_sites_toolbar_optimization_returns_current_site_only(): void {
+
+		$manager = $this->get_manager_instance();
+		$method  = new \ReflectionMethod(Site_Manager::class, 'get_current_site_for_frontend_my_sites_toolbar');
+		$sites   = $method->invoke($manager);
+
+		$this->assertCount(1, $sites);
+		$this->assertArrayHasKey(get_current_blog_id(), $sites);
+		$this->assertSame(get_current_blog_id(), $sites[ get_current_blog_id() ]->userblog_id);
+	}
+
 	// ========================================================================
 	// init – demo-related hooks
 	// ========================================================================

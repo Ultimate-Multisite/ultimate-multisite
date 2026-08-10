@@ -396,6 +396,21 @@ class Settings_Test extends WP_UnitTestCase {
 		$this->assertSame(0, $defaults['use_passwordless_login']);
 	}
 
+	public function test_get_setting_defaults_disables_frontend_my_sites_toolbar_optimization() {
+		$defaults = Settings::get_setting_defaults();
+		$this->assertArrayHasKey('optimize_frontend_my_sites_toolbar', $defaults);
+		$this->assertSame(0, $defaults['optimize_frontend_my_sites_toolbar']);
+	}
+
+	public function test_sites_section_has_frontend_my_sites_toolbar_optimization_field() {
+		$section = $this->settings->get_section('sites');
+		$field   = $section['fields']['optimize_frontend_my_sites_toolbar'];
+
+		$this->assertSame('toggle', $field['type']);
+		$this->assertSame(0, $field['default']);
+		$this->assertStringContainsString('My Sites administration page', $field['desc']);
+	}
+
 	// ------------------------------------------------------------------
 	// General section fields
 	// ------------------------------------------------------------------

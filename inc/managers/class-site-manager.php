@@ -1163,6 +1163,10 @@ class Site_Manager extends Base_Manager {
 			return $sites;
 		}
 
+		if ($this->is_frontend_my_sites_toolbar_request()) {
+			return $this->get_current_site_for_frontend_my_sites_toolbar();
+		}
+
 		$keys = get_user_meta($user_id);
 
 		if (empty($keys)) {
@@ -1269,6 +1273,74 @@ class Site_Manager extends Base_Manager {
 		 *                          those marked 'deleted', 'archived', or 'spam'. Default false.
 		 */
 		return apply_filters('get_blogs_of_user', $sites, $user_id, $all); // phpcs:ignore
+	}
+
+	/**
+	 * Determines whether get_blogs_of_user is preparing the front-end My Sites toolbar.
+	 *
+	 * The pre_get_blogs_of_user filter is also used by wp-admin, REST requests, and
+	 * application code. Checking the WP_Admin_Bar initialization call keeps the
+	 * optimization limited to the nested toolbar request instead of limiting every
+	 * front-end get_blogs_of_user() call.
+	 *
+	 * @since 2.15.0
+	 * @param array|null $backtrace Call stack override used by tests.
+	 * @return bool
+	 */
+	protected function is_frontend_my_sites_toolbar_request($backtrace = null) {
+
+		if (
+			! wu_get_setting('optimize_frontend_my_sites_toolbar', false)
+			|| is_admin()
+			|| wp_doing_ajax()
+			|| wp_doing_cron()
+			|| (defined('REST_REQUEST') && REST_REQUEST)
+			|| (defined('WP_CLI') && WP_CLI)
+			|| ! is_user_logged_in()
+			|| ! is_admin_bar_showing()
+		) {
+			return false;
+		}
+
+		$backtrace = $backtrace ?? debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 12); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace
+
+		foreach ($backtrace as $call) {
+			if ('WP_Admin_Bar' === ($call['class'] ?? '') && 'initialize' === ($call['function'] ?? '')) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Returns the current site in the format expected by the My Sites toolbar.
+	 *
+	 * @since 2.15.0
+	 * @return object[]
+	 */
+	protected function get_current_site_for_frontend_my_sites_toolbar() {
+
+		$site = get_site(get_current_blog_id());
+
+		if ( ! $site) {
+			return [];
+		}
+
+		return [
+			$site->id => (object) [
+				'userblog_id' => $site->id,
+				'blogname'    => $site->blogname,
+				'domain'      => $site->domain,
+				'path'        => $site->path,
+				'site_id'     => $site->network_id,
+				'siteurl'     => $site->siteurl,
+				'archived'    => $site->archived,
+				'mature'      => $site->mature,
+				'spam'        => $site->spam,
+				'deleted'     => $site->deleted,
+			],
+		];
 	}
 
 	/**
