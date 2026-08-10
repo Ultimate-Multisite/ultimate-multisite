@@ -78,22 +78,22 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 		$admin_bar = new \WP_Admin_Bar();
 		$admin_bar->initialize();
 		$admin_bar->add_node(
-			array(
+			[
 				'id'   => 'blog-' . $site_id . '-d',
 				'href' => 'https://example.test/original-dashboard',
-			)
+			]
 		);
 		$admin_bar->add_node(
-			array(
+			[
 				'id'   => 'blog-' . $site_id . '-c',
 				'href' => 'https://example.test/original-site',
-			)
+			]
 		);
 		$admin_bar->add_node(
-			array(
+			[
 				'id'   => 'blog-' . $site_id . '-d-extra',
 				'href' => 'https://example.test/malformed-dashboard',
-			)
+			]
 		);
 
 		$generated_magic_links = 0;
@@ -110,13 +110,17 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 		$dashboard_node = $admin_bar->get_node('blog-' . $site_id . '-d');
 		$site_node      = $admin_bar->get_node('blog-' . $site_id . '-c');
 		$malformed_node = $admin_bar->get_node('blog-' . $site_id . '-d-extra');
-		$action_args    = array();
+		$action_args    = [];
+		$action_url     = admin_url('admin-post.php');
 
 		wp_parse_str(wp_parse_url($dashboard_node->href, PHP_URL_QUERY), $action_args);
 
 		$this->assertSame(Admin_Bar_Magic_Links::ADMIN_POST_ACTION, $action_args['action']);
 		$this->assertSame((string) $site_id, $action_args[ Admin_Bar_Magic_Links::SITE_ID_QUERY_ARG ]);
 		$this->assertNotFalse(wp_verify_nonce($action_args['_wpnonce'], Admin_Bar_Magic_Links::ADMIN_POST_ACTION . '_' . $site_id));
+		$this->assertSame(wp_parse_url($action_url, PHP_URL_SCHEME), wp_parse_url($dashboard_node->href, PHP_URL_SCHEME));
+		$this->assertSame(wp_parse_url($action_url, PHP_URL_HOST), wp_parse_url($dashboard_node->href, PHP_URL_HOST));
+		$this->assertSame(wp_parse_url($action_url, PHP_URL_PATH), wp_parse_url($dashboard_node->href, PHP_URL_PATH));
 		$this->assertSame(0, $generated_magic_links);
 		$this->assertSame('https://example.test/original-site', $site_node->href);
 		$this->assertSame('https://example.test/malformed-dashboard', $malformed_node->href);
@@ -132,12 +136,18 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 		add_user_to_blog($site_id, $user_id, 'administrator');
 		wp_set_current_user($user_id);
 
-		$this->assertSame(wu_get_admin_url($site_id), $this->magic_links->get_site_dashboard_url($site_id));
-		$this->assertFalse($this->magic_links->get_site_dashboard_url(999999));
+		add_filter('wu_magic_links_enabled', '__return_false');
 
-		$inaccessible_site_id = self::factory()->blog->create();
+		try {
+			$this->assertSame(get_admin_url($site_id), $this->magic_links->get_site_dashboard_url($site_id));
+			$this->assertFalse($this->magic_links->get_site_dashboard_url(999999));
 
-		$this->assertFalse($this->magic_links->get_site_dashboard_url($inaccessible_site_id));
+			$inaccessible_site_id = self::factory()->blog->create();
+
+			$this->assertFalse($this->magic_links->get_site_dashboard_url($inaccessible_site_id));
+		} finally {
+			remove_filter('wu_magic_links_enabled', '__return_false');
+		}
 	}
 
 	/**
@@ -153,8 +163,8 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 			$nonce_method->setAccessible(true);
 		}
 
-		$_REQUEST[ Admin_Bar_Magic_Links::SITE_ID_QUERY_ARG ] = array('invalid'); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Tests malformed request input.
-		$_REQUEST['_wpnonce']                                 = array('invalid'); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Tests malformed request input.
+		$_REQUEST[ Admin_Bar_Magic_Links::SITE_ID_QUERY_ARG ] = ['invalid']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Tests malformed request input.
+		$_REQUEST['_wpnonce']                                 = ['invalid']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Tests malformed request input.
 
 		try {
 			$this->assertFalse($site_id_method->invoke($this->magic_links));
@@ -175,22 +185,23 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 		add_user_to_blog($site_id, $user_id, 'administrator');
 		wp_set_current_user($user_id);
 
-		$_REQUEST = array( // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Sets the handler request fixture.
+		$_REQUEST = [ // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Sets the handler request fixture.
 			Admin_Bar_Magic_Links::SITE_ID_QUERY_ARG => (string) $site_id,
 			'_wpnonce'                               => wp_create_nonce(Admin_Bar_Magic_Links::ADMIN_POST_ACTION . '_' . $site_id),
 			'redirect_to'                            => 'https://attacker.example.test/',
-		);
+		];
 
-		$redirect        = array();
+		$redirect        = [];
 		$redirect_filter = static function ($location, $status) use (&$redirect) {
-			$redirect = array(
+			$redirect = [
 				'location' => $location,
 				'status'   => $status,
-			);
+			];
 
 			throw new \RuntimeException('redirect_intercepted');
 		};
 
+		add_filter('wu_magic_links_enabled', '__return_false');
 		add_filter('wp_redirect', $redirect_filter, 10, 2);
 
 		try {
@@ -198,6 +209,7 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 		} catch (\RuntimeException $e) {
 			$this->assertSame('redirect_intercepted', $e->getMessage());
 		} finally {
+			remove_filter('wu_magic_links_enabled', '__return_false');
 			remove_filter('wp_redirect', $redirect_filter, 10);
 			$_REQUEST = $request; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Restores the request fixture.
 		}
@@ -218,26 +230,26 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 		wp_set_current_user($user_id);
 
 		$mapping = wu_create_domain(
-			array(
+			[
 				'blog_id'        => $site_id,
 				'domain'         => 'admin-bar-magic-links.example.test',
 				'active'         => true,
 				'primary_domain' => true,
 				'secure'         => false,
 				'stage'          => \WP_Ultimo\Database\Domains\Domain_Stage::DONE,
-			)
+			]
 		);
 
 		$this->assertNotWPError($mapping);
 
-		$_REQUEST = array( // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Sets the handler request fixture.
+		$_REQUEST = [ // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Sets the handler request fixture.
 			Admin_Bar_Magic_Links::SITE_ID_QUERY_ARG => (string) $site_id,
 			'_wpnonce'                               => wp_create_nonce(Admin_Bar_Magic_Links::ADMIN_POST_ACTION . '_' . $site_id),
 			'redirect_to'                            => 'https://attacker.example.test/',
-		);
+		];
 
 		$magic_link        = 'https://admin-bar-magic-links.example.test/wp-admin/?wu_magic_token=test-token';
-		$redirect          = array();
+		$redirect          = [];
 		$redirect_to       = '';
 		$filter_user_id    = 0;
 		$filter_site_id    = 0;
@@ -249,10 +261,10 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 			return $magic_link;
 		};
 		$redirect_filter   = static function ($location, $status) use (&$redirect) {
-			$redirect = array(
+			$redirect = [
 				'location' => $location,
 				'status'   => $status,
-			);
+			];
 
 			throw new \RuntimeException('redirect_intercepted');
 		};
@@ -299,10 +311,10 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 		add_filter('wp_die_handler', $die_handler, 1);
 
 		try {
-			$_REQUEST = array( // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Sets the handler request fixture.
+			$_REQUEST = [ // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Sets the handler request fixture.
 				Admin_Bar_Magic_Links::SITE_ID_QUERY_ARG => (string) $site_id,
 				'_wpnonce'                               => 'invalid-nonce',
-			);
+			];
 
 			try {
 				$this->magic_links->handle_admin_bar_magic_link();
@@ -312,10 +324,10 @@ class Admin_Bar_Magic_Links_Test extends WP_UnitTestCase {
 			}
 
 			$inaccessible_site_id = self::factory()->blog->create();
-			$_REQUEST             = array( // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Sets the handler request fixture.
+			$_REQUEST             = [ // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Sets the handler request fixture.
 				Admin_Bar_Magic_Links::SITE_ID_QUERY_ARG => (string) $inaccessible_site_id,
 				'_wpnonce'                               => wp_create_nonce(Admin_Bar_Magic_Links::ADMIN_POST_ACTION . '_' . $inaccessible_site_id),
-			);
+			];
 
 			try {
 				$this->magic_links->handle_admin_bar_magic_link();

@@ -104,11 +104,11 @@ class Admin_Bar_Magic_Links {
 		$site_id = absint($site_id);
 
 		return add_query_arg(
-			array(
+			[
 				'action'                => self::ADMIN_POST_ACTION,
 				self::SITE_ID_QUERY_ARG => $site_id,
 				'_wpnonce'              => wp_create_nonce($this->get_admin_bar_nonce_action($site_id)),
-			),
+			],
 			admin_url('admin-post.php')
 		);
 	}
@@ -145,7 +145,7 @@ class Admin_Bar_Magic_Links {
 		}
 
 		$allow_destination_host = static function ($allowed_hosts, $host) use ($destination_host) {
-			if (strtolower($destination_host) === strtolower($host)) {
+			if (0 === strcasecmp($destination_host, $host)) {
 				$allowed_hosts[] = $destination_host;
 			}
 
