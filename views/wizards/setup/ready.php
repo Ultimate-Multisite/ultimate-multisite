@@ -6,7 +6,7 @@
  */
 defined('ABSPATH') || exit;
 ?>
-<div class="wu-bg-white wu-p-4 wu--mx-6 wu-flex wu-content-center" style="height: 400px;">
+<div class="wu-bg-white wu-p-4 wu--mx-6 wu-flex wu-content-center" style="min-height: 400px;">
 
 	<div class="wu-self-center wu-text-center wu-w-full">
 
@@ -67,4 +67,3 @@ defined('ABSPATH') || exit;
 
 </div>
 <!-- End Submit Box -->
-
