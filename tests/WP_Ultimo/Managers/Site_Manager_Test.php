@@ -9,6 +9,17 @@ namespace WP_Ultimo\Tests\Managers;
 
 use WP_Ultimo\Managers\Site_Manager;
 
+// phpcs:disable Generic.Files.OneObjectStructurePerFile.MultipleFound
+class Frontend_My_Sites_Toolbar_Test_Manager extends Site_Manager {
+
+	protected function is_frontend_my_sites_toolbar_request($backtrace = null) {
+
+		return true;
+	}
+}
+// phpcs:enable Generic.Files.OneObjectStructurePerFile.MultipleFound
+
+// phpcs:ignore Generic.Files.OneObjectStructurePerFile.MultipleFound
 class Site_Manager_Test extends \WP_UnitTestCase {
 
 	use Manager_Test_Trait;
@@ -2956,6 +2967,38 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 
 		revoke_super_admin($user_id);
 		wp_set_current_user(0);
+	}
+
+	/**
+	 * Test the front-end My Sites toolbar optimization applies get_blogs_of_user filter.
+	 */
+	public function test_frontend_my_sites_toolbar_optimization_applies_get_blogs_of_user_filter(): void {
+
+		$reflection = new \ReflectionClass(Frontend_My_Sites_Toolbar_Test_Manager::class);
+		$manager    = $reflection->newInstanceWithoutConstructor();
+		$user_id    = $this->factory()->user->create(['role' => 'administrator']);
+		$filter     = function ($sites, $filter_user_id, $all) {
+
+			unset($all);
+			$sites['filtered'] = (object) ['userblog_id' => $filter_user_id];
+
+			return $sites;
+		};
+
+		grant_super_admin($user_id);
+		wp_set_current_user($user_id);
+		add_filter('get_blogs_of_user', $filter, 10, 3);
+
+		try {
+			$sites = $manager->hide_customer_sites_from_super_admin_list([], $user_id, false);
+
+			$this->assertArrayHasKey('filtered', $sites);
+			$this->assertSame($user_id, $sites['filtered']->userblog_id);
+		} finally {
+			remove_filter('get_blogs_of_user', $filter, 10);
+			revoke_super_admin($user_id);
+			wp_set_current_user(0);
+		}
 	}
 
 	/**

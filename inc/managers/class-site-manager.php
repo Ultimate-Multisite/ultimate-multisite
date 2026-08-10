@@ -1164,7 +1164,9 @@ class Site_Manager extends Base_Manager {
 		}
 
 		if ($this->is_frontend_my_sites_toolbar_request()) {
-			return $this->get_current_site_for_frontend_my_sites_toolbar();
+			$sites = $this->get_current_site_for_frontend_my_sites_toolbar();
+
+			return apply_filters('get_blogs_of_user', $sites, $user_id, $all); // phpcs:ignore
 		}
 
 		$keys = get_user_meta($user_id);
