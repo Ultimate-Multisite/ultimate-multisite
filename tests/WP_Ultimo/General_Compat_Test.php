@@ -66,12 +66,10 @@ class General_Compat_Test extends WP_UnitTestCase {
 	 */
 	public function test_gutenberg_support_loads_on_block_editor_screens(): void {
 
-		set_current_screen('post-post');
+		set_current_screen('post');
 		$screen = get_current_screen();
 
-		if ( ! $screen || ! method_exists($screen, 'is_block_editor') || ! $screen->is_block_editor()) {
-			$this->markTestSkipped('The installed WordPress version does not support block editor screens.');
-		}
+		$screen->is_block_editor(true);
 
 		wp_deregister_script('wu-gutenberg-support');
 
