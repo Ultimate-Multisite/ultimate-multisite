@@ -151,7 +151,13 @@ class Shortcodes_Admin_Page extends Base_Admin_Page {
 						$params[ $key ]['options'] = '0 | 1';
 						break;
 					case 'select':
-						$params[ $key ]['options'] = implode(' | ', array_keys(wu_get_isset($value, 'options', [])));
+						$options = wu_get_isset($value, 'options', []);
+
+						if (is_callable($options)) {
+							$options = call_user_func($options);
+						}
+
+						$params[ $key ]['options'] = implode(' | ', array_keys($options));
 						break;
 					case 'int':
 						$params[ $key ]['options'] = __('integer', 'ultimate-multisite');

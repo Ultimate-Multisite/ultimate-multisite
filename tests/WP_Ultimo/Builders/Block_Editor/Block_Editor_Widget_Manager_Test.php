@@ -129,16 +129,42 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 
 		$element->expects($this->once())
 			->method('defaults')
-			->willReturn(['enabled' => true]);
+			->willReturn(
+				[
+					'enabled'          => true,
+					'columns'          => 4,
+					'site_manage_type' => 'default',
+				]
+			);
 
-		$element->expects($this->never())
-			->method('fields');
+		$element->expects($this->once())
+			->method('fields')
+			->willReturn(
+				[
+					'enabled'          => [
+						'type'    => 'toggle',
+						'options' => static function () {
+							throw new \RuntimeException('Block attribute registration must not evaluate options.');
+						},
+					],
+					'columns'          => ['type' => 'number'],
+					'site_manage_type' => ['type' => 'select'],
+				]
+			);
 
 		$this->assertSame(
 			[
-				'enabled' => [
+				'enabled'          => [
 					'default' => true,
 					'type'    => 'boolean',
+				],
+				'columns'          => [
+					'default' => 4,
+					'type'    => 'integer',
+				],
+				'site_manage_type' => [
+					'default' => 'default',
+					'type'    => 'select',
 				],
 			],
 			$this->manager->get_attributes_from_fields($element)
