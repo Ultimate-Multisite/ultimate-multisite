@@ -162,20 +162,6 @@ class My_Sites_Element extends Base_Element {
 			],
 		];
 
-		$pages = get_pages(
-			[
-				'exclude' => [get_the_ID()], // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
-			]
-		);
-
-		$pages = $pages ?: [];
-
-		$pages_list = [0 => __('Current Page', 'ultimate-multisite')];
-
-		foreach ($pages as $page) {
-			$pages_list[ $page->ID ] = $page->post_title;
-		}
-
 		$fields['custom_manage_page'] = [
 			'type'     => 'select',
 			'title'    => __('Manage Redirect Page', 'ultimate-multisite'),
@@ -185,7 +171,7 @@ class My_Sites_Element extends Base_Element {
 			'required' => [
 				'site_manage_type' => 'custom_page',
 			],
-			'options'  => $pages_list,
+			'options'  => fn() => wu_get_pages_as_options(__('Current Page', 'ultimate-multisite')),
 		];
 
 		$fields['columns'] = [

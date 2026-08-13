@@ -198,35 +198,34 @@ class Block_Editor_Widget_Manager {
 	}
 
 	/**
-	 * Generates the list of attributes supported based on the fields.
+	 * Generates the list of attributes supported based on element defaults.
 	 *
 	 * @since 2.0.0
+	 * This deliberately avoids fields(), whose option providers only belong to
+	 * the block editor settings payload.
+	 *
 	 * @param \WP_Ultimo\UI\Base_Element $element The element being registered.
 	 * @return array
 	 */
 	public function get_attributes_from_fields($element) {
 
-		$fields = $element->fields();
-
 		$defaults = $element->defaults();
 
 		$_fields = [];
 
-		foreach ($fields as $field_id => $field) {
+		foreach ($defaults as $field_id => $default_value) {
 			$type = 'string';
 
-			if ('toggle' === $field['type']) {
+			if (is_bool($default_value)) {
 				$type = 'boolean';
 			}
 
-			if ('number' === $field['type']) {
+			if (is_int($default_value)) {
 				$type = 'integer';
 			}
 
-			$default_value = wu_get_isset($defaults, $field_id, '');
-
 			$_fields[ $field_id ] = [
-				'default' => wu_get_isset($field, 'value', $default_value),
+				'default' => $default_value,
 				'type'    => $type,
 			];
 		}

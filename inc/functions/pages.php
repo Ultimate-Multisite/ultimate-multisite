@@ -108,6 +108,34 @@ function wu_is_new_site_page() {
 }
 
 /**
+ * Returns a request-memoized list of pages for select field options.
+ *
+ * @since 2.0.0
+ * @param string $default_label The label for the current page option.
+ * @return array
+ */
+function wu_get_pages_as_options($default_label) {
+
+	static $pages = null;
+
+	if (null === $pages) {
+		$pages = get_pages(
+			[
+				'exclude' => [get_the_ID()], // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
+			]
+		) ?: [];
+	}
+
+	$pages_list = [0 => $default_label];
+
+	foreach ($pages as $page) {
+		$pages_list[ $page->ID ] = $page->post_title;
+	}
+
+	return $pages_list;
+}
+
+/**
  * Checks if the current page is a login page.
  *
  * @since 2.0.11

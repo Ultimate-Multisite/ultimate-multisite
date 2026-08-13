@@ -76,6 +76,27 @@ class Pages_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test page options are memoized per request with context-specific defaults.
+	 */
+	public function test_get_pages_as_options_memoizes_pages(): void {
+
+		$page_id = self::factory()->post->create(
+			[
+				'post_type'  => 'page',
+				'post_title' => 'Example page',
+			]
+		);
+
+		$first  = wu_get_pages_as_options('Current Page');
+		$second = wu_get_pages_as_options('Default');
+
+		$this->assertSame('Current Page', $first[0]);
+		$this->assertSame('Default', $second[0]);
+		$this->assertSame('Example page', $first[ $page_id ]);
+		$this->assertSame($first[ $page_id ], $second[ $page_id ]);
+	}
+
+	/**
 	 * Test wu_is_login_page returns bool.
 	 */
 	public function test_is_login_page_returns_bool(): void {

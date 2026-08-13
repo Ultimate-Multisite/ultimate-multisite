@@ -116,4 +116,32 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 
 		$this->assertFalse($result, 'Should return false when not in REST edit context.');
 	}
+
+	/**
+	 * Test attributes use defaults without evaluating field option providers.
+	 */
+	public function test_get_attributes_from_fields_does_not_evaluate_field_options(): void {
+
+		$element = $this->getMockBuilder('\WP_Ultimo\UI\Simple_Text_Element')
+			->disableOriginalConstructor()
+			->onlyMethods(['defaults', 'fields'])
+			->getMock();
+
+		$element->expects($this->once())
+			->method('defaults')
+			->willReturn(['enabled' => true]);
+
+		$element->expects($this->never())
+			->method('fields');
+
+		$this->assertSame(
+			[
+				'enabled' => [
+					'default' => true,
+					'type'    => 'boolean',
+				],
+			],
+			$this->manager->get_attributes_from_fields($element)
+		);
+	}
 }
