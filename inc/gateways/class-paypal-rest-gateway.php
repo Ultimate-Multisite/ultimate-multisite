@@ -2328,10 +2328,11 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 
 		$webhook_url    = esc_url_raw($this->get_webhook_listener_url());
 		$webhook_scheme = strtolower((string) wp_parse_url($webhook_url, PHP_URL_SCHEME));
+		$webhook_host   = wp_parse_url($webhook_url, PHP_URL_HOST);
 
 		// PayPal only delivers webhooks to public HTTPS endpoints. Detect a
 		// misconfigured WordPress URL before sending PayPal an invalid request.
-		if ('https' !== $webhook_scheme) {
+		if ('https' !== $webhook_scheme || empty($webhook_host)) {
 			$error = new \WP_Error(
 				'wu_paypal_webhook_requires_https',
 				sprintf(

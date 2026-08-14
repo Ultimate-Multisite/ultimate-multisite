@@ -647,6 +647,27 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test webhook installation rejects an HTTPS listener without a host.
+	 */
+	public function test_install_webhook_rejects_https_listener_url_without_host(): void {
+
+		$gateway = new class() extends PayPal_REST_Gateway {
+
+			public function get_webhook_listener_url() {
+
+				return 'https:///listener';
+			}
+		};
+
+		$gateway->init();
+
+		$result = $gateway->install_webhook();
+
+		$this->assertInstanceOf(\WP_Error::class, $result);
+		$this->assertEquals('wu_paypal_webhook_requires_https', $result->get_error_code());
+	}
+
+	/**
 	 * Test webhook installation sends the payload required by PayPal's API schema.
 	 */
 	public function test_install_webhook_sends_https_url_and_event_types(): void {
