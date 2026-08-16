@@ -7,6 +7,7 @@
 
 namespace WP_Ultimo\Helpers;
 
+use Psr\Log\LogLevel;
 use WP_UnitTestCase;
 
 require_once __DIR__ . '/screenshot-test-imagecreatefromstring.php';
@@ -302,16 +303,36 @@ class Screenshot_Test extends WP_UnitTestCase {
 		$this->assertFalse($result);
 	}
 
-	public function test_save_image_returns_false_on_wp_error() {
-		add_filter(
-			'pre_http_request',
-			function () {
-				return new \WP_Error('http_request_failed', 'Connection timed out.');
+	public function test_save_image_uses_extended_timeout_and_warns_on_request_failure() {
+		$original_logging_level = wu_get_setting('error_logging_level', 'default');
+		$request_args           = null;
+		$logged_level           = null;
+		$log_listener           = function ($handle, $message, $level) use (&$logged_level) {
+			if ('screenshot-generator' === $handle) {
+				$logged_level = $level;
 			}
-		);
+		};
+		$http_filter            = function ($preempt, $args) use (&$request_args) {
+			$request_args = $args;
 
-		$result = Screenshot::save_image_from_url('https://example.com/test');
+			return new \WP_Error('http_request_failed', 'Connection timed out.');
+		};
+
+		try {
+			wu_save_setting('error_logging_level', 'all');
+			add_action('wu_log_add', $log_listener, 10, 3);
+			add_filter('pre_http_request', $http_filter, 10, 2);
+
+			$result = Screenshot::save_image_from_url('https://example.com/test');
+		} finally {
+			remove_action('wu_log_add', $log_listener, 10);
+			remove_filter('pre_http_request', $http_filter, 10);
+			wu_save_setting('error_logging_level', $original_logging_level);
+		}
+
 		$this->assertFalse($result);
+		$this->assertSame(120, $request_args['timeout']);
+		$this->assertSame(LogLevel::WARNING, $logged_level);
 	}
 
 	public function test_save_image_accepts_png_body() {
