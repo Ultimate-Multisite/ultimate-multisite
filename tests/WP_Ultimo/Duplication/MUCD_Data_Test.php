@@ -647,13 +647,14 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 	public function test_should_copy_table_keeps_empty_optional_tables_by_default() {
 		global $wpdb;
 
-		$table = $wpdb->get_blog_prefix() . 'fc_subscriber_pivot';
+		$table_base_name = 'fc_wp_ultimo_test_subscriber_pivot';
+		$table           = $wpdb->get_blog_prefix() . $table_base_name;
 
 		$this->create_table_selection_fixture($table);
 
 		try {
 			$this->assertTrue(
-				\MUCD_Data::should_copy_table($table, 'fc_subscriber_pivot', get_current_blog_id(), 123)
+				\MUCD_Data::should_copy_table($table, $table_base_name, get_current_blog_id(), 123)
 			);
 		} finally {
 			$this->drop_table_selection_fixture($table);
