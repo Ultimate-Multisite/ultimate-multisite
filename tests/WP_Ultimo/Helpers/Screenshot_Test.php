@@ -312,24 +312,23 @@ class Screenshot_Test extends WP_UnitTestCase {
 				$logged_level = $level;
 			}
 		};
+		$http_filter            = function ($preempt, $args) use (&$request_args) {
+			$request_args = $args;
 
-		wu_save_setting('error_logging_level', 'all');
-		add_action('wu_log_add', $log_listener, 10, 3);
-		add_filter(
-			'pre_http_request',
-			function ($preempt, $args) use (&$request_args) {
-				$request_args = $args;
+			return new \WP_Error('http_request_failed', 'Connection timed out.');
+		};
 
-				return new \WP_Error('http_request_failed', 'Connection timed out.');
-			},
-			10,
-			2
-		);
+		try {
+			wu_save_setting('error_logging_level', 'all');
+			add_action('wu_log_add', $log_listener, 10, 3);
+			add_filter('pre_http_request', $http_filter, 10, 2);
 
-		$result = Screenshot::save_image_from_url('https://example.com/test');
-
-		remove_action('wu_log_add', $log_listener, 10);
-		wu_save_setting('error_logging_level', $original_logging_level);
+			$result = Screenshot::save_image_from_url('https://example.com/test');
+		} finally {
+			remove_action('wu_log_add', $log_listener, 10);
+			remove_filter('pre_http_request', $http_filter, 10);
+			wu_save_setting('error_logging_level', $original_logging_level);
+		}
 
 		$this->assertFalse($result);
 		$this->assertSame(120, $request_args['timeout']);
