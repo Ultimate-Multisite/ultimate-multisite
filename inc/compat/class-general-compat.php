@@ -119,7 +119,6 @@ class General_Compat {
 		 * @see https://fluentcrm.com/
 		 */
 		add_action('wp_insert_site', [$this, 'fix_fluent_pro_site_duplication']);
-		add_filter('wu_mucd_should_copy_table', [$this, 'force_copy_fluentcrm_tables'], 10, 3);
 
 		/**
 		 * WordPress Core - HTTPS scheme fix for subdomain installs.
@@ -752,30 +751,6 @@ class General_Compat {
 			// Here we use this function due FluentCrm($class_name) returns an instance not working with remove_action
 			$this->hard_remove_action('set_user_role', [$class_name, 'maybeAutoAlterTags'], 11);
 		}
-	}
-
-	/**
-	 * Ensure FluentCRM's per-site table schemas are copied during duplication.
-	 *
-	 * FluentCRM relationship tables can be empty on a template site while still
-	 * being required by queries on the cloned site. The duplication optimizer
-	 * normally skips empty custom tables, so force all FluentCRM tables through
-	 * the normal schema-and-data copy path.
-	 *
-	 * @since 2.5.1
-	 *
-	 * @param bool   $copy            Whether the table should be copied.
-	 * @param string $table           Full source table name.
-	 * @param string $table_base_name Source table name without blog prefix.
-	 * @return bool
-	 */
-	public function force_copy_fluentcrm_tables($copy, $table, $table_base_name) {
-
-		if (str_starts_with((string) $table_base_name, 'fc_')) {
-			return true;
-		}
-
-		return $copy;
 	}
 
 	/**

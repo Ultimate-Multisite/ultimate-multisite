@@ -642,18 +642,18 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test empty optional template tables are skipped by default.
+	 * Test empty optional template tables are copied by default.
 	 */
-	public function test_should_copy_table_skips_empty_optional_tables() {
+	public function test_should_copy_table_keeps_empty_optional_tables_by_default() {
 		global $wpdb;
 
-		$table = $wpdb->get_blog_prefix() . 'wu_empty_runtime_fixture';
+		$table = $wpdb->get_blog_prefix() . 'fc_subscriber_pivot';
 
 		$this->create_table_selection_fixture($table);
 
 		try {
-			$this->assertFalse(
-				\MUCD_Data::should_copy_table($table, 'wu_empty_runtime_fixture', get_current_blog_id(), 123)
+			$this->assertTrue(
+				\MUCD_Data::should_copy_table($table, 'fc_subscriber_pivot', get_current_blog_id(), 123)
 			);
 		} finally {
 			$this->drop_table_selection_fixture($table);
@@ -696,21 +696,25 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test empty FluentCRM tables are copied so their schemas exist on clones.
+	 * Test installations can opt into skipping empty optional tables.
 	 */
-	public function test_should_copy_table_keeps_empty_fluentcrm_tables() {
+	public function test_should_copy_table_can_skip_empty_optional_tables_when_enabled() {
 		global $wpdb;
 
-		$table = $wpdb->get_blog_prefix() . 'fc_subscriber_pivot';
+		$table  = $wpdb->get_blog_prefix() . 'wu_empty_runtime_fixture';
+		$filter = static function () {
+			return true;
+		};
 
 		$this->create_table_selection_fixture($table);
-		\WP_Ultimo\Compat\General_Compat::get_instance();
+		add_filter('wu_mucd_skip_empty_tables', $filter, 10, 3);
 
 		try {
-			$this->assertTrue(
-				\MUCD_Data::should_copy_table($table, 'fc_subscriber_pivot', get_current_blog_id(), 123)
+			$this->assertFalse(
+				\MUCD_Data::should_copy_table($table, 'wu_empty_runtime_fixture', get_current_blog_id(), 123)
 			);
 		} finally {
+			remove_filter('wu_mucd_skip_empty_tables', $filter, 10);
 			$this->drop_table_selection_fixture($table);
 		}
 	}
