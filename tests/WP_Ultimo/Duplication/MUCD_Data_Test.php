@@ -696,6 +696,26 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test empty FluentCRM tables are copied so their schemas exist on clones.
+	 */
+	public function test_should_copy_table_keeps_empty_fluentcrm_tables() {
+		global $wpdb;
+
+		$table = $wpdb->get_blog_prefix() . 'fc_subscriber_pivot';
+
+		$this->create_table_selection_fixture($table);
+		\WP_Ultimo\Compat\General_Compat::get_instance();
+
+		try {
+			$this->assertTrue(
+				\MUCD_Data::should_copy_table($table, 'fc_subscriber_pivot', get_current_blog_id(), 123)
+			);
+		} finally {
+			$this->drop_table_selection_fixture($table);
+		}
+	}
+
+	/**
 	 * Test filters can force-copy a table skipped by default.
 	 */
 	public function test_should_copy_table_filter_can_force_copy() {
@@ -752,7 +772,8 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 
 		$this->drop_table_selection_fixture($table);
 
-		$wpdb->query( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test fixture table name cannot be bound.
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test fixture table name cannot be bound.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Test fixture table name cannot be bound.
 			"CREATE TABLE `{$table}` (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, value varchar(20) NOT NULL DEFAULT '', PRIMARY KEY  (id))"
 		);
 	}
