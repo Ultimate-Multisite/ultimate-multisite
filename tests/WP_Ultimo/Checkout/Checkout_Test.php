@@ -1703,9 +1703,9 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test get_validation_rules returns empty array for wu-finish-checkout form.
+	 * Test get_validation_rules does not trust wu-finish-checkout form submissions.
 	 */
-	public function test_get_validation_rules_empty_for_finish_checkout(): void {
+	public function test_get_validation_rules_not_empty_for_finish_checkout(): void {
 
 		$checkout            = Checkout::get_instance();
 		$checkout->step      = ['fields' => []];
@@ -1718,7 +1718,8 @@ class Checkout_Test extends WP_UnitTestCase {
 		$rules = $checkout->get_validation_rules();
 
 		$this->assertIsArray($rules);
-		$this->assertEmpty($rules);
+		$this->assertNotEmpty($rules);
+		$this->assertArrayHasKey('email_address', $rules);
 
 		unset($_REQUEST['checkout_form']);
 	}
@@ -2593,6 +2594,50 @@ class Checkout_Test extends WP_UnitTestCase {
 
 		$order_prop->setValue($checkout, null);
 		unset($_REQUEST['email_address'], $_REQUEST['username'], $_REQUEST['password']);
+	}
+
+	/**
+	 * Test maybe_create_customer rejects existing WP users without customer records.
+	 */
+	public function test_maybe_create_customer_rejects_existing_wp_user_without_customer(): void {
+
+		wp_set_current_user(0);
+
+		$unique  = uniqid('existing_user_', true);
+		$user_id = self::factory()->user->create([
+			'user_login' => $unique,
+			'user_pass'  => wp_generate_password(),
+			'user_email' => $unique . '@example.com',
+		]);
+
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+		$method     = $reflection->getMethod('maybe_create_customer');
+
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		$order_prop = $this->get_order_prop($reflection);
+		$order_prop->setValue($checkout, new Cart(['products' => []]));
+
+		$this->ensure_session($checkout);
+
+		$_REQUEST['email_address'] = $unique . '@example.com';
+		$_REQUEST['username']      = 'attacker_' . wp_rand(1000, 9999);
+		$_REQUEST['password']      = '';
+
+		$result = $method->invoke($checkout);
+
+		$this->assertWPError($result);
+		$this->assertSame('email_exists', $result->get_error_code());
+		$this->assertFalse(wu_get_customer_by_user_id($user_id));
+
+		$order_prop->setValue($checkout, null);
+		unset($_REQUEST['email_address'], $_REQUEST['username'], $_REQUEST['password']);
+
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		wp_delete_user($user_id);
 	}
 
 	// -------------------------------------------------------------------------
@@ -5323,6 +5368,17 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Helper: inject the user created by the current checkout request.
+	 */
+	private function inject_created_user_id(Checkout $checkout, \ReflectionClass $reflection, int $user_id): void {
+		$prop = $reflection->getProperty('created_user_id');
+		if (PHP_VERSION_ID < 80100) {
+			$prop->setAccessible(true);
+		}
+		$prop->setValue($checkout, $user_id);
+	}
+
+	/**
 	 * Test login_customer_after_checkout is a no-op when already logged in.
 	 *
 	 * If the user is already authenticated, wp_login should never fire.
@@ -5388,6 +5444,7 @@ class Checkout_Test extends WP_UnitTestCase {
 		$reflection = new \ReflectionClass($checkout);
 
 		$this->inject_customer($checkout, $reflection, $customer);
+		$this->inject_created_user_id($checkout, $reflection, $user_id);
 		$this->ensure_session($checkout);
 
 		// No password in request or session.
@@ -5410,6 +5467,62 @@ class Checkout_Test extends WP_UnitTestCase {
 		$this->assertEquals($user_id, $login_user_arg->ID);
 
 		// Cleanup.
+		wp_set_current_user(0);
+		$customer->delete();
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		wp_delete_user($user_id);
+	}
+
+	/**
+	 * Test login_customer_after_checkout denies passwordless login for existing users.
+	 */
+	public function test_login_customer_after_checkout_no_password_rejects_existing_user(): void {
+
+		$unique  = uniqid('existingnopw_', true);
+		$user_id = self::factory()->user->create([
+			'user_login' => $unique,
+			'user_pass'  => wp_generate_password(),
+			'user_email' => $unique . '@example.com',
+		]);
+
+		wp_set_current_user(0);
+		wp_clear_auth_cookie();
+
+		$customer = wu_create_customer([
+			'user_id'  => $user_id,
+			'username' => $unique,
+			'email'    => $unique . '@example.com',
+		]);
+
+		if (is_wp_error($customer)) {
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+			wp_delete_user($user_id);
+			$this->markTestSkipped('Customer creation failed: ' . $customer->get_error_message());
+		}
+
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+
+		$this->inject_customer($checkout, $reflection, $customer);
+		$this->inject_created_user_id($checkout, $reflection, 0);
+		$this->ensure_session($checkout);
+
+		unset($_REQUEST['password']);
+
+		$login_fired = false;
+		add_action('wp_login', function () use (&$login_fired) {
+			$login_fired = true;
+		});
+
+		$method = $this->get_login_method($reflection);
+		$result = $method->invoke($checkout);
+
+		remove_all_actions('wp_login');
+
+		$this->assertWPError($result);
+		$this->assertSame('checkout_login_denied', $result->get_error_code());
+		$this->assertFalse($login_fired, 'wp_login must not fire for passwordless login to an existing WP user');
+
 		wp_set_current_user(0);
 		$customer->delete();
 		require_once ABSPATH . 'wp-admin/includes/user.php';
