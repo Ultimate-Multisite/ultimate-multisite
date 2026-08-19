@@ -12,7 +12,6 @@
  * Domain Path: /lang
  * Network:     true
  * Requires at least: 5.3
- * Tested up to: 7.1
  * Requires PHP: 8.2
  *
  * Ultimate Multisite is distributed under the terms of the GNU General Public License as published by
