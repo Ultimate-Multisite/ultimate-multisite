@@ -13,7 +13,6 @@
  * Network:     true
  * Requires at least: 5.3
  * Requires PHP: 8.2
- * Tested up to: 7.1
  *
  * Ultimate Multisite is distributed under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
