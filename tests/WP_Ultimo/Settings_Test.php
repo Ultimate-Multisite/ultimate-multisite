@@ -360,6 +360,22 @@ class Settings_Test extends WP_UnitTestCase {
 		$this->assertEquals($status, $result);
 	}
 
+	public function test_network_option_filters_return_original_values_without_current_site() {
+		global $current_site;
+
+		$original_current_site = $current_site;
+		$current_site          = null;
+		$plugins_status        = ['plugins' => false];
+
+		try {
+			$this->assertSame('none', $this->settings->force_registration_status('none', 'registration', 1));
+			$this->assertSame('original', $this->settings->force_add_new_users('original', 'add_new_users', 1));
+			$this->assertSame($plugins_status, $this->settings->force_plugins_menu($plugins_status, 'menu_items', 1));
+		} finally {
+			$current_site = $original_current_site;
+		}
+	}
+
 	// ------------------------------------------------------------------
 	// init
 	// ------------------------------------------------------------------
