@@ -27,7 +27,7 @@ describe("PayPal REST Gateway Checkout Flow", () => {
 
 		// Enable PayPal gateway with sandbox keys
 		cy.exec(
-			`npx wp-env run tests-cli wp eval-file /var/www/html/wp-content/plugins/ultimate-multisite/tests/e2e/cypress/fixtures/setup-paypal-gateway.php '${clientId}' '${clientSecret}'`,
+			`pnpm exec wp-env run tests-cli wp eval-file /var/www/html/wp-content/plugins/ultimate-multisite/tests/e2e/cypress/fixtures/setup-paypal-gateway.php '${clientId}' '${clientSecret}'`,
 			{ timeout: 60000 }
 		).then((result) => {
 			const data = JSON.parse(result.stdout.trim());
@@ -170,7 +170,7 @@ describe("PayPal REST Gateway Checkout Flow", () => {
 
 	it("Should verify PayPal gateway is correctly configured via WP-CLI", () => {
 		cy.exec(
-			`npx wp-env run tests-cli wp eval '
+			`pnpm exec wp-env run tests-cli wp eval '
 				$gateways = (array) wu_get_setting("active_gateways", []);
 				$sandbox = wu_get_setting("paypal_rest_sandbox_mode", 0);
 				$client_id = wu_get_setting("paypal_rest_sandbox_client_id", "");

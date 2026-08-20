@@ -11,7 +11,7 @@ The `release.yml` workflow automatically builds and releases the plugin when a n
 1. When a new tag is pushed (in the format `v*.*.*`), the workflow is triggered
 2. The workflow checks out the code, sets up PHP and Node.js
 3. It verifies that the version in the tag matches the version in the plugin files
-4. It runs the build process using `npm run build`
+4. It runs the build process using `pnpm run build`
 5. It creates a ZIP file of the plugin
 6. It creates a GitHub release with the ZIP file attached
 
@@ -37,7 +37,7 @@ To create a new release:
 
 ### Requirements
 
-- The repository must have a `package.json` file with a `build` script
+- The repository must have a `package.json`, `pnpm-lock.yaml`, and a `build` script
 - The plugin must have consistent version numbers across all files
 
 ## Sync Wiki Workflow

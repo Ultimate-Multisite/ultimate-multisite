@@ -247,6 +247,24 @@ class Site_Exporter_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test the Ultimate Multisite Sites page receives the delegated ZIP-upload handler.
+	 */
+	public function test_wp_sites_scripts_enqueue_zip_upload_handler_for_actual_admin_hook(): void {
+
+		$this->exporter->enqueue_wp_sites_scripts('admin_page_wp-ultimo-sites');
+
+		$this->assertTrue(
+			wp_script_is('media-editor', 'registered'),
+			'The media editor script must be available on the Ultimate Multisite Sites page'
+		);
+
+		$inline_scripts = wp_scripts()->get_data('media-editor', 'after');
+
+		$this->assertIsArray($inline_scripts);
+		$this->assertStringContainsString('#wu-upload-zip-btn', implode("\n", $inline_scripts));
+	}
+
+	/**
 	 * Test that bulk exports include the main site instead of silently skipping it.
 	 */
 	public function test_wp_sites_bulk_export_includes_main_site(): void {

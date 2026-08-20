@@ -1,5 +1,5 @@
 const glob = require("glob");
-const { execSync } = require("child_process");
+const { execFileSync } = require("child_process");
 
 // Skip assets/js/lib/ — those files are vendored from node_modules via
 // scripts/build-vue.js (Vue ecosystem) and scripts/copy-libs.js. Running
@@ -18,7 +18,7 @@ console.log(`🔧 Starting minifying process for .js files`);
 files.forEach((file) => {
   const outFile = file.replace(/\.js$/, ".min.js");
   console.log(`Uglifying: ${file} → ${outFile}`);
-  execSync(`npx uglifyjs "${file}" -c -m -o "${outFile}"`);
+	execFileSync("uglifyjs", [file, "-c", "-m", "-o", outFile]);
 });
 
 console.log(`✅ DONE creating minified .js files`);

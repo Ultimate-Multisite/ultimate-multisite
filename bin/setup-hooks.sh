@@ -29,4 +29,4 @@ echo "  - pre-commit: Runs PHPCS, PHPStan, ESLint, and Stylelint on staged files
 echo ""
 echo "To bypass hooks for a specific commit, use: git commit --no-verify"
 echo ""
-echo "Make sure to run 'composer install' and 'npm install' to have the required tools available."
+echo "Make sure to run 'composer install' and 'pnpm install --frozen-lockfile' to have the required tools available."

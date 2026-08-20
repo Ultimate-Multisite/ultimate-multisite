@@ -785,7 +785,7 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			 * If that's the case, we need to replace the current
 			 * plan id.
 			 */
-			if ($product->get_type() === 'plan') {
+			if (wu_is_plan_type($product->get_type())) {
 				$this->set_plan_id($product->get_id());
 
 				continue;

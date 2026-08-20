@@ -1080,6 +1080,56 @@ class Membership_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test swap recognizes addon-registered plan product types.
+	 */
+	public function test_swap_replaces_plan_for_registered_custom_plan_type(): void {
+		$register_network_type = static function (array $types): array {
+			$types[] = 'network';
+
+			return $types;
+		};
+
+		add_filter('wu_plan_product_types', $register_network_type);
+
+		$network_product = wu_create_product(
+			[
+				'name'            => 'Network Plan',
+				'slug'            => 'network-plan-' . wp_generate_password(6, false),
+				'description'     => 'A custom plan type registered by an addon',
+				'pricing_type'    => 'paid',
+				'amount'          => 49.00,
+				'currency'        => 'USD',
+				'duration'        => 1,
+				'duration_unit'   => 'month',
+				'type'            => 'network',
+				'recurring'       => true,
+				'active'          => true,
+				'skip_validation' => true,
+			]
+		);
+		$this->assertNotWPError($network_product);
+
+		$cart = new \WP_Ultimo\Checkout\Cart(
+			[
+				'cart_type'     => 'upgrade',
+				'products'      => [$network_product->get_id()],
+				'duration'      => 1,
+				'duration_unit' => 'month',
+				'membership_id' => $this->membership->get_id(),
+				'currency'      => 'USD',
+			]
+		);
+
+		$result = $this->membership->swap($cart);
+
+		remove_filter('wu_plan_product_types', $register_network_type);
+
+		$this->assertSame($this->membership, $result);
+		$this->assertSame($network_product->get_id(), $this->membership->get_plan_id());
+		$this->assertNotContains($network_product->get_id(), $this->membership->get_addon_ids());
+	}
+
+	/**
 	 * Test get_scheduled_swap returns false when nothing scheduled.
 	 */
 	public function test_get_scheduled_swap_returns_false(): void {
@@ -1401,7 +1451,7 @@ class Membership_Test extends \WP_UnitTestCase {
 	/**
 	 * Test renew() DOES clear date_cancellation when reactivating a cancelled membership.
 	 *
-	 * renew() is called by reactivate(), and also directly by gateways via IPN/webhook.
+	 * Renew() is called by reactivate(), and also directly by gateways via IPN/webhook.
 	 * It must clear the cancellation timestamp when the previous status was CANCELLED
 	 * so that cancelled membership records are cleaned up in a single save.
 	 */

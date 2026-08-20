@@ -808,7 +808,7 @@ class Login_Form_Element extends Base_Element {
 
 			$passwordless_auth = \WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance();
 
-			if ($passwordless_auth->is_enabled()) {
+			if ($passwordless_auth->is_enabled() && ! $passwordless_auth->is_password_fallback()) {
 				$fields = [
 					'passwordless_login' => [
 						'type'            => 'html',

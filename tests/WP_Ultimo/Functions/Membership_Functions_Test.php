@@ -582,6 +582,85 @@ class Membership_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test addons can add renewal line items before totals are calculated.
+	 */
+	public function test_membership_create_new_payment_exposes_pre_totals_action(): void {
+
+		$user_id = self::factory()->user->create();
+
+		while (wu_get_customer_by_user_id($user_id)) {
+			$user_id = self::factory()->user->create();
+		}
+
+		$customer = wu_create_customer([
+			'user_id'         => $user_id,
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($customer);
+
+		$product = wu_create_product([
+			'name'            => 'Extensible Renewal Plan',
+			'slug'            => 'extensible-renewal-plan-' . wp_rand(),
+			'type'            => 'plan',
+			'amount'          => 49.00,
+			'recurring'       => true,
+			'duration'        => 1,
+			'duration_unit'   => 'month',
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($product);
+
+		$membership = wu_create_membership([
+			'customer_id'     => $customer->get_id(),
+			'plan_id'         => $product->get_id(),
+			'status'          => 'active',
+			'amount'          => 49.00,
+			'initial_amount'  => 49.00,
+			'currency'        => 'USD',
+			'recurring'       => true,
+			'duration'        => 1,
+			'duration_unit'   => 'month',
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($membership);
+
+		$context  = [];
+		$callback = static function ($payment, $hook_membership, $remove_non_recurring, $save) use (&$context): void {
+			if ($hook_membership->get_id() !== $payment->get_membership_id()) {
+				return;
+			}
+
+			$payment->add_line_item(
+				new \WP_Ultimo\Checkout\Line_Item([
+					'hash'         => 'test_metered_overage',
+					'type'         => 'fee',
+					'title'        => 'Metered overage',
+					'quantity'     => 2,
+					'unit_price'   => 4.00,
+					'recurring'    => false,
+					'discountable' => false,
+				])
+			);
+
+			$context = [$remove_non_recurring, $save];
+		};
+
+		add_action('wu_membership_new_payment_pre_totals', $callback, 10, 4);
+
+		$payment = wu_membership_create_new_payment($membership, false, true, false);
+
+		remove_action('wu_membership_new_payment_pre_totals', $callback, 10);
+
+		$this->assertNotWPError($payment);
+		$this->assertSame([true, false], $context);
+		$this->assertEqualsWithDelta(57.00, $payment->get_total(), 0.001);
+		$this->assertArrayHasKey('LN_FEE_test_metered_overage', $payment->get_line_items());
+	}
+
+	/**
 	 * Test wu_membership_create_new_payment cancels existing pending payment.
 	 */
 	public function test_membership_create_new_payment_cancels_pending(): void {

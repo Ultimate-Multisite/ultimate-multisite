@@ -155,7 +155,7 @@ class Rocket_Integration extends Integration {
 
 		if (! $token) {
 			$response = wp_remote_post(
-				'https://api.rocket.net/v1/auth/login',
+				'https://api.rocket.net/v1/login',
 				[
 					'blocking' => true,
 					'method'   => 'POST',
@@ -166,7 +166,7 @@ class Rocket_Integration extends Integration {
 					],
 					'body'     => wp_json_encode(
 						[
-							'email'    => $this->get_credential('WU_ROCKET_EMAIL'),
+							'username' => $this->get_credential('WU_ROCKET_EMAIL'),
 							'password' => $this->get_credential('WU_ROCKET_PASSWORD'),
 						]
 					),
@@ -174,11 +174,11 @@ class Rocket_Integration extends Integration {
 			);
 
 			if (! is_wp_error($response)) {
-				$body = json_decode(wp_remote_retrieve_body($response), true);
+				$body   = json_decode(wp_remote_retrieve_body($response), true);
+				$result = isset($body['result']) && is_array($body['result']) ? $body['result'] : [];
+				$token  = $body['token'] ?? $body['access_token'] ?? $result['token'] ?? $result['access_token'] ?? false;
 
-				if (isset($body['token']) || isset($body['access_token'])) {
-					$token = $body['token'] ?? $body['access_token'];
-
+				if ($token) {
 					set_site_transient('wu_rocket_token', $token, 50 * MINUTE_IN_SECONDS);
 				} else {
 					wu_log_add('integration-rocket', '[Auth] Failed to retrieve token: ' . wp_remote_retrieve_body($response), \Psr\Log\LogLevel::ERROR);

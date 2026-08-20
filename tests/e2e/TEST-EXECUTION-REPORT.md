@@ -129,27 +129,27 @@ I have successfully created a comprehensive e2e test suite for the WP Multisite 
 ### Environment Prerequisites
 1. **WordPress Multisite Network** - Properly configured with network admin access
 2. **WP Multisite Ultimate Plugin** - Installed but not yet configured
-3. **Node.js & npm** - For running Cypress tests
+3. **Node.js & pnpm** - For running Cypress tests
 4. **Docker** - For wp-env WordPress environment
 5. **Proper Permissions** - For wp-env to create/modify files
 
 ### Critical Execution Order
 ```bash
 # 1. MUST RUN FIRST - Creates checkout forms & sample data
-npm run cy:run:test --spec "**/setup-wizard-complete.spec.js"
+pnpm run cy:run:test --spec "**/setup-wizard-complete.spec.js"
 
 # 2. THEN run checkout tests - Depends on setup being complete
-npm run cy:run:test --spec "**/checkout-*.spec.js"
+pnpm run cy:run:test --spec "**/checkout-*.spec.js"
 ```
 
 ### Environment Setup Commands
 ```bash
 # Clean start (if needed)
-npm run env:destroy  # (requires confirmation)
-npm run env:start:test
+pnpm run env:destroy  # (requires confirmation)
+pnpm run env:start:test
 
 # Or for development
-npm run env:start:dev
+pnpm run env:start:dev
 ```
 
 ## 🎯 Test Quality Assessment
@@ -202,7 +202,7 @@ The e2e test suite has been successfully created and is ready for execution once
 
 ### Immediate Next Steps:
 1. **Resolve wp-env permissions** - Clean Docker setup or use alternative environment
-2. **Start WordPress test environment** - `npm run env:start:test`
+2. **Start WordPress test environment** - `pnpm run env:start:test`
 3. **Execute setup wizard test** - Creates necessary data for checkout tests
 4. **Run checkout test suite** - Validates complete registration flow
 

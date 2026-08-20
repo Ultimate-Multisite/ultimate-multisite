@@ -122,7 +122,9 @@ class Multiple_Accounts_Compat {
 
 		$search = "\$db->get_row(\"SELECT * FROM $wpdb->users WHERE user_email";
 
-		if ( str_starts_with($wpdb->func_call, $search)) {
+		$func_call = $wpdb->func_call ?? '';
+
+		if ( str_starts_with($func_call, $search)) {
 			$prefix = "SELECT * FROM $wpdb->users WHERE user_email";
 
 			$last = substr($query, strlen($prefix));

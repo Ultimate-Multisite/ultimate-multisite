@@ -77,5 +77,9 @@ abstract class Table extends \BerlinDB\Database\Table {
 	public function __construct() {
 		$this->update_prefix_with_network_id();
 		parent::__construct();
+
+		if (true === $this->global) {
+			remove_action('switch_blog', [$this, 'switch_blog']);
+		}
 	}
 }

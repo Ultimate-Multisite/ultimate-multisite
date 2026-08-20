@@ -12,7 +12,7 @@ set -euo pipefail
 # 2) For stable releases: ensures changelog entry exists; replaces XX-XX date; syncs to README.md
 #    For pre-releases: skips changelog sync
 # 3) Commits and pushes to main
-# 4) Runs npm build to generate ultimate-multisite.zip
+# 4) Runs pnpm build to generate ultimate-multisite.zip
 # 5) Tags and creates a GitHub release, attaching the ZIP and including changelog + PR log
 # 6) For stable releases only: deploys to WordPress.org SVN trunk and tags/<version>
 #
@@ -20,7 +20,7 @@ set -euo pipefail
 #
 # Requirements:
 # - Run from repository root or anywhere; script will cd into ultimate-multisite directory automatically
-# - Tools: git, npm, sed, awk, unzip, rsync, svn, gh (GitHub CLI) or env GITHUB_TOKEN for gh
+# - Tools: git, pnpm, sed, awk, unzip, rsync, svn, gh (GitHub CLI) or env GITHUB_TOKEN for gh
 # - Git remote 'origin' configured and write access
 # - Environment variables for release/SVN:
 #   - GH_TOKEN or GITHUB_TOKEN (for gh)
@@ -82,7 +82,7 @@ echo "==> Checking required tools"
 require_cmd git
 require_cmd sed
 require_cmd awk
-require_cmd npm
+require_cmd pnpm
 require_cmd unzip
 require_cmd rsync
 require_cmd svn
@@ -205,7 +205,7 @@ build_zip() {
   echo "==> Building plugin ZIP"
   # Ensure dev dependencies (like wp-cli) exist before prebuild (makepot)
   composer install --no-interaction >/dev/null 2>&1 || composer install --no-interaction
-  MU_CLIENT_ID="${MU_CLIENT_ID:-dummy}" MU_CLIENT_SECRET="${MU_CLIENT_SECRET:-dummy}" npm run build
+  MU_CLIENT_ID="${MU_CLIENT_ID:-dummy}" MU_CLIENT_SECRET="${MU_CLIENT_SECRET:-dummy}" pnpm run build
   if [[ ! -f "$ZIP_PATH" ]]; then
     echo "Error: Build did not produce $ZIP_PATH"
     exit 1

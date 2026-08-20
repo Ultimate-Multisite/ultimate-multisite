@@ -7,7 +7,7 @@ Thank you for your interest in contributing to Multisite Ultimate! This document
 ### Prerequisites
 
 - PHP 8.2+
-- Node.js 16+ and npm
+- Node.js 22 and pnpm (enabled with Corepack)
 - Composer
 - Git
 - WordPress Multisite environment
@@ -16,33 +16,34 @@ Thank you for your interest in contributing to Multisite Ultimate! This document
 
 1. **Clone and setup the repository:**
    ```bash
-   git clone https://github.com/superdav42/wp-multisite-waas.git
-   cd wp-multisite-waas
-   npm run dev:setup
+   git clone https://github.com/Ultimate-Multisite/ultimate-multisite.git
+   cd ultimate-multisite
+   corepack enable
+   pnpm run dev:setup
    ```
 
 2. **Or setup manually:**
    ```bash
-   npm run install:deps  # Installs both composer and npm dependencies
-   npm run setup:hooks   # Sets up Git hooks
+   pnpm run install:deps  # Installs both Composer and pnpm dependencies
+   pnpm run setup:hooks   # Sets up Git hooks
    ```
 
 ## Development Commands
 
-### Primary Commands (npm)
+### Primary Commands (pnpm)
 ```bash
-npm test                 # Run PHPUnit tests
-npm run test:coverage    # Run tests with coverage
-npm run lint             # Check code style (PHPCS)
-npm run lint:fix         # Fix code style automatically (PHPCBF)
-npm run stan             # Run static analysis (PHPStan)
-npm run quality          # Run lint + stan
-npm run quality:fix      # Run lint:fix + stan
-npm run check            # Run all checks before committing
-npm run build            # Production build
-npm run build:dev        # Development build
-npm run clean            # Clean build artifacts
-npm run dev:setup        # Complete development setup
+pnpm test                 # Run PHPUnit tests
+pnpm run test:coverage    # Run tests with coverage
+pnpm run lint             # Check code style (PHPCS)
+pnpm run lint:fix         # Fix code style automatically (PHPCBF)
+pnpm run stan             # Run static analysis (PHPStan)
+pnpm run quality          # Run lint + stan
+pnpm run quality:fix      # Run lint:fix + stan
+pnpm run check            # Run all checks before committing
+pnpm run build            # Production build
+pnpm run build:dev        # Development build
+pnpm run clean            # Clean build artifacts
+pnpm run dev:setup        # Complete development setup
 ```
 
 ### Alternative Commands (composer)
@@ -75,7 +76,7 @@ The project includes Git hooks that run automatically:
 - **pre-commit**: Runs PHPCS and PHPStan on changed files
 - **commit-msg**: Enforces conventional commit format
 
-To install hooks: `npm run setup:hooks`
+To install hooks: `pnpm run setup:hooks`
 
 ### Code Style
 
@@ -141,10 +142,10 @@ test(models): add Customer model tests
 
 ```bash
 # Run all tests
-npm test
+pnpm test
 
 # Run with coverage
-npm run test:coverage
+pnpm run test:coverage
 
 # Run specific test
 vendor/bin/phpunit tests/WP_Ultimo/Models/Customer_Test.php
@@ -174,7 +175,7 @@ We aim for high code coverage:
 
 View coverage locally:
 ```bash
-npm run test:coverage
+pnpm run test:coverage
 open coverage-html/index.html
 ```
 
@@ -184,7 +185,7 @@ open coverage-html/index.html
 
 1. **Create feature branch**: `git checkout -b feat/feature-name`
 2. **Make changes** with tests
-3. **Run checks**: `npm run check`
+3. **Run checks**: `pnpm run check`
 4. **Commit**: Use conventional format
 5. **Push and create PR**
 
@@ -194,7 +195,7 @@ open coverage-html/index.html
 2. **Write test** that reproduces the bug
 3. **Fix the issue**
 4. **Verify test passes**
-5. **Run checks**: `npm run check`
+5. **Run checks**: `pnpm run check`
 6. **Commit and create PR**
 
 ## Addon Development
@@ -243,7 +244,7 @@ Ultimate Multisite has 28+ addon plugins in the `Ultimate-Multisite` GitHub org.
 4. **Start the test environment**:
    ```bash
    cd ~/Git/ultimate-multisite
-   npm run env:start
+   pnpm run env:start
    # WordPress Multisite is now running at http://localhost:8888
    # with core + your addon loaded
    ```
@@ -264,7 +265,7 @@ Ultimate Multisite has 28+ addon plugins in the `Ultimate-Multisite` GitHub org.
 6. **Run E2E tests** (if the addon has them):
    ```bash
    cd ~/Git/ultimate-multisite
-   npx cypress run --config-file cypress.config.test.js \
+   pnpm exec cypress run --config-file cypress.config.test.js \
      --spec "../<addon-slug>-feature-my-change/tests/e2e/**/*.spec.js"
    ```
 
@@ -273,7 +274,7 @@ Ultimate Multisite has 28+ addon plugins in the `Ultimate-Multisite` GitHub org.
 8. **Stop the environment**:
    ```bash
    cd ~/Git/ultimate-multisite
-   npm run env:stop
+   pnpm run env:stop
    ```
 
 ### Addon CI

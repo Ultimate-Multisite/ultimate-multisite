@@ -27,7 +27,7 @@ describe("Stripe Gateway Checkout Flow", () => {
 
 		// Enable Stripe gateway with test keys
 		cy.exec(
-			`npx wp-env run tests-cli wp eval-file /var/www/html/wp-content/plugins/ultimate-multisite/tests/e2e/cypress/fixtures/setup-stripe-gateway.php '${pkKey}' '${skKey}'`,
+			`pnpm exec wp-env run tests-cli wp eval-file /var/www/html/wp-content/plugins/ultimate-multisite/tests/e2e/cypress/fixtures/setup-stripe-gateway.php '${pkKey}' '${skKey}'`,
 			{ timeout: 60000 }
 		).then((result) => {
 			const data = JSON.parse(result.stdout.trim());

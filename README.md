@@ -154,24 +154,25 @@ We welcome contributions to Ultimate Multisite! Here's how you can contribute ef
 ### Development Workflow
 
 1. **Quick Setup:**
-   ```bash
-   git clone https://github.com/Ultimate-Multisite/ultimate-multisite.git
-   cd wp-multisite-waas
-   npm run dev:setup  # Installs dependencies and sets up Git hooks
+    ```bash
+    git clone https://github.com/Ultimate-Multisite/ultimate-multisite.git
+    cd ultimate-multisite
+    corepack enable
+    pnpm run dev:setup  # Installs dependencies and sets up Git hooks
    ```
 
 2. **Development Commands:**
    ```bash
-   npm test              # Run tests
-   npm run test:coverage # Run tests with coverage
-   npm run lint         # Check code style (PHPCS)
-   npm run lint:fix     # Fix code style automatically
-   npm run stan         # Run static analysis (PHPStan)
-   npm run quality      # Run lint + stan
-   npm run check        # Run all quality checks
-   npm run build        # Production build
-   npm run build:dev    # Development build
-   npm run clean        # Clean build artifacts
+    pnpm test              # Run tests
+    pnpm run test:coverage # Run tests with coverage
+    pnpm run lint          # Check code style (PHPCS)
+    pnpm run lint:fix      # Fix code style automatically
+    pnpm run stan          # Run static analysis (PHPStan)
+    pnpm run quality       # Run lint + stan
+    pnpm run check         # Run all quality checks
+    pnpm run build         # Production build
+    pnpm run build:dev     # Development build
+    pnpm run clean         # Clean build artifacts
    ```
 
 3. **Making Changes:**
@@ -179,7 +180,7 @@ We welcome contributions to Ultimate Multisite! Here's how you can contribute ef
    - Make your changes with tests
    - Git hooks will automatically run PHPCS and PHPStan on changed files
    - Commit using conventional format: `feat(scope): description`
-   - Run `npm run check` before pushing
+   - Run `pnpm run check` before pushing
    - Push and create a Pull Request
 
 4. **Code Quality:**
@@ -218,7 +219,7 @@ The tag must begin with "v" followed by the version number (v*.*.\*)
 
 This will automatically:
 
-1. Build the plugin (run `npm run build`)
+1. Build the plugin (run `pnpm run build`)
 2. Create a properly packaged ZIP file
 3. Create a GitHub release with the ZIP attached
 

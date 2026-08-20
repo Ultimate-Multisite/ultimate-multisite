@@ -160,27 +160,35 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 18
+          node-version: '22'
+      - name: Enable Corepack
+        run: corepack enable
 
-      - name: Cache NPM dependencies
+      - name: Cache pnpm store
         uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-e2e
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('core/pnpm-lock.yaml') }}
 
-      - name: Install core NPM dependencies
+      - name: Install core pnpm dependencies
         working-directory: core
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Install core Composer dependencies
         working-directory: core
         run: composer install --no-interaction --prefer-dist
 
-      - name: Install addon NPM dependencies
+      - name: Install addon Node dependencies
         working-directory: addon
         run: |
-          if [[ -f package.json ]]; then
+          if [[ -f pnpm-lock.yaml ]]; then
+            pnpm install --frozen-lockfile
+          elif [[ -f package-lock.json ]]; then
+            # Compatibility path for addons that have not migrated to pnpm yet.
             npm ci
+          elif [[ -f package.json ]]; then
+            # Compatibility path for legacy addons without a committed lockfile.
+            npm install
           fi
 
       - name: Install addon Composer dependencies
@@ -209,7 +217,7 @@ jobs:
 
       - name: Start WordPress test environment
         working-directory: core
-        run: npm run env:start:test
+        run: pnpm run env:start:test
 
       - name: Wait for WordPress to be ready
         run: |
@@ -226,7 +234,7 @@ jobs:
         working-directory: core
         run: |
           if [[ -f tests/e2e/cypress/integration/000-setup.spec.js ]]; then
-            npx cypress run \
+            pnpm exec cypress run \
               --config-file cypress.config.test.js \
               --spec "tests/e2e/cypress/integration/000-setup.spec.js" \
               --browser chrome
@@ -236,11 +244,18 @@ jobs:
         working-directory: addon
         run: |
           if [[ -d tests/e2e ]] && [[ -f cypress.config.js ]]; then
-            npx cypress run --browser chrome
+            if [[ -f pnpm-lock.yaml ]]; then
+              pnpm exec cypress run --browser chrome
+            elif [[ -f package-lock.json ]]; then
+              # Compatibility path for npm-locked addons during migration.
+              npm exec -- cypress run --browser chrome
+            else
+              echo "No supported addon lockfile found — skipping addon Cypress tests"
+            fi
           elif [[ -d tests/e2e ]]; then
             # Use core's Cypress config with addon's test specs
             cd "$GITHUB_WORKSPACE/core"
-            npx cypress run \
+            pnpm exec cypress run \
               --config-file cypress.config.test.js \
               --spec "$GITHUB_WORKSPACE/addon/tests/e2e/**/*.spec.js" \
               --browser chrome
@@ -271,4 +286,4 @@ jobs:
       - name: Stop WordPress environment
         if: always()
         working-directory: core
-        run: npm run env:stop
+        run: pnpm run env:stop

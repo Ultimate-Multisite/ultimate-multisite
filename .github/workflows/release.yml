@@ -42,14 +42,21 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install PHP dependencies
         run: composer install
 
       - name: Install Node dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Verify version matches
         run: |
@@ -81,7 +88,7 @@ jobs:
           fi
 
       - name: Run build process
-        run: npm run build
+        run: pnpm run build
         env:
           MU_CLIENT_ID: ${{ secrets.MU_CLIENT_ID }}
           MU_CLIENT_SECRET: ${{ secrets.MU_CLIENT_SECRET }}

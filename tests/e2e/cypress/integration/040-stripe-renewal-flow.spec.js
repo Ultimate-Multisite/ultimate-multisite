@@ -26,7 +26,7 @@ describe("Stripe Subscription Renewal Flow", () => {
 
 		// Ensure Stripe gateway is configured
 		cy.exec(
-			`npx wp-env run tests-cli wp eval-file ${CONTAINER_FIXTURES}/setup-stripe-gateway.php '${pkKey}' '${skKey}'`,
+			`pnpm exec wp-env run tests-cli wp eval-file ${CONTAINER_FIXTURES}/setup-stripe-gateway.php '${pkKey}' '${skKey}'`,
 			{ timeout: 60000 }
 		).then((result) => {
 			const data = JSON.parse(result.stdout.trim());
@@ -39,7 +39,7 @@ describe("Stripe Subscription Renewal Flow", () => {
 		{ retries: 0 },
 		() => {
 			cy.exec(
-				`npx wp-env run tests-cli wp eval-file ${CONTAINER_FIXTURES}/setup-stripe-renewal-test.php '${skKey}'`,
+				`pnpm exec wp-env run tests-cli wp eval-file ${CONTAINER_FIXTURES}/setup-stripe-renewal-test.php '${skKey}'`,
 				{ timeout: 120000 }
 			).then((result) => {
 				const data = JSON.parse(result.stdout.trim());
@@ -73,7 +73,7 @@ describe("Stripe Subscription Renewal Flow", () => {
 			const targetTimestamp = setupData.current_period_end + 86400;
 
 			cy.exec(
-				`npx wp-env run tests-cli wp eval-file ${CONTAINER_FIXTURES}/advance-stripe-test-clock.php '${skKey}' '${setupData.test_clock_id}' '${targetTimestamp}'`,
+				`pnpm exec wp-env run tests-cli wp eval-file ${CONTAINER_FIXTURES}/advance-stripe-test-clock.php '${skKey}' '${setupData.test_clock_id}' '${targetTimestamp}'`,
 				{ timeout: 180000 }
 			).then((result) => {
 				const data = JSON.parse(result.stdout.trim());
@@ -93,7 +93,7 @@ describe("Stripe Subscription Renewal Flow", () => {
 			expect(setupData.um_membership_id).to.exist;
 
 			cy.exec(
-				`npx wp-env run tests-cli wp eval-file ${CONTAINER_FIXTURES}/process-stripe-renewal.php '${skKey}' '${setupData.subscription_id}' '${setupData.um_membership_id}'`,
+				`pnpm exec wp-env run tests-cli wp eval-file ${CONTAINER_FIXTURES}/process-stripe-renewal.php '${skKey}' '${setupData.subscription_id}' '${setupData.um_membership_id}'`,
 				{ timeout: 120000 }
 			).then((result) => {
 				const data = JSON.parse(result.stdout.trim());
@@ -118,7 +118,7 @@ describe("Stripe Subscription Renewal Flow", () => {
 		expect(setupData.um_membership_id).to.exist;
 
 		cy.exec(
-			`npx wp-env run tests-cli wp eval-file ${CONTAINER_FIXTURES}/verify-stripe-renewal-results.php '${setupData.um_membership_id}'`,
+			`pnpm exec wp-env run tests-cli wp eval-file ${CONTAINER_FIXTURES}/verify-stripe-renewal-results.php '${setupData.um_membership_id}'`,
 			{ timeout: 60000 }
 		).then((result) => {
 			const data = JSON.parse(result.stdout.trim());
@@ -147,7 +147,7 @@ describe("Stripe Subscription Renewal Flow", () => {
 	after(() => {
 		if (setupData.test_clock_id) {
 			cy.exec(
-				`npx wp-env run tests-cli wp eval-file ${CONTAINER_FIXTURES}/cleanup-stripe-test-clock.php '${skKey}' '${setupData.test_clock_id}'`,
+				`pnpm exec wp-env run tests-cli wp eval-file ${CONTAINER_FIXTURES}/cleanup-stripe-test-clock.php '${skKey}' '${setupData.test_clock_id}'`,
 				{ timeout: 60000, failOnNonZeroExit: false }
 			).then((result) => {
 				try {

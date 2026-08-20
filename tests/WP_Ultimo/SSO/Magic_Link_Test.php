@@ -153,6 +153,29 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test verify_user_site_access allows super administrators on every site.
+	 */
+	public function test_verify_user_site_access_super_admin() {
+
+		$instance = $this->get_instance();
+		$user_id  = self::factory()->user->create();
+		$site_id  = self::factory()->blog->create();
+		$ref      = new \ReflectionMethod($instance, 'verify_user_site_access');
+
+		if (PHP_VERSION_ID < 80100) {
+			$ref->setAccessible(true);
+		}
+
+		grant_super_admin($user_id);
+
+		try {
+			$this->assertTrue($ref->invoke($instance, $user_id, $site_id));
+		} finally {
+			revoke_super_admin($user_id);
+		}
+	}
+
+	/**
 	 * Test verify_user_site_access with invalid user.
 	 */
 	public function test_verify_user_site_access_invalid_user() {

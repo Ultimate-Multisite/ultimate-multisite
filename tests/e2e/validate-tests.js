@@ -167,16 +167,16 @@ configFiles.forEach(file => {
 // Summary
 console.log('\n' + '=' .repeat(50));
 if (allValid) {
-  console.log('🎉 All tests validation passed!');
-  console.log('\n📋 Next Steps:');
-  console.log('1. Start WordPress environment: npm run env:start:test');
-  console.log('2. Run setup wizard test: npx cypress run --spec "tests/e2e/cypress/integration/setup-wizard-complete.spec.js"');
-  console.log('3. Run checkout tests: npx cypress run --spec "tests/e2e/cypress/integration/checkout-*.spec.js"');
-  console.log('\n💡 Or use the npm scripts:');
-  console.log('   npm run cy:run:test');
+	console.log('🎉 All tests validation passed!');
+	console.log('\n📋 Next Steps:');
+	console.log('1. Start WordPress environment: pnpm run env:start:test');
+	console.log('2. Run setup wizard test: pnpm exec cypress run --spec "tests/e2e/cypress/integration/setup-wizard-complete.spec.js"');
+	console.log('3. Run checkout tests: pnpm exec cypress run --spec "tests/e2e/cypress/integration/checkout-*.spec.js"');
+	console.log('\n💡 Or use the pnpm scripts:');
+	console.log('   pnpm run cy:run:test');
 
-  process.exit(0);
+	process.exit(0);
 } else {
-  console.log('❌ Some validation issues found - please check the messages above');
-  process.exit(1);
+	console.log('❌ Some validation issues found - please check the messages above');
+	process.exit(1);
 }

@@ -1,0 +1,5 @@
+allowBuilds:
+  '@scarf/scarf': false
+  core-js: false
+  cypress: true
+  unrs-resolver: false

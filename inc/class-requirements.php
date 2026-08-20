@@ -178,6 +178,21 @@ class Requirements {
 	 */
 	public static function check_wp_cron(): bool {
 
+		/**
+		 * Filters the detected WP-Cron status.
+		 *
+		 * Return a boolean to bypass the native checks, or null to run them.
+		 *
+		 * @since 2.5.1
+		 *
+		 * @param bool|null $status_override Cron status override. Default null.
+		 */
+		$status_override = apply_filters('wu_wp_cron_status_override', null);
+
+		if (is_bool($status_override)) {
+			return $status_override;
+		}
+
 		global $wp_version;
 
 		if (defined('DISABLE_WP_CRON') && DISABLE_WP_CRON) {
