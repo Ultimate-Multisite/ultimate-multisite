@@ -86,6 +86,11 @@ jobs:
           # the wordpress.org CDN when downloading the core zip.
           set +e
           for attempt in 1 2 3; do
+            # Docker can leave root-owned wp-env files after a partial start.
+            # Restore runner ownership so subsequent attempts can clean them up.
+            if [ -d "$HOME/wp-env" ]; then
+              sudo chown -R "$USER:$USER" "$HOME/wp-env"
+            fi
             echo "Attempt $attempt: starting WordPress test environment..."
             pnpm run env:start:test
             EXIT_CODE=$?
