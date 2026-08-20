@@ -5,12 +5,15 @@
   "projectTitle": "Ultimate Multisite",
   "description": "Open-source WordPress Multisite plugin for building Website as a Service (WaaS) platforms with site creation, subscriptions, domain mapping, payments, templates, and customer management.",
   "branch": "main",
-  "folders": [
-    ".wiki",
-    "readme.txt"
-  ],
+  "folders": [],
   "excludeFolders": [
-    ".wiki/assets"
+    ".github",
+    ".wiki/assets",
+    "inc/deprecated",
+    "inc/site-exporter/mu-migration",
+    "tests",
+    "todo",
+    "views/site-exporter/self-boot"
   ],
   "excludeFiles": [
     "AGENTS.md",
