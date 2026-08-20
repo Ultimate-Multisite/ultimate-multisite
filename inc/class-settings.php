@@ -94,7 +94,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 		global $current_site;
 
-		if ($current_site->id !== $network_id) {
+		if ( ! $current_site || $current_site->id !== $network_id) {
 			return $status;
 		}
 
@@ -139,7 +139,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 		global $current_site;
 
-		if ($current_site->id !== $network_id) {
+		if ( ! $current_site || $current_site->id !== $network_id) {
 			return $status;
 		}
 
@@ -160,7 +160,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 		global $current_site;
 
-		if ($current_site->id !== $network_id || is_bool($status)) {
+		if ( ! $current_site || $current_site->id !== $network_id || is_bool($status)) {
 			return $status;
 		}
 
