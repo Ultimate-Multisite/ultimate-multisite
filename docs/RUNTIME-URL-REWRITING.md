@@ -50,6 +50,41 @@ Environment variables cannot contain a PHP array, so use a JSON object:
 WP_ULTIMO_RUNTIME_URL_MAP={"https://www.example.com":"https://www.staging.example.test","https://shop.example.org":"https://shop.staging.example.test"}
 ```
 
+## Large domain sets
+
+For hundreds of domains, keep the mappings in a dedicated JSON file instead of
+putting the complete array in `wp-config.php`. Only the absolute file path needs
+to be configured:
+
+```php
+define(
+	'WP_ULTIMO_RUNTIME_URL_MAP_FILE',
+	'/etc/ultimate-multisite/runtime-url-map.json'
+);
+```
+
+The path can instead be supplied as an environment variable, which avoids any
+`wp-config.php` change:
+
+```text
+WP_ULTIMO_RUNTIME_URL_MAP_FILE=/etc/ultimate-multisite/runtime-url-map.json
+```
+
+The JSON file is a source-to-target object:
+
+```json
+{
+  "https://customer-one.example": "https://customer-one.staging.example.test",
+  "https://customer-two.example": "https://customer-two.staging.example.test"
+}
+```
+
+Store the file outside the public web root and make it readable by PHP. It is
+loaded during Sunrise, so remote URLs are not supported. Missing, unreadable,
+or malformed files fail closed without enabling runtime rewriting. Inline
+`WP_ULTIMO_RUNTIME_URL_MAP` entries can be used as overrides; when both sources
+contain the same canonical URL, the inline entry wins.
+
 Paths and ports are supported on both sides. Source authorities, including any
 port, must match the domain stored for the corresponding site or network. Paths
 are case-sensitive. Longer source URLs are processed first so a mapped

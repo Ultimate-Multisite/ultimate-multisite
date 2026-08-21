@@ -227,6 +227,62 @@ class Runtime_URL_Rewriter_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Large mapping sets can be loaded from JSON with optional inline overrides.
+	 */
+	public function test_loads_large_mapping_set_from_json_file() {
+
+		$file = wp_tempnam('runtime-url-map.json');
+		$this->assertIsString($file);
+
+		$file_mappings = [];
+
+		for ($index = 1; $index <= 250; $index++) {
+			$file_mappings["https://customer-{$index}.example"] = "https://customer-{$index}.staging.example.test";
+		}
+
+		// Direct file and environment operations intentionally exercise pre-WordPress configuration.
+		// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.DiscouragedPHPFunctions.runtime_configuration_putenv, WordPress.WP.AlternativeFunctions.unlink_unlink
+		$this->assertNotFalse(file_put_contents($file, wp_json_encode($file_mappings)));
+
+		$previous_file   = getenv('WP_ULTIMO_RUNTIME_URL_MAP_FILE');
+		$previous_inline = getenv('WP_ULTIMO_RUNTIME_URL_MAP');
+
+		putenv('WP_ULTIMO_RUNTIME_URL_MAP_FILE=' . $file);
+		putenv('WP_ULTIMO_RUNTIME_URL_MAP={"https://customer-42.example":"https://override.staging.example.test"}');
+
+		try {
+			$reflection = new \ReflectionClass(Runtime_URL_Rewriter::class);
+			$method     = $reflection->getMethod('get_configured_mappings');
+			$mappings   = $method->invoke(self::$rewriter);
+		} finally {
+			false === $previous_file
+				? putenv('WP_ULTIMO_RUNTIME_URL_MAP_FILE')
+				: putenv('WP_ULTIMO_RUNTIME_URL_MAP_FILE=' . $previous_file);
+			false === $previous_inline
+				? putenv('WP_ULTIMO_RUNTIME_URL_MAP')
+				: putenv('WP_ULTIMO_RUNTIME_URL_MAP=' . $previous_inline);
+			unlink($file);
+		}
+		// phpcs:enable
+
+		$targets_by_source = [];
+
+		foreach ($mappings as $mapping) {
+			$targets_by_source[ $mapping['source']['authority'] ] = $mapping['target']['authority'];
+		}
+
+		$this->assertCount(250, $mappings);
+		$this->assertSame(
+			'override.staging.example.test',
+			$targets_by_source['customer-42.example']
+		);
+		$this->assertSame(
+			'customer-250.staging.example.test',
+			$targets_by_source['customer-250.example']
+		);
+	}
+
+	/**
 	 * Resolve the environment root against the canonical multisite records.
 	 */
 	public function test_resolves_canonical_site_and_network() {

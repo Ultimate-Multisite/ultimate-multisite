@@ -414,16 +414,11 @@ final class Runtime_URL_Rewriter {
 	 */
 	private function get_configured_mappings() {
 
-		$config = $this->get_config_value('WP_ULTIMO_RUNTIME_URL_MAP');
-
-		if (is_string($config) && '' !== $config) {
-			$decoded = json_decode($config, true);
-			$config  = is_array($decoded) ? $decoded : [];
-		}
-
-		if (! is_array($config)) {
-			$config = [];
-		}
+		$file_config   = $this->get_file_configured_mappings();
+		$inline_config = $this->decode_mapping_config(
+			$this->get_config_value('WP_ULTIMO_RUNTIME_URL_MAP')
+		);
+		$config        = array_merge($file_config, $inline_config);
 
 		if (empty($config)) {
 			$target = $this->get_config_value('WP_ULTIMO_RUNTIME_URL_TO');
@@ -483,6 +478,59 @@ final class Runtime_URL_Rewriter {
 		);
 
 		return $mappings;
+	}
+
+	/**
+	 * Read mappings from a JSON file for installations with large domain sets.
+	 *
+	 * Inline mappings take precedence when the same source URL exists in both
+	 * configuration sources.
+	 *
+	 * @since 2.15.2
+	 * @return array
+	 */
+	private function get_file_configured_mappings() {
+
+		$file = $this->get_config_value('WP_ULTIMO_RUNTIME_URL_MAP_FILE');
+
+		if (! is_string($file) || '' === trim($file)) {
+			return [];
+		}
+
+		$file = trim($file);
+
+		if (! is_file($file) || ! is_readable($file)) {
+			return [];
+		}
+
+		// The configured local file must be available before WordPress is fully loaded.
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$contents = file_get_contents($file);
+
+		return false === $contents ? [] : $this->decode_mapping_config($contents);
+	}
+
+	/**
+	 * Decode a PHP array or JSON object containing source-to-target mappings.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @param mixed $config Mapping configuration.
+	 * @return array
+	 */
+	private function decode_mapping_config($config) {
+
+		if (is_array($config)) {
+			return $config;
+		}
+
+		if (! is_string($config) || '' === trim($config)) {
+			return [];
+		}
+
+		$decoded = json_decode($config, true);
+
+		return is_array($decoded) ? $decoded : [];
 	}
 
 	/**
