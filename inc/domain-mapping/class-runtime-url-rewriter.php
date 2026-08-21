@@ -86,7 +86,7 @@ final class Runtime_URL_Rewriter {
 		$source_path = $this->translate_request_path($path, $this->active_mapping);
 
 		remove_filter('pre_get_site_by_path', [$this, 'resolve_site'], 1);
-		$site = get_site_by_path($this->active_mapping['source']['authority'], $source_path);
+		$site = get_site_by_path($this->active_mapping['source']['host'], $source_path);
 		add_filter('pre_get_site_by_path', [$this, 'resolve_site'], 1, 5);
 
 		return $site;
@@ -113,7 +113,7 @@ final class Runtime_URL_Rewriter {
 		$source_path = $this->translate_request_path($path, $this->active_mapping);
 
 		remove_filter('pre_get_network_by_path', [$this, 'resolve_network'], 1);
-		$network = get_network_by_path($this->active_mapping['source']['authority'], $source_path);
+		$network = get_network_by_path($this->active_mapping['source']['host'], $source_path);
 		add_filter('pre_get_network_by_path', [$this, 'resolve_network'], 1, 5);
 
 		return $network;
@@ -239,47 +239,50 @@ final class Runtime_URL_Rewriter {
 		}
 
 		foreach ($this->mappings as $mapping) {
-			$target          = $mapping['target']['authority'] . $mapping['target']['base_path'];
-			$absolute_target = $mapping['target']['scheme'] . '://' . $target;
-			$plain_source    = preg_quote($mapping['source']['authority'], '#')
+			$subdomains     = '(?P<wu_subdomains>(?:[a-z0-9-]+\.)*)';
+			$plain_source   = $subdomains . preg_quote($mapping['source']['authority'], '#')
 				. '(?-i:' . preg_quote($mapping['source']['base_path'], '#') . ')';
-			$plain_boundary  = '(?=$|[/?\#\s"\'<>)\]},;&])';
+			$plain_boundary = '(?=$|[/?\#\s"\'<>)\]},;&])';
 
-			$value = $this->replace_pattern(
+			$value = $this->replace_mapping_pattern(
 				$value,
 				'#https?://' . $plain_source . $plain_boundary . '#i',
-				$absolute_target
+				$mapping,
+				'absolute'
 			);
-			$value = $this->replace_pattern(
+			$value = $this->replace_mapping_pattern(
 				$value,
 				'#(?<!:)//' . $plain_source . $plain_boundary . '#i',
-				'//' . $target
+				$mapping,
+				'protocol-relative'
 			);
 
-			$escaped_target   = str_replace('/', '\\/', $absolute_target);
-			$escaped_source   = preg_quote($mapping['source']['authority'], '#')
+			$escaped_source   = $subdomains . preg_quote($mapping['source']['authority'], '#')
 				. '(?-i:' . preg_quote(str_replace('/', '\\/', $mapping['source']['base_path']), '#') . ')';
 			$escaped_boundary = '(?=$|\\\\/|[?\#\s"\'<>)\]},;&])';
 
-			$value = $this->replace_pattern(
+			$value = $this->replace_mapping_pattern(
 				$value,
 				'#https?:\\\\/\\\\/' . $escaped_source . $escaped_boundary . '#i',
-				$escaped_target
+				$mapping,
+				'escaped'
 			);
 
-			$encoded_source   = preg_quote(rawurlencode($mapping['source']['authority']), '#')
+			$encoded_source   = $subdomains . preg_quote(rawurlencode($mapping['source']['authority']), '#')
 				. $this->get_encoded_path_pattern($mapping['source']['base_path']);
 			$encoded_boundary = '(?=$|%2F|%3F|%23|%20|%22|%27|%3C|%3E|%29|%5D|%7D|%2C|%3B|%26|[/?\#\s"\'<>)\]},;&])';
 
-			$value = $this->replace_pattern(
+			$value = $this->replace_mapping_pattern(
 				$value,
 				'#https?%3A%2F%2F' . $encoded_source . $encoded_boundary . '#i',
-				rawurlencode($absolute_target)
+				$mapping,
+				'encoded-absolute'
 			);
-			$value = $this->replace_pattern(
+			$value = $this->replace_mapping_pattern(
 				$value,
 				'#%2F%2F' . $encoded_source . $encoded_boundary . '#i',
-				rawurlencode('//' . $target)
+				$mapping,
+				'encoded-protocol-relative'
 			);
 		}
 
@@ -287,27 +290,71 @@ final class Runtime_URL_Rewriter {
 	}
 
 	/**
-	 * Replace a URL pattern while treating the replacement as a literal string.
+	 * Replace a URL pattern while preserving any leading subdomain labels.
 	 *
 	 * @since 2.15.2
 	 *
-	 * @param string $value       Subject string.
-	 * @param string $pattern     Regular expression.
-	 * @param string $replacement Literal replacement.
+	 * @param string $value   Subject string.
+	 * @param string $pattern Regular expression.
+	 * @param array  $mapping Normalized source and target mapping.
+	 * @param string $format  URL representation being replaced.
 	 * @return string
 	 */
-	private function replace_pattern($value, $pattern, $replacement) {
+	private function replace_mapping_pattern($value, $pattern, $mapping, $format) {
 
 		$result = preg_replace_callback(
 			$pattern,
-			static function () use ($replacement) {
+			function ($matches) use ($mapping, $format) {
 
-				return $replacement;
+				$subdomains       = isset($matches['wu_subdomains']) ? $matches['wu_subdomains'] : '';
+				$source_authority = $subdomains . $mapping['source']['authority'];
+
+				if ($this->authority_matches_any_target($source_authority)) {
+					return $matches[0];
+				}
+
+				$target = $subdomains . $mapping['target']['authority'] . $mapping['target']['base_path'];
+
+				switch ($format) {
+					case 'protocol-relative':
+						return '//' . $target;
+					case 'escaped':
+						return str_replace('/', '\\/', $mapping['target']['scheme'] . '://' . $target);
+					case 'encoded-absolute':
+						return rawurlencode($mapping['target']['scheme'] . '://' . $target);
+					case 'encoded-protocol-relative':
+						return rawurlencode('//' . $target);
+					default:
+						return $mapping['target']['scheme'] . '://' . $target;
+				}
 			},
 			$value
 		);
 
 		return is_string($result) ? $result : $value;
+	}
+
+	/**
+	 * Check whether an authority is already represented by any target rule.
+	 *
+	 * This prevents a broader parent source rule from rewriting the output of a
+	 * more specific child rule when that child target sits inside the parent
+	 * source suffix.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @param string $authority URL authority matched by a source rule.
+	 * @return bool
+	 */
+	private function authority_matches_any_target($authority) {
+
+		foreach ($this->mappings as $mapping) {
+			if (false !== $this->get_authority_prefix($authority, $mapping['target'])) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -392,6 +439,10 @@ final class Runtime_URL_Rewriter {
 			$hosts[] = $mapping['target']['host'];
 		}
 
+		if (! empty($this->active_mapping['target']['host'])) {
+			$hosts[] = $this->active_mapping['target']['host'];
+		}
+
 		return array_values(array_unique($hosts));
 	}
 
@@ -414,11 +465,16 @@ final class Runtime_URL_Rewriter {
 	 */
 	private function get_configured_mappings() {
 
-		$file_config   = $this->get_file_configured_mappings();
-		$inline_config = $this->decode_mapping_config(
-			$this->get_config_value('WP_ULTIMO_RUNTIME_URL_MAP')
-		);
-		$config        = array_merge($file_config, $inline_config);
+		$config = $this->get_config_value('WP_ULTIMO_RUNTIME_URL_MAP');
+
+		if (is_string($config) && '' !== $config) {
+			$decoded = json_decode($config, true);
+			$config  = is_array($decoded) ? $decoded : [];
+		}
+
+		if (! is_array($config)) {
+			$config = [];
+		}
 
 		if (empty($config)) {
 			$target = $this->get_config_value('WP_ULTIMO_RUNTIME_URL_TO');
@@ -478,59 +534,6 @@ final class Runtime_URL_Rewriter {
 		);
 
 		return $mappings;
-	}
-
-	/**
-	 * Read mappings from a JSON file for installations with large domain sets.
-	 *
-	 * Inline mappings take precedence when the same source URL exists in both
-	 * configuration sources.
-	 *
-	 * @since 2.15.2
-	 * @return array
-	 */
-	private function get_file_configured_mappings() {
-
-		$file = $this->get_config_value('WP_ULTIMO_RUNTIME_URL_MAP_FILE');
-
-		if (! is_string($file) || '' === trim($file)) {
-			return [];
-		}
-
-		$file = trim($file);
-
-		if (! is_file($file) || ! is_readable($file)) {
-			return [];
-		}
-
-		// The configured local file must be available before WordPress is fully loaded.
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		$contents = file_get_contents($file);
-
-		return false === $contents ? [] : $this->decode_mapping_config($contents);
-	}
-
-	/**
-	 * Decode a PHP array or JSON object containing source-to-target mappings.
-	 *
-	 * @since 2.15.2
-	 *
-	 * @param mixed $config Mapping configuration.
-	 * @return array
-	 */
-	private function decode_mapping_config($config) {
-
-		if (is_array($config)) {
-			return $config;
-		}
-
-		if (! is_string($config) || '' === trim($config)) {
-			return [];
-		}
-
-		$decoded = json_decode($config, true);
-
-		return is_array($decoded) ? $decoded : [];
 	}
 
 	/**
@@ -607,6 +610,7 @@ final class Runtime_URL_Rewriter {
 		return [
 			'scheme'    => $scheme,
 			'host'      => $host,
+			'port'      => isset($parts['port']) ? (int) $parts['port'] : null,
 			'authority' => $authority,
 			'base_path' => '/' === $base_path ? '' : rtrim($base_path, '/'),
 		];
@@ -629,21 +633,28 @@ final class Runtime_URL_Rewriter {
 		}
 
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
-		$parsed_path = parse_url($path, PHP_URL_PATH);
-		$path        = is_string($parsed_path) ? $parsed_path : '/';
-		$selected    = null;
-		$best_length = -1;
+		$parsed_path      = parse_url($path, PHP_URL_PATH);
+		$path             = is_string($parsed_path) ? $parsed_path : '/';
+		$selected         = null;
+		$best_host_length = -1;
+		$best_path_length = -1;
 
 		foreach ($this->mappings as $mapping) {
-			if (! $this->request_matches_mapping($host, $path, $mapping)) {
+			$prefix = $this->get_authority_prefix($host, $mapping['target']);
+
+			if (false === $prefix || ! $this->request_path_matches_mapping($path, $mapping)) {
 				continue;
 			}
 
-			$target_length = strlen($mapping['target']['authority'] . $mapping['target']['base_path']);
+			$host_length = strlen($mapping['source']['host']);
+			$path_length = strlen($mapping['source']['base_path']);
+			$is_better   = $host_length > $best_host_length
+				|| ($host_length === $best_host_length && $path_length > $best_path_length);
 
-			if ($target_length > $best_length) {
-				$selected    = $mapping;
-				$best_length = $target_length;
+			if ($is_better) {
+				$selected         = $this->expand_mapping($mapping, $prefix);
+				$best_host_length = $host_length;
+				$best_path_length = $path_length;
 			}
 		}
 
@@ -661,31 +672,102 @@ final class Runtime_URL_Rewriter {
 	 */
 	private function request_matches_active_mapping($domain, $path) {
 
+		// wp_parse_url() may not be available in every sunrise integration.
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
+		$domain_host = parse_url('http://' . $domain, PHP_URL_HOST);
+
 		return ! empty($this->active_mapping)
-			&& $this->request_matches_mapping(strtolower($domain), $path, $this->active_mapping);
+			&& is_string($domain_host)
+			&& strtolower($domain_host) === $this->active_mapping['target']['host']
+			&& $this->request_path_matches_mapping($path, $this->active_mapping);
 	}
 
 	/**
-	 * Check a host and path against a target mapping.
+	 * Check a path against a target mapping.
 	 *
 	 * @since 2.15.2
 	 *
-	 * @param string $host    Request host, optionally including a port.
 	 * @param string $path    Request path.
 	 * @param array  $mapping Normalized mapping.
 	 * @return bool
 	 */
-	private function request_matches_mapping($host, $path, $mapping) {
-
-		if ($host !== $mapping['target']['authority']) {
-			return false;
-		}
+	private function request_path_matches_mapping($path, $mapping) {
 
 		$target_path = $mapping['target']['base_path'];
 
 		return '' === $target_path
 			|| $path === $target_path
 			|| str_starts_with($path, $target_path . '/');
+	}
+
+	/**
+	 * Expand a suffix rule with the subdomain labels from the current request.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @param array  $mapping Normalized mapping.
+	 * @param string $prefix  Leading subdomain labels, including the final dot.
+	 * @return array
+	 */
+	private function expand_mapping($mapping, $prefix) {
+
+		foreach (['source', 'target'] as $side) {
+			$mapping[ $side ]['host']      = $prefix . $mapping[ $side ]['host'];
+			$mapping[ $side ]['authority'] = $prefix . $mapping[ $side ]['authority'];
+		}
+
+		return $mapping;
+	}
+
+	/**
+	 * Get the leading labels when an authority matches a configured suffix.
+	 *
+	 * An empty string represents an exact root-domain match. False means the
+	 * host or port does not belong to the configured suffix.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @param string $authority Request or matched URL authority.
+	 * @param array  $endpoint  Normalized mapping endpoint.
+	 * @return string|false
+	 */
+	private function get_authority_prefix($authority, $endpoint) {
+
+		// wp_parse_url() may not be available in every sunrise integration.
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
+		$parts = parse_url('http://' . $authority);
+
+		if (
+			! is_array($parts)
+			|| empty($parts['host'])
+			|| isset($parts['user'])
+			|| isset($parts['pass'])
+			|| isset($parts['path'])
+			|| isset($parts['query'])
+			|| isset($parts['fragment'])
+		) {
+			return false;
+		}
+
+		$port = isset($parts['port']) ? (int) $parts['port'] : null;
+
+		if ($port !== $endpoint['port']) {
+			return false;
+		}
+
+		$host = strtolower($parts['host']);
+
+		if ($host === $endpoint['host']) {
+			return '';
+		}
+
+		$suffix = '.' . $endpoint['host'];
+
+		if (! str_ends_with($host, $suffix)) {
+			return false;
+		}
+
+		return substr($host, 0, -strlen($endpoint['host']));
 	}
 
 	/**

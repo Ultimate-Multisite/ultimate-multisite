@@ -130,8 +130,10 @@ class Runtime_URL_Rewriter_Test extends \WP_UnitTestCase {
 			'https://EXAMPLE.ORG/site/'              => 'https://staging.example.test/Preview/site/',
 			'http://example.org/site/'               => 'https://staging.example.test/Preview/site/',
 			'//example.org/site/'                    => '//staging.example.test/Preview/site/',
-			'https:\/\/example.org\/asset.jpg'       => 'https:\/\/staging.example.test\/Preview\/asset.jpg',
-			'https%3a%2f%2fEXAMPLE.ORG%2fapi%2Fitem' => 'https%3A%2F%2Fstaging.example.test%2FPreview%2fapi%2Fitem',
+			'https://customer-one.example.org/site/' => 'https://customer-one.staging.example.test/Preview/site/',
+			'https://deep.site.example.org/site/'    => 'https://deep.site.staging.example.test/Preview/site/',
+			'https:\/\/customer-one.example.org\/asset.jpg' => 'https:\/\/customer-one.staging.example.test\/Preview\/asset.jpg',
+			'https%3a%2f%2fcustomer-one.example.org%2fapi%2Fitem' => 'https%3A%2F%2Fcustomer-one.staging.example.test%2FPreview%2fapi%2Fitem',
 		];
 
 		foreach ($cases as $input => $expected) {
@@ -147,6 +149,7 @@ class Runtime_URL_Rewriter_Test extends \WP_UnitTestCase {
 		$unchanged = [
 			'https://example.org:8443/site/',
 			'https://example.org.evil/site/',
+			'https://customer.example.org.evil/site/',
 			'https://example.orgish/site/',
 			'admin@example.org',
 		];
@@ -227,59 +230,76 @@ class Runtime_URL_Rewriter_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Large mapping sets can be loaded from JSON with optional inline overrides.
+	 * Root-domain rules preserve subdomains and allow specific child overrides.
 	 */
-	public function test_loads_large_mapping_set_from_json_file() {
+	public function test_domain_suffix_rules_preserve_subdomains_and_child_precedence() {
 
-		$file = wp_tempnam('runtime-url-map.json');
-		$this->assertIsString($file);
+		$mapping_filter = static function () {
 
-		$file_mappings = [];
+			return [
+				'https://example.com'      => 'https://staging.example.com',
+				'https://vip.example.com'  => 'https://preview.example.com',
+				'https://example.net/root' => 'https://staging.example.net/long-path',
+				'https://vip.example.net'  => 'https://vip.staging.example.net',
+			];
+		};
 
-		for ($index = 1; $index <= 250; $index++) {
-			$file_mappings["https://customer-{$index}.example"] = "https://customer-{$index}.staging.example.test";
-		}
+		add_filter('wu_runtime_url_rewriter_mappings', $mapping_filter);
 
-		// Direct file and environment operations intentionally exercise pre-WordPress configuration.
-		// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPress.PHP.DiscouragedPHPFunctions.runtime_configuration_putenv, WordPress.WP.AlternativeFunctions.unlink_unlink
-		$this->assertNotFalse(file_put_contents($file, wp_json_encode($file_mappings)));
+		$reflection = new \ReflectionClass(Runtime_URL_Rewriter::class);
+		$method     = $reflection->getMethod('get_configured_mappings');
+		$mappings   = $method->invoke(self::$rewriter);
 
-		$previous_file   = getenv('WP_ULTIMO_RUNTIME_URL_MAP_FILE');
-		$previous_inline = getenv('WP_ULTIMO_RUNTIME_URL_MAP');
+		remove_filter('wu_runtime_url_rewriter_mappings', $mapping_filter);
 
-		putenv('WP_ULTIMO_RUNTIME_URL_MAP_FILE=' . $file);
-		putenv('WP_ULTIMO_RUNTIME_URL_MAP={"https://customer-42.example":"https://override.staging.example.test"}');
+		$property = $reflection->getProperty('mappings');
+		$original = $property->getValue(self::$rewriter);
+
+		$property->setValue(self::$rewriter, $mappings);
 
 		try {
-			$reflection = new \ReflectionClass(Runtime_URL_Rewriter::class);
-			$method     = $reflection->getMethod('get_configured_mappings');
-			$mappings   = $method->invoke(self::$rewriter);
+			$this->assertSame('https://staging.example.com', self::$rewriter->rewrite_string('https://example.com'));
+			$this->assertSame(
+				'https://customer-one.staging.example.com/page',
+				self::$rewriter->rewrite_string('https://customer-one.example.com/page')
+			);
+			$this->assertSame(
+				'https://deep.site.staging.example.com/page',
+				self::$rewriter->rewrite_string('https://deep.site.example.com/page')
+			);
+			$this->assertSame(
+				'https://preview.example.com/page',
+				self::$rewriter->rewrite_string('https://vip.example.com/page')
+			);
+			$this->assertSame(
+				'https://customer.preview.example.com/page',
+				self::$rewriter->rewrite_string('https://customer.vip.example.com/page')
+			);
+			$this->assertSame(
+				'https://preview.example.com/page',
+				self::$rewriter->rewrite_string('https://preview.example.com/page')
+			);
+			$this->assertSame(
+				'https://customer-one.staging.example.com/page',
+				self::$rewriter->rewrite_string('https://customer-one.staging.example.com/page')
+			);
+
+			$_SERVER['HTTP_HOST']   = 'vip.staging.example.net';
+			$_SERVER['REQUEST_URI'] = '/long-path';
+
+			try {
+				$find_request_mapping = $reflection->getMethod('find_request_mapping');
+				$selected             = $find_request_mapping->invoke(self::$rewriter);
+
+				$this->assertSame('vip.example.net', $selected['source']['host']);
+				$this->assertSame('', $selected['source']['base_path']);
+			} finally {
+				$_SERVER['HTTP_HOST']   = 'staging.example.test';
+				$_SERVER['REQUEST_URI'] = '/Preview/';
+			}
 		} finally {
-			false === $previous_file
-				? putenv('WP_ULTIMO_RUNTIME_URL_MAP_FILE')
-				: putenv('WP_ULTIMO_RUNTIME_URL_MAP_FILE=' . $previous_file);
-			false === $previous_inline
-				? putenv('WP_ULTIMO_RUNTIME_URL_MAP')
-				: putenv('WP_ULTIMO_RUNTIME_URL_MAP=' . $previous_inline);
-			unlink($file);
+			$property->setValue(self::$rewriter, $original);
 		}
-		// phpcs:enable
-
-		$targets_by_source = [];
-
-		foreach ($mappings as $mapping) {
-			$targets_by_source[ $mapping['source']['authority'] ] = $mapping['target']['authority'];
-		}
-
-		$this->assertCount(250, $mappings);
-		$this->assertSame(
-			'override.staging.example.test',
-			$targets_by_source['customer-42.example']
-		);
-		$this->assertSame(
-			'customer-250.staging.example.test',
-			$targets_by_source['customer-250.example']
-		);
 	}
 
 	/**
@@ -296,6 +316,67 @@ class Runtime_URL_Rewriter_Test extends \WP_UnitTestCase {
 		$this->assertInstanceOf(\WP_Network::class, $network);
 		$this->assertSame('example.org', $network->domain);
 		$this->assertSame('/', $network->path);
+	}
+
+	/**
+	 * A target subdomain and port resolve against the canonical site hostname.
+	 */
+	public function test_resolves_canonical_site_from_target_subdomain() {
+
+		$source_domain = 'runtime-' . wp_rand(100000, 999999) . '.example.org';
+		$target_domain = str_replace('.example.org', '.staging.example.test', $source_domain);
+		$blog_id       = self::factory()->blog->create(
+			[
+				'domain' => $source_domain,
+				'path'   => '/',
+			]
+		);
+
+		$this->assertNotWPError($blog_id);
+
+		$mapping_filter = static function () {
+
+			return ['https://example.org:8443' => 'https://staging.example.test:9443/Preview'];
+		};
+
+		add_filter('wu_runtime_url_rewriter_mappings', $mapping_filter);
+
+		$reflection = new \ReflectionClass(Runtime_URL_Rewriter::class);
+		$method     = $reflection->getMethod('get_configured_mappings');
+		$mappings   = $method->invoke(self::$rewriter);
+
+		remove_filter('wu_runtime_url_rewriter_mappings', $mapping_filter);
+
+		$previous_host     = 'staging.example.test';
+		$previous_uri      = '/Preview/';
+		$mappings_property = $reflection->getProperty('mappings');
+		$active_property   = $reflection->getProperty('active_mapping');
+		$original_mappings = $mappings_property->getValue(self::$rewriter);
+		$original_active   = $active_property->getValue(self::$rewriter);
+
+		$mappings_property->setValue(self::$rewriter, $mappings);
+		$_SERVER['HTTP_HOST']   = $target_domain . ':9443';
+		$_SERVER['REQUEST_URI'] = '/Preview/';
+
+		try {
+			$method  = $reflection->getMethod('find_request_mapping');
+			$mapping = $method->invoke(self::$rewriter);
+
+			$this->assertSame($source_domain . ':8443', $mapping['source']['authority']);
+			$this->assertSame($target_domain . ':9443', $mapping['target']['authority']);
+
+			$active_property->setValue(self::$rewriter, $mapping);
+			$site = self::$rewriter->resolve_site(null, $target_domain, '/Preview/');
+
+			$this->assertInstanceOf(\WP_Site::class, $site);
+			$this->assertSame($source_domain, $site->domain);
+			$this->assertContains($target_domain, self::$rewriter->allow_target_hosts([]));
+		} finally {
+			$mappings_property->setValue(self::$rewriter, $original_mappings);
+			$active_property->setValue(self::$rewriter, $original_active);
+			$_SERVER['HTTP_HOST']   = $previous_host;
+			$_SERVER['REQUEST_URI'] = $previous_uri;
+		}
 	}
 
 	/**

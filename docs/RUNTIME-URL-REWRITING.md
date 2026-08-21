@@ -26,20 +26,38 @@ WP_ULTIMO_RUNTIME_URL=https://staging.example.test
 To declare both sides explicitly:
 
 ```php
-define('WP_ULTIMO_RUNTIME_URL_FROM', 'https://www.example.com');
-define('WP_ULTIMO_RUNTIME_URL_TO', 'https://staging.example.test');
+define('WP_ULTIMO_RUNTIME_URL_FROM', 'https://example.com');
+define('WP_ULTIMO_RUNTIME_URL_TO', 'https://staging.example.com');
 ```
 
-## Multiple or mapped domains
+## Domain suffix mappings
 
-Use a source-to-target map when a network has independent mapped domains:
+A configured domain is a suffix rule. One root mapping automatically applies to
+the root and every subdomain while preserving all leading labels:
+
+```php
+define('WP_ULTIMO_RUNTIME_URL_FROM', 'https://example.com');
+define('WP_ULTIMO_RUNTIME_URL_TO', 'https://staging.example.com');
+```
+
+That single rule produces mappings such as:
+
+| Canonical URL | Environment URL |
+|---|---|
+| `https://example.com` | `https://staging.example.com` |
+| `https://customer-one.example.com` | `https://customer-one.staging.example.com` |
+| `https://site.example.com` | `https://site.staging.example.com` |
+| `https://deep.site.example.com` | `https://deep.site.staging.example.com` |
+
+No per-site configuration is required. Use a source-to-target map only when a
+network contains multiple unrelated root domains:
 
 ```php
 define(
 	'WP_ULTIMO_RUNTIME_URL_MAP',
 	[
-		'https://www.example.com' => 'https://www.staging.example.test',
-		'https://shop.example.org' => 'https://shop.staging.example.test',
+		'https://example.com' => 'https://staging.example.com',
+		'https://example.org' => 'https://staging.example.org',
 	]
 );
 ```
@@ -47,49 +65,19 @@ define(
 Environment variables cannot contain a PHP array, so use a JSON object:
 
 ```text
-WP_ULTIMO_RUNTIME_URL_MAP={"https://www.example.com":"https://www.staging.example.test","https://shop.example.org":"https://shop.staging.example.test"}
+WP_ULTIMO_RUNTIME_URL_MAP={"https://example.com":"https://staging.example.com","https://example.org":"https://staging.example.org"}
 ```
 
-## Large domain sets
-
-For hundreds of domains, keep the mappings in a dedicated JSON file instead of
-putting the complete array in `wp-config.php`. Only the absolute file path needs
-to be configured:
-
-```php
-define(
-	'WP_ULTIMO_RUNTIME_URL_MAP_FILE',
-	'/etc/ultimate-multisite/runtime-url-map.json'
-);
-```
-
-The path can instead be supplied as an environment variable, which avoids any
-`wp-config.php` change:
-
-```text
-WP_ULTIMO_RUNTIME_URL_MAP_FILE=/etc/ultimate-multisite/runtime-url-map.json
-```
-
-The JSON file is a source-to-target object:
-
-```json
-{
-  "https://customer-one.example": "https://customer-one.staging.example.test",
-  "https://customer-two.example": "https://customer-two.staging.example.test"
-}
-```
-
-Store the file outside the public web root and make it readable by PHP. It is
-loaded during Sunrise, so remote URLs are not supported. Missing, unreadable,
-or malformed files fail closed without enabling runtime rewriting. Inline
-`WP_ULTIMO_RUNTIME_URL_MAP` entries can be used as overrides; when both sources
-contain the same canonical URL, the inline entry wins.
+More specific child rules override a parent suffix rule. For example, an
+explicit `vip.example.com` rule is selected before the broader `example.com`
+rule. The child rule also applies to its own subdomains.
 
 Paths and ports are supported on both sides. Source authorities, including any
-port, must match the domain stored for the corresponding site or network. Paths
-are case-sensitive. Longer source URLs are processed first so a mapped
-subdirectory can override its network root. URLs containing credentials, query
-strings, or fragments are rejected as invalid mapping configuration.
+preserved subdomain labels and port, must match the domain stored for the
+corresponding site or network. Paths are case-sensitive. Longer source URLs are
+processed first so a mapped child domain or subdirectory can override its
+parent rule. URLs containing credentials, query strings, or fragments are
+rejected as invalid mapping configuration.
 
 ## Runtime behavior
 
@@ -120,8 +108,7 @@ add_action(
 
 ## Proof-of-concept limitations
 
-- Every independently routed site needs its own source-to-target mapping. Two
-  root-level sites cannot share one target hostname and path.
+- Each unrelated root domain needs one source-to-target suffix rule.
 - Code that reads the database directly and bypasses WordPress filters may still
   expose canonical URLs.
 - Encodings other than the documented plain, JSON-escaped, and URL-encoded forms
