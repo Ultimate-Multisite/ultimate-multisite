@@ -1419,10 +1419,55 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test cleanup_expired_drafts leaves recent pending payments untouched.
+	 */
+	public function test_cleanup_expired_drafts_leaves_recent_pending_payment_untouched(): void {
+
+		$checkout = Checkout::get_instance();
+
+		$customer = self::$customer;
+
+		$membership = wu_create_membership([
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => 0,
+			'status'      => Membership_Status::PENDING,
+		]);
+
+		$this->assertNotWPError($membership);
+
+		$payment = wu_create_payment([
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'status'        => Payment_Status::PENDING,
+			'total'         => 10,
+		]);
+
+		$this->assertNotWPError($payment);
+
+		global $wpdb;
+		$recent_date = gmdate('Y-m-d H:i:s', strtotime('-1 hour'));
+		$wpdb->update(
+			"{$wpdb->prefix}wu_payments",
+			['date_created' => $recent_date],
+			['id' => $payment->get_id()]
+		);
+
+		$checkout->cleanup_expired_drafts();
+
+		$found_payment = wu_get_payment($payment->get_id());
+		$this->assertNotFalse($found_payment, 'Recent pending payment should still exist after cleanup.');
+		$this->assertSame(Payment_Status::PENDING, $found_payment->get_status(), 'Recent pending payment should remain pending.');
+
+		$found_membership = wu_get_membership($membership->get_id());
+		$this->assertNotFalse($found_membership, 'Recent pending membership should still exist after cleanup.');
+		$this->assertSame(Membership_Status::PENDING, $found_membership->get_status(), 'Recent pending membership should remain pending.');
+
+		$found_payment->delete();
+		$found_membership->delete();
+	}
+
+	/**
 	 * Test cleanup_expired_drafts runs without throwing exceptions.
-	 *
-	 * Note: The date_created__lt filter behaviour depends on BerlinDB query support.
-	 * This test verifies the method completes without errors.
 	 */
 	public function test_cleanup_expired_drafts_completes_without_exception(): void {
 
@@ -4024,6 +4069,86 @@ class Checkout_Test extends WP_UnitTestCase {
 		$order_prop->setValue($checkout, null);
 	}
 
+	/**
+	 * Test maybe_create_membership uses the next charge for recurring products without trials.
+	 *
+	 * Cart::get_billing_start_date() returns zero when billing starts immediately.
+	 * Passing that value directly to gmdate() stores a Unix epoch expiration,
+	 * which is then exposed in customer views and email placeholders.
+	 */
+	public function test_maybe_create_membership_recurring_product_without_trial_uses_next_charge_date(): void {
+
+		$customer = self::$customer;
+
+		$recurring_plan = wu_create_product([
+			'name'          => 'Recurring Test Plan',
+			'slug'          => 'recurring-test-plan-' . wp_rand(1000, 9999),
+			'amount'        => 25,
+			'recurring'     => true,
+			'duration'      => 1,
+			'duration_unit' => 'month',
+			'type'          => 'plan',
+			'pricing_type'  => 'paid',
+			'active'        => true,
+		]);
+
+		if (is_wp_error($recurring_plan)) {
+			$this->markTestSkipped('Product creation failed: ' . $recurring_plan->get_error_message());
+		}
+
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+		$method     = $reflection->getMethod('maybe_create_membership');
+
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		$cart = new Cart(['products' => [$recurring_plan->get_id()]]);
+
+		$this->assertTrue($cart->has_recurring());
+		$this->assertFalse($cart->has_trial());
+		$this->assertSame(0, $cart->get_billing_start_date());
+
+		$expected_expiration = gmdate('Y-m-d 23:59:59', $cart->get_billing_next_charge_date());
+
+		$order_prop = $this->get_order_prop($reflection);
+		$order_prop->setValue($checkout, $cart);
+
+		$customer_prop = $reflection->getProperty('customer');
+		if (PHP_VERSION_ID < 80100) {
+			$customer_prop->setAccessible(true);
+		}
+		$customer_prop->setValue($checkout, $customer);
+
+		$gateway_prop = $reflection->getProperty('gateway_id');
+		if (PHP_VERSION_ID < 80100) {
+			$gateway_prop->setAccessible(true);
+		}
+		$gateway_prop->setValue($checkout, 'manual');
+
+		$result = $method->invoke($checkout);
+
+		if (is_wp_error($result)) {
+			$this->markTestSkipped('Membership creation failed: ' . $result->get_error_message());
+		}
+
+		$this->assertInstanceOf(\WP_Ultimo\Models\Membership::class, $result);
+		$this->assertSame($expected_expiration, $result->get_date_expiration());
+		$this->assertStringStartsNotWith('1970-', $result->get_date_expiration());
+
+		$event_payload = wu_generate_event_payload('membership', $result);
+		$this->assertSame($expected_expiration, $event_payload['membership_date_expiration']);
+		$this->assertSame(
+			date_i18n(get_option('date_format'), wu_date($expected_expiration)->format('U')),
+			$result->get_formatted_date('date_expiration')
+		);
+
+		$result->delete();
+		$recurring_plan->delete();
+		$order_prop->setValue($checkout, null);
+	}
+
 	// -------------------------------------------------------------------------
 	// maybe_create_payment — create new payment path
 	// -------------------------------------------------------------------------
@@ -5716,9 +5841,9 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * GH#982: when cleanup_expired_drafts cancels a pending membership that has
-	 * a pending_site, the pending_site must be removed from membership meta
-	 * (via the wu_transition_membership_status hook chain).
+	 * GH#982: when cleanup_expired_drafts cancels a pending payment older than
+	 * 30 days, its pending membership must be cancelled and pending_site must
+	 * be removed through the wu_transition_membership_status hook chain.
 	 */
 	public function test_cleanup_expired_drafts_cleans_up_pending_site(): void {
 
@@ -5761,18 +5886,19 @@ class Checkout_Test extends WP_UnitTestCase {
 
 		$checkout->cleanup_expired_drafts();
 
-		// pending_site must be gone from the membership meta after cancellation.
+		$found_payment = wu_get_payment($payment->get_id());
+		$this->assertNotFalse($found_payment, 'Expired pending payment should still exist after cleanup.');
+		$this->assertSame(Payment_Status::CANCELLED, $found_payment->get_status(), 'Expired pending payment should be cancelled.');
+
 		$found_membership = wu_get_membership($membership->get_id());
-		$this->assertNotFalse($found_membership);
+		$this->assertNotFalse($found_membership, 'Membership should still exist after cleanup.');
+		$this->assertSame(Membership_Status::CANCELLED, $found_membership->get_status(), 'Pending membership should be cancelled.');
 		$this->assertFalse(
 			$found_membership->get_pending_site(),
 			'pending_site must be removed from membership meta after cleanup_expired_drafts cancels the membership (GH#982).'
 		);
 
-		$found_payment = wu_get_payment($payment->get_id());
-		if ($found_payment) {
-			$found_payment->delete();
-		}
+		$found_payment->delete();
 		$found_membership->delete();
 	}
 
