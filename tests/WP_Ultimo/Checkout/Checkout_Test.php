@@ -4134,17 +4134,20 @@ class Checkout_Test extends WP_UnitTestCase {
 		}
 
 		$this->assertInstanceOf(\WP_Ultimo\Models\Membership::class, $result);
-		$this->assertSame($expected_expiration, $result->get_date_expiration());
-		$this->assertStringStartsNotWith('1970-', $result->get_date_expiration());
 
-		$event_payload = wu_generate_event_payload('membership', $result);
+		$persisted_membership = wu_get_membership($result->get_id());
+		$this->assertInstanceOf(\WP_Ultimo\Models\Membership::class, $persisted_membership);
+		$this->assertSame($expected_expiration, $persisted_membership->get_date_expiration());
+		$this->assertStringStartsNotWith('1970-', $persisted_membership->get_date_expiration());
+
+		$event_payload = wu_generate_event_payload('membership', $persisted_membership);
 		$this->assertSame($expected_expiration, $event_payload['membership_date_expiration']);
 		$this->assertSame(
 			date_i18n(get_option('date_format'), wu_date($expected_expiration)->format('U')),
-			$result->get_formatted_date('date_expiration')
+			$persisted_membership->get_formatted_date('date_expiration')
 		);
 
-		$result->delete();
+		$persisted_membership->delete();
 		$recurring_plan->delete();
 		$order_prop->setValue($checkout, null);
 	}
