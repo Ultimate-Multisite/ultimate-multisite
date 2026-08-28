@@ -81,7 +81,7 @@ class SSO {
 	 */
 	public function is_enabled() {
 
-		$enabled = $this->get_setting('enable_sso', true);
+		$enabled = $this->get_setting('enable_sso');
 
 		if (has_filter('mercator.sso.enabled')) {
 			$enabled = apply_filters_deprecated('mercator.sso.enabled', $enabled, '2.0.0', 'wu_sso_enabled');
