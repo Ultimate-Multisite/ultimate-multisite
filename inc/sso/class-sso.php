@@ -97,7 +97,7 @@ class SSO {
 		 * @param bool $enabled Should SSO be enabled? True for on, false-ish for off.
 		 * @return bool If SSO is enabled or not.
 		 */
-		return apply_filters('wu_sso_enabled', $enabled);
+		return (bool) apply_filters('wu_sso_enabled', $enabled);
 	}
 
 	/**
