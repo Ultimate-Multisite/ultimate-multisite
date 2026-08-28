@@ -2214,7 +2214,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			'domain_mapping_instructions'        => '',
 
 			// SSO (registered via hooks)
-			'enable_sso'                         => 1,
+			'enable_sso'                         => 0,
 
 			// Other
 			'hide_tours'                         => 0,
