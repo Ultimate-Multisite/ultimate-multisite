@@ -42,10 +42,29 @@ class SSO_Test extends \WP_UnitTestCase {
 	}
 
 	public function test_with_sso_returns_same_url_when_default_setting_is_disabled(): void {
-		$url      = 'https://example.com/path?foo=bar';
-		$with_sso = SSO::with_sso($url);
+		$settings          = \WP_Ultimo\Settings::get_instance();
+		$original_settings = $settings->get_all();
+		$all_settings      = $original_settings;
 
-		$this->assertSame($url, $with_sso, 'URL should be unchanged when the default SSO setting is disabled');
+		unset($all_settings['enable_sso']);
+		wu_save_option(\WP_Ultimo\Settings::KEY, $all_settings);
+
+		$settings_property = new \ReflectionProperty(\WP_Ultimo\Settings::class, 'settings');
+		if (PHP_VERSION_ID < 80100) {
+			$settings_property->setAccessible(true);
+		}
+		$settings_property->setValue($settings, null);
+
+		$url      = 'https://example.com/path?foo=bar';
+
+		try {
+			$with_sso = SSO::with_sso($url);
+
+			$this->assertSame($url, $with_sso, 'URL should be unchanged when the default SSO setting is disabled');
+		} finally {
+			wu_save_option(\WP_Ultimo\Settings::KEY, $original_settings);
+			$settings_property->setValue($settings, null);
+		}
 	}
 
 	public function test_encode_decode_roundtrip_uses_hashids(): void {
