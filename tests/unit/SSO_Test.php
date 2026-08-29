@@ -55,7 +55,7 @@ class SSO_Test extends \WP_UnitTestCase {
 		}
 		$settings_property->setValue($settings, null);
 
-		$url      = 'https://example.com/path?foo=bar';
+		$url = 'https://example.com/path?foo=bar';
 
 		try {
 			$with_sso = SSO::with_sso($url);
