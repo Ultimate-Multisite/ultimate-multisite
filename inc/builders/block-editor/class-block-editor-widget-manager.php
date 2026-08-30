@@ -214,13 +214,14 @@ class Block_Editor_Widget_Manager {
 		$_fields = [];
 
 		foreach ($defaults as $field_id => $default_value) {
-			$type = $fields[ $field_id ]['type'] ?? 'string';
+			$field_type = $fields[ $field_id ]['type'] ?? 'string';
+			$type       = 'string';
 
-			if ('toggle' === $type) {
+			if ('toggle' === $field_type) {
 				$type = 'boolean';
 			}
 
-			if ('number' === $type) {
+			if ('number' === $field_type) {
 				$type = 'integer';
 			}
 

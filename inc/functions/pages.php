@@ -116,19 +116,22 @@ function wu_is_new_site_page() {
  */
 function wu_get_pages_as_options($default_label) {
 
-	static $pages = null;
+	static $pages_by_context = [];
 
-	if (null === $pages) {
-		$pages = get_pages(
+	$current_page_id = get_the_ID();
+	$context_key     = get_current_blog_id() . ':' . $current_page_id;
+
+	if ( ! array_key_exists($context_key, $pages_by_context)) {
+		$pages_by_context[ $context_key ] = get_pages(
 			[
-				'exclude' => [get_the_ID()], // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
+				'exclude' => [$current_page_id], // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
 			]
 		) ?: [];
 	}
 
 	$pages_list = [0 => $default_label];
 
-	foreach ($pages as $page) {
+	foreach ($pages_by_context[ $context_key ] as $page) {
 		$pages_list[ $page->ID ] = $page->post_title;
 	}
 

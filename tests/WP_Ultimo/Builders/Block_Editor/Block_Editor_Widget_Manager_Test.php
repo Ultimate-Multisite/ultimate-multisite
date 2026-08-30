@@ -164,7 +164,7 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 				],
 				'site_manage_type' => [
 					'default' => 'default',
-					'type'    => 'select',
+					'type'    => 'string',
 				],
 			],
 			$this->manager->get_attributes_from_fields($element)
