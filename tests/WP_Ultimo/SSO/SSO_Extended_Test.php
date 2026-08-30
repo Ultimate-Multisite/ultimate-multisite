@@ -1637,19 +1637,26 @@ class SSO_Extended_Test extends \WP_UnitTestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// get_setting — with actual setting
+	// get_setting — filtered setting
 	// ------------------------------------------------------------------
 
 	/**
-	 * Test get_setting returns true for enable_sso when set.
+	 * Test get_setting returns a filtered enable_sso value.
 	 */
-	public function test_get_setting_returns_true_for_enable_sso(): void {
-		$sso    = SSO::get_instance();
-		$result = $sso->get_setting('enable_sso', true);
+	public function test_get_setting_returns_filtered_enable_sso_value(): void {
+		$filter = function ($value, $setting) {
+			return 'enable_sso' === $setting ? true : $value;
+		};
 
-		// WordPress stores checkbox-like settings as scalars such as '1';
-		// SSO treats enable_sso via normal option truthiness.
-		$this->assertTrue(wu_string_to_bool($result));
+		add_filter('wu_get_setting', $filter, 10, 2);
+
+		try {
+			$result = SSO::get_instance()->get_setting('enable_sso');
+
+			$this->assertTrue($result);
+		} finally {
+			remove_filter('wu_get_setting', $filter, 10);
+		}
 	}
 
 	// ------------------------------------------------------------------

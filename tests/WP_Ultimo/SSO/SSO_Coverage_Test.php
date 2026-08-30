@@ -59,7 +59,6 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		remove_all_filters('http_origin');
 		remove_all_filters('login_url');
 		remove_all_filters('wp_redirect');
-		remove_all_filters('allowed_redirect_hosts');
 		remove_all_filters('subdomain_install');
 		remove_all_filters('wu_is_same_domain');
 
@@ -2093,13 +2092,12 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 
 		$redirect_url = null;
 
-		add_filter(
-			'allowed_redirect_hosts',
-			function ($hosts) {
-				$hosts[] = 'customer.example.com';
-				return $hosts;
-			}
-		);
+		$allow_customer_host = function ($hosts) {
+			$hosts[] = 'customer.example.com';
+			return $hosts;
+		};
+
+		add_filter('allowed_redirect_hosts', $allow_customer_host);
 
 		add_filter(
 			'wp_redirect',
@@ -2111,12 +2109,15 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		);
 
 		try {
-			$sso->handle_server('redirect');
-		} catch (\RuntimeException $e) {
-			$this->assertSame('redirect_intercepted', $e->getMessage());
+			try {
+				$sso->handle_server('redirect');
+			} catch (\RuntimeException $e) {
+				$this->assertSame('redirect_intercepted', $e->getMessage());
+			}
+		} finally {
+			remove_filter('allowed_redirect_hosts', $allow_customer_host);
+			unset($_REQUEST['return_url'], $_REQUEST['redirect_to']);
 		}
-
-		unset($_REQUEST['return_url'], $_REQUEST['redirect_to']);
 
 		$this->assertNotNull($redirect_url, 'handle_server() must redirect anonymous SSO grant requests back to the broker');
 		$this->assertStringContainsString('sso_verify=invalid', $redirect_url);
@@ -2183,13 +2184,12 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 
 		$_REQUEST['return_url'] = 'https://customer.example.net/page';
 
-		add_filter(
-			'allowed_redirect_hosts',
-			function ($hosts) {
-				$hosts[] = 'customer.example.net';
-				return $hosts;
-			}
-		);
+		$allow_customer_host = function ($hosts) {
+			$hosts[] = 'customer.example.net';
+			return $hosts;
+		};
+
+		add_filter('allowed_redirect_hosts', $allow_customer_host);
 
 		$redirect_url = null;
 		add_filter(
@@ -2202,13 +2202,16 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		);
 
 		try {
-			$sso->handle_server('redirect');
-		} catch (\RuntimeException $e) {
-			$this->assertSame('redirect_intercepted', $e->getMessage());
+			try {
+				$sso->handle_server('redirect');
+			} catch (\RuntimeException $e) {
+				$this->assertSame('redirect_intercepted', $e->getMessage());
+			}
+		} finally {
+			remove_filter('allowed_redirect_hosts', $allow_customer_host);
+			wp_set_current_user(0);
+			unset($_REQUEST['return_url']);
 		}
-
-		wp_set_current_user(0);
-		unset($_REQUEST['return_url']);
 
 		$this->assertNotNull($redirect_url, 'handle_server() must redirect logged-in users back to the broker');
 		$this->assertStringContainsString('wu_sso_token=', $redirect_url);
@@ -2218,9 +2221,11 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	 * Test SSO allows safe redirects back to mapped broker domains.
 	 */
 	public function test_startup_loads_domain_mapping_redirect_host_filter(): void {
-		$sso         = SSO::get_instance();
-		$domain_name = 'sso-redirect-mapped.example.com';
-		$domain      = wu_create_domain(
+		$sso                     = SSO::get_instance();
+		$original_domain_mapping = \WP_Ultimo\Domain_Mapping::get_instance();
+		$domain_mapping          = null;
+		$domain_name             = 'sso-redirect-mapped.example.com';
+		$domain                  = wu_create_domain(
 			[
 				'blog_id'        => 1,
 				'domain'         => $domain_name,
@@ -2239,12 +2244,21 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		wp_cache_delete('domain:www.' . $domain_name, 'domain_mappings');
 
 		try {
+			// Simulate SSO starting before Domain Mapping has been instantiated.
+			\WP_Ultimo\Domain_Mapping::$instance = new \stdClass();
+
 			$sso->startup();
+			$domain_mapping = \WP_Ultimo\Domain_Mapping::get_instance();
 
 			$result = apply_filters('allowed_redirect_hosts', ['mygratis.site'], strtoupper($domain_name));
 
 			$this->assertContains($domain_name, $result);
 		} finally {
+			if ($domain_mapping) {
+				remove_filter('allowed_redirect_hosts', [$domain_mapping, 'allow_network_redirect_hosts'], 20);
+			}
+
+			\WP_Ultimo\Domain_Mapping::$instance = $original_domain_mapping;
 			$domain->delete();
 			wp_cache_delete('domain:' . $domain_name, 'domain_mappings');
 			wp_cache_delete('domain:www.' . $domain_name, 'domain_mappings');
