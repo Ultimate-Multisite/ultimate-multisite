@@ -196,13 +196,13 @@ class Screenshot {
 		$response = wp_remote_get(
 			$url,
 			[
-				'timeout'    => 50,
+				'timeout'    => 120,
 				'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 			]
 		);
 
 		if (is_wp_error($response)) {
-			wu_log_add('screenshot-generator', $log_prefix . $response->get_error_message(), LogLevel::ERROR);
+			wu_log_add('screenshot-generator', $log_prefix . $response->get_error_message(), LogLevel::WARNING);
 
 			return false;
 		}

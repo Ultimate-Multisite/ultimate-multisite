@@ -1,0 +1,71 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "url": "https://context7.com/ultimate-multisite/ultimate-multisite",
+  "public_key": "pk_8qP3uj9pzJ33u7CUtMONT",
+  "projectTitle": "Ultimate Multisite",
+  "description": "Open-source WordPress Multisite plugin for building Website as a Service (WaaS) platforms with site creation, subscriptions, domain mapping, payments, templates, and customer management.",
+  "branch": "main",
+  "folders": [],
+  "excludeFolders": [
+    ".github",
+    ".wiki/assets",
+    "inc/deprecated",
+    "inc/site-exporter/mu-migration",
+    "tests",
+    "todo",
+    "views/site-exporter/self-boot"
+  ],
+  "excludeFiles": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "TODO.md",
+    "LICENSE"
+  ],
+  "rules": [
+    "Use Ultimate Multisite in user-facing text; WP_Ultimo namespaces and wu_ function and hook prefixes remain for backward compatibility.",
+    "Ultimate Multisite requires WordPress Multisite 5.3 or newer, PHP 8.2 or newer, and network activation.",
+    "For production installation, use WordPress.org or a packaged GitHub release; a source checkout requires Composer dependencies and is not an installable release ZIP.",
+    "Follow the setup wizard after network activation to configure registration, products, checkout, payments, and site creation.",
+    "Prefer current 2.x guidance and the latest README or readme.txt; the .wiki directory is legacy reference material and v1 articles apply only to migration or compatibility work.",
+    "For integrations, prefer documented wu_ hooks and functions, REST API endpoints, webhooks, and model helper functions instead of direct database writes.",
+    "Preserve backward compatibility when extending public base classes and interfaces; do not add PHP return type declarations that would break existing add-ons."
+  ],
+  "previousVersions": [
+    {
+      "tag": "v2.14.2"
+    },
+    {
+      "tag": "v2.13.1"
+    },
+    {
+      "tag": "v2.12.0"
+    },
+    {
+      "tag": "v2.11.1"
+    },
+    {
+      "tag": "v2.10.1"
+    },
+    {
+      "tag": "v2.9.3"
+    },
+    {
+      "tag": "v2.8.0"
+    },
+    {
+      "tag": "v2.7.0"
+    },
+    {
+      "tag": "v2.6.3"
+    },
+    {
+      "tag": "v2.5.2"
+    },
+    {
+      "tag": "v2.4.12"
+    },
+    {
+      "tag": "v2.3.4"
+    }
+  ]
+}
