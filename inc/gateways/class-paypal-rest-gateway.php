@@ -2326,7 +2326,26 @@ class PayPal_REST_Gateway extends Base_PayPal_Gateway {
 			wu_save_setting("paypal_rest_{$mode_prefix}_webhook_id", '');
 		}
 
-		$webhook_url = $this->get_webhook_listener_url();
+		$webhook_url    = esc_url_raw($this->get_webhook_listener_url());
+		$webhook_scheme = strtolower((string) wp_parse_url($webhook_url, PHP_URL_SCHEME));
+		$webhook_host   = wp_parse_url($webhook_url, PHP_URL_HOST);
+
+		// PayPal only delivers webhooks to public HTTPS endpoints. Detect a
+		// misconfigured WordPress URL before sending PayPal an invalid request.
+		if ('https' !== $webhook_scheme || empty($webhook_host)) {
+			$error = new \WP_Error(
+				'wu_paypal_webhook_requires_https',
+				sprintf(
+					/* translators: %s: the currently configured webhook listener URL. */
+					__('PayPal requires a public HTTPS webhook URL. Update the WordPress Network Site URL to HTTPS or define WU_GATEWAY_LISTENER_URL with a public HTTPS URL, then retry. Current listener: %s', 'ultimate-multisite'),
+					$webhook_url ?: __('not available', 'ultimate-multisite')
+				)
+			);
+
+			$this->log($error->get_error_message(), LogLevel::ERROR);
+
+			return $error;
+		}
 
 		// Define the events we want to receive
 		$event_types = [
