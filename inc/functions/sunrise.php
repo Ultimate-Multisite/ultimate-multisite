@@ -23,6 +23,53 @@ function wu_should_load_sunrise() {
 }
 
 /**
+ * Get all settings before the regular settings API is available.
+ *
+ * @since 2.15.2
+ *
+ * @return array|false Stored settings, or false when unavailable.
+ */
+function wu_get_settings_early() {
+	global $wpdb;
+
+	$settings_key = 'wp-ultimo_' . \WP_Ultimo\Settings::KEY;
+	$settings     = get_network_option(null, $settings_key);
+
+	if (is_array($settings)) {
+		return $settings;
+	}
+
+	$network_id     = get_current_network_id();
+	$notoptions_key = "{$network_id}:notoptions";
+	$suppress       = $wpdb->suppress_errors();
+	$row            = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->prepare("SELECT meta_value FROM {$wpdb->sitemeta} WHERE meta_key = %s AND site_id = %d", $settings_key, $network_id)
+	);
+	$query_error    = $wpdb->last_error;
+	$wpdb->suppress_errors($suppress);
+
+	if (is_object($row)) {
+		$settings = maybe_unserialize($row->meta_value);
+		wp_cache_set("{$network_id}:{$settings_key}", $settings, 'site-options');
+	}
+
+	if (is_object($row) || ! empty($query_error)) {
+		$notoptions = wp_cache_get($notoptions_key, 'site-options');
+
+		if (is_array($notoptions) && isset($notoptions[ $settings_key ])) {
+			unset($notoptions[ $settings_key ]);
+			wp_cache_set($notoptions_key, $notoptions, 'site-options');
+		}
+	}
+
+	if (is_array($settings)) {
+		return $settings;
+	}
+
+	return empty($query_error) ? [] : false;
+}
+
+/**
  * Get a setting value, when te normal APIs are not available.
  *
  * Should only be used if we're running in sunrise.
@@ -39,9 +86,7 @@ function wu_get_setting_early($setting, $default_value = false) {
 		_doing_it_wrong('wu_get_setting_early', esc_html__('Regular setting APIs are already available. You should use wu_get_setting() instead.', 'ultimate-multisite'), '2.0.0');
 	}
 
-	$settings_key = \WP_Ultimo\Settings::KEY;
-
-	$settings = get_network_option(null, 'wp-ultimo_' . $settings_key);
+	$settings = wu_get_settings_early();
 
 	return wu_get_isset($settings, $setting, $default_value);
 }
@@ -62,13 +107,15 @@ function wu_save_setting_early($key, $value) {
 		_doing_it_wrong('wu_save_setting_early', esc_html__('Regular setting APIs are already available. You should use wu_save_setting() instead.', 'ultimate-multisite'), '2.0.20');
 	}
 
-	$settings_key = \WP_Ultimo\Settings::KEY;
+	$settings = wu_get_settings_early();
 
-	$settings = get_network_option(null, 'wp-ultimo_' . $settings_key);
+	if ( ! is_array($settings)) {
+		return false;
+	}
 
 	$settings[ $key ] = $value;
 
-	return update_network_option(null, 'wp-ultimo_' . $settings_key, $settings);
+	return update_network_option(null, 'wp-ultimo_' . \WP_Ultimo\Settings::KEY, $settings);
 }
 
 /**

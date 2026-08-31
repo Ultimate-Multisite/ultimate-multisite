@@ -76,6 +76,67 @@ class Sunrise_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test wu_get_setting_early recovers from a stale notoptions marker.
+	 */
+	public function test_get_setting_early_recovers_from_stale_notoptions_marker(): void {
+
+		$this->setExpectedIncorrectUsage('wu_get_setting_early');
+
+		$network_id     = get_current_network_id();
+		$option_name    = 'wp-ultimo_' . \WP_Ultimo\Settings::KEY;
+		$cache_key      = "{$network_id}:{$option_name}";
+		$notoptions_key = "{$network_id}:notoptions";
+		$settings       = get_network_option($network_id, $option_name, []);
+
+		$settings['stale_cache_recovery'] = 'recovered';
+		update_network_option($network_id, $option_name, $settings);
+		wp_cache_delete($cache_key, 'site-options');
+		wp_cache_set($notoptions_key, [$option_name => true], 'site-options');
+
+		$result     = wu_get_setting_early('stale_cache_recovery', false);
+		$notoptions = wp_cache_get($notoptions_key, 'site-options');
+
+		$this->assertSame('recovered', $result);
+		$this->assertArrayNotHasKey($option_name, $notoptions);
+
+		unset($settings['stale_cache_recovery']);
+		update_network_option($network_id, $option_name, $settings);
+	}
+
+	/**
+	 * Test a failed settings query does not leave a persistent negative marker.
+	 */
+	public function test_get_setting_early_does_not_cache_database_errors_as_missing(): void {
+		global $wpdb;
+
+		$this->setExpectedIncorrectUsage('wu_get_setting_early');
+
+		$network_id     = get_current_network_id();
+		$option_name    = 'wp-ultimo_' . \WP_Ultimo\Settings::KEY;
+		$notoptions_key = "{$network_id}:notoptions";
+		$filter         = static function ($query) use ($option_name) {
+			return str_contains($query, 'SELECT meta_value') && str_contains($query, $option_name) ? 'SELECT broken syntax' : $query;
+		};
+
+		wp_cache_delete("{$network_id}:{$option_name}", 'site-options');
+		wp_cache_delete($notoptions_key, 'site-options');
+		$suppress = $wpdb->suppress_errors();
+		add_filter('query', $filter);
+
+		try {
+			$result = wu_get_setting_early('enable_domain_mapping', 'query_failed');
+		} finally {
+			remove_filter('query', $filter);
+			$wpdb->suppress_errors($suppress);
+		}
+
+		$notoptions = wp_cache_get($notoptions_key, 'site-options');
+
+		$this->assertSame('query_failed', $result);
+		$this->assertFalse(is_array($notoptions) && isset($notoptions[ $option_name ]));
+	}
+
+	/**
 	 * Test wu_save_setting_early stores a value retrievable by wu_get_setting_early.
 	 */
 	public function test_save_setting_early_stores_value(): void {
