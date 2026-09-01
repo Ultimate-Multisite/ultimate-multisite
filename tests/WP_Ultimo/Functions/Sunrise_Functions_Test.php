@@ -110,6 +110,7 @@ class Sunrise_Functions_Test extends WP_UnitTestCase {
 		global $wpdb;
 
 		$this->setExpectedIncorrectUsage('wu_get_setting_early');
+		$this->setExpectedIncorrectUsage('wu_save_setting_early');
 
 		$network_id     = get_current_network_id();
 		$option_name    = 'wp-ultimo_' . \WP_Ultimo\Settings::KEY;
@@ -124,7 +125,9 @@ class Sunrise_Functions_Test extends WP_UnitTestCase {
 		add_filter('query', $filter);
 
 		try {
-			$result = wu_get_setting_early('enable_domain_mapping', 'query_failed');
+			$settings = wu_get_settings_early();
+			$result   = wu_get_setting_early('enable_domain_mapping', 'query_failed');
+			$saved    = wu_save_setting_early('enable_domain_mapping', true);
 		} finally {
 			remove_filter('query', $filter);
 			$wpdb->suppress_errors($suppress);
@@ -132,7 +135,10 @@ class Sunrise_Functions_Test extends WP_UnitTestCase {
 
 		$notoptions = wp_cache_get($notoptions_key, 'site-options');
 
+		$this->assertWPError($settings);
+		$this->assertSame('wu_early_settings_query_failed', $settings->get_error_code());
 		$this->assertSame('query_failed', $result);
+		$this->assertWPError($saved);
 		$this->assertFalse(is_array($notoptions) && isset($notoptions[ $option_name ]));
 	}
 

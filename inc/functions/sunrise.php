@@ -27,7 +27,7 @@ function wu_should_load_sunrise() {
  *
  * @since 2.15.2
  *
- * @return array|false Stored settings, or false when unavailable.
+ * @return array|\WP_Error Stored settings, or a database error when unavailable.
  */
 function wu_get_settings_early() {
 	global $wpdb;
@@ -66,7 +66,7 @@ function wu_get_settings_early() {
 		return $settings;
 	}
 
-	return empty($query_error) ? [] : false;
+	return empty($query_error) ? [] : new \WP_Error('wu_early_settings_query_failed', $query_error);
 }
 
 /**
@@ -88,6 +88,10 @@ function wu_get_setting_early($setting, $default_value = false) {
 
 	$settings = wu_get_settings_early();
 
+	if (is_wp_error($settings)) {
+		return $default_value;
+	}
+
 	return wu_get_isset($settings, $setting, $default_value);
 }
 
@@ -108,6 +112,10 @@ function wu_save_setting_early($key, $value) {
 	}
 
 	$settings = wu_get_settings_early();
+
+	if (is_wp_error($settings)) {
+		return $settings;
+	}
 
 	if ( ! is_array($settings)) {
 		return false;
