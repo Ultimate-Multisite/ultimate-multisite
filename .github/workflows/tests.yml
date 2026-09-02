@@ -109,7 +109,20 @@ jobs:
 
       - name: Run PHPUnit Tests
         if: matrix.php-version != '8.3'
-        run: vendor/bin/phpunit
+        run: |
+          for test_path in tests/WP_Ultimo/*; do
+            if [ -d "$test_path" ] || [ "${test_path%_Test.php}" != "$test_path" ]; then
+              vendor/bin/phpunit "$test_path"
+            fi
+          done
+          vendor/bin/phpunit tests/Admin_Pages
+          vendor/bin/phpunit tests/Builders
+          vendor/bin/phpunit tests/functional
+          vendor/bin/phpunit tests/unit
+          for test_path in tests/*_Test.php; do
+            [ -e "$test_path" ] || continue
+            vendor/bin/phpunit "$test_path"
+          done
 
       - name: Run PHPUnit Tests with Coverage
         if: matrix.php-version == '8.3'
