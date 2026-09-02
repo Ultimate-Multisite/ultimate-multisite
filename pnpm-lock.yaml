@@ -2835,6 +2835,10 @@ packages:
   minimatch@3.1.4:
     resolution: {integrity: sha512-twmL+S8+7yIsE9wsqgzU3E8/LumN3M3QELrBZ20OdmQ9jB2JvW5oZtBEmft84k/Gs5CG9mqtWc6Y9vW+JEzGxw==}
 
+  minimatch@9.0.3:
+    resolution: {integrity: sha512-RHiac9mvaRw0x3AYRgDC1CxAP7HTcNrrECeA8YYJeWnpo+2Q5CegtZjaotWTWxDG3UeGA1coE05iH1mPjT/2mg==}
+    engines: {node: '>=16 || 14 >=14.17'}
+
   minimatch@9.0.9:
     resolution: {integrity: sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg==}
     engines: {node: '>=16 || 14 >=14.17'}
@@ -3051,12 +3055,12 @@ packages:
     peerDependencies:
       postcss: ^8.4.29
 
-  postcss-selector-parser@6.1.2:
-    resolution: {integrity: sha512-Q8qQfPiZ+THO/3ZrOrO0cJJKfpYCagtMUkXbnEfmgUjwXg6z/WBeOyS9APBBPCTSiDV+s4SwQGu8yFsiMRIudg==}
+  postcss-selector-parser@6.1.3:
+    resolution: {integrity: sha512-cDoO18VWCIWRsSaws3C23b0HXRxlUknttfdNcbXnf3IGHAPRNLlXPHc6dYiatOkxW0W4uZh524Plaaw5a7WEtQ==}
     engines: {node: '>=4'}
 
-  postcss-selector-parser@7.1.1:
-    resolution: {integrity: sha512-orRsuYpJVw8LdAwqqLykBj9ecS5/cRHlI5+nvTo8LcCKmzDmqVORXtOIYEEQuL9D4BxtA1lm5isAqzQZCoQ6Eg==}
+  postcss-selector-parser@7.1.3:
+    resolution: {integrity: sha512-ajnd7iZnqjJDkyHNfznl/ZVO0lWqvBmQXfKKENx9/p/bEiF/L3eHwdydNUg9RXZx6xfZWOCmXmBa5oeB+YrAPQ==}
     engines: {node: '>=4'}
 
   postcss-value-parser@4.2.0:
@@ -3112,8 +3116,8 @@ packages:
     resolution: {integrity: sha512-kXuQdQTB6oN3KhI6V4acnBSZx8D2I4xzZvn9+wFLLFCoBNQY/sFnCW6c43OL7pOQ2HvGV4lnWIXNmgfp7cTWhQ==}
     engines: {node: '>=20'}
 
-  qs@6.15.3:
-    resolution: {integrity: sha512-O9gl3zCl5h5blw1KGUzQKhA5oUXSl8rwUIM5o0S3nCXMliSvy5Dzx7/DJcI+SwgICv+IneSZwhBh1oSyEHA71A==}
+  qs@6.14.0:
+    resolution: {integrity: sha512-YWWTjgABSKcvs/nWBi9PycY/JiPJqOD4JA6o9Sej2AtvSGarXxKC3OQSk4pAarbdQlKAh5D4FCQkJNkW+GAn3w==}
     engines: {node: '>=0.6'}
 
   queue-microtask@1.2.3:
@@ -4606,9 +4610,9 @@ snapshots:
       '@csstools/css-parser-algorithms': 3.0.5(@csstools/css-tokenizer@3.0.4)
       '@csstools/css-tokenizer': 3.0.4
 
-  '@csstools/selector-specificity@5.0.0(postcss-selector-parser@7.1.1)':
+  '@csstools/selector-specificity@5.0.0(postcss-selector-parser@7.1.3)':
     dependencies:
-      postcss-selector-parser: 7.1.1
+      postcss-selector-parser: 7.1.3
 
   '@cypress/request@3.0.9':
     dependencies:
@@ -4625,7 +4629,7 @@ snapshots:
       json-stringify-safe: 5.0.1
       mime-types: 2.1.35
       performance-now: 2.1.0
-      qs: 6.15.3
+      qs: 6.14.0
       safe-buffer: 5.2.1
       tough-cookie: 5.1.2
       tunnel-agent: 0.6.0
@@ -4922,7 +4926,7 @@ snapshots:
       '@csstools/media-query-list-parser': 3.0.1(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)
       is-plain-object: 5.0.0
       postcss: 8.5.10
-      postcss-selector-parser: 6.1.2
+      postcss-selector-parser: 6.1.3
       postcss-value-parser: 4.2.0
       style-search: 0.1.0
       stylelint: 16.26.1(supports-color@8.1.1)(typescript@5.9.3)
@@ -5073,7 +5077,7 @@ snapshots:
       debug: 4.4.3(supports-color@8.1.1)
       globby: 11.1.0
       is-glob: 4.0.3
-      minimatch: 9.0.9
+      minimatch: 9.0.3
       semver: 7.7.2
       ts-api-utils: 1.4.3(typescript@5.9.3)
     optionalDependencies:
@@ -7005,6 +7009,10 @@ snapshots:
     dependencies:
       brace-expansion: 1.1.18
 
+  minimatch@9.0.3:
+    dependencies:
+      brace-expansion: 2.1.4
+
   minimatch@9.0.9:
     dependencies:
       brace-expansion: 2.1.4
@@ -7195,12 +7203,12 @@ snapshots:
     dependencies:
       postcss: 8.5.10
 
-  postcss-selector-parser@6.1.2:
+  postcss-selector-parser@6.1.3:
     dependencies:
       cssesc: 3.0.0
       util-deprecate: 1.0.2
 
-  postcss-selector-parser@7.1.1:
+  postcss-selector-parser@7.1.3:
     dependencies:
       cssesc: 3.0.0
       util-deprecate: 1.0.2
@@ -7249,7 +7257,7 @@ snapshots:
     dependencies:
       hookified: 1.14.0
 
-  qs@6.15.3:
+  qs@6.14.0:
     dependencies:
       side-channel: 1.1.1
 
@@ -7666,7 +7674,7 @@ snapshots:
       mdn-data: 2.25.0
       postcss-media-query-parser: 0.2.3
       postcss-resolve-nested-selector: 0.1.6
-      postcss-selector-parser: 7.1.1
+      postcss-selector-parser: 7.1.3
       postcss-value-parser: 4.2.0
       stylelint: 16.26.1(supports-color@8.1.1)(typescript@5.9.3)
 
@@ -7676,7 +7684,7 @@ snapshots:
       '@csstools/css-syntax-patches-for-csstree': 1.0.22
       '@csstools/css-tokenizer': 3.0.4
       '@csstools/media-query-list-parser': 4.0.3(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)
-      '@csstools/selector-specificity': 5.0.0(postcss-selector-parser@7.1.1)
+      '@csstools/selector-specificity': 5.0.0(postcss-selector-parser@7.1.3)
       '@dual-bundle/import-meta-resolve': 4.2.1
       balanced-match: 2.0.0
       colord: 2.9.3
@@ -7703,7 +7711,7 @@ snapshots:
       postcss: 8.5.10
       postcss-resolve-nested-selector: 0.1.6
       postcss-safe-parser: 7.0.1(postcss@8.5.10)
-      postcss-selector-parser: 7.1.1
+      postcss-selector-parser: 7.1.3
       postcss-value-parser: 4.2.0
       resolve-from: 5.0.0
       string-width: 4.2.3
