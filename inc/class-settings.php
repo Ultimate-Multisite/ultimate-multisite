@@ -42,6 +42,18 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 	private ?array $settings = null;
 
 	/**
+	 * Network ID associated with the cached settings array.
+	 *
+	 * Long-running requests may switch network context while reusing this
+	 * singleton. Tracking the source network prevents a later save from writing
+	 * another network's cached settings array.
+	 *
+	 * @since 2.15.1
+	 * @var int|null
+	 */
+	private ?int $settings_network_id = null;
+
+	/**
 	 * Holds the sections of the settings page.
 	 *
 	 * @since 2.0.0
@@ -177,9 +189,13 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function get_all($check_caps = false) {
 
-		// Get all the settings
-		if (null === $this->settings) {
-			$this->settings = wu_get_option(self::KEY);
+		$current_network_id = get_current_network_id();
+
+		// Reload after a network-context switch instead of reusing another
+		// network's cached full settings array.
+		if (null === $this->settings || $current_network_id !== $this->settings_network_id) {
+			$this->settings            = wu_get_option(self::KEY);
+			$this->settings_network_id = $current_network_id;
 		}
 
 		if (empty($this->settings)) {
@@ -332,7 +348,8 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 		$status = wu_save_option(self::KEY, $settings);
 
-		$this->settings = $settings;
+		$this->settings            = $settings;
+		$this->settings_network_id = get_current_network_id();
 
 		return $status;
 	}
@@ -405,7 +422,8 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 		wu_save_option(self::KEY, $settings);
 
-		$this->settings = $settings;
+		$this->settings            = $settings;
+		$this->settings_network_id = get_current_network_id();
 
 		do_action('wu_after_save_settings', $settings, $settings_to_save, $saved_settings);
 
