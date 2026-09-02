@@ -104,7 +104,7 @@
   },
   "dependencies": {
     "apexcharts": "^5.2.0",
-    "shepherd.js": "^14.5.0"
+    "shepherd.js": "^15.3.0"
   },
   "overrides": {
     "@babel/core": "7.29.6",
