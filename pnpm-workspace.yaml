@@ -3,3 +3,6 @@ allowBuilds:
   core-js: false
   cypress: true
   unrs-resolver: false
+
+overrides:
+  '@babel/core': 7.29.6
