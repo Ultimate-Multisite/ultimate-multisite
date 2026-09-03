@@ -1159,14 +1159,14 @@ class Site_Manager extends Base_Manager {
 
 		global $wpdb;
 
-		if ( ! is_super_admin()) {
-			return $sites;
-		}
-
 		if ($this->is_frontend_my_sites_toolbar_request()) {
-			$sites = $this->get_current_site_for_frontend_my_sites_toolbar();
+			$sites = $this->get_current_site_for_frontend_my_sites_toolbar($user_id);
 
 			return apply_filters('get_blogs_of_user', $sites, $user_id, $all); // phpcs:ignore
+		}
+
+		if ( ! is_super_admin()) {
+			return $sites;
 		}
 
 		$keys = get_user_meta($user_id);
@@ -1281,9 +1281,9 @@ class Site_Manager extends Base_Manager {
 	 * Determines whether get_blogs_of_user is preparing the front-end My Sites toolbar.
 	 *
 	 * The pre_get_blogs_of_user filter is also used by wp-admin, REST requests, and
-	 * application code. Checking the WP_Admin_Bar initialization call keeps the
-	 * optimization limited to the nested toolbar request instead of limiting every
-	 * front-end get_blogs_of_user() call.
+	 * application code. Checking that WP_Admin_Bar::initialize() directly calls
+	 * get_blogs_of_user() keeps the optimization away from nested calls such as
+	 * get_active_blog_for_user(), which may update the user's primary site.
 	 *
 	 * @since 2.15.0
 	 * @param array|null $backtrace Call stack override used by tests.
@@ -1306,10 +1306,20 @@ class Site_Manager extends Base_Manager {
 
 		$backtrace = $backtrace ?? debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 12); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace
 
-		foreach ($backtrace as $call) {
-			if ('WP_Admin_Bar' === ($call['class'] ?? '') && 'initialize' === ($call['function'] ?? '')) {
-				return true;
+		foreach ($backtrace as $index => $call) {
+			if ('get_blogs_of_user' !== ($call['function'] ?? '')) {
+				continue;
 			}
+
+			$caller       = $backtrace[ $index + 1 ] ?? [];
+			$caller_class = $caller['class'] ?? '';
+
+			return 'initialize' === ($caller['function'] ?? '')
+				&& $caller_class
+				&& (
+					\WP_Admin_Bar::class === $caller_class
+					|| is_subclass_of($caller_class, \WP_Admin_Bar::class, true)
+				);
 		}
 
 		return false;
@@ -1319,13 +1329,17 @@ class Site_Manager extends Base_Manager {
 	 * Returns the current site in the format expected by the My Sites toolbar.
 	 *
 	 * @since 2.15.0
+	 * @param int $user_id User ID whose toolbar is being prepared.
 	 * @return object[]
 	 */
-	protected function get_current_site_for_frontend_my_sites_toolbar() {
+	protected function get_current_site_for_frontend_my_sites_toolbar($user_id) {
 
 		$site = get_site(get_current_blog_id());
 
-		if ( ! $site) {
+		if (
+			! $site
+			|| (! is_super_admin($user_id) && ! is_user_member_of_blog($user_id, $site->id))
+		) {
 			return [];
 		}
 

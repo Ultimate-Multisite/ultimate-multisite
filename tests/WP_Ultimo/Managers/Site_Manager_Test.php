@@ -14,6 +14,8 @@ class Frontend_My_Sites_Toolbar_Test_Manager extends Site_Manager {
 
 	protected function is_frontend_my_sites_toolbar_request($backtrace = null) {
 
+		unset($backtrace);
+
 		return true;
 	}
 }
@@ -3002,6 +3004,28 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test the front-end My Sites toolbar optimization applies to non-super-admins.
+	 */
+	public function test_frontend_my_sites_toolbar_optimization_applies_to_non_super_admin(): void {
+
+		$reflection = new \ReflectionClass(Frontend_My_Sites_Toolbar_Test_Manager::class);
+		$manager    = $reflection->newInstanceWithoutConstructor();
+		$user_id    = $this->factory()->user->create(['role' => 'administrator']);
+
+		wp_set_current_user($user_id);
+
+		try {
+			$sites = $manager->hide_customer_sites_from_super_admin_list([], $user_id, false);
+
+			$this->assertFalse(is_super_admin($user_id));
+			$this->assertCount(1, $sites);
+			$this->assertArrayHasKey(get_current_blog_id(), $sites);
+		} finally {
+			wp_set_current_user(0);
+		}
+	}
+
+	/**
 	 * Test front-end My Sites toolbar optimization requires the admin bar call stack.
 	 */
 	public function test_frontend_my_sites_toolbar_optimization_requires_admin_bar_initialization(): void {
@@ -3021,12 +3045,69 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 			$this->assertTrue(
 				$method->invoke($manager, [
 					[
+						'function' => 'get_blogs_of_user',
+					],
+					[
+						'class'    => 'WP_Admin_Bar',
+						'function' => 'initialize',
+					],
+				])
+			);
+			$this->assertFalse(
+				$method->invoke($manager, [
+					[
+						'function' => 'get_blogs_of_user',
+					],
+					[
+						'function' => 'get_active_blog_for_user',
+					],
+					[
 						'class'    => 'WP_Admin_Bar',
 						'function' => 'initialize',
 					],
 				])
 			);
 			$this->assertFalse($method->invoke($manager, []));
+		} finally {
+			remove_filter('wu_get_setting', $filter, 10);
+			remove_filter('show_admin_bar', '__return_true');
+			wp_set_current_user(0);
+		}
+	}
+
+	/**
+	 * Test front-end My Sites toolbar optimization supports admin bar subclasses.
+	 */
+	public function test_frontend_my_sites_toolbar_optimization_supports_admin_bar_subclasses(): void {
+
+		if ( ! class_exists('WP_Admin_Bar')) {
+			require_once ABSPATH . WPINC . '/class-wp-admin-bar.php';
+		}
+
+		$manager   = $this->get_manager_instance();
+		$user_id   = $this->factory()->user->create(['role' => 'administrator']);
+		$method    = new \ReflectionMethod(Site_Manager::class, 'is_frontend_my_sites_toolbar_request');
+		$admin_bar = new class() extends \WP_Admin_Bar {};
+		$filter    = function ($value, $setting) {
+			return 'optimize_frontend_my_sites_toolbar' === $setting ? 1 : $value;
+		};
+
+		wp_set_current_user($user_id);
+		add_filter('wu_get_setting', $filter, 10, 2);
+		add_filter('show_admin_bar', '__return_true');
+
+		try {
+			$this->assertTrue(
+				$method->invoke($manager, [
+					[
+						'function' => 'get_blogs_of_user',
+					],
+					[
+						'class'    => get_class($admin_bar),
+						'function' => 'initialize',
+					],
+				])
+			);
 		} finally {
 			remove_filter('wu_get_setting', $filter, 10);
 			remove_filter('show_admin_bar', '__return_true');
@@ -3068,11 +3149,21 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 
 		$manager = $this->get_manager_instance();
 		$method  = new \ReflectionMethod(Site_Manager::class, 'get_current_site_for_frontend_my_sites_toolbar');
-		$sites   = $method->invoke($manager);
+		$user_id = $this->factory()->user->create(['role' => 'administrator']);
 
-		$this->assertCount(1, $sites);
-		$this->assertArrayHasKey(get_current_blog_id(), $sites);
-		$this->assertSame(get_current_blog_id(), $sites[ get_current_blog_id() ]->userblog_id);
+		grant_super_admin($user_id);
+		wp_set_current_user($user_id);
+
+		try {
+			$sites = $method->invoke($manager, $user_id);
+
+			$this->assertCount(1, $sites);
+			$this->assertArrayHasKey(get_current_blog_id(), $sites);
+			$this->assertSame(get_current_blog_id(), $sites[ get_current_blog_id() ]->userblog_id);
+		} finally {
+			revoke_super_admin($user_id);
+			wp_set_current_user(0);
+		}
 	}
 
 	// ========================================================================
