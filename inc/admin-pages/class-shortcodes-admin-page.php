@@ -10,6 +10,7 @@
 namespace WP_Ultimo\Admin_Pages;
 
 use WP_Ultimo\UI\Base_Element;
+use WP_Ultimo\UI\Field;
 
 // Exit if accessed directly
 defined('ABSPATH') || exit;
@@ -154,7 +155,7 @@ class Shortcodes_Admin_Page extends Base_Admin_Page {
 						$options = wu_get_isset($value, 'options', []);
 
 						if (is_callable($options)) {
-							$options = call_user_func($options);
+							$options = call_user_func($options, new Field($key, $value));
 						}
 
 						$params[ $key ]['options'] = implode(' | ', array_keys($options));
