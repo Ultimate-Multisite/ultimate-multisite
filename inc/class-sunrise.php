@@ -157,6 +157,7 @@ class Sunrise {
 		require_once __DIR__ . '/models/class-domain.php';
 		require_once __DIR__ . '/models/class-site.php';
 		require_once __DIR__ . '/domain-mapping/class-primary-domain.php';
+		require_once __DIR__ . '/domain-mapping/class-runtime-url-rewriter.php';
 		require_once __DIR__ . '/class-domain-mapping.php';
 		require_once __DIR__ . '/traits/trait-wp-ultimo-settings-deprecated.php';
 		require_once __DIR__ . '/class-settings.php';
@@ -194,6 +195,11 @@ class Sunrise {
 
 		if ($should_startup) {
 			self::load_dependencies();
+
+			/*
+			 * Optional runtime-only environment URL rewriting.
+			 */
+			\WP_Ultimo\Domain_Mapping\Runtime_URL_Rewriter::get_instance();
 
 			/*
 			 * Primary Domain capabilities
