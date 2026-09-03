@@ -343,8 +343,8 @@ class Scripts {
 	 */
 	public function localize_moment() {
 
-		$time_format = get_option('time_format', __('g:i a')); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain
-		$date_format = get_option('date_format', __('F j, Y')); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain
+		$time_format = get_option('time_format', 'g:i a');
+		$date_format = get_option('date_format', 'F j, Y');
 
 		$long_date_formats = array_map(
 			'wu_convert_php_date_format_to_moment_js_format',
