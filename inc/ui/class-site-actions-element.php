@@ -182,27 +182,13 @@ class Site_Actions_Element extends Base_Element {
 			'value'   => 1,
 		];
 
-		$pages = get_pages(
-			[
-				'exclude' => [get_the_ID()], // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
-			]
-		);
-
-		$pages = $pages ?: [];
-
-		$pages_list = [0 => __('Default', 'ultimate-multisite')];
-
-		foreach ($pages as $page) {
-			$pages_list[ $page->ID ] = $page->post_title;
-		}
-
 		$fields['redirect_after_delete'] = [
 			'type'    => 'select',
 			'title'   => __('Redirect After Delete', 'ultimate-multisite'),
 			'value'   => 0,
 			'desc'    => __('The page to redirect user after delete current site.', 'ultimate-multisite'),
 			'tooltip' => '',
-			'options' => $pages_list,
+			'options' => fn() => wu_get_pages_as_options(__('Default', 'ultimate-multisite')),
 		];
 
 		return $fields;
