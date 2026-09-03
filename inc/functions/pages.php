@@ -119,14 +119,18 @@ function wu_get_pages_as_options($default_label) {
 	static $pages_by_context = [];
 
 	$current_page_id = get_the_ID();
-	$context_key     = get_current_blog_id() . ':' . $current_page_id;
+
+	if ( ! $current_page_id && is_admin()) {
+		$requested_page_id = wu_request('post', 0);
+		$current_page_id   = is_scalar($requested_page_id) ? absint($requested_page_id) : 0;
+	}
+
+	$context_key = implode(':', [get_current_blog_id(), $current_page_id, get_current_user_id(), determine_locale()]);
 
 	if ( ! array_key_exists($context_key, $pages_by_context)) {
-		$pages_by_context[ $context_key ] = get_pages(
-			[
-				'exclude' => [$current_page_id], // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
-			]
-		) ?: [];
+		$page_query_args = $current_page_id ? ['exclude' => [$current_page_id]] : []; // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
+
+		$pages_by_context[ $context_key ] = get_pages($page_query_args) ?: [];
 	}
 
 	$pages_list = [0 => $default_label];

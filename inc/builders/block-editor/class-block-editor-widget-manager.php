@@ -211,26 +211,65 @@ class Block_Editor_Widget_Manager {
 		$defaults = $element->defaults();
 		$fields   = $element->fields();
 
-		$_fields = [];
+		$attribute_fields = [];
 
-		foreach ($defaults as $field_id => $default_value) {
-			$field_type = $fields[ $field_id ]['type'] ?? 'string';
+		foreach ($fields as $field_id => $field) {
+			if ( ! is_array($field)) {
+				continue;
+			}
+
+			$field_type = $field['type'] ?? 'text';
+
+			if ('group' === $field_type && ! empty($field['fields']) && is_array($field['fields'])) {
+				foreach ($field['fields'] as $sub_field_id => $sub_field) {
+					if (is_array($sub_field)) {
+						$attribute_fields[ $sub_field_id ] = $sub_field;
+					}
+				}
+
+				continue;
+			}
+
+			if (in_array($field_type, ['header', 'note'], true)) {
+				continue;
+			}
+
+			$attribute_fields[ $field_id ] = $field;
+		}
+
+		$attributes = [];
+
+		foreach ($attribute_fields as $field_id => $field) {
+			$has_default   = array_key_exists($field_id, $defaults);
+			$default_value = $has_default ? $defaults[ $field_id ] : ($field['value'] ?? '');
+
+			if ( ! $has_default && ! is_string($default_value) && is_callable($default_value)) {
+				$default_value = '';
+			}
+
+			$field_type = $field['type'] ?? 'text';
 			$type       = 'string';
 
 			if ('toggle' === $field_type) {
-				$type = 'boolean';
+				$type          = 'boolean';
+				$default_value = wu_string_to_bool($default_value);
 			}
 
-			if ('number' === $field_type) {
-				$type = 'integer';
+			if (in_array($field_type, ['int', 'number'], true)) {
+				$type          = is_float($default_value) ? 'number' : 'integer';
+				$default_value = 'number' === $type ? (float) $default_value : (int) $default_value;
 			}
 
-			$_fields[ $field_id ] = [
+			if ('string' === $type && is_scalar($default_value)) {
+				$default_value = (string) $default_value;
+			}
+
+			$attributes[ $field_id ] = [
 				'default' => $default_value,
 				'type'    => $type,
 			];
 		}
 
-		return $_fields;
+		return $attributes;
 	}
 }

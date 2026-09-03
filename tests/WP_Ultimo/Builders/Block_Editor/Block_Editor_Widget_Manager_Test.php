@@ -131,9 +131,13 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 			->method('defaults')
 			->willReturn(
 				[
-					'enabled'          => true,
-					'columns'          => 4,
-					'site_manage_type' => 'default',
+					'enabled'                     => 1,
+					'columns'                     => 4,
+					'site_manage_type'            => 'default',
+					'page_id'                     => 0,
+					'limit'                       => 0,
+					'template_selection_template' => 'clean',
+					'internal_state'              => [],
 				]
 			);
 
@@ -141,29 +145,63 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 			->method('fields')
 			->willReturn(
 				[
-					'enabled'          => [
+					'enabled'            => [
 						'type'    => 'toggle',
 						'options' => static function () {
 							throw new \RuntimeException('Block attribute registration must not evaluate options.');
 						},
 					],
-					'columns'          => ['type' => 'number'],
-					'site_manage_type' => ['type' => 'select'],
+					'columns'            => ['type' => 'number'],
+					'site_manage_type'   => ['type' => 'select'],
+					'page_id'            => [
+						'type'    => 'select',
+						'options' => static function () {
+							throw new \RuntimeException('Block attribute registration must not evaluate options.');
+						},
+					],
+					'limit'              => [
+						'type'  => 'int',
+						'value' => 10,
+					],
+					'template_selection' => [
+						'type'   => 'group',
+						'fields' => [
+							'template_selection_template' => [
+								'type'    => 'select',
+								'options' => static function () {
+									throw new \RuntimeException('Block attribute registration must not evaluate grouped options.');
+								},
+							],
+						],
+					],
+					'_heading'           => ['type' => 'header'],
 				]
 			);
 
 		$this->assertSame(
 			[
-				'enabled'          => [
+				'enabled'                     => [
 					'default' => true,
 					'type'    => 'boolean',
 				],
-				'columns'          => [
+				'columns'                     => [
 					'default' => 4,
 					'type'    => 'integer',
 				],
-				'site_manage_type' => [
+				'site_manage_type'            => [
 					'default' => 'default',
+					'type'    => 'string',
+				],
+				'page_id'                     => [
+					'default' => '0',
+					'type'    => 'string',
+				],
+				'limit'                       => [
+					'default' => 0,
+					'type'    => 'integer',
+				],
+				'template_selection_template' => [
+					'default' => 'clean',
 					'type'    => 'string',
 				],
 			],

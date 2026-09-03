@@ -99,6 +99,14 @@ class Pages_Functions_Test extends WP_UnitTestCase {
 
 		$post = $current_page;
 
+		$get_pages_calls  = 0;
+		$get_pages_filter = function ($pages) use (&$get_pages_calls) {
+			++$get_pages_calls;
+			return $pages;
+		};
+
+		add_filter('get_pages', $get_pages_filter);
+
 		try {
 			$first  = wu_get_pages_as_options('Current Page');
 			$second = wu_get_pages_as_options('Default');
@@ -108,7 +116,49 @@ class Pages_Functions_Test extends WP_UnitTestCase {
 			$this->assertSame('Example page', $first[ $page_id ]);
 			$this->assertSame($first[ $page_id ], $second[ $page_id ]);
 		} finally {
+			remove_filter('get_pages', $get_pages_filter);
 			$post = $original_post;
+		}
+
+		$this->assertSame(1, $get_pages_calls);
+	}
+
+	/**
+	 * Test the edited page is excluded before the admin global post is available.
+	 */
+	public function test_get_pages_as_options_uses_admin_request_page_context(): void {
+
+		global $post;
+
+		$original_post   = $post;
+		$original_screen = get_current_screen();
+		$current_page    = self::factory()->post->create_and_get(
+			[
+				'post_type'  => 'page',
+				'post_title' => 'Edited page',
+			]
+		);
+		$other_page_id   = self::factory()->post->create(
+			[
+				'post_type'  => 'page',
+				'post_title' => 'Other page',
+			]
+		);
+
+		$post             = null;
+		$_REQUEST['post'] = (string) $current_page->ID;
+		set_current_screen('post');
+
+		try {
+			$options = wu_get_pages_as_options('Current Page');
+
+			$this->assertArrayNotHasKey($current_page->ID, $options);
+			$this->assertSame('Other page', $options[ $other_page_id ]);
+		} finally {
+			$post = $original_post;
+			unset($_REQUEST['post']);
+
+			set_current_screen($original_screen ? $original_screen->id : 'front');
 		}
 	}
 
