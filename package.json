@@ -104,7 +104,7 @@
   },
   "dependencies": {
     "apexcharts": "^5.2.0",
-    "shepherd.js": "^14.5.0"
+    "shepherd.js": "^15.3.0"
   },
   "overrides": {
     "@babel/core": "7.29.6",
@@ -113,7 +113,6 @@
     "minimatch@^3": "3.1.4",
     "minimatch@^9": "9.0.9",
     "picomatch": "4.0.4",
-    "postcss": "8.5.10",
     "qs": "6.15.3",
     "simple-git": "3.36.0",
     "shell-quote": "1.8.4",

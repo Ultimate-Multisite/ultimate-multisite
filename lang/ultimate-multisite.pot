@@ -16835,40 +16835,42 @@ msgstr ""
 msgid "Your trial period will end on %1$s."
 msgstr ""
 
-#. translators: $1$s the date membership will start, $2$s amount to be billed.
+#. translators: %1$s the date membership will start, %2$s amount to be billed.
 #: inc/gateways/class-paypal-gateway.php:535
 #, php-format
-msgid "Your updated membership will start on $1$s, from that date you will be billed %2$s every month."
+msgid "Your updated membership will start on %1$s, from that date you will be billed %2$s every month."
 msgstr ""
 
-#. translators: $1$s the date membership will start, $2$s amount to be billed, %3$s the description of how often.
+#. translators: %1$s the date membership will start, %2$s amount to be billed, %3$s the description of how often.
+#. translators: %1$s is the start date, %2$s is the subtotal amount, and %3$s is the description of how often.
 #: inc/gateways/class-paypal-gateway.php:539
+#: views/checkout/paypal/confirm.php:40
 #: views/checkout/paypal/confirm.php:44
 #, php-format
 msgid "Your updated membership will start on %1$s, from that date you will be billed %2$s %3$s."
 msgstr ""
 
-#. translators: $1$s amount to be billed, $2$s how often
+#. translators: %1$s amount to be billed, %2$s how often
 #: inc/gateways/class-paypal-gateway.php:543
 #, php-format
 msgid "After the first payment you will be billed %1$s %2$s."
 msgstr ""
 
-#. translators: $1$s amount to be billed, $2$s how often
+#. translators: %1$s amount to be billed, %2$s how often
 #: inc/gateways/class-paypal-gateway.php:546
 #: views/checkout/paypal/confirm.php:52
 #, php-format
 msgid "After this payment you will be billed %1$s %2$s."
 msgstr ""
 
-#. translators: $1$s amount to be billed, $2$s how often
+#. translators: %1$s amount to be billed, %2$s how often
 #: inc/gateways/class-paypal-gateway.php:550
 #: views/checkout/paypal/confirm.php:59
 #, php-format
 msgid "From that date, you will be billed %1$s %2$s."
 msgstr ""
 
-#. translators: $1$s how often
+#. translators: %1$s how often
 #: inc/gateways/class-paypal-gateway.php:553
 #: views/checkout/paypal/confirm.php:62
 #, php-format
@@ -24644,12 +24646,6 @@ msgstr ""
 msgid "No Products Found."
 msgstr ""
 
-#. translators: %1$s is the start date, %2$s is the subtotal amount, and %3$s is the description of how often.
-#: views/checkout/paypal/confirm.php:40
-#, php-format
-msgid "Your updated membership will start on $1$s, from that date you will be billed %2$s %3$s."
-msgstr ""
-
 #. translators: %1$s is the membership level, %2$s is the initial amount, and %3$s is the currency description
 #: views/checkout/paypal/confirm.php:49
 #, php-format
@@ -26260,7 +26256,7 @@ msgstr ""
 #. translators: %s hash of membership.
 #: views/ui/toolbox.php:66
 #, php-format
-msgid "Membership <Strong>%s</strong>"
+msgid "Membership <strong>%s</strong>"
 msgstr ""
 
 #. translators: %s is the integration name

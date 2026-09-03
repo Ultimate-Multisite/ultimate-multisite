@@ -154,6 +154,67 @@ class Settings_Test extends WP_UnitTestCase {
 		$this->assertEquals(['a', 'b', 'c'], $this->settings->get_setting('array_key'));
 	}
 
+	public function test_save_setting_reloads_settings_after_network_context_changes() {
+		global $current_site, $wpdb;
+
+		$source_network_id    = 98765;
+		$target_network_id    = 98766;
+		$original_site        = $current_site;
+		$original_wpdb_siteid = $wpdb->siteid;
+		$settings_property    = new \ReflectionProperty(Settings::class, 'settings');
+		$network_property     = new \ReflectionProperty(Settings::class, 'settings_network_id');
+
+		if (PHP_VERSION_ID < 80100) {
+			$settings_property->setAccessible(true);
+			$network_property->setAccessible(true);
+		}
+
+		update_network_option(
+			$source_network_id,
+			'wp-ultimo_v2_settings',
+			[
+				'network_marker' => 'source',
+				'source_only'    => 'keep',
+			]
+		);
+		update_network_option(
+			$target_network_id,
+			'wp-ultimo_v2_settings',
+			[
+				'network_marker' => 'target',
+				'target_only'    => 'keep',
+			]
+		);
+
+		try {
+			$current_site = (object) ['id' => $source_network_id];
+			$wpdb->siteid = $source_network_id;
+			$settings_property->setValue($this->settings, null);
+			$network_property->setValue($this->settings, null);
+
+			$this->assertSame('source', $this->settings->get_setting('network_marker'));
+
+			$current_site = (object) ['id' => $target_network_id];
+			$wpdb->siteid = $target_network_id;
+
+			$this->assertTrue($this->settings->save_setting('saved_after_switch', true));
+
+			$target_settings = get_network_option($target_network_id, 'wp-ultimo_v2_settings', []);
+
+			$this->assertSame('target', $target_settings['network_marker']);
+			$this->assertSame('keep', $target_settings['target_only']);
+			$this->assertArrayNotHasKey('source_only', $target_settings);
+			$this->assertTrue($target_settings['saved_after_switch']);
+		} finally {
+			$current_site = $original_site;
+			$wpdb->siteid = $original_wpdb_siteid;
+			delete_network_option($source_network_id, 'wp-ultimo_v2_settings');
+			delete_network_option($target_network_id, 'wp-ultimo_v2_settings');
+			$settings_property->setValue($this->settings, null);
+			$network_property->setValue($this->settings, null);
+		}
+	}
+
 	// ------------------------------------------------------------------
 	// get_setting filter
 	// ------------------------------------------------------------------
