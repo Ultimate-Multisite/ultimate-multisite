@@ -12,6 +12,16 @@ class WP_Config_Test extends WP_UnitTestCase {
 	protected $wp_config;
 
 	/**
+	 * @var string
+	 */
+	protected $config_path;
+
+	/**
+	 * @var callable
+	 */
+	protected $config_path_filter;
+
+	/**
 	 * Set up test fixtures.
 	 */
 	public function setUp(): void {
@@ -19,6 +29,22 @@ class WP_Config_Test extends WP_UnitTestCase {
 		parent::setUp();
 
 		$this->wp_config = WP_Config::get_instance();
+	}
+
+	/**
+	 * Remove temporary configuration files.
+	 */
+	public function tearDown(): void {
+
+		if ($this->config_path_filter) {
+			remove_filter('wu_wp_config_path', $this->config_path_filter);
+		}
+
+		if ($this->config_path && file_exists($this->config_path)) {
+			wp_delete_file($this->config_path);
+		}
+
+		parent::tearDown();
 	}
 
 	/**
@@ -41,6 +67,88 @@ class WP_Config_Test extends WP_UnitTestCase {
 
 		$this->assertIsString($path);
 		$this->assertStringContainsString('.php', $path);
+	}
+
+	/**
+	 * Test duplicate constants are replaced by one authoritative definition.
+	 */
+	public function test_inject_wp_config_constants_removes_duplicates(): void {
+
+		$this->use_config_contents(
+			"<?php\n" .
+			"define( 'MULTISITE', false );\n" .
+			"  define(\n\t'MULTISITE',\n\ttrue\n);\n" .
+			"\$table_prefix = 'wp_';\n" .
+			"/* That's all, stop editing! Happy publishing. */\n" .
+			"require_once ABSPATH . 'wp-settings.php';\n"
+		);
+
+		$result = $this->wp_config->inject_wp_config_constants(
+			[
+				'MULTISITE'           => true,
+				'DOMAIN_CURRENT_SITE' => "www.roberto's.example",
+			]
+		);
+
+		$this->assertTrue($result);
+
+		$contents = file_get_contents($this->config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+
+		$this->assertSame(1, preg_match_all('/\bdefine\s*\(\s*[\'\"]MULTISITE[\'\"]/', $contents));
+		$this->assertStringContainsString("define( 'MULTISITE', true );", $contents);
+		$this->assertStringContainsString("define( 'DOMAIN_CURRENT_SITE', 'www.roberto\\'s.example' );", $contents);
+	}
+
+	/**
+	 * Test table prefix is used when the standard WordPress comment is absent.
+	 */
+	public function test_inject_wp_config_constant_uses_table_prefix_fallback(): void {
+
+		$this->use_config_contents(
+			"<?php\r\n" .
+			"\$table_prefix = 'wp_';\r\n" .
+			"require_once ABSPATH . 'wp-settings.php';\r\n"
+		);
+
+		$result   = $this->wp_config->inject_wp_config_constant('SUNRISE', true);
+		$contents = file_get_contents($this->config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+
+		$this->assertTrue($result);
+		$this->assertStringContainsString("\$table_prefix = 'wp_';\r\ndefine( 'SUNRISE', true );", $contents);
+	}
+
+	/**
+	 * Test failed syntax validation leaves the original file untouched.
+	 */
+	public function test_inject_wp_config_constant_preserves_original_on_invalid_php(): void {
+
+		$original = "<?php\ndefine( 'BROKEN', true;\n/* That's all, stop editing! Happy publishing. */\n";
+
+		$this->use_config_contents($original);
+
+		$result = $this->wp_config->inject_wp_config_constant('SUNRISE', true);
+
+		$this->assertWPError($result);
+		$this->assertSame($original, file_get_contents($this->config_path)); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+	}
+
+	/**
+	 * Test revert removes every ordinary definition of a constant.
+	 */
+	public function test_revert_removes_duplicate_definitions(): void {
+
+		$this->use_config_contents(
+			"<?php\n" .
+			"define( 'SUNRISE', true );\n" .
+			"defined( 'SUNRISE' ) || define( 'SUNRISE', false );\n" .
+			"/* That's all, stop editing! Happy publishing. */\n"
+		);
+
+		$result   = $this->wp_config->revert('SUNRISE');
+		$contents = file_get_contents($this->config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+
+		$this->assertTrue($result);
+		$this->assertStringNotContainsString("'SUNRISE'", $contents);
 	}
 
 	/**
@@ -184,5 +292,20 @@ class WP_Config_Test extends WP_UnitTestCase {
 		$result = $this->wp_config->find_reference_hook_line($config);
 
 		$this->assertIsInt($result);
+	}
+
+	/**
+	 * Point WP_Config at a temporary fixture.
+	 *
+	 * @param string $contents Fixture contents.
+	 */
+	protected function use_config_contents($contents): void {
+
+		$this->config_path = wp_tempnam('wp-config.php');
+		file_put_contents($this->config_path, $contents); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
+		$this->config_path_filter = fn() => $this->config_path;
+
+		add_filter('wu_wp_config_path', $this->config_path_filter);
 	}
 }

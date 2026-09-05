@@ -102,6 +102,7 @@
         "wp-ultimo/autoloader-plugin": "dev-main",
         "wordpress/abilities-api": "^0.4.0",
         "wordpress/mcp-adapter": "^0.4.1",
+        "wp-cli/wp-config-transformer": "^1.4.2",
         "rpnzl/arrch": "dev-master#994258bbefb7722243211654c4f78813312cd5ed",
         "amphp/amp": "^2.6.2",
         "amphp/byte-stream": "^1.8.1",

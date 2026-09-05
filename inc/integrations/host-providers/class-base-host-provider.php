@@ -509,9 +509,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 		 */
 		$values = shortcode_atts(array_flip($this->get_all_constants()), $constant_values);
 
-		foreach ($values as $constant => $value) {
-			WP_Config::get_instance()->inject_wp_config_constant($constant, $value);
-		}
+		WP_Config::get_instance()->inject_wp_config_constants($values);
 	}
 
 	/**

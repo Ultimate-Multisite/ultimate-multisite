@@ -245,13 +245,12 @@ class Multisite_Network_Installer extends Base_Installer {
 			'BLOG_ID_CURRENT_SITE' => 1,
 		];
 
-		foreach ($constants as $constant => $value) {
-			$result = $wp_config->inject_wp_config_constant($constant, $value);
+		$result = $wp_config->inject_wp_config_constants($constants);
 
-			if (is_wp_error($result)) {
-				throw new \Exception(esc_html($result->get_error_message()));
-			}
+		if (is_wp_error($result)) {
+			throw new \Exception(esc_html($result->get_error_message()));
 		}
+
 		wp_cache_flush();
 	}
 
@@ -284,7 +283,7 @@ class Multisite_Network_Installer extends Base_Installer {
 		$sitemeta_table = $wpdb->base_prefix . 'sitemeta';
 		$network_id     = get_current_network_id();
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$existing = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT meta_id, meta_value FROM {$sitemeta_table} WHERE meta_key = %s AND site_id = %d",
@@ -311,7 +310,7 @@ class Multisite_Network_Installer extends Base_Installer {
 
 		$active_plugins[ WP_ULTIMO_PLUGIN_BASENAME ] = time();
 
-		$serialized = serialize($active_plugins);
+		$serialized = serialize($active_plugins); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- This is WordPress's required active_sitewide_plugins format.
 
 		if ($existing) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
