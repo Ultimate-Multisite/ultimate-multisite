@@ -18,8 +18,8 @@ $mode_label = $sandbox_mode
 
 <p class="wu-text-lg wu-text-gray-600 wu-my-4 wu-mb-6">
 	<?php
-	/* translators: %s: "Sandbox" or "Live" */
 	printf(
+		/* translators: %s: "Sandbox" or "Live" */
 		esc_html__('Follow these four steps to copy a Client ID and Secret out of the PayPal Developer Dashboard. You are setting up the %s environment.', 'ultimate-multisite'),
 		'<strong>' . esc_html($mode_label) . '</strong>'
 	);

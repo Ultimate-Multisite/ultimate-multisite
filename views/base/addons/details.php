@@ -75,7 +75,7 @@ style="background-image:url(<?php echo esc_url($addon->images[0]['thumbnail']); 
 
 						<li>
 							<strong><?php esc_html_e('Requires Ultimate Multisite Version:', 'ultimate-multisite'); ?></strong>
-							<?php // translators: %s minimun required version number. ?>
+							<?php // translators: %s minimum required version number. ?>
 							<?php printf(esc_html__('%s or higher', 'ultimate-multisite'), esc_html($addon->requires_version)); ?>
 						</li>
 

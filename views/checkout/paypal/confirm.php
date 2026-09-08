@@ -36,7 +36,7 @@ if ($membership->is_recurring() && $should_auto_renew) {
 		if ($original_cart->get_cart_type() === 'downgrade') {
 			$subtotal = wu_format_currency($payment->get_subtotal(), $payment->get_currency());
 			if ($is_trial_setup) {
-				// translators: %1$s is the start date, %2$s is the subtotal amount, and %3$s is the description of how often.
+				// translators: %1$s the date membership will start, %2$s amount to be billed, %3$s the description of how often.
 				$notes[] = sprintf(__('Your updated membership will start on %1$s, from that date you will be billed %2$s %3$s.', 'ultimate-multisite'), $date, $subtotal, $desc);
 			} else {
 				$date_renew = wp_date(get_option('date_format'), strtotime($membership->get_date_expiration(), wu_get_current_time('timestamp', true)));
