@@ -167,6 +167,21 @@ class WP_Config_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test revert preserves a user-owned true definition without the managed marker.
+	 */
+	public function test_revert_preserves_user_owned_true_definition(): void {
+
+		$original = "<?php\ndefine( 'SUNRISE', true );\n/* That's all, stop editing! Happy publishing. */\n";
+
+		$this->use_config_contents($original);
+
+		$result = $this->wp_config->revert('SUNRISE');
+
+		$this->assertFalse($result);
+		$this->assertSame($original, file_get_contents($this->config_path)); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+	}
+
+	/**
 	 * Test revert removes a single managed true definition.
 	 */
 	public function test_revert_removes_managed_definition(): void {
@@ -200,7 +215,7 @@ class WP_Config_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test atomic replacement preserves filesystem metadata.
+	 * Test atomic replacement preserves owner, group, and mode metadata.
 	 */
 	public function test_inject_wp_config_constant_preserves_file_metadata(): void {
 

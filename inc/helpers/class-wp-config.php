@@ -94,8 +94,9 @@ class WP_Config {
 			return new \WP_Error('not-writeable', sprintf(__('The file %s is not writable', 'ultimate-multisite'), $config_path));
 		}
 
-		// Serialize Ultimate Multisite writers. The content comparison below also detects
-		// external changes made before the final atomic replacement.
+		// Serialize Ultimate Multisite writers with a stable sidecar lock. Lock the
+		// configuration file too, so external writers using flock() cooperate with us.
+		// The final identity and content checks detect completed non-cooperative writes.
 		$lock_path   = rtrim(sys_get_temp_dir(), '/\\') . '/wu-wp-config-' . hash('sha256', $resolved_config_path) . '.lock';
 		$lock_handle = fopen($lock_path, 'c'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
 
@@ -108,18 +109,34 @@ class WP_Config {
 		}
 
 		$temporary_path = false;
+		$config_handle  = false;
 
 		try {
-			$original_contents = file_get_contents($resolved_config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			$config_handle = fopen($resolved_config_path, 'r+'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+
+			if (false === $config_handle || ! flock($config_handle, LOCK_EX)) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_flock
+				throw new \RuntimeException(__('The wp-config.php file lock could not be acquired.', 'ultimate-multisite'));
+			}
+
+			rewind($config_handle); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rewind
+			$original_contents = stream_get_contents($config_handle); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_stream_get_contents
 
 			if (false === $original_contents || '' === trim($original_contents)) {
 				throw new \RuntimeException(__('The wp-config.php file could not be read or is empty.', 'ultimate-multisite'));
 			}
 
-			$file_metadata = stat($resolved_config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_stat
+			$file_metadata = fstat($config_handle); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fstat
 
 			if (false === $file_metadata) {
 				throw new \RuntimeException(__('The wp-config.php file metadata could not be read.', 'ultimate-multisite'));
+			}
+
+			if ($remove_only) {
+				foreach (array_keys($constants) as $constant) {
+					if (1 !== $this->count_constant_definitions($original_contents, $constant) || ! $this->has_managed_true_definition($original_contents, $constant)) {
+						return false;
+					}
+				}
 			}
 
 			$temporary_path = tempnam(dirname($resolved_config_path), '.wu-wp-config-');
@@ -204,7 +221,15 @@ class WP_Config {
 				return false;
 			}
 
-			if (file_get_contents($resolved_config_path) !== $original_contents) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			clearstatcache(true, $resolved_config_path);
+			$current_metadata = stat($resolved_config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_stat
+
+			if (
+				false === $current_metadata
+				|| $file_metadata['dev'] !== $current_metadata['dev']
+				|| $file_metadata['ino'] !== $current_metadata['ino']
+				|| file_get_contents($resolved_config_path) !== $original_contents // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			) {
 				throw new \RuntimeException(__('The wp-config.php file changed while it was being updated. No changes were applied.', 'ultimate-multisite'));
 			}
 
@@ -223,6 +248,11 @@ class WP_Config {
 		} finally {
 			if (is_string($temporary_path) && file_exists($temporary_path)) {
 				wp_delete_file($temporary_path);
+			}
+
+			if (is_resource($config_handle)) {
+				flock($config_handle, LOCK_UN); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_flock
+				fclose($config_handle); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 			}
 
 			flock($lock_handle, LOCK_UN); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_flock
@@ -304,6 +334,22 @@ class WP_Config {
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Check whether a true definition has the Ultimate Multisite marker.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @param string $contents wp-config.php contents.
+	 * @param string $constant Constant name.
+	 * @return bool
+	 */
+	private function has_managed_true_definition($contents, $constant) {
+
+		$pattern = '/^[\t ]*define\(\s*([\'\"])' . preg_quote($constant, '/') . '\1\s*,\s*(?:true|1)\s*\);[\t ]*\/\/[\t ]*' . preg_quote(self::MANAGED_MARKER, '/') . '[\t ]*\r?$/mi';
+
+		return 1 === preg_match($pattern, $contents);
 	}
 
 	/**
@@ -616,13 +662,11 @@ class WP_Config {
 			return new \WP_Error('invalid-wp-config', __('The wp-config.php file could not be read.', 'ultimate-multisite'));
 		}
 
-		$injected_line = $this->find_injected_line($config, $constant);
-		$contents      = implode('', $config);
+		$contents = implode('', $config);
 
 		if (
 			1 !== $this->count_constant_definitions($contents, $constant)
-			|| false === $injected_line
-			|| ! in_array(rtrim($injected_line[0], ';'), ['true', '1'], true)
+			|| ! $this->has_managed_true_definition($contents, $constant)
 		) {
 			return false;
 		}
@@ -641,7 +685,7 @@ class WP_Config {
 	 */
 	public function find_injected_line($config, $constant) {
 
-		$pattern = "/^define\(\s*['|\"]" . $constant . "['|\"],(.*)\)/";
+		$pattern = "/^define\(\s*['\"]" . preg_quote($constant, '/') . "['\"],(.*)\)/";
 
 		foreach ($config as $k => $line) {
 			if (preg_match($pattern, (string) $line, $matches)) {
