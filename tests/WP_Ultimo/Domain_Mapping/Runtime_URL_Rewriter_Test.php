@@ -319,6 +319,66 @@ class Runtime_URL_Rewriter_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Canonical lookup keeps WordPress's original candidate-path bound.
+	 */
+	public function test_canonical_site_lookup_preserves_candidate_path_bound() {
+
+		$parent_blog_id = self::factory()->blog->create(
+			[
+				'domain' => 'bounded.example.org',
+				'path'   => '/network/customer/',
+			]
+		);
+		$nested_blog_id = self::factory()->blog->create(
+			[
+				'domain' => 'bounded.example.org',
+				'path'   => '/network/customer/deep/',
+			]
+		);
+
+		$this->assertNotWPError($parent_blog_id);
+		$this->assertNotWPError($nested_blog_id);
+
+		$mapping_filter = static function () {
+
+			return ['https://bounded.example.org/network' => 'https://bounded.staging.example.test/Preview'];
+		};
+
+		add_filter('wu_runtime_url_rewriter_mappings', $mapping_filter);
+
+		$reflection = new \ReflectionClass(Runtime_URL_Rewriter::class);
+		$method     = $reflection->getMethod('get_configured_mappings');
+		$mappings   = $method->invoke(self::$rewriter);
+
+		remove_filter('wu_runtime_url_rewriter_mappings', $mapping_filter);
+
+		$mappings_property = $reflection->getProperty('mappings');
+		$active_property   = $reflection->getProperty('active_mapping');
+		$original_mappings = $mappings_property->getValue(self::$rewriter);
+		$original_active   = $active_property->getValue(self::$rewriter);
+
+		$mappings_property->setValue(self::$rewriter, $mappings);
+		$active_property->setValue(self::$rewriter, $mappings[0]);
+
+		try {
+			$site = self::$rewriter->resolve_site(
+				null,
+				'bounded.staging.example.test',
+				'/Preview/customer/deep/page/',
+				2,
+				['/Preview/customer/', '/Preview/', '/']
+			);
+
+			$this->assertInstanceOf(\WP_Site::class, $site);
+			$this->assertSame($parent_blog_id, (int) $site->blog_id);
+			$this->assertNotSame($nested_blog_id, (int) $site->blog_id);
+		} finally {
+			$mappings_property->setValue(self::$rewriter, $original_mappings);
+			$active_property->setValue(self::$rewriter, $original_active);
+		}
+	}
+
+	/**
 	 * A target subdomain and port resolve against the canonical site hostname.
 	 */
 	public function test_resolves_canonical_site_from_target_subdomain() {
@@ -395,5 +455,31 @@ class Runtime_URL_Rewriter_Test extends \WP_UnitTestCase {
 			['existing.example', 'staging.example.test'],
 			self::$rewriter->allow_target_hosts(['existing.example'])
 		);
+	}
+
+	/**
+	 * Safe redirects allow only the target host active for this request.
+	 */
+	public function test_redirect_allowlist_excludes_inactive_target_hosts() {
+
+		$reflection        = new \ReflectionClass(Runtime_URL_Rewriter::class);
+		$mappings_property = $reflection->getProperty('mappings');
+		$original_mappings = $mappings_property->getValue(self::$rewriter);
+		$mappings          = $original_mappings;
+		$mappings[]        = [
+			'source' => ['host' => 'other.example.org'],
+			'target' => ['host' => 'other-staging.example.test'],
+		];
+
+		$mappings_property->setValue(self::$rewriter, $mappings);
+
+		try {
+			$hosts = self::$rewriter->allow_target_hosts([]);
+
+			$this->assertContains('staging.example.test', $hosts);
+			$this->assertNotContains('other-staging.example.test', $hosts);
+		} finally {
+			$mappings_property->setValue(self::$rewriter, $original_mappings);
+		}
 	}
 }

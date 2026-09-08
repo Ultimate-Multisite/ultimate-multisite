@@ -77,16 +77,17 @@ final class Runtime_URL_Rewriter {
 	 * @param string[]            $paths    Candidate paths.
 	 * @return null|false|\WP_Site
 	 */
-	public function resolve_site($site, $domain, $path, $segments = null, $paths = []) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+	public function resolve_site($site, $domain, $path, $segments = null, $paths = []) {
 
 		if (null !== $site || ! $this->request_matches_active_mapping($domain, $path)) {
 			return $site;
 		}
 
-		$source_path = $this->translate_request_path($path, $this->active_mapping);
+		$source_path     = $this->translate_request_path($path, $this->active_mapping);
+		$source_segments = $this->get_translated_segment_limit($segments, $paths, $this->active_mapping);
 
 		remove_filter('pre_get_site_by_path', [$this, 'resolve_site'], 1);
-		$site = get_site_by_path($this->active_mapping['source']['host'], $source_path);
+		$site = get_site_by_path($this->active_mapping['source']['host'], $source_path, $source_segments);
 		add_filter('pre_get_site_by_path', [$this, 'resolve_site'], 1, 5);
 
 		return $site;
@@ -104,16 +105,17 @@ final class Runtime_URL_Rewriter {
 	 * @param string[]               $paths    Candidate paths.
 	 * @return null|false|\WP_Network
 	 */
-	public function resolve_network($network, $domain, $path, $segments = null, $paths = []) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+	public function resolve_network($network, $domain, $path, $segments = null, $paths = []) {
 
 		if (null !== $network || ! $this->request_matches_active_mapping($domain, $path)) {
 			return $network;
 		}
 
-		$source_path = $this->translate_request_path($path, $this->active_mapping);
+		$source_path     = $this->translate_request_path($path, $this->active_mapping);
+		$source_segments = $this->get_translated_segment_limit($segments, $paths, $this->active_mapping);
 
 		remove_filter('pre_get_network_by_path', [$this, 'resolve_network'], 1);
-		$network = get_network_by_path($this->active_mapping['source']['host'], $source_path);
+		$network = get_network_by_path($this->active_mapping['source']['host'], $source_path, $source_segments);
 		add_filter('pre_get_network_by_path', [$this, 'resolve_network'], 1, 5);
 
 		return $network;
@@ -239,6 +241,10 @@ final class Runtime_URL_Rewriter {
 		}
 
 		foreach ($this->mappings as $mapping) {
+			if (false === stripos($value, $mapping['source']['host'])) {
+				continue;
+			}
+
 			$subdomains     = '(?P<wu_subdomains>(?:[a-z0-9-]+\.)*)';
 			$plain_source   = $subdomains . preg_quote($mapping['source']['authority'], '#')
 				. '(?-i:' . preg_quote($mapping['source']['base_path'], '#') . ')';
@@ -434,10 +440,6 @@ final class Runtime_URL_Rewriter {
 	 * @return string[]
 	 */
 	public function allow_target_hosts($hosts) {
-
-		foreach ($this->mappings as $mapping) {
-			$hosts[] = $mapping['target']['host'];
-		}
 
 		if (! empty($this->active_mapping['target']['host'])) {
 			$hosts[] = $this->active_mapping['target']['host'];
@@ -791,5 +793,37 @@ final class Runtime_URL_Rewriter {
 		}
 
 		return $translated;
+	}
+
+	/**
+	 * Translate WordPress's target-path lookup bound to the canonical path.
+	 *
+	 * WordPress prepares candidate paths before the pre_get_*_by_path filters run.
+	 * Re-entering the lookup without their bound can select a deeper nested site
+	 * than the original target request was allowed to consult.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @param int|null $segments Suggested target path segment count.
+	 * @param string[] $paths Candidate target paths prepared by WordPress.
+	 * @param array    $mapping Active normalized mapping.
+	 * @return int|null
+	 */
+	private function get_translated_segment_limit($segments, $paths, $mapping) {
+
+		if (! empty($paths)) {
+			$translated_candidate = $this->translate_request_path(reset($paths), $mapping);
+
+			return count(array_filter(explode('/', trim($translated_candidate, '/'))));
+		}
+
+		if (null === $segments) {
+			return null;
+		}
+
+		$source_base_segments = count(array_filter(explode('/', trim($mapping['source']['base_path'], '/'))));
+		$target_base_segments = count(array_filter(explode('/', trim($mapping['target']['base_path'], '/'))));
+
+		return max(0, $segments + $source_base_segments - $target_base_segments);
 	}
 }

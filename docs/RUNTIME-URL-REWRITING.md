@@ -109,8 +109,10 @@ add_action(
 ## Proof-of-concept limitations
 
 - Each unrelated root domain needs one source-to-target suffix rule.
-- Code that reads the database directly and bypasses WordPress filters may still
-  expose canonical URLs.
+- Rewriting is limited to the documented WordPress filters and extension hook;
+  it does not buffer or rewrite the entire HTTP response. Code that reads the
+  database directly or prints a URL outside those filters may expose canonical
+  URLs.
 - Encodings other than the documented plain, JSON-escaped, and URL-encoded forms
   may not be rewritten.
 - Cached HTML generated before enabling the mapping must be purged.
