@@ -133,6 +133,22 @@ class WP_Config_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test revert reports invalid PHP without changing the original file.
+	 */
+	public function test_revert_preserves_original_on_invalid_php(): void {
+
+		$original = "<?php\ndefine( 'SUNRISE', true ); // Ultimate Multisite managed\nif (\n";
+
+		$this->use_config_contents($original);
+
+		$result = $this->wp_config->revert('SUNRISE');
+
+		$this->assertWPError($result);
+		$this->assertSame('wp-config-transform-failed', $result->get_error_code());
+		$this->assertSame($original, file_get_contents($this->config_path)); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+	}
+
+	/**
 	 * Test revert refuses to remove ambiguous mixed definitions.
 	 */
 	public function test_revert_preserves_mixed_duplicate_definitions(): void {

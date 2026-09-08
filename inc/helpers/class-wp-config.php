@@ -664,8 +664,14 @@ class WP_Config {
 
 		$contents = implode('', $config);
 
+		try {
+			$definition_count = $this->count_constant_definitions($contents, $constant);
+		} catch (\Throwable $exception) {
+			return new \WP_Error('wp-config-transform-failed', $exception->getMessage());
+		}
+
 		if (
-			1 !== $this->count_constant_definitions($contents, $constant)
+			1 !== $definition_count
 			|| ! $this->has_managed_true_definition($contents, $constant)
 		) {
 			return false;
