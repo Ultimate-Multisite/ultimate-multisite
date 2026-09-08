@@ -100,8 +100,6 @@
         "php": ">=8.2",
         "automattic/jetpack-autoloader": "^3.0 || ^4.0 || ^5.0",
         "wp-ultimo/autoloader-plugin": "dev-main",
-        "wordpress/abilities-api": "^0.4.0",
-        "wordpress/mcp-adapter": "^0.4.1",
         "wp-cli/wp-config-transformer": "^1.4.2",
         "rpnzl/arrch": "dev-master#994258bbefb7722243211654c4f78813312cd5ed",
         "amphp/amp": "^2.6.2",
@@ -144,7 +142,11 @@
         "fakerphp/faker": "^1.24",
         "rector/rector": "^2.0.8",
         "szepeviktor/phpstan-wordpress": "^2.0.1",
-        "phpstan/extension-installer": "^1.1"
+        "phpstan/extension-installer": "^1.1",
+        "wordpress/mcp-adapter": "^0.6.1"
+    },
+    "suggest": {
+        "wordpress/mcp-adapter": "Install and network activate the canonical MCP Adapter plugin to enable MCP integration."
     },
     "config": {
         "platform": {
