@@ -95,7 +95,9 @@ For a request to a configured target URL, the proof of concept:
 Bare domains are not replaced. This avoids changing email addresses and prose.
 Database values are never updated.
 
-Additional integrations can register their own filters at sunrise time:
+Additional integrations can register their own filters at sunrise time. The
+registration code must load from `sunrise.php` or another file loaded before
+the `ms_loaded` action; ordinary plugins load too late for this hook:
 
 ```php
 add_action(

@@ -387,7 +387,7 @@ class Runtime_URL_Rewriter_Test extends \WP_UnitTestCase {
 		$target_domain = str_replace('.example.org', '.staging.example.test', $source_domain);
 		$blog_id       = self::factory()->blog->create(
 			[
-				'domain' => $source_domain,
+				'domain' => $source_domain . ':8443',
 				'path'   => '/',
 			]
 		);
@@ -426,10 +426,11 @@ class Runtime_URL_Rewriter_Test extends \WP_UnitTestCase {
 			$this->assertSame($target_domain . ':9443', $mapping['target']['authority']);
 
 			$active_property->setValue(self::$rewriter, $mapping);
-			$site = self::$rewriter->resolve_site(null, $target_domain, '/Preview/');
+			$this->assertNull(self::$rewriter->resolve_site(null, $target_domain, '/Preview/'));
+			$site = self::$rewriter->resolve_site(null, $target_domain . ':9443', '/Preview/');
 
 			$this->assertInstanceOf(\WP_Site::class, $site);
-			$this->assertSame($source_domain, $site->domain);
+			$this->assertSame($source_domain . ':8443', $site->domain);
 			$this->assertContains($target_domain, self::$rewriter->allow_target_hosts([]));
 		} finally {
 			$mappings_property->setValue(self::$rewriter, $original_mappings);

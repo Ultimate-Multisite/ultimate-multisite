@@ -87,7 +87,7 @@ final class Runtime_URL_Rewriter {
 		$source_segments = $this->get_translated_segment_limit($segments, $paths, $this->active_mapping);
 
 		remove_filter('pre_get_site_by_path', [$this, 'resolve_site'], 1);
-		$site = get_site_by_path($this->active_mapping['source']['host'], $source_path, $source_segments);
+		$site = get_site_by_path($this->active_mapping['source']['authority'], $source_path, $source_segments);
 		add_filter('pre_get_site_by_path', [$this, 'resolve_site'], 1, 5);
 
 		return $site;
@@ -115,7 +115,7 @@ final class Runtime_URL_Rewriter {
 		$source_segments = $this->get_translated_segment_limit($segments, $paths, $this->active_mapping);
 
 		remove_filter('pre_get_network_by_path', [$this, 'resolve_network'], 1);
-		$network = get_network_by_path($this->active_mapping['source']['host'], $source_path, $source_segments);
+		$network = get_network_by_path($this->active_mapping['source']['authority'], $source_path, $source_segments);
 		add_filter('pre_get_network_by_path', [$this, 'resolve_network'], 1, 5);
 
 		return $network;
@@ -674,13 +674,8 @@ final class Runtime_URL_Rewriter {
 	 */
 	private function request_matches_active_mapping($domain, $path) {
 
-		// wp_parse_url() may not be available in every sunrise integration.
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
-		$domain_host = parse_url('http://' . $domain, PHP_URL_HOST);
-
 		return ! empty($this->active_mapping)
-			&& is_string($domain_host)
-			&& strtolower($domain_host) === $this->active_mapping['target']['host']
+			&& '' === $this->get_authority_prefix(strtolower($domain), $this->active_mapping['target'])
 			&& $this->request_path_matches_mapping($path, $this->active_mapping);
 	}
 
