@@ -362,15 +362,8 @@ class WP_Config {
 	 */
 	private function get_transformer_anchor($contents) {
 
-		global $wpdb;
-
 		$default_anchor   = "/* That's all, stop editing!";
-		$default_patterns = [
-			'/^\$table_prefix\s*=\s*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
-			'/^( ){0,}\$table_prefix\s*=.*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
-			'/(\/\* That\'s all, stop editing! Happy publishing\. \*\/)/' => -2,
-			'/<\?php/' => 0,
-		];
+		$default_patterns = $this->get_default_reference_patterns();
 		$patterns         = apply_filters('wu_wp_config_reference_hook_line_patterns', $default_patterns);
 
 		// A customized pattern list is authoritative, matching the legacy API.
@@ -410,6 +403,25 @@ class WP_Config {
 		}
 
 		return new \WP_Error('unknown-wpconfig', __("Ultimate Multisite can't recognize your wp-config.php. No changes were applied.", 'ultimate-multisite'));
+	}
+
+	/**
+	 * Get the default patterns used to locate a wp-config.php injection point.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @return array<string, int>
+	 */
+	private function get_default_reference_patterns() {
+
+		global $wpdb;
+
+		return [
+			'/^\$table_prefix\s*=\s*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
+			'/^( ){0,}\$table_prefix\s*=.*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
+			'/(\/\* That\'s all, stop editing! Happy publishing\. \*\/)/' => -2,
+			'/<\?php/' => 0,
+		];
 	}
 
 	/**
@@ -605,8 +617,6 @@ class WP_Config {
 	 */
 	public function find_reference_hook_line($config) {
 
-		global $wpdb;
-
 		/**
 		 * We check for three patterns when trying to figure our
 		 * where we can inject our constants:
@@ -623,12 +633,7 @@ class WP_Config {
 		 */
 		$patterns = apply_filters(
 			'wu_wp_config_reference_hook_line_patterns',
-			[
-				'/^\$table_prefix\s*=\s*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
-				'/^( ){0,}\$table_prefix\s*=.*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
-				'/(\/\* That\'s all, stop editing! Happy publishing\. \*\/)/' => -2,
-				'/<\?php/' => 0,
-			]
+			$this->get_default_reference_patterns()
 		);
 
 		$line = 1;
