@@ -38,6 +38,14 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 	private const MINIMUM_MCP_ADAPTER_VERSION = '0.6.1';
 
 	/**
+	 * Canonical MCP Adapter plugin basename.
+	 *
+	 * @since 2.16.0
+	 * @var string
+	 */
+	private const MCP_ADAPTER_PLUGIN_BASENAME = 'mcp-adapter/mcp-adapter.php';
+
+	/**
 	 * Minimum WordPress version with the Abilities API in core.
 	 *
 	 * @since 2.16.0
@@ -77,7 +85,6 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 		 * @since 2.5.0
 		 */
 		add_action('init', [$this, 'add_settings'], 20);
-		add_action('network_admin_notices', [$this, 'display_dependency_notice']);
 	}
 
 	/**
@@ -281,7 +288,12 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 	public function is_mcp_available(): bool {
 		global $wp_version;
 
-		$available = version_compare((string) $wp_version, self::MINIMUM_WORDPRESS_VERSION, '>=')
+		if (! function_exists('is_plugin_active_for_network')) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		$available = is_plugin_active_for_network(self::MCP_ADAPTER_PLUGIN_BASENAME)
+			&& version_compare((string) $wp_version, self::MINIMUM_WORDPRESS_VERSION, '>=')
 			&& defined('WP_MCP_VERSION')
 			&& version_compare((string) WP_MCP_VERSION, self::MINIMUM_MCP_ADAPTER_VERSION, '>=')
 			&& class_exists(McpAdapterCore::class)
@@ -296,24 +308,6 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 		 * @return bool
 		 */
 		return (bool) apply_filters('wu_mcp_adapter_available', $available);
-	}
-
-	/**
-	 * Display a notice when a previously enabled MCP integration is unavailable.
-	 *
-	 * @since 2.16.0
-	 * @return void
-	 */
-	public function display_dependency_notice(): void {
-		if (! wu_get_setting('enable_mcp', false) || $this->is_mcp_available()) {
-			return;
-		}
-
-		printf(
-			'<div class="notice notice-warning"><p><strong>%s</strong> %s</p></div>',
-			esc_html__('Ultimate Multisite MCP integration is unavailable.', 'ultimate-multisite'),
-			esc_html($this->get_dependency_message())
-		);
 	}
 
 	/**

@@ -40,12 +40,11 @@ class MCP_Adapter_Test extends \WP_UnitTestCase {
 		$has_adapter_hook  = has_action('init', [$instance, 'initialize_adapter']);
 		$has_server_hook   = has_action('mcp_adapter_init', [$instance, 'initialize_mcp_server']);
 		$has_settings_hook = has_action('init', [$instance, 'add_settings']);
-		$has_notice_hook   = has_action('network_admin_notices', [$instance, 'display_dependency_notice']);
 
 		$this->assertNotFalse($has_adapter_hook);
 		$this->assertNotFalse($has_server_hook);
 		$this->assertNotFalse($has_settings_hook);
-		$this->assertNotFalse($has_notice_hook);
+		$this->assertFalse(has_action('network_admin_notices', [$instance, 'display_dependency_notice']));
 	}
 
 	/**
@@ -70,6 +69,34 @@ class MCP_Adapter_Test extends \WP_UnitTestCase {
 		$this->assertFalse($instance->is_mcp_enabled());
 
 		remove_filter('wu_is_mcp_enabled', '__return_true');
+	}
+
+	/**
+	 * Test site-only activation does not make MCP available on multisite.
+	 */
+	public function test_is_mcp_available_requires_network_activation() {
+		if (! function_exists('wp_get_abilities')) {
+			$this->markTestSkipped('This test requires WordPress 6.9 or newer.');
+		}
+
+		$plugin_file              = 'mcp-adapter/mcp-adapter.php';
+		$original_plugins         = get_option('active_plugins', []);
+		$original_network_plugins = get_site_option('active_sitewide_plugins', []);
+		$network_plugins          = $original_network_plugins;
+
+		update_option('active_plugins', array_values(array_unique(array_merge($original_plugins, [$plugin_file]))));
+		unset($network_plugins[$plugin_file]);
+		update_site_option('active_sitewide_plugins', $network_plugins);
+
+		try {
+			$this->assertTrue(is_multisite());
+			$this->assertTrue(is_plugin_active($plugin_file));
+			$this->assertFalse(is_plugin_active_for_network($plugin_file));
+			$this->assertFalse($this->get_instance()->is_mcp_available());
+		} finally {
+			update_option('active_plugins', $original_plugins);
+			update_site_option('active_sitewide_plugins', $original_network_plugins);
+		}
 	}
 
 	/**
