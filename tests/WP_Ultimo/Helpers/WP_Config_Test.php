@@ -12,6 +12,11 @@ class WP_Config_Test extends WP_UnitTestCase {
 	protected $wp_config;
 
 	/**
+	 * @var string[]
+	 */
+	protected $temporary_files = [];
+
+	/**
 	 * Set up test fixtures.
 	 */
 	public function setUp(): void {
@@ -19,6 +24,52 @@ class WP_Config_Test extends WP_UnitTestCase {
 		parent::setUp();
 
 		$this->wp_config = WP_Config::get_instance();
+	}
+
+	/**
+	 * Clean up test fixtures.
+	 */
+	public function tearDown(): void {
+
+		foreach ($this->temporary_files as $temporary_file) {
+			unlink($temporary_file);
+		}
+
+		parent::tearDown();
+	}
+
+	/**
+	 * Test injecting a constant does not create another definition.
+	 */
+	public function test_inject_wp_config_constant_does_not_create_duplicate(): void {
+
+		$wp_config = $this->create_testable_wp_config(
+			"<?php\n\n/* That's all, stop editing! Happy publishing. */\n"
+		);
+
+		$this->assertTrue($wp_config->inject_wp_config_constant('WU_TEST_CONSTANT', true));
+		$this->assertTrue($wp_config->inject_wp_config_constant('WU_TEST_CONSTANT', false));
+
+		$contents = file_get_contents($wp_config->get_wp_config_path());
+
+		$this->assertSame(1, substr_count($contents, 'WU_TEST_CONSTANT'));
+		$this->assertStringContainsString("define( 'WU_TEST_CONSTANT', false );", $contents);
+	}
+
+	/**
+	 * Test updating a constant does not remove existing definitions.
+	 */
+	public function test_inject_wp_config_constant_does_not_remove_existing_definitions(): void {
+
+		$wp_config = $this->create_testable_wp_config(
+			"<?php\n\ndefine( 'WU_TEST_CONSTANT', false );\ndefine( 'WU_TEST_CONSTANT', true );\n\n/* That's all, stop editing! Happy publishing. */\n"
+		);
+
+		$this->assertTrue($wp_config->inject_wp_config_constant('WU_TEST_CONSTANT', false));
+
+		$contents = file_get_contents($wp_config->get_wp_config_path());
+
+		$this->assertSame(2, substr_count($contents, 'WU_TEST_CONSTANT'));
 	}
 
 	/**
@@ -44,145 +95,74 @@ class WP_Config_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test inject_contents inserts at correct position.
+	 * Test reverting a constant delegates to WPConfigTransformer.
 	 */
-	public function test_inject_contents_inserts_at_position(): void {
+	public function test_revert_removes_constant(): void {
+
+		$wp_config = $this->create_testable_wp_config(
+			"<?php\n\ndefine( 'WU_TEST_CONSTANT', true );\n\n/* That's all, stop editing! Happy publishing. */\n"
+		);
+
+		$this->assertTrue($wp_config->revert('WU_TEST_CONSTANT'));
+
+		$contents = file_get_contents($wp_config->get_wp_config_path());
+
+		$this->assertStringNotContainsString('WU_TEST_CONSTANT', $contents);
+	}
+
+	/**
+	 * Test inject_contents remains as a deprecated no-op.
+	 */
+	public function test_inject_contents_is_deprecated_noop(): void {
 
 		$content = ['line1', 'line2', 'line3'];
 
-		$result = $this->wp_config->inject_contents($content, 1, 'inserted');
+		$this->setExpectedIncorrectUsage(WP_Config::class . '::inject_contents');
 
-		$this->assertCount(4, $result);
-		$this->assertEquals('line1', $result[0]);
-		$this->assertEquals('inserted', $result[1]);
-		$this->assertEquals('line2', $result[2]);
-		$this->assertEquals('line3', $result[3]);
+		$this->assertSame($content, $this->wp_config->inject_contents($content, 1, 'inserted'));
 	}
 
 	/**
-	 * Test inject_contents at beginning.
+	 * Test find_injected_line remains as a deprecated no-op.
 	 */
-	public function test_inject_contents_at_beginning(): void {
+	public function test_find_injected_line_is_deprecated_noop(): void {
 
-		$content = ['line1', 'line2'];
+		$this->setExpectedIncorrectUsage(WP_Config::class . '::find_injected_line');
 
-		$result = $this->wp_config->inject_contents($content, 0, 'first');
-
-		$this->assertCount(3, $result);
-		$this->assertEquals('first', $result[0]);
-		$this->assertEquals('line1', $result[1]);
+		$this->assertFalse($this->wp_config->find_injected_line([], 'WU_TEST_CONSTANT'));
 	}
 
 	/**
-	 * Test inject_contents at end.
+	 * Test find_reference_hook_line remains as a deprecated no-op.
 	 */
-	public function test_inject_contents_at_end(): void {
+	public function test_find_reference_hook_line_is_deprecated_noop(): void {
 
-		$content = ['line1', 'line2'];
+		$this->setExpectedIncorrectUsage(WP_Config::class . '::find_reference_hook_line');
 
-		$result = $this->wp_config->inject_contents($content, 2, 'last');
-
-		$this->assertCount(3, $result);
-		$this->assertEquals('last', $result[2]);
+		$this->assertFalse($this->wp_config->find_reference_hook_line([]));
 	}
 
 	/**
-	 * Test inject_contents with array value.
+	 * Create a WP_Config mock backed by a temporary wp-config.php file.
+	 *
+	 * @param string $contents Config file contents.
+	 * @return WP_Config
 	 */
-	public function test_inject_contents_with_array_value(): void {
+	protected function create_testable_wp_config($contents) {
 
-		$content = ['line1', 'line3'];
+		$config_path = tempnam(sys_get_temp_dir(), 'wu-wp-config-');
 
-		$result = $this->wp_config->inject_contents($content, 1, ['line2a', 'line2b']);
+		file_put_contents($config_path, $contents);
 
-		$this->assertCount(4, $result);
-		$this->assertEquals('line2a', $result[1]);
-		$this->assertEquals('line2b', $result[2]);
-	}
+		$this->temporary_files[] = $config_path;
 
-	/**
-	 * Test find_injected_line finds existing constant.
-	 */
-	public function test_find_injected_line_finds_constant(): void {
+		$wp_config = $this->getMockBuilder(WP_Config::class)
+			->disableOriginalConstructor()
+			->onlyMethods(['get_wp_config_path'])
+			->getMock();
 
-		$config = [
-			"<?php\n",
-			"define( 'WP_DEBUG', false );\n",
-			"define( 'WU_TEST_CONSTANT', 'test_value' ); // Automatically injected\n",
-			"\$table_prefix = 'wp_';\n",
-		];
+		$wp_config->method('get_wp_config_path')->willReturn($config_path);
 
-		$result = $this->wp_config->find_injected_line($config, 'WU_TEST_CONSTANT');
-
-		$this->assertIsArray($result);
-		$this->assertEquals(2, $result[1]);
-	}
-
-	/**
-	 * Test find_injected_line returns false for missing constant.
-	 */
-	public function test_find_injected_line_returns_false_for_missing(): void {
-
-		$config = [
-			"<?php\n",
-			"define( 'WP_DEBUG', false );\n",
-		];
-
-		$result = $this->wp_config->find_injected_line($config, 'NONEXISTENT_CONSTANT');
-
-		$this->assertFalse($result);
-	}
-
-	/**
-	 * Test find_reference_hook_line finds table_prefix line.
-	 */
-	public function test_find_reference_hook_line_finds_table_prefix(): void {
-
-		global $wpdb;
-
-		$config = [
-			"<?php\n",
-			"define( 'DB_NAME', 'wordpress' );\n",
-			"\$table_prefix = '{$wpdb->prefix}';\n",
-			"require_once ABSPATH . 'wp-settings.php';\n",
-		];
-
-		$result = $this->wp_config->find_reference_hook_line($config);
-
-		$this->assertIsInt($result);
-		$this->assertEquals(2, $result);
-	}
-
-	/**
-	 * Test find_reference_hook_line finds Happy Publishing comment.
-	 */
-	public function test_find_reference_hook_line_finds_happy_publishing(): void {
-
-		$config = [
-			"<?php\n",
-			"define( 'DB_NAME', 'wordpress' );\n",
-			"/* That's all, stop editing! Happy publishing. */\n",
-			"require_once ABSPATH . 'wp-settings.php';\n",
-		];
-
-		$result = $this->wp_config->find_reference_hook_line($config);
-
-		// The Happy Publishing pattern uses -2 offset
-		$this->assertIsInt($result);
-	}
-
-	/**
-	 * Test find_reference_hook_line finds php opening tag as fallback.
-	 */
-	public function test_find_reference_hook_line_finds_php_tag_fallback(): void {
-
-		$config = [
-			"<?php\n",
-			"// Some custom config\n",
-		];
-
-		$result = $this->wp_config->find_reference_hook_line($config);
-
-		$this->assertIsInt($result);
+		return $wp_config;
 	}
 }

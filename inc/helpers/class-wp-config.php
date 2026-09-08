@@ -34,68 +34,39 @@ class WP_Config {
 
 		$config_path = $this->get_wp_config_path();
 
-		if ( ! is_writable($config_path)) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
+		try {
+			$wp_config_transformer = new \WPConfigTransformer($config_path);
+			$is_raw_value          = is_bool($value) || is_int($value);
 
-			// translators: %s is the file name.
-			return new \WP_Error('not-writeable', sprintf(__('The file %s is not writable', 'ultimate-multisite'), $config_path));
-		}
-
-		$config = file($config_path);
-
-		$line = $this->find_injected_line($config, $constant);
-
-		if (is_bool($value)) {
-			$formatted_value = $value ? 'true' : 'false';
-		} elseif (is_int($value)) {
-			$formatted_value = (string) $value;
-		} else {
-			$formatted_value = "'{$value}'";
-		}
-
-		$content = str_pad(sprintf("define( '%s', %s );", $constant, $formatted_value), 50) . '// Automatically injected by Ultimate Multisite;';
-
-		if (false === $line) {
-
-			// no defined, we just need to inject
-			$hook_line = $this->find_reference_hook_line($config);
-
-			if (false === $hook_line) {
-				return new \WP_Error('unknown-wpconfig', __("Ultimate Multisite can't recognize your wp-config.php, please revert it to original state for further process.", 'ultimate-multisite'));
+			if (is_bool($value)) {
+				$value = $value ? 'true' : 'false';
 			}
 
-			$config = $this->inject_contents($config, $hook_line + 1, PHP_EOL . $content . PHP_EOL);
-
-			return file_put_contents($config_path, implode('', $config), LOCK_EX);
-		} else {
-			[$value, $line] = $line;
-
-			if (true !== $value) {
-				$config[ $line ] = $content . PHP_EOL;
-
-				return file_put_contents($config_path, implode('', $config), LOCK_EX);
-			}
+			return $wp_config_transformer->update(
+				'constant',
+				$constant,
+				(string) $value,
+				['raw' => $is_raw_value]
+			);
+		} catch (\Exception $exception) {
+			return new \WP_Error('wp-config-update-failed', $exception->getMessage());
 		}
-
-		return false;
 	}
 
 	/**
-	 * Actually inserts the new lines into the array of wp-config.php lines.
+	 * Legacy compatibility method that no longer modifies config contents.
 	 *
 	 * @since 2.0.0
+	 * @deprecated 2.15.2 No replacement.
 	 *
 	 * @param array  $content_array Array containing the original lines of the file being edited.
 	 * @param int    $line Line number to inject the new content at.
 	 * @param string $value Value to add to that specific line.
-	 * @return array New array containing the lines of the modified file.
+	 * @return array The original content array.
 	 */
-	public function inject_contents($content_array, $line, $value) {
+	public function inject_contents($content_array, $line, $value) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- Parameters retained for backwards compatibility.
 
-		if ( ! is_array($value)) {
-			$value = [$value];
-		}
-
-		array_splice($content_array, $line, 0, $value);
+		_doing_it_wrong(__METHOD__, esc_html__('This method is deprecated and no longer performs any operation.', 'ultimate-multisite'), '2.15.2');
 
 		return $content_array;
 	}
@@ -110,7 +81,7 @@ class WP_Config {
 
 		if (file_exists(ABSPATH . 'wp-config.php')) {
 			return (ABSPATH . 'wp-config.php');
-		} elseif (@file_exists(dirname(ABSPATH) . '/wp-config.php') && ! @file_exists(dirname(ABSPATH) . '/wp-settings.php')) {
+		} elseif (@file_exists(dirname(ABSPATH) . '/wp-config.php') && ! @file_exists(dirname(ABSPATH) . '/wp-settings.php')) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Parent directory access may be restricted.
 			return (dirname(ABSPATH) . '/wp-config.php');
 		} elseif (defined('WP_TESTS_MULTISITE') && constant('WP_TESTS_MULTISITE') === true) {
 			$tests_dir = getenv('WP_TESTS_DIR');
@@ -126,59 +97,19 @@ class WP_Config {
 	}
 
 	/**
-	 * Find reference line for injection.
-	 *
-	 * We need a hook point we can use as reference to inject our constants.
-	 * For now, we are using the line defining the $table_prefix.
-	 * e.g. $table_prefix = 'wp_';
-	 * We retrieve that line via RegEx.
+	 * Legacy compatibility method that no longer searches config contents.
 	 *
 	 * @since 2.0.0
+	 * @deprecated 2.15.2 No replacement.
 	 *
 	 * @param array $config Array containing the lines of the config file, for searching.
-	 * @return false|int Line number.
+	 * @return false
 	 */
-	public function find_reference_hook_line($config) {
+	public function find_reference_hook_line($config) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Parameter retained for backwards compatibility.
 
-		global $wpdb;
+		_doing_it_wrong(__METHOD__, esc_html__('This method is deprecated and no longer performs any operation.', 'ultimate-multisite'), '2.15.2');
 
-		/**
-		 * We check for three patterns when trying to figure our
-		 * where we can inject our constants:
-		 *
-		 * 1. We search for the $table_prefix variable definition;
-		 * 2. We search for more complex $table_prefix definitions - the ones that
-		 *    use env variables, for example;
-		 * 3. If that's not available, we look for the 'Happy Publishing' comment;
-		 * 4. If that's also not available, we look for the beginning of the file.
-		 *
-		 * The key represents the pattern and the value the number of lines to add.
-		 * A negative number of lines can be passed to write before the found line,
-		 * instead of writing after it.
-		 */
-		$patterns = apply_filters(
-			'wu_wp_config_reference_hook_line_patterns',
-			[
-				'/^\$table_prefix\s*=\s*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
-				'/^( ){0,}\$table_prefix\s*=.*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
-				'/(\/\* That\'s all, stop editing! Happy publishing\. \*\/)/' => -2,
-				'/<\?php/' => 0,
-			]
-		);
-
-		$line = 1;
-
-		foreach ($patterns as $pattern => $lines_to_add) {
-			foreach ($config as $k => $line) {
-				if (preg_match($pattern, (string) $line)) {
-					$line = $k + $lines_to_add;
-
-					break 2;
-				}
-			}
-		}
-
-		return $line;
+		return false;
 	}
 
 	/**
@@ -193,52 +124,28 @@ class WP_Config {
 
 		$config_path = $this->get_wp_config_path();
 
-		if ( ! is_writable($config_path)) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
+		try {
+			$wp_config_transformer = new \WPConfigTransformer($config_path);
 
-			// translators: %s is the file name.
-			return new \WP_Error('not-writeable', sprintf(__('The file %s is not writable', 'ultimate-multisite'), $config_path));
-		}
-
-		$config = file($config_path);
-
-		$line = $this->find_injected_line($config, $constant);
-
-		if (false === $line) {
-			return;
-		} else {
-			$value = $line[0];
-
-			$line = $line[1];
-
-			if ('true' === $value || '1' === $value) {
-
-				// value is true, we will remove this
-				unset($config[ $line ]);
-
-				// save it
-				return file_put_contents($config_path, implode('', $config), LOCK_EX);
-			}
+			return $wp_config_transformer->remove('constant', $constant);
+		} catch (\Exception $exception) {
+			return new \WP_Error('wp-config-update-failed', $exception->getMessage());
 		}
 	}
 
 	/**
-	 * Checks for the injected line inside of the wp-config.php file.
+	 * Legacy compatibility method that no longer searches config contents.
 	 *
 	 * @since 2.0.0
+	 * @deprecated 2.15.2 No replacement.
 	 *
 	 * @param array  $config Array containing the lines of the config file, for searching.
 	 * @param string $constant The constant name.
-	 * @return mixed[]|bool
+	 * @return false
 	 */
-	public function find_injected_line($config, $constant) {
+	public function find_injected_line($config, $constant) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- Parameters retained for backwards compatibility.
 
-		$pattern = "/^define\(\s*['|\"]" . $constant . "['|\"],(.*)\)/";
-
-		foreach ($config as $k => $line) {
-			if (preg_match($pattern, (string) $line, $matches)) {
-				return [trim($matches[1]), $k];
-			}
-		}
+		_doing_it_wrong(__METHOD__, esc_html__('This method is deprecated and no longer performs any operation.', 'ultimate-multisite'), '2.15.2');
 
 		return false;
 	}
