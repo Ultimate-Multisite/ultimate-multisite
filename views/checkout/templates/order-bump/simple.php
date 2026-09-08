@@ -40,15 +40,12 @@ if (false !== $product_variation) {
 			</div>
 		</div>
 	</div>
-	<?php if (! $parent || ! method_exists($parent, 'has_product')) : ?>
-		<div v-if="!($parent.has_product('<?php echo esc_js($product->get_id()); ?>') || $parent.has_product('<?php echo esc_js($product->get_slug()); ?>'))" class="wu-ml-2">
-			<a href="#" @click.prevent="$parent.add_product('<?php echo esc_js($product->get_id()); ?>')" class="button btn"><?php esc_html_e('Add to Cart', 'ultimate-multisite'); ?></a>
-		</div>
-	<?php else : ?>
-		<div v-else class="wu-ml-2">
-			<a href="#" @click.prevent="$parent.remove_product('<?php echo esc_js($product->get_id()); ?>', '<?php echo esc_js($product->get_slug()); ?>')" class="button btn"><?php esc_html_e('Remove', 'ultimate-multisite'); ?></a>
-			<input type="hidden" name="products[]" value="<?php echo esc_attr($product->get_id()); ?>">
-		</div>
-	<?php endif; ?>
+	<div v-if="!($parent.has_product('<?php echo esc_js($product->get_id()); ?>') || $parent.has_product('<?php echo esc_js($product->get_slug()); ?>'))" class="wu-ml-2">
+		<a href="#" @click.prevent="$parent.add_product('<?php echo esc_js($product->get_id()); ?>')" class="button btn"><?php esc_html_e('Add to Cart', 'ultimate-multisite'); ?></a>
+	</div>
+	<div v-else class="wu-ml-2">
+		<a href="#" @click.prevent="$parent.remove_product('<?php echo esc_js($product->get_id()); ?>', '<?php echo esc_js($product->get_slug()); ?>')" class="button btn"><?php esc_html_e('Remove', 'ultimate-multisite'); ?></a>
+		<input type="hidden" name="products[]" value="<?php echo esc_attr($product->get_id()); ?>">
+	</div>
 	<div class="wu-absolute wu--inset-px wu-rounded-lg wu-border-solid wu-pointer-events-none wu-top-0 wu-bottom-0 wu-right-0 wu-left-0" :class="($parent.has_product('<?php echo esc_js($product->get_id()); ?>') || $parent.has_product('<?php echo esc_js($product->get_slug()); ?>')) ? 'wu-border-blue-500' : 'wu-border-transparent'" aria-hidden="true"></div>
 </div>

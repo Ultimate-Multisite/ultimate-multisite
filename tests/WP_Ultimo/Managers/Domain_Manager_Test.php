@@ -875,6 +875,32 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test Domain::get_by_site does not cache database errors as an empty result.
+	 */
+	public function test_get_by_site_does_not_cache_database_errors(): void {
+		global $wpdb;
+
+		$blog_id = $this->create_test_blog();
+		$filter  = static function ($query) use ($wpdb, $blog_id) {
+			return str_contains($query, $wpdb->base_prefix . 'wu_domain_mappings') && str_contains($query, 'blog_id = ' . $blog_id) ? 'SELECT broken syntax' : $query;
+		};
+
+		wp_cache_delete('id:' . $blog_id, 'domain_mapping');
+		$suppress = $wpdb->suppress_errors();
+		add_filter('query', $filter);
+
+		try {
+			$mappings = Domain::get_by_site($blog_id);
+		} finally {
+			remove_filter('query', $filter);
+			$wpdb->suppress_errors($suppress);
+		}
+
+		$this->assertFalse($mappings);
+		$this->assertFalse(wp_cache_get('id:' . $blog_id, 'domain_mapping'));
+	}
+
+	/**
 	 * Test Domain::get_by_site returns WP_Error for invalid site ID.
 	 */
 	public function test_get_by_site_invalid_id(): void {
@@ -925,6 +951,32 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 		$fetched = Domain::get_by_domain('nonexistent-domain-xyz.example.com');
 
 		$this->assertNull($fetched);
+	}
+
+	/**
+	 * Test Domain::get_by_domain does not cache database errors as missing domains.
+	 */
+	public function test_get_by_domain_does_not_cache_database_errors(): void {
+		global $wpdb;
+
+		$domain = 'query-error-domain.example.com';
+		$filter = static function ($query) use ($wpdb, $domain) {
+			return str_contains($query, $wpdb->base_prefix . 'wu_domain_mappings') && str_contains($query, $domain) ? 'SELECT broken syntax' : $query;
+		};
+
+		wp_cache_delete('domain:' . $domain, 'domain_mappings');
+		$suppress = $wpdb->suppress_errors();
+		add_filter('query', $filter);
+
+		try {
+			$fetched = Domain::get_by_domain($domain);
+		} finally {
+			remove_filter('query', $filter);
+			$wpdb->suppress_errors($suppress);
+		}
+
+		$this->assertNull($fetched);
+		$this->assertFalse(wp_cache_get('domain:' . $domain, 'domain_mappings'));
 	}
 
 	/**

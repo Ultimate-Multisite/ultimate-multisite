@@ -642,18 +642,19 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test empty optional template tables are skipped by default.
+	 * Test empty optional template tables are copied by default.
 	 */
-	public function test_should_copy_table_skips_empty_optional_tables() {
+	public function test_should_copy_table_keeps_empty_optional_tables_by_default() {
 		global $wpdb;
 
-		$table = $wpdb->get_blog_prefix() . 'wu_empty_runtime_fixture';
+		$table_base_name = 'fc_wp_ultimo_test_subscriber_pivot';
+		$table           = $wpdb->get_blog_prefix() . $table_base_name;
 
 		$this->create_table_selection_fixture($table);
 
 		try {
-			$this->assertFalse(
-				\MUCD_Data::should_copy_table($table, 'wu_empty_runtime_fixture', get_current_blog_id(), 123)
+			$this->assertTrue(
+				\MUCD_Data::should_copy_table($table, $table_base_name, get_current_blog_id(), 123)
 			);
 		} finally {
 			$this->drop_table_selection_fixture($table);
@@ -693,6 +694,30 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 		$this->assertTrue(
 			\MUCD_Data::should_copy_table($wpdb->comments, 'comments', get_current_blog_id(), 123)
 		);
+	}
+
+	/**
+	 * Test installations can opt into skipping empty optional tables.
+	 */
+	public function test_should_copy_table_can_skip_empty_optional_tables_when_enabled() {
+		global $wpdb;
+
+		$table  = $wpdb->get_blog_prefix() . 'wu_empty_runtime_fixture';
+		$filter = static function () {
+			return true;
+		};
+
+		$this->create_table_selection_fixture($table);
+		add_filter('wu_mucd_skip_empty_tables', $filter, 10, 3);
+
+		try {
+			$this->assertFalse(
+				\MUCD_Data::should_copy_table($table, 'wu_empty_runtime_fixture', get_current_blog_id(), 123)
+			);
+		} finally {
+			remove_filter('wu_mucd_skip_empty_tables', $filter, 10);
+			$this->drop_table_selection_fixture($table);
+		}
 	}
 
 	/**
@@ -752,7 +777,8 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 
 		$this->drop_table_selection_fixture($table);
 
-		$wpdb->query( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test fixture table name cannot be bound.
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test fixture table name cannot be bound.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Test fixture table name cannot be bound.
 			"CREATE TABLE `{$table}` (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, value varchar(20) NOT NULL DEFAULT '', PRIMARY KEY  (id))"
 		);
 	}

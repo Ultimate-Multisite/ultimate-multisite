@@ -866,7 +866,7 @@ class Domain_Manager extends Base_Manager {
 				'title'   => __('Enable Single Sign-On', 'ultimate-multisite'),
 				'desc'    => __('Enables the Single Sign-on functionality.', 'ultimate-multisite'),
 				'type'    => 'toggle',
-				'default' => 1,
+				'default' => 0,
 			]
 		);
 

@@ -154,10 +154,9 @@ if ( ! class_exists('MUCD_Data') ) {
 		 *
 		 * Runtime-only tables are skipped by default because queues, logs, caches,
 		 * analytics, and sessions are regenerated on the destination site. Empty
-		 * optional/custom tables are also skipped to avoid spending most of the
-		 * duplication time cloning schemas with no template data. WordPress core
-		 * content/config tables are always copied because wpmu_create_blog() creates
-		 * destination defaults that must be replaced with template values.
+		 * per-site tables are copied by default so plugins retain the complete schema
+		 * they expect on the destination. Installations can opt into skipping empty
+		 * optional tables through the dedicated filter.
 		 *
 		 * @since 2.5.1
 		 *
@@ -182,7 +181,7 @@ if ( ! class_exists('MUCD_Data') ) {
 			 *
 			 * Returning true forces a table to be copied; returning false skips it.
 			 * This preserves extension control over custom table duplication while
-			 * keeping the default path optimized for empty/runtime template tables.
+			 * keeping runtime table exclusions centralized.
 			 *
 			 * @since 2.5.1
 			 *
@@ -297,7 +296,7 @@ if ( ! class_exists('MUCD_Data') ) {
 			 * @param int  $from_site_id      Source site ID.
 			 * @param int  $to_site_id        Target site ID.
 			 */
-			return (bool) apply_filters('wu_mucd_skip_empty_tables', true, $from_site_id, $to_site_id);
+			return (bool) apply_filters('wu_mucd_skip_empty_tables', false, $from_site_id, $to_site_id);
 		}
 
 		/**

@@ -109,7 +109,11 @@ jobs:
 
       - name: Run PHPUnit Tests
         if: matrix.php-version != '8.3'
-        run: vendor/bin/phpunit
+        run: |
+          # The full suite exceeds the container memory limit when run in one PHP process.
+          # Restart PHPUnit between small batches so every test file still runs.
+          find tests -name '*_Test.php' -type f -print0 \
+            | xargs -0 -r -n 50 vendor/bin/phpunit
 
       - name: Run PHPUnit Tests with Coverage
         if: matrix.php-version == '8.3'

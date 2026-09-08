@@ -212,7 +212,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_products' );
-		$method->setAccessible( true );
 
 		$result = $method->invoke( $this->installer );
 		$this->assertFalse( $result );
@@ -239,7 +238,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_products' );
-		$method->setAccessible( true );
 
 		$result = $method->invoke( $this->installer );
 		$this->assertTrue( $result );
@@ -261,7 +259,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	public function test_done_creating_checkout_forms_returns_bool(): void {
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_checkout_forms' );
-		$method->setAccessible( true );
 
 		$result = $method->invoke( $this->installer );
 		$this->assertIsBool( $result );
@@ -282,7 +279,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_checkout_forms' );
-		$method->setAccessible( true );
 
 		$result = $method->invoke( $this->installer );
 		$this->assertTrue( $result );
@@ -301,7 +297,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 	public function test_done_creating_emails_returns_bool(): void {
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_emails' );
-		$method->setAccessible( true );
 
 		$result = $method->invoke( $this->installer );
 		$this->assertIsBool( $result );
@@ -319,7 +314,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_login_page' );
-		$method->setAccessible( true );
 
 		$result = $method->invoke( $this->installer );
 		$this->assertFalse( $result );
@@ -333,7 +327,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_login_page' );
-		$method->setAccessible( true );
 
 		$result = $method->invoke( $this->installer );
 		$this->assertFalse( $result );
@@ -355,7 +348,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_login_page' );
-		$method->setAccessible( true );
 
 		$result = $method->invoke( $this->installer );
 		$this->assertTrue( $result );
@@ -382,7 +374,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'ensure_currency_defaults' );
-		$method->setAccessible( true );
 		$method->invoke( $this->installer );
 
 		$this->assertSame( 'USD', wu_get_setting( 'currency_symbol' ) );
@@ -401,7 +392,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'ensure_currency_defaults' );
-		$method->setAccessible( true );
 		$method->invoke( $this->installer );
 
 		$this->assertSame( 'EUR', wu_get_setting( 'currency_symbol' ) );
@@ -416,7 +406,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'ensure_currency_defaults' );
-		$method->setAccessible( true );
 		$method->invoke( $this->installer );
 
 		// 0 is a valid stored value and must NOT be overwritten with 2.
@@ -431,7 +420,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'ensure_currency_defaults' );
-		$method->setAccessible( true );
 		$method->invoke( $this->installer );
 
 		$this->assertSame( 2, wu_get_setting( 'precision' ) );
@@ -736,7 +724,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_login_page' );
-		$method->setAccessible( true );
 
 		$result = $method->invoke( $this->installer );
 		$this->assertTrue( $result );
@@ -782,7 +769,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 		// Check if template site already exists and skip if so.
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_template_site' );
-		$method->setAccessible( true );
 
 		if ( $method->invoke( $this->installer ) ) {
 			$this->markTestSkipped( 'Template site already exists.' );
@@ -806,7 +792,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_template_site' );
-		$method->setAccessible( true );
 
 		$result = $method->invoke( $this->installer );
 		$this->assertFalse( $result );
@@ -827,7 +812,6 @@ class Default_Content_Installer_Test extends \WP_UnitTestCase {
 
 		$ref    = new \ReflectionClass( $this->installer );
 		$method = $ref->getMethod( 'done_creating_template_site' );
-		$method->setAccessible( true );
 
 		// Should not throw — just verify it completes.
 		$result = $method->invoke( $this->installer );

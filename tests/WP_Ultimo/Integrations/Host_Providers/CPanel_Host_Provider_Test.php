@@ -85,7 +85,6 @@ class CPanel_Host_Provider_Test extends WP_UnitTestCase {
 	private function inject_api($api): void {
 
 		$ref = new \ReflectionProperty(CPanel_Host_Provider::class, 'api');
-		$ref->setAccessible(true);
 		$ref->setValue($this->provider, $api);
 	}
 
@@ -1414,7 +1413,6 @@ class CPanel_Host_Provider_Test extends WP_UnitTestCase {
 	public function test_format_record_name_at_returns_zone_with_dot(): void {
 
 		$method = new \ReflectionMethod($this->provider, 'format_record_name');
-		$method->setAccessible(true);
 
 		$this->assertSame('example.com.', $method->invoke($this->provider, '@', 'example.com'));
 	}
@@ -1425,7 +1423,6 @@ class CPanel_Host_Provider_Test extends WP_UnitTestCase {
 	public function test_format_record_name_empty_returns_zone_with_dot(): void {
 
 		$method = new \ReflectionMethod($this->provider, 'format_record_name');
-		$method->setAccessible(true);
 
 		$this->assertSame('example.com.', $method->invoke($this->provider, '', 'example.com'));
 	}
@@ -1436,7 +1433,6 @@ class CPanel_Host_Provider_Test extends WP_UnitTestCase {
 	public function test_format_record_name_subdomain_appends_zone(): void {
 
 		$method = new \ReflectionMethod($this->provider, 'format_record_name');
-		$method->setAccessible(true);
 
 		$this->assertSame('www.example.com.', $method->invoke($this->provider, 'www', 'example.com'));
 	}
@@ -1447,7 +1443,6 @@ class CPanel_Host_Provider_Test extends WP_UnitTestCase {
 	public function test_format_record_name_already_ends_with_zone(): void {
 
 		$method = new \ReflectionMethod($this->provider, 'format_record_name');
-		$method->setAccessible(true);
 
 		$this->assertSame('test.example.com.', $method->invoke($this->provider, 'test.example.com', 'example.com'));
 	}
@@ -1458,7 +1453,6 @@ class CPanel_Host_Provider_Test extends WP_UnitTestCase {
 	public function test_format_record_name_fqdn_returns_as_is(): void {
 
 		$method = new \ReflectionMethod($this->provider, 'format_record_name');
-		$method->setAccessible(true);
 
 		$this->assertSame('already.fqdn.', $method->invoke($this->provider, 'already.fqdn.', 'example.com'));
 	}
@@ -1473,7 +1467,6 @@ class CPanel_Host_Provider_Test extends WP_UnitTestCase {
 	public function test_ensure_trailing_dot_adds_dot(): void {
 
 		$method = new \ReflectionMethod($this->provider, 'ensure_trailing_dot');
-		$method->setAccessible(true);
 
 		$this->assertSame('example.com.', $method->invoke($this->provider, 'example.com'));
 	}
@@ -1484,7 +1477,6 @@ class CPanel_Host_Provider_Test extends WP_UnitTestCase {
 	public function test_ensure_trailing_dot_does_not_double_add(): void {
 
 		$method = new \ReflectionMethod($this->provider, 'ensure_trailing_dot');
-		$method->setAccessible(true);
 
 		$this->assertSame('example.com.', $method->invoke($this->provider, 'example.com.'));
 	}
@@ -1495,7 +1487,6 @@ class CPanel_Host_Provider_Test extends WP_UnitTestCase {
 	public function test_ensure_trailing_dot_with_subdomain(): void {
 
 		$method = new \ReflectionMethod($this->provider, 'ensure_trailing_dot');
-		$method->setAccessible(true);
 
 		$this->assertSame('mail.example.com.', $method->invoke($this->provider, 'mail.example.com'));
 	}

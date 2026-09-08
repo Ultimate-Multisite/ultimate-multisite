@@ -641,11 +641,14 @@ class Domain extends Base_Model {
 		$domain_table = "{$wpdb->base_prefix}wu_domain_mappings";
 
 		$mappings = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . $domain_table . ' WHERE blog_id = %d ORDER BY primary_domain DESC, active DESC, secure DESC', $site)); //phpcs:ignore
+		$query_error = $wpdb->last_error;
 
 		$wpdb->suppress_errors($suppress);
 
 		if ( ! $mappings) {
-			wp_cache_set('id:' . $site, 'none', 'domain_mapping');
+			if (empty($query_error)) {
+				wp_cache_set('id:' . $site, 'none', 'domain_mapping');
+			}
 
 			return false;
 		}
@@ -714,14 +717,16 @@ class Domain extends Base_Model {
 		$suppress = $wpdb->suppress_errors();
 
 		$mapping = $wpdb->get_row($query); // phpcs:ignore
+		$query_error = $wpdb->last_error;
 
 		$wpdb->suppress_errors($suppress);
 
 		if (empty($mapping)) {
-
-			// Cache that it doesn't exist
-			foreach ($domains as $domain) {
-				wp_cache_set('domain:' . $domain, 'notexists', 'domain_mappings');
+			if (empty($query_error)) {
+				// Cache that it doesn't exist
+				foreach ($domains as $domain) {
+					wp_cache_set('domain:' . $domain, 'notexists', 'domain_mappings');
+				}
 			}
 
 			return null;

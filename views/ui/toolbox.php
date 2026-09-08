@@ -63,7 +63,7 @@ defined('ABSPATH') || exit;
 				class="dashicons-wu-circular-graph wu-text-sm wu-w-auto wu-h-auto wu-align-text-bottom wu-relative"></span>
 			<span class="">
 				<?php // translators: %s hash of membership. ?>
-				<?php printf(wp_kses_post(__('Membership <Strong>%s</strong>', 'ultimate-multisite')), esc_html($membership->get_hash())); ?>
+				<?php printf(wp_kses_post(__('Membership <strong>%s</strong>', 'ultimate-multisite')), esc_html($membership->get_hash())); ?>
 			</span>
 			<span id="wu-toolbox-membership-status" class="wu-inline-block wu-w-3 wu-h-3 wu-rounded-full wu-align-text-top <?php echo esc_attr($membership->get_status_class()); ?>" <?php wu_tooltip_text($membership->get_status_label()); ?>>
 				&nbsp;

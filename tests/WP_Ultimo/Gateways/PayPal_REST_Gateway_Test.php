@@ -621,6 +621,112 @@ class PayPal_REST_Gateway_Test extends WP_UnitTestCase {
 	}
 
 	// -------------------------------------------------------------------------
+	// install_webhook()
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Test webhook installation rejects a non-HTTPS listener before calling PayPal.
+	 */
+	public function test_install_webhook_rejects_http_listener_url(): void {
+
+		$gateway = new class() extends PayPal_REST_Gateway {
+
+			public function get_webhook_listener_url() {
+
+				return 'http://example.test/?wu-gateway=paypal-rest';
+			}
+		};
+
+		$gateway->init();
+
+		$result = $gateway->install_webhook();
+
+		$this->assertInstanceOf(\WP_Error::class, $result);
+		$this->assertEquals('wu_paypal_webhook_requires_https', $result->get_error_code());
+		$this->assertStringContainsString('HTTPS', $result->get_error_message());
+	}
+
+	/**
+	 * Test webhook installation rejects an HTTPS listener without a host.
+	 */
+	public function test_install_webhook_rejects_https_listener_url_without_host(): void {
+
+		$gateway = new class() extends PayPal_REST_Gateway {
+
+			public function get_webhook_listener_url() {
+
+				return 'https:///listener';
+			}
+		};
+
+		$gateway->init();
+
+		$result = $gateway->install_webhook();
+
+		$this->assertInstanceOf(\WP_Error::class, $result);
+		$this->assertEquals('wu_paypal_webhook_requires_https', $result->get_error_code());
+	}
+
+	/**
+	 * Test webhook installation sends the payload required by PayPal's API schema.
+	 */
+	public function test_install_webhook_sends_https_url_and_event_types(): void {
+
+		$gateway = new class() extends PayPal_REST_Gateway {
+
+			public function get_webhook_listener_url() {
+
+				return 'https://example.test/?wu-gateway=paypal-rest';
+			}
+		};
+
+		$gateway->init();
+
+		$reflection = new \ReflectionClass($gateway);
+		$prop       = $reflection->getProperty('access_token');
+		$prop->setValue($gateway, 'test-access-token');
+
+		$captured_request = [];
+
+		add_filter(
+			'pre_http_request',
+			function ($preempt, $args, $url) use (&$captured_request) {
+
+				$captured_request = [
+					'args' => $args,
+					'url'  => $url,
+				];
+
+				return [
+					'response' => [
+						'code'    => 201,
+						'message' => 'Created',
+					],
+					'body'     => wp_json_encode(['id' => 'WH-test-id']),
+					'headers'  => [],
+					'cookies'  => [],
+				];
+			},
+			10,
+			3
+		);
+
+		$result = $gateway->install_webhook();
+
+		remove_all_filters('pre_http_request');
+
+		$payload = json_decode($captured_request['args']['body'], true);
+
+		$this->assertTrue($result);
+		$this->assertStringEndsWith('/v1/notifications/webhooks', $captured_request['url']);
+		$this->assertEquals('POST', $captured_request['args']['method']);
+		$this->assertEquals('https://example.test/?wu-gateway=paypal-rest', $payload['url']);
+		$this->assertNotEmpty($payload['event_types']);
+		$this->assertContains(['name' => 'BILLING.SUBSCRIPTION.PAYMENT.FAILED'], $payload['event_types']);
+		$this->assertContains(['name' => 'PAYMENT.SALE.COMPLETED'], $payload['event_types']);
+	}
+
+	// -------------------------------------------------------------------------
 	// is_currency_supported()
 	// -------------------------------------------------------------------------
 

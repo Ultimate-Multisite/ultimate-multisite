@@ -141,6 +141,18 @@ class Checkout {
 	protected $customer;
 
 	/**
+	 * User ID created by this checkout request.
+	 *
+	 * Passwordless auto-login is only safe for users created by the same
+	 * checkout request. Existing WordPress users must authenticate through
+	 * WordPress before checkout can link or log in as that account.
+	 *
+	 * @since 2.15.1
+	 * @var int
+	 */
+	protected $created_user_id = 0;
+
+	/**
 	 * The membership object.
 	 *
 	 * @since 2.0.23
@@ -1136,7 +1148,10 @@ class Checkout {
 		 * and that happens at the end of this method.
 		 */
 		if (empty($customer)) {
-			$username = $this->request_or_session('username');
+			$this->created_user_id = 0;
+
+			$username         = $this->request_or_session('username');
+			$existing_wp_user = false;
 
 			/*
 			 * Handles auto-generation based on the email address.
@@ -1206,21 +1221,12 @@ class Checkout {
 
 				if ($existing_wp_user) {
 					/*
-					 * A WP user already exists with this email.
-					 *
-					 * Only block checkout when a customer record also exists for
-					 * that user — the email is genuinely in use. If no customer
-					 * exists yet, the previous checkout attempt created the WP
-					 * user but failed before saving the customer (partial /
-					 * orphaned state). Allow the retry to proceed by passing the
-					 * existing user's ID to wu_create_customer(), which will skip
-					 * WP user creation and link the new customer to it instead.
+					 * A logged-out checkout cannot prove ownership of an existing
+					 * WordPress account by submitting its email address. Always
+					 * require authentication first, even when the user has no
+					 * Ultimate Multisite customer record yet.
 					 */
-					if (wu_get_customer_by_user_id($existing_wp_user->ID)) {
-						return new \WP_Error('email_exists', __('The email address you entered is already in use.', 'ultimate-multisite'));
-					}
-
-					$customer_data['user_id'] = $existing_wp_user->ID;
+					return new \WP_Error('email_exists', __('The email address you entered is already in use. Please log in to continue checkout with this account.', 'ultimate-multisite'));
 				}
 			}
 
@@ -1234,6 +1240,10 @@ class Checkout {
 			 */
 			if (is_wp_error($customer)) {
 				return $customer;
+			}
+
+			if (empty($existing_wp_user) && ! $this->is_existing_user()) {
+				$this->created_user_id = (int) $customer->get_user_id();
 			}
 
 			/*
@@ -1455,16 +1465,23 @@ class Checkout {
 		/*
 		 * Important dates.
 		 *
-		 * For free, non-recurring products the billing start date is null,
-		 * meaning there is no next charge — the membership should be
-		 * treated as lifetime. Passing null into gmdate() silently uses
-		 * the current timestamp, which sets the expiration to *today*
-		 * and causes the membership to expire within hours/days.
+		 * A null billing start date represents a lifetime membership. A zero
+		 * billing start date means a recurring product has no trial and billing
+		 * starts immediately; zero must not be formatted as a Unix timestamp or
+		 * the persisted membership expiration becomes January 1970. Use the next
+		 * charge date as the first cycle expiration in that case.
 		 */
-		$billing_start_date = $this->order->get_billing_start_date();
+		$billing_start_date   = $this->order->get_billing_start_date();
+		$expiration_timestamp = $billing_start_date;
 
-		$membership_data['date_expiration'] = null !== $billing_start_date
-			? gmdate('Y-m-d 23:59:59', (int) $billing_start_date)
+		if (0 === $expiration_timestamp) {
+			$expiration_timestamp = $this->order->has_recurring()
+				? $this->order->get_billing_next_charge_date()
+				: null;
+		}
+
+		$membership_data['date_expiration'] = null !== $expiration_timestamp
+			? gmdate('Y-m-d 23:59:59', (int) $expiration_timestamp)
 			: null;
 
 		$membership = wu_create_membership($membership_data);
@@ -2469,15 +2486,20 @@ class Checkout {
 
 		/*
 		 * No password was collected (e.g. the form uses auto_generate_password
-		 * or has no password field at all — the simple preset). We just
-		 * created this user, so log them in directly via the auth cookie
-		 * rather than a credential round-trip that would fail with an empty
-		 * password and silently leave the user logged out.
+		 * or has no password field at all — the simple preset). Direct auth-cookie
+		 * login is only safe for a user created by this exact checkout request.
 		 */
 		$user_id = $this->customer->get_user_id();
 
 		if ( ! $user_id) {
 			return;
+		}
+
+		if ((int) $user_id !== (int) $this->created_user_id) {
+			return new \WP_Error(
+				'checkout_login_denied',
+				__('We could not verify that this account was created during the current checkout. Please log in to continue.', 'ultimate-multisite')
+			);
 		}
 
 		$user = get_user_by('ID', $user_id);
@@ -2697,7 +2719,7 @@ class Checkout {
 
 		$validation_rules = $this->validation_rules();
 
-		if (wu_request('pre-flight') || wu_request('checkout_form') === 'wu-finish-checkout') {
+		if (wu_request('pre-flight')) {
 			$validation_rules = [];
 
 			return $validation_rules;
@@ -3530,7 +3552,7 @@ class Checkout {
 	}
 
 	/**
-	 * Cleans up expired draft and pending payments (older than 30 days).
+	 * Cleans up draft and pending payments strictly older than 30 days.
 	 *
 	 * When a pending payment is cancelled, the associated membership is also
 	 * cancelled if it is still in the `pending` state. This ensures that any
@@ -3544,21 +3566,23 @@ class Checkout {
 	 */
 	public function cleanup_expired_drafts(): void {
 
-		global $wpdb;
-
-		$expired_date = gmdate('Y-m-d H:i:s', strtotime('-30 days'));
+		$expired_date_query = [
+			'column'    => 'date_created',
+			'before'    => '-30 days',
+			'inclusive' => false,
+		];
 
 		$expired_drafts = wu_get_payments(
 			[
-				'status'           => Payment_Status::DRAFT,
-				'date_created__lt' => $expired_date,
+				'status'     => Payment_Status::DRAFT,
+				'date_query' => $expired_date_query,
 			]
 		);
 
 		$expired_pendings = wu_get_payments(
 			[
-				'status'           => Payment_Status::PENDING,
-				'date_created__lt' => $expired_date,
+				'status'     => Payment_Status::PENDING,
+				'date_query' => $expired_date_query,
 			]
 		);
 
@@ -3569,10 +3593,10 @@ class Checkout {
 
 				/*
 				 * Also cancel the associated membership if it is still in
-				 * `pending` state. A 30-day-old unconfirmed payment means the
-				 * customer never completed the signup; keeping the membership
-				 * in `pending` would leave any pending_site meta orphaned
-				 * because no active membership owns it. Cancelling via
+				 * `pending` state. An unconfirmed payment older than 30 days
+				 * means the customer did not complete the signup; keeping the
+				 * membership in `pending` would leave any pending_site meta
+				 * orphaned because no active membership owns it. Cancelling via
 				 * cancel() fires wu_transition_membership_status, which
 				 * invokes handle_pending_site_on_cancellation() to move the
 				 * pending_site to a 24-hour transient for potential reclaim

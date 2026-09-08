@@ -33,6 +33,16 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 
 		add_filter('wu_sso_enabled', '__return_true');
 
+		/*
+		 * This test class removes temporary redirect-host filters after each test.
+		 * Re-register the production mapping callback because its singleton can
+		 * already exist when a subsequent test starts.
+		 */
+		if (class_exists('\WP_Ultimo\Domain_Mapping')) {
+			$domain_mapping = \WP_Ultimo\Domain_Mapping::get_instance();
+			add_filter('allowed_redirect_hosts', [$domain_mapping, 'allow_network_redirect_hosts'], 20, 2);
+		}
+
 		add_filter(
 			'wu_sso_salt',
 			function () {
@@ -2239,7 +2249,7 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 		wp_cache_delete('domain:www.' . $domain_name, 'domain_mappings');
 
 		try {
-			$sso->startup();
+			$sso->init();
 
 			$result = apply_filters('allowed_redirect_hosts', ['mygratis.site'], strtoupper($domain_name));
 

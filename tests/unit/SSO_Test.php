@@ -26,19 +26,26 @@ class SSO_Test extends \WP_UnitTestCase {
 
 	public function test_with_sso_appends_query_param_when_enabled(): void {
 		add_filter('wu_sso_enabled', '__return_true');
-		$url     = 'https://example.com/path?foo=bar';
-		$withSso = SSO::with_sso($url);
+		$url      = 'https://example.com/path?foo=bar';
+		$with_sso = SSO::with_sso($url);
 
-		$this->assertStringContainsString('sso=login', $withSso, 'SSO query arg should be added');
-		$this->assertStringContainsString('foo=bar', $withSso, 'Original query args should be preserved');
+		$this->assertStringContainsString('sso=login', $with_sso, 'SSO query arg should be added');
+		$this->assertStringContainsString('foo=bar', $with_sso, 'Original query args should be preserved');
 	}
 
 	public function test_with_sso_returns_same_url_when_disabled(): void {
 		add_filter('wu_sso_enabled', '__return_false');
-		$url     = 'https://example.com/path?foo=bar';
-		$withSso = SSO::with_sso($url);
+		$url      = 'https://example.com/path?foo=bar';
+		$with_sso = SSO::with_sso($url);
 
-		$this->assertSame($url, $withSso, 'URL should be unchanged when SSO disabled');
+		$this->assertSame($url, $with_sso, 'URL should be unchanged when SSO disabled');
+	}
+
+	public function test_with_sso_returns_same_url_when_default_setting_is_disabled(): void {
+		$url      = 'https://example.com/path?foo=bar';
+		$with_sso = SSO::with_sso($url);
+
+		$this->assertSame($url, $with_sso, 'URL should be unchanged when the default SSO setting is disabled');
 	}
 
 	public function test_encode_decode_roundtrip_uses_hashids(): void {
