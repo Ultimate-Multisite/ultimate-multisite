@@ -1160,7 +1160,7 @@ class Site_Manager extends Base_Manager {
 		global $wpdb;
 
 		if ($this->is_frontend_my_sites_toolbar_request()) {
-			$sites = $this->get_current_site_for_frontend_my_sites_toolbar($user_id);
+			$sites = $this->get_current_site_for_frontend_my_sites_toolbar($user_id, $all);
 
 			return apply_filters('get_blogs_of_user', $sites, $user_id, $all); // phpcs:ignore
 		}
@@ -1329,16 +1329,18 @@ class Site_Manager extends Base_Manager {
 	 * Returns the current site in the format expected by the My Sites toolbar.
 	 *
 	 * @since 2.15.0
-	 * @param int $user_id User ID whose toolbar is being prepared.
+	 * @param int  $user_id User ID whose toolbar is being prepared.
+	 * @param bool $all Whether to include archived, spam, and deleted sites.
 	 * @return object[]
 	 */
-	protected function get_current_site_for_frontend_my_sites_toolbar($user_id) {
+	protected function get_current_site_for_frontend_my_sites_toolbar($user_id, $all = false) {
 
 		$site = get_site(get_current_blog_id());
 
 		if (
 			! $site
 			|| (! is_super_admin($user_id) && ! is_user_member_of_blog($user_id, $site->id))
+			|| (! $all && ($site->archived || $site->spam || $site->deleted))
 		) {
 			return [];
 		}

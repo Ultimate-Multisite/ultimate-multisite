@@ -3166,6 +3166,66 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * Test the actual admin bar initialization uses the optimized site list.
+	 */
+	public function test_frontend_my_sites_toolbar_optimization_runs_during_admin_bar_initialization(): void {
+
+		if ( ! class_exists('WP_Admin_Bar')) {
+			require_once ABSPATH . WPINC . '/class-wp-admin-bar.php';
+		}
+
+		$user_id = $this->factory()->user->create(['role' => 'administrator']);
+		$filter  = function ($value, $setting) {
+			return 'optimize_frontend_my_sites_toolbar' === $setting ? 1 : $value;
+		};
+
+		grant_super_admin($user_id);
+		wp_set_current_user($user_id);
+		set_current_screen('front');
+		add_filter('wu_get_setting', $filter, 10, 2);
+		add_filter('show_admin_bar', '__return_true');
+
+		try {
+			$admin_bar = new \WP_Admin_Bar();
+			$admin_bar->initialize();
+
+			$this->assertCount(1, $admin_bar->user->blogs);
+			$this->assertArrayHasKey(get_current_blog_id(), $admin_bar->user->blogs);
+		} finally {
+			remove_filter('wu_get_setting', $filter, 10);
+			remove_filter('show_admin_bar', '__return_true');
+			revoke_super_admin($user_id);
+			wp_set_current_user(0);
+		}
+	}
+
+	/**
+	 * Test inactive current sites follow the get_blogs_of_user all flag.
+	 */
+	public function test_frontend_my_sites_toolbar_optimization_respects_all_flag(): void {
+
+		$manager = $this->get_manager_instance();
+		$method  = new \ReflectionMethod(Site_Manager::class, 'get_current_site_for_frontend_my_sites_toolbar');
+		$user_id = $this->factory()->user->create(['role' => 'administrator']);
+		$blog_id = $this->factory()->blog->create(['user_id' => $user_id]);
+
+		grant_super_admin($user_id);
+		wp_set_current_user($user_id);
+		update_blog_status($blog_id, 'archived', 1);
+		switch_to_blog($blog_id);
+
+		try {
+			$this->assertSame([], $method->invoke($manager, $user_id, false));
+			$this->assertArrayHasKey($blog_id, $method->invoke($manager, $user_id, true));
+		} finally {
+			restore_current_blog();
+			update_blog_status($blog_id, 'archived', 0);
+			revoke_super_admin($user_id);
+			wp_set_current_user(0);
+		}
+	}
+
 	// ========================================================================
 	// init – demo-related hooks
 	// ========================================================================
