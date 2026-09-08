@@ -17,7 +17,7 @@
 $project_root = dirname(__DIR__);
 $phpunit      = $project_root . '/vendor/phpunit/phpunit/phpunit';
 $bootstrap    = $project_root . '/tests/bootstrap.php';
-$batch_size   = (int) (getenv('PHPUNIT_BATCH_SIZE') ?: 50);
+$batch_size   = (int) (getenv('PHPUNIT_BATCH_SIZE') ?: 1);
 $batch_number = (int) (getenv('PHPUNIT_BATCH_NUMBER') ?: 0);
 $input_paths  = array_slice($argv, 1) ?: [$project_root . '/tests'];
 
@@ -200,6 +200,7 @@ foreach ($batches as $index => $batch) {
 	unlink($config_path);
 
 	if (0 !== $batch_status) {
+		fwrite(STDERR, sprintf("PHPUnit batch %d/%d failed with exit code %d.\n", $current_batch, $total_batches, $batch_status));
 		$exit_status = 1;
 	}
 }
