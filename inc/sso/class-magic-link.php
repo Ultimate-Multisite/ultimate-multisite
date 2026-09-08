@@ -402,21 +402,27 @@ class Magic_Link {
 			return false;
 		}
 
-		// Check if site has a primary mapped domain.
+		// Prefer the primary mapped domain, but fall back to the site's active URL.
+		// Some multisite configurations store custom domains directly in wp_blogs.
 		$primary_domain = $site->get_primary_mapped_domain();
-
-		if ( ! $primary_domain ) {
-			return false;
-		}
 
 		// Get the main site domain.
 		$main_site_domain = wp_parse_url(get_site_url(wu_get_main_site_id()), PHP_URL_HOST);
 
-		// Get the custom domain.
-		$custom_domain = $primary_domain->get_domain();
+		// Get the target domain.
+		$site_domain = $primary_domain
+			? $primary_domain->get_domain()
+			: wp_parse_url($site->get_active_site_url(), PHP_URL_HOST);
 
-		// If not a subdomain we need a magic link
-		return ! str_ends_with($custom_domain, $main_site_domain);
+		if ( ! $main_site_domain || ! $site_domain ) {
+			return false;
+		}
+
+		$main_site_domain = strtolower(rtrim($main_site_domain, '.'));
+		$site_domain      = strtolower(rtrim($site_domain, '.'));
+
+		// Sites on the main domain or one of its subdomains share authentication cookies.
+		return $site_domain !== $main_site_domain && ! str_ends_with($site_domain, '.' . $main_site_domain);
 	}
 
 	/**
