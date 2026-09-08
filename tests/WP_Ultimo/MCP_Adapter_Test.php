@@ -29,7 +29,7 @@ class MCP_Adapter_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test init registers hooks when McpAdapterCore class exists.
+	 * Test init always registers settings and optional integration hooks.
 	 */
 	public function test_init_registers_hooks() {
 
@@ -37,18 +37,15 @@ class MCP_Adapter_Test extends \WP_UnitTestCase {
 
 		$instance->init();
 
-		// The MCP adapter core class exists in this env, so hooks get registered
 		$has_adapter_hook  = has_action('init', [$instance, 'initialize_adapter']);
+		$has_server_hook   = has_action('mcp_adapter_init', [$instance, 'initialize_mcp_server']);
 		$has_settings_hook = has_action('init', [$instance, 'add_settings']);
+		$has_notice_hook   = has_action('network_admin_notices', [$instance, 'display_dependency_notice']);
 
-		// Both should be registered (truthy priority) or both not (false)
-		if ($has_adapter_hook !== false) {
-			$this->assertNotFalse($has_adapter_hook);
-			$this->assertNotFalse($has_settings_hook);
-		} else {
-			// McpAdapterCore doesn't exist, hooks not registered
-			$this->assertFalse($has_adapter_hook);
-		}
+		$this->assertNotFalse($has_adapter_hook);
+		$this->assertNotFalse($has_server_hook);
+		$this->assertNotFalse($has_settings_hook);
+		$this->assertNotFalse($has_notice_hook);
 	}
 
 	/**
@@ -62,17 +59,34 @@ class MCP_Adapter_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test is_mcp_enabled with filter override.
+	 * Test MCP remains disabled when its canonical plugin is unavailable.
 	 */
-	public function test_is_mcp_enabled_with_filter() {
+	public function test_is_mcp_enabled_requires_available_plugin() {
 
 		$instance = $this->get_instance();
 
 		add_filter('wu_is_mcp_enabled', '__return_true');
 
+		$this->assertFalse($instance->is_mcp_enabled());
+
+		remove_filter('wu_is_mcp_enabled', '__return_true');
+	}
+
+	/**
+	 * Test availability and enabled-state filters together.
+	 */
+	public function test_is_mcp_enabled_with_available_plugin() {
+
+		$instance = $this->get_instance();
+
+		add_filter('wu_mcp_adapter_available', '__return_true');
+		add_filter('wu_is_mcp_enabled', '__return_true');
+
+		$this->assertTrue($instance->is_mcp_available());
 		$this->assertTrue($instance->is_mcp_enabled());
 
 		remove_filter('wu_is_mcp_enabled', '__return_true');
+		remove_filter('wu_mcp_adapter_available', '__return_true');
 	}
 
 	/**
@@ -159,17 +173,15 @@ class MCP_Adapter_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test initialize_mcp_server bails with no abilities.
+	 * Test MCP server registration bails when the integration is disabled.
 	 */
-	public function test_initialize_mcp_server_no_abilities() {
+	public function test_initialize_mcp_server_bails_when_disabled() {
 
 		$instance = $this->get_instance();
 
-		// wp_get_abilities doesn't exist in test env, so get_mcp_abilities returns empty
 		$instance->initialize_mcp_server();
 
-		// Should not throw, just bail
-		$this->assertTrue(true);
+		$this->assertNull($instance->get_adapter());
 	}
 
 	/**

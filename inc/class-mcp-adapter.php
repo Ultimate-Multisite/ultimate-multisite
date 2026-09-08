@@ -30,6 +30,22 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 	use \WP_Ultimo\Traits\Singleton;
 
 	/**
+	 * Minimum supported canonical MCP Adapter plugin version.
+	 *
+	 * @since 2.16.0
+	 * @var string
+	 */
+	private const MINIMUM_MCP_ADAPTER_VERSION = '0.6.1';
+
+	/**
+	 * Minimum WordPress version with the Abilities API in core.
+	 *
+	 * @since 2.16.0
+	 * @var string
+	 */
+	private const MINIMUM_WORDPRESS_VERSION = '6.9';
+
+	/**
 	 * The MCP adapter instance.
 	 *
 	 * @since 2.5.0
@@ -46,15 +62,7 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 	 * @return void
 	 */
 	public function init(): void {
-
-		/**
-		 * Check if MCP adapter is available.
-		 *
-		 * @since 2.5.0
-		 */
-		if (! class_exists(McpAdapterCore::class)) {
-			return;
-		}
+		add_action('mcp_adapter_init', [$this, 'initialize_mcp_server']);
 
 		/**
 		 * Initialize the MCP adapter.
@@ -69,6 +77,7 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 		 * @since 2.5.0
 		 */
 		add_action('init', [$this, 'add_settings'], 20);
+		add_action('network_admin_notices', [$this, 'display_dependency_notice']);
 	}
 
 	/**
@@ -84,7 +93,6 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 		}
 
 		try {
-			add_action('mcp_adapter_init', array($this, 'initialize_mcp_server'));
 			$this->adapter = McpAdapterCore::instance();
 
 			/**
@@ -96,7 +104,7 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 			 * @param MCP_Adapter $mcp_adapter The MCP adapter instance.
 			 */
 			do_action('wu_mcp_adapter_initialized', $this);
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
 			wu_log_add(
 				'mcp-adapter',
 				sprintf(
@@ -114,6 +122,10 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 	 * @return void
 	 */
 	public function initialize_mcp_server(): void {
+		if (! $this->is_mcp_enabled()) {
+			return;
+		}
+
 		$abilities_ids = $this->get_mcp_abilities();
 
 		// Bail if no abilities are available.
@@ -168,6 +180,7 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 	 * @return void
 	 */
 	public function add_settings(): void {
+		$mcp_available = $this->is_mcp_available();
 
 		wu_register_settings_field(
 			'api',
@@ -182,13 +195,23 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 		wu_register_settings_field(
 			'api',
 			'enable_mcp',
-			[
-				'title'   => __('Enable MCP Adapter', 'ultimate-multisite'),
-				'desc'    => __('Tick this box to enable the Model Context Protocol (MCP) adapter. This allows AI assistants to interact with Ultimate Multisite through the Abilities API.', 'ultimate-multisite'),
-				'type'    => 'toggle',
-				'default' => 0,
-			]
+			$mcp_available
+				? [
+					'title'   => __('Enable MCP Adapter', 'ultimate-multisite'),
+					'desc'    => __('Tick this box to enable the Model Context Protocol (MCP) adapter. This allows AI assistants to interact with Ultimate Multisite through the Abilities API.', 'ultimate-multisite'),
+					'type'    => 'toggle',
+					'default' => 0,
+				]
+				: [
+					'title' => __('MCP Adapter Unavailable', 'ultimate-multisite'),
+					'desc'  => $this->get_dependency_message(),
+					'type'  => 'note',
+				]
 		);
+
+		if (! $mcp_available) {
+			return;
+		}
 		wu_register_settings_field(
 			'api',
 			'mcp_serveer_urel',
@@ -239,15 +262,90 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 	 * @return bool
 	 */
 	public function is_mcp_enabled(): bool {
-
 		/**
-		 * Allow plugin developers to force a given state for the MCP adapter.
+		 * Filter whether the available MCP Adapter integration is enabled.
 		 *
 		 * @since 2.5.0
 		 * @param bool $enabled Whether the MCP adapter is enabled.
 		 * @return bool
 		 */
-		return apply_filters('wu_is_mcp_enabled', wu_get_setting('enable_mcp', false));
+		return $this->is_mcp_available() && apply_filters('wu_is_mcp_enabled', wu_get_setting('enable_mcp', false));
+	}
+
+	/**
+	 * Check whether the canonical MCP Adapter plugin is available.
+	 *
+	 * @since 2.16.0
+	 * @return bool
+	 */
+	public function is_mcp_available(): bool {
+		global $wp_version;
+
+		$available = version_compare((string) $wp_version, self::MINIMUM_WORDPRESS_VERSION, '>=')
+			&& defined('WP_MCP_VERSION')
+			&& version_compare((string) WP_MCP_VERSION, self::MINIMUM_MCP_ADAPTER_VERSION, '>=')
+			&& class_exists(McpAdapterCore::class)
+			&& class_exists(HttpTransport::class)
+			&& function_exists('wp_get_abilities');
+
+		/**
+		 * Filter whether the canonical MCP Adapter plugin is available.
+		 *
+		 * @since 2.16.0
+		 * @param bool $available Whether a supported canonical plugin is available.
+		 * @return bool
+		 */
+		return (bool) apply_filters('wu_mcp_adapter_available', $available);
+	}
+
+	/**
+	 * Display a notice when a previously enabled MCP integration is unavailable.
+	 *
+	 * @since 2.16.0
+	 * @return void
+	 */
+	public function display_dependency_notice(): void {
+		if (! wu_get_setting('enable_mcp', false) || $this->is_mcp_available()) {
+			return;
+		}
+
+		printf(
+			'<div class="notice notice-warning"><p><strong>%s</strong> %s</p></div>',
+			esc_html__('Ultimate Multisite MCP integration is unavailable.', 'ultimate-multisite'),
+			esc_html($this->get_dependency_message())
+		);
+	}
+
+	/**
+	 * Get the MCP dependency requirement message.
+	 *
+	 * @since 2.16.0
+	 * @return string
+	 */
+	private function get_dependency_message(): string {
+		global $wp_version;
+
+		if (version_compare((string) $wp_version, self::MINIMUM_WORDPRESS_VERSION, '<')) {
+			return sprintf(
+				/* translators: %s: minimum required WordPress version. */
+				__('MCP requires WordPress %s or newer and the canonical MCP Adapter plugin.', 'ultimate-multisite'),
+				self::MINIMUM_WORDPRESS_VERSION
+			);
+		}
+
+		if (! defined('WP_MCP_VERSION')) {
+			return sprintf(
+				/* translators: %s: minimum required MCP Adapter version. */
+				__('Install and network activate the canonical MCP Adapter plugin version %s or newer.', 'ultimate-multisite'),
+				self::MINIMUM_MCP_ADAPTER_VERSION
+			);
+		}
+
+		return sprintf(
+			/* translators: %s: minimum required MCP Adapter version. */
+			__('Update the canonical MCP Adapter plugin to version %s or newer.', 'ultimate-multisite'),
+			self::MINIMUM_MCP_ADAPTER_VERSION
+		);
 	}
 
 
