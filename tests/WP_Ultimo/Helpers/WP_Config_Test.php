@@ -133,22 +133,22 @@ class WP_Config_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test revert removes every ordinary definition of a constant.
+	 * Test revert refuses to remove ambiguous mixed definitions.
 	 */
-	public function test_revert_removes_duplicate_definitions(): void {
+	public function test_revert_preserves_mixed_duplicate_definitions(): void {
 
-		$this->use_config_contents(
+		$original =
 			"<?php\n" .
 			"define( 'SUNRISE', true );\n" .
 			"defined( 'SUNRISE' ) || define( 'SUNRISE', false );\n" .
-			"/* That's all, stop editing! Happy publishing. */\n"
-		);
+			"/* That's all, stop editing! Happy publishing. */\n";
 
-		$result   = $this->wp_config->revert('SUNRISE');
-		$contents = file_get_contents($this->config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$this->use_config_contents($original);
 
-		$this->assertTrue($result);
-		$this->assertStringNotContainsString("'SUNRISE'", $contents);
+		$result = $this->wp_config->revert('SUNRISE');
+
+		$this->assertFalse($result);
+		$this->assertSame($original, file_get_contents($this->config_path)); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 	}
 
 	/**
@@ -171,7 +171,7 @@ class WP_Config_Test extends WP_UnitTestCase {
 	 */
 	public function test_inject_wp_config_constant_uses_custom_reference_pattern(): void {
 
-		$this->use_config_contents("<?php\n// CUSTOM CONFIG ANCHOR\n");
+		$this->use_config_contents("<?php\n// CUSTOM CONFIG ANCHOR\n\$table_prefix = 'wp_';\n/* That's all, stop editing! Happy publishing. */\n");
 
 		$filter = static fn() => ['/^\/\/ CUSTOM CONFIG ANCHOR$/' => 0];
 		add_filter('wu_wp_config_reference_hook_line_patterns', $filter);
@@ -183,7 +183,8 @@ class WP_Config_Test extends WP_UnitTestCase {
 		$contents = file_get_contents($this->config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 
 		$this->assertTrue($result);
-		$this->assertStringContainsString("// CUSTOM CONFIG ANCHOR\ndefine( 'SUNRISE', true );", $contents);
+		$this->assertStringContainsString("// CUSTOM CONFIG ANCHOR\ndefine( 'SUNRISE', true ); // Ultimate Multisite managed", $contents);
+		$this->assertStringNotContainsString("\$table_prefix = 'wp_';\ndefine( 'SUNRISE', true );", $contents);
 	}
 
 	/**

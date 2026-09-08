@@ -22,6 +22,14 @@ class WP_Config {
 	use \WP_Ultimo\Traits\Singleton;
 
 	/**
+	 * Marker appended to definitions managed by Ultimate Multisite.
+	 *
+	 * @since 2.15.2
+	 * @var string
+	 */
+	private const MANAGED_MARKER = 'Ultimate Multisite managed';
+
+	/**
 	 * Inject the constant into the wp-config.php file.
 	 *
 	 * @since 2.0.0
@@ -86,6 +94,8 @@ class WP_Config {
 			return new \WP_Error('not-writeable', sprintf(__('The file %s is not writable', 'ultimate-multisite'), $config_path));
 		}
 
+		// Serialize Ultimate Multisite writers. The content comparison below also detects
+		// external changes made before the final atomic replacement.
 		$lock_path   = rtrim(sys_get_temp_dir(), '/\\') . '/wu-wp-config-' . hash('sha256', $resolved_config_path) . '.lock';
 		$lock_handle = fopen($lock_path, 'c'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
 
@@ -171,14 +181,21 @@ class WP_Config {
 				throw new \RuntimeException(__('The transformed wp-config.php file could not be read.', 'ultimate-multisite'));
 			}
 
+			if ( ! $remove_only) {
+				foreach (array_keys($constants) as $constant) {
+					$transformed_contents = $this->mark_managed_definition($transformed_contents, $constant);
+				}
+			}
+
 			if (str_contains($original_contents, "\r\n")) {
 				$transformed_contents = str_replace("\r\n", "\n", $transformed_contents);
 				$transformed_contents = str_replace("\n", "\r\n", $transformed_contents);
-				$bytes_written        = file_put_contents($temporary_path, $transformed_contents, LOCK_EX); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+			}
 
-				if (strlen($transformed_contents) !== $bytes_written) {
-					throw new \RuntimeException(__('The temporary wp-config.php file could not be written completely.', 'ultimate-multisite'));
-				}
+			$bytes_written = file_put_contents($temporary_path, $transformed_contents, LOCK_EX); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
+			if (strlen($transformed_contents) !== $bytes_written) {
+				throw new \RuntimeException(__('The temporary wp-config.php file could not be written completely.', 'ultimate-multisite'));
 			}
 
 			$this->validate_transformed_constants($transformed_contents, array_keys($constants), ! $remove_only);
@@ -227,10 +244,6 @@ class WP_Config {
 
 		$mode = $metadata['mode'] & 07777;
 
-		if ( ! chmod($path, $mode)) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod
-			throw new \RuntimeException(esc_html__('The wp-config.php file permissions could not be preserved.', 'ultimate-multisite'));
-		}
-
 		$current_owner = fileowner($path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fileowner
 
 		if (false !== $current_owner && (int) $metadata['uid'] !== $current_owner && ! chown($path, (int) $metadata['uid'])) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chown
@@ -241,6 +254,11 @@ class WP_Config {
 
 		if (false !== $current_group && (int) $metadata['gid'] !== $current_group && ! chgrp($path, (int) $metadata['gid'])) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chgrp
 			throw new \RuntimeException(esc_html__('The wp-config.php file group could not be preserved.', 'ultimate-multisite'));
+		}
+
+		// Ownership changes can clear setuid/setgid bits, so restore the mode last.
+		if ( ! chmod($path, $mode)) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod
+			throw new \RuntimeException(esc_html__('The wp-config.php file permissions could not be preserved.', 'ultimate-multisite'));
 		}
 	}
 
@@ -266,6 +284,29 @@ class WP_Config {
 	}
 
 	/**
+	 * Mark the normalized definition created by WPConfigTransformer.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @param string $contents wp-config.php contents.
+	 * @param string $constant Constant name.
+	 * @throws \RuntimeException When the generated definition cannot be marked.
+	 * @return string
+	 */
+	private function mark_managed_definition($contents, $constant) {
+
+		$pattern = '/^([\t ]*define\(\s*([\'\"])' . preg_quote($constant, '/') . '\2\s*,[^\r\n]*\);)[\t ]*$/m';
+		$result  = preg_replace($pattern, '$1 // ' . self::MANAGED_MARKER, $contents, 1, $replacement_count);
+
+		if ( ! is_string($result) || 1 !== $replacement_count) {
+			// translators: %s is a PHP constant name.
+			throw new \RuntimeException(sprintf(esc_html__('The generated %s definition could not be marked as managed.', 'ultimate-multisite'), esc_html($constant)));
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Find a safe placement anchor supported by WPConfigTransformer.
 	 *
 	 * @since 2.15.2
@@ -275,7 +316,25 @@ class WP_Config {
 	 */
 	private function get_transformer_anchor($contents) {
 
-		$default_anchor = "/* That's all, stop editing!";
+		global $wpdb;
+
+		$default_anchor   = "/* That's all, stop editing!";
+		$default_patterns = [
+			'/^\$table_prefix\s*=\s*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
+			'/^( ){0,}\$table_prefix\s*=.*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
+			'/(\/\* That\'s all, stop editing! Happy publishing\. \*\/)/' => -2,
+			'/<\?php/' => 0,
+		];
+		$patterns         = apply_filters('wu_wp_config_reference_hook_line_patterns', $default_patterns);
+
+		// A customized pattern list is authoritative, matching the legacy API.
+		if ($patterns !== $default_patterns) {
+			$custom_anchor = $this->find_pattern_anchor($contents, $patterns);
+
+			if ($custom_anchor) {
+				return $custom_anchor;
+			}
+		}
 
 		if (str_contains($contents, $default_anchor)) {
 			return [
@@ -298,34 +357,44 @@ class WP_Config {
 			];
 		}
 
+		$pattern_anchor = $this->find_pattern_anchor($contents, $patterns);
+
+		if ($pattern_anchor) {
+			return $pattern_anchor;
+		}
+
+		return new \WP_Error('unknown-wpconfig', __("Ultimate Multisite can't recognize your wp-config.php. No changes were applied.", 'ultimate-multisite'));
+	}
+
+	/**
+	 * Find an anchor from an ordered list of legacy reference patterns.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @param string $contents wp-config.php contents.
+	 * @param array  $patterns Regular expressions keyed to line offsets.
+	 * @return array{anchor: string, placement: string}|null
+	 */
+	private function find_pattern_anchor($contents, $patterns) {
+
 		$config_lines = preg_split('/\n/', $contents);
 
-		if (is_array($config_lines)) {
-			global $wpdb;
+		if ( ! is_array($config_lines) || ! is_array($patterns)) {
+			return null;
+		}
 
-			$patterns = apply_filters(
-				'wu_wp_config_reference_hook_line_patterns',
-				[
-					'/^\$table_prefix\s*=\s*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
-					'/^( ){0,}\$table_prefix\s*=.*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
-					'/(\/\* That\'s all, stop editing! Happy publishing\. \*\/)/' => -2,
-					'/<\?php/' => 0,
-				]
-			);
-
-			foreach ($patterns as $pattern => $lines_to_add) {
-				foreach ($config_lines as $line) {
-					if (preg_match($pattern, (string) $line)) {
-						return [
-							'anchor'    => $line,
-							'placement' => $lines_to_add < 0 ? 'before' : 'after',
-						];
-					}
+		foreach ($patterns as $pattern => $lines_to_add) {
+			foreach ($config_lines as $line) {
+				if (preg_match($pattern, (string) $line)) {
+					return [
+						'anchor'    => $line,
+						'placement' => $lines_to_add < 0 ? 'before' : 'after',
+					];
 				}
 			}
 		}
 
-		return new \WP_Error('unknown-wpconfig', __("Ultimate Multisite can't recognize your wp-config.php. No changes were applied.", 'ultimate-multisite'));
+		return null;
 	}
 
 	/**
@@ -548,8 +617,13 @@ class WP_Config {
 		}
 
 		$injected_line = $this->find_injected_line($config, $constant);
+		$contents      = implode('', $config);
 
-		if (false === $injected_line || ! in_array(rtrim($injected_line[0], ';'), ['true', '1'], true)) {
+		if (
+			1 !== $this->count_constant_definitions($contents, $constant)
+			|| false === $injected_line
+			|| ! in_array(rtrim($injected_line[0], ';'), ['true', '1'], true)
+		) {
 			return false;
 		}
 
