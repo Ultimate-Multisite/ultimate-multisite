@@ -495,14 +495,15 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 	 */
 	public function test_site_needs_magic_link_direct_custom_domain() {
 
-		$site_id = self::factory()->blog->create(
+		$site = wu_create_site(
 			[
 				'domain' => 'direct-domain.example.test',
 				'path'   => '/',
 			]
 		);
 
-		$this->assertTrue($this->get_instance()->site_needs_magic_link($site_id));
+		$this->assertNotWPError($site);
+		$this->assertTrue($this->get_instance()->site_needs_magic_link($site->get_id()));
 	}
 
 	/**
@@ -511,14 +512,15 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 	public function test_site_needs_magic_link_main_site_subdomain() {
 
 		$main_site_domain = wp_parse_url(get_site_url(wu_get_main_site_id()), PHP_URL_HOST);
-		$site_id          = self::factory()->blog->create(
+		$site             = wu_create_site(
 			[
 				'domain' => 'customer.' . $main_site_domain,
 				'path'   => '/',
 			]
 		);
 
-		$this->assertFalse($this->get_instance()->site_needs_magic_link($site_id));
+		$this->assertNotWPError($site);
+		$this->assertFalse($this->get_instance()->site_needs_magic_link($site->get_id()));
 	}
 
 	/**
