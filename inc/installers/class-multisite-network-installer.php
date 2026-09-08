@@ -245,12 +245,13 @@ class Multisite_Network_Installer extends Base_Installer {
 			'BLOG_ID_CURRENT_SITE' => 1,
 		];
 
-		$result = $wp_config->inject_wp_config_constants($constants);
+		foreach ($constants as $constant => $value) {
+			$result = $wp_config->inject_wp_config_constant($constant, $value);
 
-		if (is_wp_error($result)) {
-			throw new \Exception(esc_html($result->get_error_message()));
+			if (is_wp_error($result)) {
+				throw new \Exception(esc_html($result->get_error_message()));
+			}
 		}
-
 		wp_cache_flush();
 	}
 
