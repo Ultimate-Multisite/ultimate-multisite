@@ -491,6 +491,37 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test site_needs_magic_link detects a custom domain stored directly on the site.
+	 */
+	public function test_site_needs_magic_link_direct_custom_domain() {
+
+		$site_id = self::factory()->blog->create(
+			[
+				'domain' => 'direct-domain.example.test',
+				'path'   => '/',
+			]
+		);
+
+		$this->assertTrue($this->get_instance()->site_needs_magic_link($site_id));
+	}
+
+	/**
+	 * Test site_needs_magic_link excludes subdomains of the main site.
+	 */
+	public function test_site_needs_magic_link_main_site_subdomain() {
+
+		$main_site_domain = wp_parse_url(get_site_url(wu_get_main_site_id()), PHP_URL_HOST);
+		$site_id          = self::factory()->blog->create(
+			[
+				'domain' => 'customer.' . $main_site_domain,
+				'path'   => '/',
+			]
+		);
+
+		$this->assertFalse($this->get_instance()->site_needs_magic_link($site_id));
+	}
+
+	/**
 	 * Test maybe_convert_to_magic_link returns original URL when disabled.
 	 */
 	public function test_maybe_convert_to_magic_link_disabled() {
