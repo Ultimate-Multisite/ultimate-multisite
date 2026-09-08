@@ -167,6 +167,18 @@ class WP_Config_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test revert removes a single managed true definition.
+	 */
+	public function test_revert_removes_managed_definition(): void {
+
+		$this->use_config_contents("<?php\n\$table_prefix = 'wp_';\n");
+
+		$this->assertTrue($this->wp_config->inject_wp_config_constant('SUNRISE', true));
+		$this->assertTrue($this->wp_config->revert('SUNRISE'));
+		$this->assertStringNotContainsString("'SUNRISE'", file_get_contents($this->config_path)); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+	}
+
+	/**
 	 * Test custom reference patterns remain valid transformer anchors.
 	 */
 	public function test_inject_wp_config_constant_uses_custom_reference_pattern(): void {
