@@ -170,9 +170,17 @@ jobs:
 
             `;
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
+            try {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } catch (error) {
+              if (error.status === 403 && /locked/i.test(error.message)) {
+                core.warning('Build succeeded, but the PR conversation is locked; skipping the build comment.');
+              } else {
+                throw error;
+              }
+            }
