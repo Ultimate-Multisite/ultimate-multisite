@@ -35,7 +35,7 @@ class Block_Editor_Widget_Manager {
 			add_action('wu_element_loaded', [$this, 'handle_element']);
 
 			if (is_admin()) {
-				add_action('init', [$this, 'register_scripts']);
+				add_action('admin_enqueue_scripts', [$this, 'register_scripts']);
 			}
 
 			add_filter('wu_element_is_preview', [$this, 'is_block_preview']);
@@ -49,6 +49,12 @@ class Block_Editor_Widget_Manager {
 	 * @return void
 	 */
 	public function register_scripts(): void {
+
+		$screen = get_current_screen();
+
+		if ( ! $screen || ! $screen->is_block_editor()) {
+			return;
+		}
 
 		\WP_Ultimo\Scripts::get_instance()->register_script('wu-blocks', wu_get_asset('blocks.js', 'js', 'inc/builders/block-editor/assets'), ['underscore', 'wp-blocks', 'wp-element', 'wp-components', 'wp-editor', 'wu-functions', 'wp-i18n', 'wp-polyfill']);
 

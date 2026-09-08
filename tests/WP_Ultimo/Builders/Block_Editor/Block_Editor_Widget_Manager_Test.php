@@ -32,7 +32,7 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 	public function test_init_registers_scripts_hook_only_in_admin(): void {
 
 		// Remove any existing hooks first.
-		remove_all_actions('init');
+		remove_all_actions('admin_enqueue_scripts');
 
 		// Simulate frontend context — set_current_screen('front') sets is_admin() to false.
 		set_current_screen('front');
@@ -40,8 +40,8 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 		$this->manager->init();
 
 		$this->assertFalse(
-			has_action('init', [$this->manager, 'register_scripts']),
-			'register_scripts should NOT be hooked on init when on the frontend.'
+			has_action('admin_enqueue_scripts', [$this->manager, 'register_scripts']),
+			'register_scripts should NOT be hooked on admin_enqueue_scripts when on the frontend.'
 		);
 	}
 
@@ -51,20 +51,49 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 	public function test_init_registers_scripts_hook_in_admin(): void {
 
 		// Remove any existing hooks first.
-		remove_all_actions('init');
+		remove_all_actions('admin_enqueue_scripts');
 
 		// Simulate admin context.
 		set_current_screen('dashboard');
 
 		$this->manager->init();
 
-		$priority = has_action('init', [$this->manager, 'register_scripts']);
+		$priority = has_action('admin_enqueue_scripts', [$this->manager, 'register_scripts']);
 
 		// has_action returns the priority (int) or false.
 		$this->assertNotFalse(
 			$priority,
-			'register_scripts should be hooked on init when in admin.'
+			'register_scripts should be hooked on admin_enqueue_scripts when in admin.'
 		);
+	}
+
+	/**
+	 * Test block settings are evaluated only on block editor screens.
+	 */
+	public function test_register_scripts_defers_block_settings_outside_editor(): void {
+
+		$evaluations = 0;
+		$filter      = static function ($blocks) use (&$evaluations) {
+
+			++$evaluations;
+
+			return $blocks;
+		};
+
+		add_filter('wu_blocks', $filter);
+
+		set_current_screen('dashboard');
+		$this->manager->register_scripts();
+
+		$this->assertSame(0, $evaluations);
+
+		set_current_screen('post');
+		get_current_screen()->is_block_editor(true);
+		$this->manager->register_scripts();
+
+		remove_filter('wu_blocks', $filter);
+
+		$this->assertSame(1, $evaluations);
 	}
 
 	/**
