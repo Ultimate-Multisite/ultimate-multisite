@@ -86,19 +86,38 @@ class WP_Config {
 			return new \WP_Error('not-writeable', sprintf(__('The file %s is not writable', 'ultimate-multisite'), $config_path));
 		}
 
-		$original_contents = file_get_contents($resolved_config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$lock_path   = rtrim(sys_get_temp_dir(), '/\\') . '/wu-wp-config-' . hash('sha256', $resolved_config_path) . '.lock';
+		$lock_handle = fopen($lock_path, 'c'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
 
-		if (false === $original_contents || '' === trim($original_contents)) {
-			return new \WP_Error('invalid-wp-config', __('The wp-config.php file could not be read or is empty.', 'ultimate-multisite'));
+		if (false === $lock_handle || ! flock($lock_handle, LOCK_EX)) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_flock
+			if (is_resource($lock_handle)) {
+				fclose($lock_handle); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+			}
+
+			return new \WP_Error('wp-config-lock-failed', __('The wp-config.php update lock could not be acquired.', 'ultimate-multisite'));
 		}
 
-		$temporary_path = tempnam(dirname($resolved_config_path), '.wu-wp-config-');
-
-		if (false === $temporary_path) {
-			return new \WP_Error('wp-config-temp-file', __('A temporary wp-config.php file could not be created.', 'ultimate-multisite'));
-		}
+		$temporary_path = false;
 
 		try {
+			$original_contents = file_get_contents($resolved_config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+
+			if (false === $original_contents || '' === trim($original_contents)) {
+				throw new \RuntimeException(__('The wp-config.php file could not be read or is empty.', 'ultimate-multisite'));
+			}
+
+			$file_metadata = stat($resolved_config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_stat
+
+			if (false === $file_metadata) {
+				throw new \RuntimeException(__('The wp-config.php file metadata could not be read.', 'ultimate-multisite'));
+			}
+
+			$temporary_path = tempnam(dirname($resolved_config_path), '.wu-wp-config-');
+
+			if (false === $temporary_path) {
+				throw new \RuntimeException(__('A temporary wp-config.php file could not be created.', 'ultimate-multisite'));
+			}
+
 			// Direct filesystem access is required to lock and atomically replace this local PHP configuration file.
 			$bytes_written = file_put_contents($temporary_path, $original_contents, LOCK_EX); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 
@@ -106,11 +125,7 @@ class WP_Config {
 				throw new \RuntimeException(__('The temporary wp-config.php file could not be written completely.', 'ultimate-multisite'));
 			}
 
-			$file_permissions = fileperms($resolved_config_path);
-
-			if (false !== $file_permissions) {
-				chmod($temporary_path, $file_permissions & 0777); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod
-			}
+			$this->preserve_file_metadata($temporary_path, $file_metadata);
 
 			$normalized_contents = str_replace(["\r\n", "\n\r", "\r"], "\n", $original_contents);
 			$transformer         = new \WPConfigTransformer($temporary_path);
@@ -189,9 +204,43 @@ class WP_Config {
 		} catch (\Throwable $exception) {
 			return new \WP_Error('wp-config-transform-failed', $exception->getMessage());
 		} finally {
-			if (file_exists($temporary_path)) {
+			if (is_string($temporary_path) && file_exists($temporary_path)) {
 				wp_delete_file($temporary_path);
 			}
+
+			flock($lock_handle, LOCK_UN); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_flock
+			fclose($lock_handle); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+		}
+	}
+
+	/**
+	 * Preserve ownership, group, and mode on an atomic replacement file.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @param string $path Temporary replacement path.
+	 * @param array  $metadata Original file metadata from stat().
+	 * @throws \RuntimeException When metadata cannot be preserved.
+	 * @return void
+	 */
+	private function preserve_file_metadata($path, $metadata) {
+
+		$mode = $metadata['mode'] & 07777;
+
+		if ( ! chmod($path, $mode)) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod
+			throw new \RuntimeException(esc_html__('The wp-config.php file permissions could not be preserved.', 'ultimate-multisite'));
+		}
+
+		$current_owner = fileowner($path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fileowner
+
+		if (false !== $current_owner && (int) $metadata['uid'] !== $current_owner && ! chown($path, (int) $metadata['uid'])) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chown
+			throw new \RuntimeException(esc_html__('The wp-config.php file owner could not be preserved.', 'ultimate-multisite'));
+		}
+
+		$current_group = filegroup($path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_filegroup
+
+		if (false !== $current_group && (int) $metadata['gid'] !== $current_group && ! chgrp($path, (int) $metadata['gid'])) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chgrp
+			throw new \RuntimeException(esc_html__('The wp-config.php file group could not be preserved.', 'ultimate-multisite'));
 		}
 	}
 
@@ -247,6 +296,33 @@ class WP_Config {
 				'anchor'    => $matches[0],
 				'placement' => 'before',
 			];
+		}
+
+		$config_lines = preg_split('/\n/', $contents);
+
+		if (is_array($config_lines)) {
+			global $wpdb;
+
+			$patterns = apply_filters(
+				'wu_wp_config_reference_hook_line_patterns',
+				[
+					'/^\$table_prefix\s*=\s*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
+					'/^( ){0,}\$table_prefix\s*=.*[\'|\"]' . $wpdb->prefix . '[\'|\"]/' => 0,
+					'/(\/\* That\'s all, stop editing! Happy publishing\. \*\/)/' => -2,
+					'/<\?php/' => 0,
+				]
+			);
+
+			foreach ($patterns as $pattern => $lines_to_add) {
+				foreach ($config_lines as $line) {
+					if (preg_match($pattern, (string) $line)) {
+						return [
+							'anchor'    => $line,
+							'placement' => $lines_to_add < 0 ? 'before' : 'after',
+						];
+					}
+				}
+			}
 		}
 
 		return new \WP_Error('unknown-wpconfig', __("Ultimate Multisite can't recognize your wp-config.php. No changes were applied.", 'ultimate-multisite'));
@@ -464,6 +540,18 @@ class WP_Config {
 	 * @return mixed
 	 */
 	public function revert($constant) {
+
+		$config = file($this->get_wp_config_path());
+
+		if (false === $config) {
+			return new \WP_Error('invalid-wp-config', __('The wp-config.php file could not be read.', 'ultimate-multisite'));
+		}
+
+		$injected_line = $this->find_injected_line($config, $constant);
+
+		if (false === $injected_line || ! in_array(rtrim($injected_line[0], ';'), ['true', '1'], true)) {
+			return false;
+		}
 
 		return $this->transform_wp_config_constants([$constant => null], true);
 	}

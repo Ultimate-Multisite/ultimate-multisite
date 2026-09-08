@@ -152,6 +152,62 @@ class WP_Config_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test revert preserves a user-owned false definition.
+	 */
+	public function test_revert_preserves_false_definition(): void {
+
+		$original = "<?php\ndefine( 'SUNRISE', false );\n/* That's all, stop editing! Happy publishing. */\n";
+
+		$this->use_config_contents($original);
+
+		$result = $this->wp_config->revert('SUNRISE');
+
+		$this->assertFalse($result);
+		$this->assertSame($original, file_get_contents($this->config_path)); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+	}
+
+	/**
+	 * Test custom reference patterns remain valid transformer anchors.
+	 */
+	public function test_inject_wp_config_constant_uses_custom_reference_pattern(): void {
+
+		$this->use_config_contents("<?php\n// CUSTOM CONFIG ANCHOR\n");
+
+		$filter = static fn() => ['/^\/\/ CUSTOM CONFIG ANCHOR$/' => 0];
+		add_filter('wu_wp_config_reference_hook_line_patterns', $filter);
+
+		$result = $this->wp_config->inject_wp_config_constant('SUNRISE', true);
+
+		remove_filter('wu_wp_config_reference_hook_line_patterns', $filter);
+
+		$contents = file_get_contents($this->config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+
+		$this->assertTrue($result);
+		$this->assertStringContainsString("// CUSTOM CONFIG ANCHOR\ndefine( 'SUNRISE', true );", $contents);
+	}
+
+	/**
+	 * Test atomic replacement preserves filesystem metadata.
+	 */
+	public function test_inject_wp_config_constant_preserves_file_metadata(): void {
+
+		$this->use_config_contents("<?php\n\$table_prefix = 'wp_';\n");
+		chmod($this->config_path, 0640); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod
+
+		$owner = fileowner($this->config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fileowner
+		$group = filegroup($this->config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_filegroup
+
+		$result = $this->wp_config->inject_wp_config_constant('SUNRISE', true);
+
+		clearstatcache(true, $this->config_path);
+
+		$this->assertTrue($result);
+		$this->assertSame(0640, fileperms($this->config_path) & 0777);
+		$this->assertSame($owner, fileowner($this->config_path)); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fileowner
+		$this->assertSame($group, filegroup($this->config_path)); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_filegroup
+	}
+
+	/**
 	 * Test inject_contents inserts at correct position.
 	 */
 	public function test_inject_contents_inserts_at_position(): void {
