@@ -976,13 +976,14 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 
 			wp_add_inline_script('wu-setup-wizard-extra', 'document.addEventListener("DOMContentLoaded", () => wu_initialize_imagepicker());', 'after');
 
-			// All these just so the toggle of footer credits shows the other options.
 			wp_register_script('wu-vue', wu_get_asset('lib/vue.js', 'js'), [], wu_get_version(), true);
 			wp_register_script('wu-money-mask', wu_get_asset('lib/v-money.js', 'js'), ['wu-vue'], wu_get_version(), true);
 			wp_register_script('wu-input-mask', wu_get_asset('lib/vue-the-mask.js', 'js'), ['wu-vue'], wu_get_version(), true);
 			wp_register_script('wu-vue-apps', wu_get_asset('vue-apps.js', 'js'), ['wu-functions', 'wu-vue', 'wu-money-mask', 'wu-input-mask', 'wp-hooks'], wu_get_version(), true);
-			wp_enqueue_script('wu-vue-apps');
 		}
+
+		// Required for conditional settings fields, including the footer credit options.
+		wp_enqueue_script('wu-vue-apps');
 
 		wp_enqueue_script('wu-setup-wizard-extra', wu_get_asset('setup-wizard-extra.js', 'js'), ['jquery', 'wu-fields', 'wu-functions', 'wubox'], wu_get_version(), true);
 

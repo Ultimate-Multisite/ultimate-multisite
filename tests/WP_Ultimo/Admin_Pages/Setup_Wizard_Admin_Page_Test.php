@@ -434,6 +434,24 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 		$this->assertTrue(true);
 	}
 
+	public function test_register_scripts_enqueues_vue_apps_when_plugin_is_loaded(): void {
+		$plugin     = WP_Ultimo();
+		$reflection = new \ReflectionClass($plugin);
+		$property   = $reflection->getProperty('loaded');
+		$was_loaded = $property->getValue($plugin);
+
+		$property->setValue($plugin, true);
+		wp_dequeue_script('wu-vue-apps');
+
+		try {
+			$this->page->register_scripts();
+			$this->assertTrue(wp_script_is('wu-vue-apps', 'enqueued'));
+		} finally {
+			$property->setValue($plugin, $was_loaded);
+			wp_dequeue_script('wu-vue-apps');
+		}
+	}
+
 	/**
 	 * Test that Vue script is registered with minified version when SCRIPT_DEBUG is off.
 	 */
