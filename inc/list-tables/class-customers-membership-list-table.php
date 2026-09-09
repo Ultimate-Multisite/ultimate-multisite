@@ -46,7 +46,16 @@ class Customers_Membership_List_Table extends Membership_List_Table {
 
 		$p = $item->get_plan();
 
-		$expired = strtotime((string) $item->get_date_expiration()) <= time();
+		$date_expiration = $item->get_date_expiration();
+
+		if (empty($date_expiration) || '0000-00-00 00:00:00' === $date_expiration) {
+			// translators: %1$s: lifetime membership label, %2$s: lifetime expiration description.
+			$expiration_label = sprintf('%1$s / %2$s', __('Lifetime', 'ultimate-multisite'), __('It never expires', 'ultimate-multisite'));
+		} else {
+			$expired = time() >= strtotime($date_expiration);
+			// translators: %s is a placeholder for the human-readable time difference, e.g., "2 hours ago".
+			$expiration_label = sprintf($expired ? __('Expired %s', 'ultimate-multisite') : __('Expiring %s', 'ultimate-multisite'), wu_human_time_diff(strtotime($date_expiration)));
+		}
 
 		$product_count = 1 + count($item->get_addon_ids());
 
@@ -54,7 +63,7 @@ class Customers_Membership_List_Table extends Membership_List_Table {
 
 		if ( ! $p) {
 			$products_list = '';
-		} elseif ($addon_count === 0) {
+		} elseif (0 === $addon_count) {
 			// translators: %s: the product name.
 			$products_list = sprintf(__('Contains %s', 'ultimate-multisite'), $p->get_name());
 		} else {
@@ -95,8 +104,7 @@ class Customers_Membership_List_Table extends Membership_List_Table {
 				'date_expiration' => [
 					'icon'  => 'dashicons-wu-calendar1 wu-align-middle wu-mr-1',
 					'label' => __('Expires', 'ultimate-multisite'),
-					// translators: %s is a placeholder for the human-readable time difference, e.g., "2 hours ago"
-					'value' => sprintf($expired ? __('Expired %s', 'ultimate-multisite') : __('Expiring %s', 'ultimate-multisite'), wu_human_time_diff(strtotime((string) $item->get_date_expiration()))),
+					'value' => $expiration_label,
 				],
 				'date_created'    => [
 					'icon'  => 'dashicons-wu-calendar1 wu-align-middle wu-mr-1',
