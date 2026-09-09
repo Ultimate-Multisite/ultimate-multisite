@@ -48,6 +48,22 @@ class Membership_Manager extends Base_Manager {
 	protected $model_class = \WP_Ultimo\Models\Membership::class;
 
 	/**
+	 * Whether a checkout database transaction is currently open.
+	 *
+	 * @since 2.15.2
+	 * @var bool
+	 */
+	private $checkout_transaction_in_progress = false;
+
+	/**
+	 * Membership IDs whose pending sites should publish after checkout commits.
+	 *
+	 * @since 2.15.2
+	 * @var int[]
+	 */
+	private $deferred_pending_site_publications = [];
+
+	/**
 	 * Instantiate the necessary hooks.
 	 *
 	 * @since 2.0.0
@@ -82,6 +98,11 @@ class Membership_Manager extends Base_Manager {
 		add_action('wu_transition_membership_status', [$this, 'transition_membership_status'], 10, 3);
 
 		add_action('wu_transition_membership_status', [$this, 'handle_pending_site_on_cancellation'], 10, 3);
+
+		add_action('wu_checkout_transaction_started', [$this, 'begin_checkout_transaction'], 0, 0);
+		add_action('wu_checkout_transaction_committed', [$this, 'commit_checkout_transaction'], 0, 0);
+		add_action('wu_checkout_transaction_rolled_back', [$this, 'rollback_checkout_transaction'], 0, 0);
+		add_action('wu_membership_post_save', [$this, 'maybe_defer_pending_site_publication'], 20, 2);
 
 		/*
 		 * Deal with delayed/schedule swaps
@@ -431,6 +452,79 @@ class Membership_Manager extends Base_Manager {
 		 */
 		$membership = wu_get_membership($membership_id);
 
+		if ( ! $this->can_publish_pending_site($membership)) {
+			return;
+		}
+
+		/*
+		 * A checkout activates free memberships before its database transaction
+		 * commits. Starting the loopback here lets the second request race the
+		 * commit and fail to load the newly created membership. Publish as soon as
+		 * the checkout signals that its transaction committed instead.
+		 */
+		if ($this->checkout_transaction_in_progress) {
+			$this->deferred_pending_site_publications[ $membership_id ] = (int) $membership_id;
+			return;
+		}
+
+		$membership->publish_pending_site_async();
+	}
+
+	/**
+	 * Queues an eligible pending site when checkout saves without a status change.
+	 *
+	 * Trial retries can save an already-trialing membership, which does not emit a
+	 * status transition. Watching saves only while checkout owns a transaction
+	 * ensures those pending sites are still published after commit without changing
+	 * normal webhook or administrative save behavior.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @param array                        $_data      The saved membership data.
+	 * @param \WP_Ultimo\Models\Membership $membership The saved membership.
+	 * @return void
+	 */
+	public function maybe_defer_pending_site_publication($_data, $membership): void {
+
+		if (
+			! $this->checkout_transaction_in_progress
+			|| ! $this->can_publish_pending_site($membership)
+			|| ! $membership->get_pending_site()
+		) {
+			return;
+		}
+
+		$membership_id = $membership->get_id();
+
+		$this->deferred_pending_site_publications[ $membership_id ] = (int) $membership_id;
+	}
+
+	/**
+	 * Checks whether a membership is still eligible for pending-site publication.
+	 *
+	 * The state is checked from storage immediately before dispatch so gateway or
+	 * add-on changes made later in the same checkout are respected.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @param \WP_Ultimo\Models\Membership|false $membership Membership to check.
+	 * @return bool
+	 */
+	private function can_publish_pending_site($membership): bool {
+
+		if ( ! $membership) {
+			return false;
+		}
+
+		$allowed_statuses = [
+			Membership_Status::ACTIVE,
+			Membership_Status::TRIALING,
+		];
+
+		if ( ! in_array($membership->get_status(), $allowed_statuses, true)) {
+			return false;
+		}
+
 		/*
 		 * If the customer has not yet verified their email, hold off on
 		 * publishing the pending site. The site will be published later
@@ -439,11 +533,62 @@ class Membership_Manager extends Base_Manager {
 		 */
 		$customer = $membership->get_customer();
 
-		if ($customer && $customer->get_email_verification() === 'pending') {
-			return;
-		}
+		return ! $customer || 'pending' !== $customer->get_email_verification();
+	}
 
-		$membership->publish_pending_site_async();
+	/**
+	 * Marks the beginning of a checkout database transaction.
+	 *
+	 * @since 2.15.2
+	 * @return void
+	 */
+	public function begin_checkout_transaction() {
+
+		$this->checkout_transaction_in_progress   = true;
+		$this->deferred_pending_site_publications = [];
+	}
+
+	/**
+	 * Publishes pending sites after the checkout transaction commits.
+	 *
+	 * @since 2.15.2
+	 * @return void
+	 */
+	public function commit_checkout_transaction() {
+
+		$membership_ids = $this->deferred_pending_site_publications;
+
+		$this->rollback_checkout_transaction();
+
+		foreach ($membership_ids as $membership_id) {
+			$membership = wu_get_membership($membership_id);
+
+			if ( ! $this->can_publish_pending_site($membership)) {
+				continue;
+			}
+
+			try {
+				$membership->publish_pending_site_async();
+			} catch (\Throwable $e) {
+				/*
+				 * The checkout transaction is already committed. Log a failed
+				 * dispatch and continue so other memberships and listeners run.
+				 */
+				wu_maybe_log_error($e);
+			}
+		}
+	}
+
+	/**
+	 * Clears pending-site publications when checkout rolls back.
+	 *
+	 * @since 2.15.2
+	 * @return void
+	 */
+	public function rollback_checkout_transaction() {
+
+		$this->checkout_transaction_in_progress   = false;
+		$this->deferred_pending_site_publications = [];
 	}
 
 	/**
