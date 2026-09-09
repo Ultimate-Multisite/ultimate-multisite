@@ -310,6 +310,30 @@ class Thank_You_Element extends Base_Element {
 	}
 
 	/**
+	 * Gets the pending payment message for the current gateway.
+	 *
+	 * The generic pending message remains available for asynchronous payment
+	 * gateways and customer overrides. Manual payments use their own default
+	 * because an administrator, rather than a payment processor, confirms them.
+	 *
+	 * @since 2.15.3
+	 *
+	 * @param \WP_Ultimo\Models\Payment $payment The payment being displayed.
+	 * @param string                    $message The configured pending payment message.
+	 * @return string
+	 */
+	public function get_pending_thank_you_message($payment, $message) {
+
+		$default_message = __('Thank you for your order! We are waiting on the payment processor to confirm your payment, which can take up to 5 minutes. We will notify you via email when your site is ready.', 'ultimate-multisite');
+
+		if ('manual' === $payment->get_gateway() && 'pending' === $payment->get_status() && $default_message === $message) {
+			return __('Thank you for your order! Please follow the payment instructions below. An administrator will confirm your payment and notify you by email when your site is ready.', 'ultimate-multisite');
+		}
+
+		return $message;
+	}
+
+	/**
 	 * Runs early on the request lifecycle as soon as we detect the shortcode is present.
 	 *
 	 * @since 2.0.0
@@ -377,6 +401,8 @@ class Thank_You_Element extends Base_Element {
 		$atts['customer'] = $this->customer;
 
 		$atts = wp_parse_args($atts, $this->defaults());
+
+		$atts['thank_you_message_pending'] = $this->get_pending_thank_you_message($this->payment, $atts['thank_you_message_pending']);
 
 		/*
 		 * Deal with conversion tracking
