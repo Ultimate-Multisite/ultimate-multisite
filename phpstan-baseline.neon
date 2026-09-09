@@ -1,0 +1,973 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Instantiated class Amp\\Http\\Client\\Connection\\DefaultConnectionPool not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/class-async-calls.php
+
+		-
+			message: '#^WP_Ultimo\\Helper\:\:init\(\) calls parent\:\:init\(\) but WP_Ultimo\\Helper does not extend any class\.$#'
+			identifier: class.noParent
+			count: 1
+			path: inc/class-helper.php
+
+		-
+			message: '#^WP_Ultimo\\License\:\:init\(\) calls parent\:\:init\(\) but WP_Ultimo\\License does not extend any class\.$#'
+			identifier: class.noParent
+			count: 1
+			path: inc/class-license.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: inc/class-light-ajax.php
+
+		-
+			message: '#^WP_Ultimo\\Light_Ajax\:\:init\(\) calls parent\:\:init\(\) but WP_Ultimo\\Light_Ajax does not extend any class\.$#'
+			identifier: class.noParent
+			count: 1
+			path: inc/class-light-ajax.php
+
+		-
+			message: '#^Call to an undefined static method Psr\\Log\\AbstractLogger\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/class-logger.php
+
+		-
+			message: '#^Action callback returns mixed but should not return anything\.$#'
+			identifier: return.void
+			count: 1
+			path: inc/class-maintenance-mode.php
+
+		-
+			message: '#^Call to static method switch_to_url\(\) on an unknown class user_switching\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/class-user-switching.php
+
+		-
+			message: '#^Callback expects 2 parameters, \$accepted_args is set to 3\.$#'
+			identifier: arguments.count
+			count: 1
+			path: inc/class-views.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-br.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-ca.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-cn.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-de.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-es.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-fr.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-gb.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-in.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-jp.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-mx.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-my.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-ne.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-nl.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-ru.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-sg.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-tr.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-us.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Country\\Country\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/country/class-country-za.php
+
+		-
+			message: '#^Result of method WP_Ultimo\\Database\\Engine\\Enum\:\:labels\(\) \(void\) is used\.$#'
+			identifier: method.void
+			count: 1
+			path: inc/database/engine/class-enum.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: inc/database/engine/class-enum.php
+
+		-
+			message: '#^WU_Links\:\:init\(\) calls parent\:\:init\(\) but WU_Links does not extend any class\.$#'
+			identifier: class.noParent
+			count: 1
+			path: inc/deprecated/deprecated.php
+
+		-
+			message: '#^WU_Mail\:\:init\(\) calls parent\:\:init\(\) but WU_Mail does not extend any class\.$#'
+			identifier: class.noParent
+			count: 1
+			path: inc/deprecated/deprecated.php
+
+		-
+			message: '#^Action callback returns mixed but should not return anything\.$#'
+			identifier: return.void
+			count: 2
+			path: inc/development/class-toolkit.php
+
+		-
+			message: '#^Call to static method get\(\) on an unknown class QM_Collectors\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/development/class-toolkit.php
+
+		-
+			message: '#^Callback expects 1 parameter, \$accepted_args is set to 2\.$#'
+			identifier: arguments.count
+			count: 1
+			path: inc/development/class-toolkit.php
+
+		-
+			message: '#^Parameter \$qm of method WP_Ultimo\\Development\\Toolkit\:\:register_collector_overview\(\) has invalid type QueryMonitor\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/development/class-toolkit.php
+
+		-
+			message: '#^Result of function do_action_ref_array \(void\) is used\.$#'
+			identifier: function.void
+			count: 1
+			path: inc/development/class-toolkit.php
+
+		-
+			message: '#^Access to an undefined property WP_Ultimo\\Development\\Query_Monitor\\Collectors\\Collector_Overview\:\:\$data\.$#'
+			identifier: property.notFound
+			count: 1
+			path: inc/development/query-monitor/collectors/class-collector-overview.php
+
+		-
+			message: '#^Access to an undefined property WP_Ultimo\\Development\\Query_Monitor\\Panel\\Overview\:\:\$collector\.$#'
+			identifier: property.notFound
+			count: 2
+			path: inc/development/query-monitor/panel/class-overview.php
+
+		-
+			message: '#^Call to an undefined method WP_Ultimo\\Development\\Query_Monitor\\Panel\\Overview\:\:after_non_tabular_output\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: inc/development/query-monitor/panel/class-overview.php
+
+		-
+			message: '#^Call to an undefined method WP_Ultimo\\Development\\Query_Monitor\\Panel\\Overview\:\:after_tabular_output\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: inc/development/query-monitor/panel/class-overview.php
+
+		-
+			message: '#^Call to an undefined method WP_Ultimo\\Development\\Query_Monitor\\Panel\\Overview\:\:before_non_tabular_output\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: inc/development/query-monitor/panel/class-overview.php
+
+		-
+			message: '#^Call to an undefined method WP_Ultimo\\Development\\Query_Monitor\\Panel\\Overview\:\:before_tabular_output\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: inc/development/query-monitor/panel/class-overview.php
+
+		-
+			message: '#^Call to an undefined method WP_Ultimo\\Development\\Query_Monitor\\Panel\\Overview\:\:menu\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: inc/development/query-monitor/panel/class-overview.php
+
+		-
+			message: '#^WP_Ultimo\\Development\\Query_Monitor\\Panel\\Overview\:\:__construct\(\) calls parent\:\:__construct\(\) but WP_Ultimo\\Development\\Query_Monitor\\Panel\\Overview does not extend any class\.$#'
+			identifier: class.noParent
+			count: 1
+			path: inc/development/query-monitor/panel/class-overview.php
+
+		-
+			message: '#^@param BerlinDB\\Database\\Query \$query does not accept actual type of parameter\: null\.$#'
+			identifier: parameter.phpDocType
+			count: 11
+			path: inc/documentation/berlindb-dynamic-hooks.php
+
+		-
+			message: '#^@param int \$new_value does not accept actual type of parameter\: null\.$#'
+			identifier: parameter.phpDocType
+			count: 30
+			path: inc/documentation/berlindb-dynamic-hooks.php
+
+		-
+			message: '#^@param int \$old_value does not accept actual type of parameter\: null\.$#'
+			identifier: parameter.phpDocType
+			count: 30
+			path: inc/documentation/berlindb-dynamic-hooks.php
+
+		-
+			message: '#^@param string \$new_value does not accept actual type of parameter\: null\.$#'
+			identifier: parameter.phpDocType
+			count: 27
+			path: inc/documentation/berlindb-dynamic-hooks.php
+
+		-
+			message: '#^@param string \$old_value does not accept actual type of parameter\: null\.$#'
+			identifier: parameter.phpDocType
+			count: 27
+			path: inc/documentation/berlindb-dynamic-hooks.php
+
+		-
+			message: '#^WP_Ultimo\\Domain_Mapping\\SSO\\SSO\:\:init\(\) calls parent\:\:init\(\) but WP_Ultimo\\Domain_Mapping\\SSO\\SSO does not extend any class\.$#'
+			identifier: class.noParent
+			count: 1
+			path: inc/domain-mapping/class-sso.php
+
+		-
+			message: '#^Inner named functions are not supported by PHPStan\. Consider refactoring to an anonymous function, class method, or a top\-level\-defined function\. See issue \#165 \(https\://github\.com/phpstan/phpstan/issues/165\) for more details\.$#'
+			identifier: function.inner
+			count: 1
+			path: inc/duplication/functions.php
+
+		-
+			message: '#^Call to static method add_command\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/external-cron/class-external-cron-manager.php
+
+		-
+			message: '#^Call to static method error\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 2
+			path: inc/external-cron/class-external-cron-manager.php
+
+		-
+			message: '#^Call to static method log\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 5
+			path: inc/external-cron/class-external-cron-manager.php
+
+		-
+			message: '#^Call to static method success\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/external-cron/class-external-cron-manager.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: inc/external-cron/class-external-cron-manager.php
+
+		-
+			message: '#^WP_Ultimo\\External_Cron\\External_Cron_Manager\:\:init\(\) calls parent\:\:init\(\) but WP_Ultimo\\External_Cron\\External_Cron_Manager does not extend any class\.$#'
+			identifier: class.noParent
+			count: 1
+			path: inc/external-cron/class-external-cron-manager.php
+
+		-
+			message: '#^WP_Ultimo\\Helpers\\WP_Config\:\:init\(\) calls parent\:\:init\(\) but WP_Ultimo\\Helpers\\WP_Config does not extend any class\.$#'
+			identifier: class.noParent
+			count: 1
+			path: inc/helpers/class-wp-config.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Installers\\Base_Installer\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/installers/class-multisite-network-installer.php
+
+		-
+			message: '#^Call to an undefined static method WP_Ultimo\\Installers\\Base_Installer\:\:init\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: inc/installers/class-recommended-plugins-installer.php
+
+		-
+			message: '#^WP_Ultimo\\Internal\\Memory_Trap\:\:init\(\) calls parent\:\:init\(\) but WP_Ultimo\\Internal\\Memory_Trap does not extend any class\.$#'
+			identifier: class.noParent
+			count: 1
+			path: inc/internal/class-memory-trap.php
+
+		-
+			message: '#^Action callback returns array\|void but should not return anything\.$#'
+			identifier: return.void
+			count: 1
+			path: inc/limits/class-theme-limits.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 8
+			path: inc/managers/class-broadcast-manager.php
+
+		-
+			message: '#^Call to static method add_command\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-broadcast-manager.php
+
+		-
+			message: '#^Call to static method error\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 7
+			path: inc/managers/class-broadcast-manager.php
+
+		-
+			message: '#^Call to static method line\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 2
+			path: inc/managers/class-broadcast-manager.php
+
+		-
+			message: '#^Call to static method success\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-broadcast-manager.php
+
+		-
+			message: '#^Function WP_CLI\\Utils\\format_items not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/managers/class-broadcast-manager.php
+
+		-
+			message: '#^Instantiated class WP_CLI\\Formatter not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/managers/class-broadcast-manager.php
+
+		-
+			message: '#^Function WP_Optimize not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/managers/class-cache-manager.php
+
+		-
+			message: '#^WP_Ultimo\\Managers\\Cache_Manager\:\:init\(\) calls parent\:\:init\(\) but WP_Ultimo\\Managers\\Cache_Manager does not extend any class\.$#'
+			identifier: class.noParent
+			count: 1
+			path: inc/managers/class-cache-manager.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 8
+			path: inc/managers/class-checkout-form-manager.php
+
+		-
+			message: '#^Call to static method add_command\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-checkout-form-manager.php
+
+		-
+			message: '#^Call to static method error\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 7
+			path: inc/managers/class-checkout-form-manager.php
+
+		-
+			message: '#^Call to static method line\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 2
+			path: inc/managers/class-checkout-form-manager.php
+
+		-
+			message: '#^Call to static method success\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-checkout-form-manager.php
+
+		-
+			message: '#^Function WP_CLI\\Utils\\format_items not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/managers/class-checkout-form-manager.php
+
+		-
+			message: '#^Instantiated class WP_CLI\\Formatter not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/managers/class-checkout-form-manager.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 8
+			path: inc/managers/class-customer-manager.php
+
+		-
+			message: '#^Call to static method add_command\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-customer-manager.php
+
+		-
+			message: '#^Call to static method error\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 7
+			path: inc/managers/class-customer-manager.php
+
+		-
+			message: '#^Call to static method line\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 2
+			path: inc/managers/class-customer-manager.php
+
+		-
+			message: '#^Call to static method success\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-customer-manager.php
+
+		-
+			message: '#^Function WP_CLI\\Utils\\format_items not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/managers/class-customer-manager.php
+
+		-
+			message: '#^Instantiated class WP_CLI\\Formatter not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/managers/class-customer-manager.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 8
+			path: inc/managers/class-discount-code-manager.php
+
+		-
+			message: '#^Call to static method add_command\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-discount-code-manager.php
+
+		-
+			message: '#^Call to static method error\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 7
+			path: inc/managers/class-discount-code-manager.php
+
+		-
+			message: '#^Call to static method line\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 2
+			path: inc/managers/class-discount-code-manager.php
+
+		-
+			message: '#^Call to static method success\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-discount-code-manager.php
+
+		-
+			message: '#^Function WP_CLI\\Utils\\format_items not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/managers/class-discount-code-manager.php
+
+		-
+			message: '#^Instantiated class WP_CLI\\Formatter not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/managers/class-discount-code-manager.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 8
+			path: inc/managers/class-domain-manager.php
+
+		-
+			message: '#^Call to static method add_command\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-domain-manager.php
+
+		-
+			message: '#^Call to static method error\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 7
+			path: inc/managers/class-domain-manager.php
+
+		-
+			message: '#^Call to static method line\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 2
+			path: inc/managers/class-domain-manager.php
+
+		-
+			message: '#^Call to static method success\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-domain-manager.php
+
+		-
+			message: '#^Function WP_CLI\\Utils\\format_items not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/managers/class-domain-manager.php
+
+		-
+			message: '#^Instantiated class WP_CLI\\Formatter not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/managers/class-domain-manager.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 8
+			path: inc/managers/class-email-manager.php
+
+		-
+			message: '#^Call to static method add_command\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-email-manager.php
+
+		-
+			message: '#^Call to static method error\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 7
+			path: inc/managers/class-email-manager.php
+
+		-
+			message: '#^Call to static method line\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 2
+			path: inc/managers/class-email-manager.php
+
+		-
+			message: '#^Call to static method success\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-email-manager.php
+
+		-
+			message: '#^Function WP_CLI\\Utils\\format_items not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/managers/class-email-manager.php
+
+		-
+			message: '#^Instantiated class WP_CLI\\Formatter not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/managers/class-email-manager.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 8
+			path: inc/managers/class-event-manager.php
+
+		-
+			message: '#^Call to static method add_command\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-event-manager.php
+
+		-
+			message: '#^Call to static method error\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 7
+			path: inc/managers/class-event-manager.php
+
+		-
+			message: '#^Call to static method line\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 2
+			path: inc/managers/class-event-manager.php
+
+		-
+			message: '#^Call to static method success\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-event-manager.php
+
+		-
+			message: '#^Function WP_CLI\\Utils\\format_items not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/managers/class-event-manager.php
+
+		-
+			message: '#^Instantiated class WP_CLI\\Formatter not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/managers/class-event-manager.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 8
+			path: inc/managers/class-membership-manager.php
+
+		-
+			message: '#^Call to static method add_command\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-membership-manager.php
+
+		-
+			message: '#^Call to static method error\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 7
+			path: inc/managers/class-membership-manager.php
+
+		-
+			message: '#^Call to static method line\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 2
+			path: inc/managers/class-membership-manager.php
+
+		-
+			message: '#^Call to static method success\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-membership-manager.php
+
+		-
+			message: '#^Function WP_CLI\\Utils\\format_items not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/managers/class-membership-manager.php
+
+		-
+			message: '#^Instantiated class WP_CLI\\Formatter not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/managers/class-membership-manager.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 8
+			path: inc/managers/class-payment-manager.php
+
+		-
+			message: '#^Call to static method add_command\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-payment-manager.php
+
+		-
+			message: '#^Call to static method error\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 7
+			path: inc/managers/class-payment-manager.php
+
+		-
+			message: '#^Call to static method line\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 2
+			path: inc/managers/class-payment-manager.php
+
+		-
+			message: '#^Call to static method success\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-payment-manager.php
+
+		-
+			message: '#^Function WP_CLI\\Utils\\format_items not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/managers/class-payment-manager.php
+
+		-
+			message: '#^Instantiated class WP_CLI\\Formatter not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/managers/class-payment-manager.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 8
+			path: inc/managers/class-product-manager.php
+
+		-
+			message: '#^Call to static method add_command\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-product-manager.php
+
+		-
+			message: '#^Call to static method error\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 7
+			path: inc/managers/class-product-manager.php
+
+		-
+			message: '#^Call to static method line\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 2
+			path: inc/managers/class-product-manager.php
+
+		-
+			message: '#^Call to static method success\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-product-manager.php
+
+		-
+			message: '#^Function WP_CLI\\Utils\\format_items not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/managers/class-product-manager.php
+
+		-
+			message: '#^Instantiated class WP_CLI\\Formatter not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/managers/class-product-manager.php
+
+		-
+			message: '#^Undefined variable\: \$field_class$#'
+			identifier: variable.undefined
+			count: 1
+			path: inc/managers/class-signup-fields-manager.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 8
+			path: inc/managers/class-site-manager.php
+
+		-
+			message: '#^Call to static method add_command\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-site-manager.php
+
+		-
+			message: '#^Call to static method error\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 7
+			path: inc/managers/class-site-manager.php
+
+		-
+			message: '#^Call to static method line\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 2
+			path: inc/managers/class-site-manager.php
+
+		-
+			message: '#^Call to static method success\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-site-manager.php
+
+		-
+			message: '#^Function WP_CLI\\Utils\\format_items not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/managers/class-site-manager.php
+
+		-
+			message: '#^Instantiated class WP_CLI\\Formatter not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/managers/class-site-manager.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 8
+			path: inc/managers/class-webhook-manager.php
+
+		-
+			message: '#^Call to static method add_command\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-webhook-manager.php
+
+		-
+			message: '#^Call to static method error\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 7
+			path: inc/managers/class-webhook-manager.php
+
+		-
+			message: '#^Call to static method line\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 2
+			path: inc/managers/class-webhook-manager.php
+
+		-
+			message: '#^Call to static method success\(\) on an unknown class WP_CLI\.$#'
+			identifier: class.notFound
+			count: 3
+			path: inc/managers/class-webhook-manager.php
+
+		-
+			message: '#^Function WP_CLI\\Utils\\format_items not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: inc/managers/class-webhook-manager.php
+
+		-
+			message: '#^Instantiated class WP_CLI\\Formatter not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/managers/class-webhook-manager.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 6
+			path: inc/models/class-base-model.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 9
+			path: inc/models/class-base-model.php
+
+		-
+			message: '#^Call to an undefined method WP_Ultimo\\Models\\Membership\:\:get_membership\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: inc/models/class-membership.php
+
+		-
+			message: '#^Call to an undefined method WP_Ultimo\\Models\\Membership\:\:get_type\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: inc/models/class-membership.php
+
+		-
+			message: '#^@param tag must not be named \$this\. Choose a descriptive alias, for example \$instance\.$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: inc/models/class-post-base-model.php
+
+		-
+			message: '#^Call to an undefined method WP_Ultimo\\Models\\Product\:\:get_membership\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: inc/models/class-product.php
+
+		-
+			message: '#^Call to an undefined method WP_Ultimo\\Models\\Product\:\:get_sites\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: inc/models/class-product.php
+
+		-
+			message: '#^Found usage of constant SUBDOMAIN_INSTALL\. Use is_subdomain_install\(\) instead\.$#'
+			identifier: phpstanWP.wpConstant.fetch
+			count: 1
+			path: inc/site-exporter/class-network-exporter.php
+
+		-
+			message: '#^Instantiated class TenUp\\MU_Migration\\Commands\\ExportCommand not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/site-exporter/class-network-exporter.php
+
+		-
+			message: '#^WP_Ultimo\\Site_Exporter\\Network_Exporter\:\:init\(\) calls parent\:\:init\(\) but WP_Ultimo\\Site_Exporter\\Network_Exporter does not extend any class\.$#'
+			identifier: class.noParent
+			count: 1
+			path: inc/site-exporter/class-network-exporter.php
+
+		-
+			message: '#^WP_Ultimo\\Site_Exporter\\Network_Importer\:\:init\(\) calls parent\:\:init\(\) but WP_Ultimo\\Site_Exporter\\Network_Importer does not extend any class\.$#'
+			identifier: class.noParent
+			count: 1
+			path: inc/site-exporter/class-network-importer.php
+
+		-
+			message: '#^Instantiated class TenUp\\MU_Migration\\Commands\\ExportCommand not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/site-exporter/class-site-exporter.php
+
+		-
+			message: '#^Instantiated class TenUp\\MU_Migration\\Commands\\ImportCommand not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: inc/site-exporter/class-site-exporter.php

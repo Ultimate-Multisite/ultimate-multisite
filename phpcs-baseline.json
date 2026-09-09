@@ -1,0 +1,849 @@
+{
+    "version": 1,
+    "totals": {
+        "errors": 1289,
+        "warnings": 590
+    },
+    "files": {
+        "encrypt-secrets.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1
+        },
+        "inc/admin-pages/class-multisite-setup-admin-page.php": {
+            "ERROR|WordPress.WP.I18n.TextDomainMismatch": 40
+        },
+        "inc/admin-pages/class-top-admin-nav-menu.php": {
+            "WARNING|WordPress.WP.Capabilities.Unknown": 1
+        },
+        "inc/admin-pages/class-webhook-list-admin-page.php": {
+            "ERROR|Squiz.Scope.MethodScope.Missing": 1,
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "inc/checkout/class-legacy-checkout.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedIf": 1,
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 6,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.dieFound": 1,
+            "WARNING|Universal.Operators.StrictComparisons.LooseEqual": 1,
+            "WARNING|Universal.Operators.StrictComparisons.LooseNotEqual": 1
+        },
+        "inc/checkout/signup-fields/class-signup-field-discount-code.php": {
+            "ERROR|Squiz.Commenting.BlockComment.NoEmptyLineBefore": 1
+        },
+        "inc/class-license.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1
+        },
+        "inc/compat/class-anspress-compat.php": {
+            "ERROR|Squiz.Commenting.BlockComment.HasEmptyLineBefore": 2,
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 2,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.classFound": 1
+        },
+        "inc/compat/class-legacy-shortcodes.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 2
+        },
+        "inc/contracts/Session.php": {
+            "ERROR|WordPress.Files.FileName.NotHyphenatedLowercase": 1
+        },
+        "inc/database/customers/class-customer-query.php": {
+            "WARNING|Generic.CodeAnalysis.UselessOverridingMethod.Found": 1,
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "inc/database/customers/class-customers-meta-table.php": {
+            "WARNING|Generic.CodeAnalysis.UselessOverridingMethod.Found": 1
+        },
+        "inc/database/domains/class-domain-query.php": {
+            "WARNING|Generic.CodeAnalysis.UselessOverridingMethod.Found": 1
+        },
+        "inc/database/engine/class-enum.php": {
+            "ERROR|Generic.NamingConventions.UpperCaseConstantName.ClassConstantNotUpperCase": 1
+        },
+        "inc/database/sites/class-site-query.php": {
+            "WARNING|WordPress.DB.SlowDBQuery.slow_db_query_meta_query": 1
+        },
+        "inc/deprecated/deprecated.php": {
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 20,
+            "ERROR|WordPress.Files.FileName.InvalidClassFileName": 1,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 3,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 18,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound": 1,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound": 1
+        },
+        "inc/deprecated/early-deprecated.php": {
+            "ERROR|WordPress.Files.FileName.InvalidClassFileName": 1
+        },
+        "inc/deprecated/mercator.php": {
+            "ERROR|WordPress.Files.FileName.InvalidClassFileName": 1
+        },
+        "inc/development/bootstrap.php": {
+            "WARNING|Squiz.PHP.NonExecutableCode.Unreachable": 7
+        },
+        "inc/documentation/generate-berlindb-hooks.php": {
+            "ERROR|PHPCompatibility.Extensions.RemovedExtensions.mysql_DeprecatedRemoved": 1,
+            "ERROR|Squiz.ControlStructures.ControlSignature.SpaceAfterCloseBrace": 1,
+            "ERROR|WordPress.DB.RestrictedFunctions.mysql_mysql_type_to_phpdoc": 1,
+            "ERROR|WordPress.PHP.YodaConditions.NotYoda": 1,
+            "ERROR|WordPress.Security.EscapeOutput.HeredocOutputNotEscaped": 30,
+            "ERROR|WordPress.Security.EscapeOutput.OutputNotEscaped": 2,
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_fwrite": 7
+        },
+        "inc/domain-mapping/class-helper.php": {
+            "ERROR|PSR2.Classes.PropertyDeclaration.ScopeMissing": 1,
+            "ERROR|Squiz.Commenting.FunctionCommentThrowTag.Missing": 1,
+            "WARNING|WordPress.PHP.NoSilencedErrors.Discouraged": 1
+        },
+        "inc/duplication/functions.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1,
+            "ERROR|WordPress.Files.FileName.InvalidClassFileName": 1,
+            "ERROR|WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid": 1,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 1,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound": 1,
+            "WARNING|Universal.Operators.StrictComparisons.LooseEqual": 4,
+            "WARNING|Universal.Operators.StrictComparisons.LooseNotEqual": 1
+        },
+        "inc/duplication/log.php": {
+            "ERROR|Generic.Strings.UnnecessaryStringConcat.Found": 1,
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1,
+            "ERROR|Squiz.Commenting.VariableComment.MissingVar": 2,
+            "ERROR|Squiz.PHP.DisallowMultipleAssignments.FoundInControlStructure": 1,
+            "ERROR|WordPress.Files.FileName.InvalidClassFileName": 1,
+            "WARNING|Generic.CodeAnalysis.AssignmentInCondition.Found": 1,
+            "WARNING|WordPress.PHP.NoSilencedErrors.Discouraged": 3
+        },
+        "inc/duplication/option.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1,
+            "ERROR|WordPress.Files.FileName.InvalidClassFileName": 1,
+            "WARNING|WordPress.PHP.StrictInArray.MissingTrueStrict": 1
+        },
+        "inc/functions/array-helpers.php": {
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound": 6,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.callableFound": 1,
+            "WARNING|Universal.Operators.StrictComparisons.LooseNotEqual": 1
+        },
+        "inc/functions/compatiblity.php": {
+            "WARNING|WordPress.WP.DeprecatedFunctions.current_user_can_for_blogFound": 1
+        },
+        "inc/functions/customer.php": {
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound": 1
+        },
+        "inc/functions/exporter.php": {
+            "WARNING|WordPress.DB.DirectDatabaseQuery.DirectQuery": 1
+        },
+        "inc/functions/markup-helpers.php": {
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "inc/gateways/class-manual-gateway.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedElseif": 1,
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedIf": 1,
+            "ERROR|Squiz.Commenting.FunctionCommentThrowTag.Missing": 1
+        },
+        "inc/helpers/class-arr.php": {
+            "ERROR|Squiz.PHP.DisallowSizeFunctionsInLoops.Found": 1
+        },
+        "inc/helpers/validation-rules/class-exists.php": {
+            "ERROR|WordPress.PHP.YodaConditions.NotYoda": 4
+        },
+        "inc/helpers/validation-rules/class-price-variations.php": {
+            "WARNING|Universal.Operators.StrictComparisons.LooseEqual": 1
+        },
+        "inc/helpers/validation-rules/class-unique-customer-email.php": {
+            "WARNING|WordPress.DB.DirectDatabaseQuery.DirectQuery": 1,
+            "WARNING|WordPress.DB.DirectDatabaseQuery.NoCaching": 1
+        },
+        "inc/installers/class-migrator.php": {
+            "WARNING|PSR2.Methods.MethodDeclaration.Underscore": 15,
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "inc/integrations/providers/laravel-forge/class-laravel-forge-domain-mapping.php": {
+            "ERROR|WordPress.Files.FileName.InvalidClassFileName": 1
+        },
+        "inc/interfaces/interface-singleton.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1
+        },
+        "inc/list-tables/class-base-list-table.php": {
+            "ERROR|WordPress.PHP.YodaConditions.NotYoda": 1
+        },
+        "inc/list-tables/class-customers-membership-list-table.php": {
+            "ERROR|WordPress.PHP.YodaConditions.NotYoda": 1
+        },
+        "inc/list-tables/class-membership-list-table-widget.php": {
+            "ERROR|WordPress.PHP.YodaConditions.NotYoda": 1
+        },
+        "inc/list-tables/class-payment-list-table-widget.php": {
+            "ERROR|WordPress.PHP.YodaConditions.NotYoda": 1
+        },
+        "inc/models/class-base-model.php": {
+            "WARNING|PSR2.Classes.PropertyDeclaration.Underscore": 3,
+            "WARNING|PSR2.Methods.MethodDeclaration.Underscore": 1,
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 2
+        },
+        "inc/site-exporter/class-network-exporter.php": {
+            "WARNING|Generic.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition": 1,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1,
+            "WARNING|WordPress.DB.DirectDatabaseQuery.DirectQuery": 10,
+            "WARNING|WordPress.DB.DirectDatabaseQuery.NoCaching": 10,
+            "WARNING|WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_fclose": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_fopen": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_mkdir": 5,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_rmdir": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.unlink_unlink": 2
+        },
+        "inc/site-exporter/class-self-boot-builder.php": {
+            "WARNING|WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_mkdir": 2
+        },
+        "inc/stuff.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1
+        },
+        "inc/ui/class-template-previewer.php": {
+            "WARNING|WordPress.Security.SafeRedirect.wp_redirect_wp_redirect": 1
+        },
+        "mu-plugins/email-smtp-dev/email-smtp-dev.php": {
+            "ERROR|Squiz.Commenting.FileComment.WrongStyle": 1,
+            "ERROR|Squiz.Commenting.FunctionComment.WrongStyle": 1,
+            "ERROR|WordPress.NamingConventions.ValidFunctionName.FunctionNameInvalid": 1,
+            "ERROR|WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase": 9,
+            "WARNING|WordPress.PHP.DevelopmentFunctions.error_log_error_log": 1
+        },
+        "mu-plugins/email-smtp-test/email-smtp-test.php": {
+            "ERROR|Squiz.Commenting.FileComment.WrongStyle": 1,
+            "ERROR|Squiz.Commenting.FunctionComment.WrongStyle": 1,
+            "ERROR|WordPress.NamingConventions.ValidFunctionName.FunctionNameInvalid": 1,
+            "ERROR|WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase": 9,
+            "WARNING|WordPress.PHP.DevelopmentFunctions.error_log_error_log": 1
+        },
+        "rector.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1
+        },
+        "scripts/remove-mpdf-fonts.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1,
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 3,
+            "ERROR|WordPress.Security.EscapeOutput.OutputNotEscaped": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.unlink_unlink": 1
+        },
+        "sunrise.php": {
+            "ERROR|Squiz.Commenting.FileComment.WrongStyle": 1
+        },
+        "tests/Admin_Pages/Base_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 62,
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 3
+        },
+        "tests/Admin_Pages/Checkout_Form_Edit_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 65,
+            "ERROR|Squiz.Commenting.VariableComment.MissingVar": 2
+        },
+        "tests/Admin_Pages/Dashboard_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 54,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1
+        },
+        "tests/Admin_Pages/Invoice_Template_Customize_Admin_Page_Test.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedCatch": 14,
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 30
+        },
+        "tests/Admin_Pages/Wizard_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 2,
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 41,
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 2
+        },
+        "tests/Builders/Block_Editor/Block_Editor_Widget_Manager.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 9
+        },
+        "tests/WP_Ultimo/Admin_Pages/Addons_Admin_Page_Test.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedCatch": 2,
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 2,
+            "ERROR|WordPress.Security.EscapeOutput.ExceptionNotEscaped": 1,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 12
+        },
+        "tests/WP_Ultimo/Admin_Pages/Base_Customer_Facing_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 27
+        },
+        "tests/WP_Ultimo/Admin_Pages/Customer_Edit_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 64
+        },
+        "tests/WP_Ultimo/Admin_Pages/Customer_List_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 11
+        },
+        "tests/WP_Ultimo/Admin_Pages/Customer_Panel/Checkout_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 9
+        },
+        "tests/WP_Ultimo/Admin_Pages/Customer_Panel/Template_Switching_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 6
+        },
+        "tests/WP_Ultimo/Admin_Pages/Customizer_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 10
+        },
+        "tests/WP_Ultimo/Admin_Pages/Debug/Debug_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 9
+        },
+        "tests/WP_Ultimo/Admin_Pages/Discount_Code_Edit_Admin_Page_Test.php": {
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 1,
+            "ERROR|WordPress.Security.NonceVerification.Missing": 15,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 15,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotValidated": 15,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 15,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 1,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound": 1
+        },
+        "tests/WP_Ultimo/Admin_Pages/Domain_Edit_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 1,
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 1,
+            "ERROR|WordPress.Security.NonceVerification.Missing": 4,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 4,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotValidated": 4,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 4
+        },
+        "tests/WP_Ultimo/Admin_Pages/Domain_List_Admin_Page_Test.php": {
+            "ERROR|WordPress.Security.EscapeOutput.ExceptionNotEscaped": 1,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 3,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotValidated": 3,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 3,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.callableFound": 1,
+            "WARNING|WordPress.Security.NonceVerification.Recommended": 3
+        },
+        "tests/WP_Ultimo/Admin_Pages/Edit_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 59,
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 1
+        },
+        "tests/WP_Ultimo/Admin_Pages/Email_Edit_Admin_Page_Test.php": {
+            "ERROR|WordPress.Security.NonceVerification.Missing": 6
+        },
+        "tests/WP_Ultimo/Admin_Pages/Email_List_Admin_Page_Test.php": {
+            "ERROR|WordPress.Security.EscapeOutput.ExceptionNotEscaped": 1,
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.callableFound": 1
+        },
+        "tests/WP_Ultimo/Admin_Pages/Email_Template_Customize_Admin_Page_Test.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedCatch": 22
+        },
+        "tests/WP_Ultimo/Admin_Pages/External_Cron_Admin_Page_Test.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedCatch": 4,
+            "ERROR|WordPress.Security.EscapeOutput.ExceptionNotEscaped": 1
+        },
+        "tests/WP_Ultimo/Admin_Pages/Hosting_Integration_Wizard_Admin_Page_Test.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedCatch": 1,
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 39,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 1
+        },
+        "tests/WP_Ultimo/Admin_Pages/Jobs_List_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 8
+        },
+        "tests/WP_Ultimo/Admin_Pages/Multisite_Setup_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 2,
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 47
+        },
+        "tests/WP_Ultimo/Admin_Pages/PayPal_Setup_Wizard_Admin_Page_Test.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedCatch": 3,
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 2,
+            "ERROR|WordPress.Security.EscapeOutput.ExceptionNotEscaped": 4,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 2,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.fnFound": 1
+        },
+        "tests/WP_Ultimo/Admin_Pages/Payment_Edit_Admin_Page_Test.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedCatch": 1,
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 1
+        },
+        "tests/WP_Ultimo/Admin_Pages/Placeholders_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 8
+        },
+        "tests/WP_Ultimo/Admin_Pages/Product_Edit_Admin_Page_Test.php": {
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 1,
+            "ERROR|WordPress.Security.NonceVerification.Missing": 9,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 9,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotValidated": 9,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 9,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 1,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound": 1
+        },
+        "tests/WP_Ultimo/Admin_Pages/Shortcodes_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 7
+        },
+        "tests/WP_Ultimo/Admin_Pages/System_Info_Admin_Page_Test.php": {
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 1
+        },
+        "tests/WP_Ultimo/Admin_Pages/Tax_Rates_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 6,
+            "WARNING|Generic.CodeAnalysis.UselessOverridingMethod.Found": 1
+        },
+        "tests/WP_Ultimo/Admin_Pages/Template_Previewer_Customize_Admin_Page_Test.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedCatch": 10
+        },
+        "tests/WP_Ultimo/Admin_Pages/View_Logs_Admin_Page_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 3,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.unlink_unlink": 1
+        },
+        "tests/WP_Ultimo/Ajax_Test.php": {
+            "ERROR|WordPress.Security.EscapeOutput.ExceptionNotEscaped": 1,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 1,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.callableFound": 1
+        },
+        "tests/WP_Ultimo/Apis/MCP_Abilities_Test.php": {
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "tests/WP_Ultimo/Apis/Rest_Api_Trait_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 1,
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 58,
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 2,
+            "ERROR|Squiz.PHP.Eval.Discouraged": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.json_encode_json_encode": 12
+        },
+        "tests/WP_Ultimo/Checkout/Cart_Coverage_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 3
+        },
+        "tests/WP_Ultimo/Checkout/Cart_Test.php": {
+            "WARNING|WordPress.PHP.StrictInArray.MissingTrueStrict": 1
+        },
+        "tests/WP_Ultimo/Checkout/Checkout_Pages_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 3,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.listFound": 1
+        },
+        "tests/WP_Ultimo/Checkout/Line_Item_Test.php": {
+            "WARNING|WordPress.WP.AlternativeFunctions.json_encode_json_encode": 1
+        },
+        "tests/WP_Ultimo/Checkout/Signup_Fields/Base_Signup_Field_Test.php": {
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 3
+        },
+        "tests/WP_Ultimo/Country/Country_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 2
+        },
+        "tests/WP_Ultimo/Domain_Mapping/Helper_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1
+        },
+        "tests/WP_Ultimo/Domain_Mapping/SSO_Test.php": {
+            "WARNING|WordPress.PHP.StrictInArray.MissingTrueStrict": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 1
+        },
+        "tests/WP_Ultimo/Duplication/MUCD_Data_Test.php": {
+            "WARNING|WordPress.DB.SlowDBQuery.slow_db_query_meta_key": 1,
+            "WARNING|WordPress.DB.SlowDBQuery.slow_db_query_meta_value": 19,
+            "WARNING|WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler": 1,
+            "WARNING|WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize": 15,
+            "WARNING|WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize": 11,
+            "WARNING|WordPress.PHP.NoSilencedErrors.Discouraged": 6,
+            "WARNING|WordPress.WP.AlternativeFunctions.json_encode_json_encode": 1
+        },
+        "tests/WP_Ultimo/Functions/Array_Helpers_Test.php": {
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "tests/WP_Ultimo/Functions/Country_Functions_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 2
+        },
+        "tests/WP_Ultimo/Functions/Danger_Functions_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 1,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 1
+        },
+        "tests/WP_Ultimo/Functions/Date_Functions_Test.php": {
+            "ERROR|WordPress.DateTime.RestrictedFunctions.date_date": 5
+        },
+        "tests/WP_Ultimo/Functions/Generator_Functions_Test.php": {
+            "WARNING|WordPress.PHP.NoSilencedErrors.Discouraged": 2
+        },
+        "tests/WP_Ultimo/Gateways/Base_PayPal_Gateway_Test.php": {
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 1
+        },
+        "tests/WP_Ultimo/Gateways/Base_Stripe_Gateway_Test.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedCatch": 1,
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 1,
+            "ERROR|Squiz.Commenting.FunctionCommentThrowTag.Missing": 1,
+            "ERROR|WordPress.Security.EscapeOutput.ExceptionNotEscaped": 1
+        },
+        "tests/WP_Ultimo/Gateways/Manual_Gateway_Checkout_Process_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UselessOverridingMethod.Found": 1
+        },
+        "tests/WP_Ultimo/Gateways/PayPal_REST_Gateway_Test.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedCatch": 1
+        },
+        "tests/WP_Ultimo/Gateways/Stripe_Gateway_Process_Checkout_Test.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedIf": 1
+        },
+        "tests/WP_Ultimo/Gateways/Stripe_Gateway_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1
+        },
+        "tests/WP_Ultimo/Helpers/Credential_Store_Test.php": {
+            "WARNING|WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode": 1
+        },
+        "tests/WP_Ultimo/Helpers/Site_Duplicator_Postmeta_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UselessOverridingMethod.Found": 8,
+            "WARNING|WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 4
+        },
+        "tests/WP_Ultimo/Helpers/WP_Config_Test.php": {
+            "WARNING|WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 3,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.unlink_unlink": 1
+        },
+        "tests/WP_Ultimo/Helpers/WooCommerce_API_Client_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1
+        },
+        "tests/WP_Ultimo/Installers/Migrator_Test.php": {
+            "ERROR|WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 1,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.callableFound": 1,
+            "WARNING|WordPress.DB.SlowDBQuery.slow_db_query_meta_key": 3,
+            "WARNING|WordPress.DB.SlowDBQuery.slow_db_query_meta_value": 1,
+            "WARNING|WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize": 2
+        },
+        "tests/WP_Ultimo/Installers/Multisite_Network_Installer_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 10,
+            "ERROR|WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4,
+            "WARNING|WordPress.DB.SlowDBQuery.slow_db_query_meta_key": 2,
+            "WARNING|WordPress.DB.SlowDBQuery.slow_db_query_meta_value": 5,
+            "WARNING|WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize": 5
+        },
+        "tests/WP_Ultimo/Integrations/Host_Providers/Base_Host_Provider_Test.php": {
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 3,
+            "WARNING|Generic.CodeAnalysis.UselessOverridingMethod.Found": 1
+        },
+        "tests/WP_Ultimo/Integrations/Host_Providers/Cloudflare_Host_Provider_Test.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 102,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 50
+        },
+        "tests/WP_Ultimo/Integrations/Host_Providers/Hestia_Host_Provider_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 6
+        },
+        "tests/WP_Ultimo/Integrations/Host_Providers/class-cpanel-dns-test.php": {
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "tests/WP_Ultimo/Integrations/Providers/Rocket_Domain_Mapping_Test.php": {
+            "WARNING|WordPress.Arrays.MultipleStatementAlignment.DoubleArrowNotAligned": 4
+        },
+        "tests/WP_Ultimo/Invoices/Invoice_Test.php": {
+            "WARNING|WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.unlink_unlink": 7
+        },
+        "tests/WP_Ultimo/Light_Ajax_Test.php": {
+            "WARNING|WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode": 6
+        },
+        "tests/WP_Ultimo/Limitations/Limit_Domain_Mapping_Test.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedIf": 1,
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "tests/WP_Ultimo/Limits/Disk_Space_Limits_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 4
+        },
+        "tests/WP_Ultimo/Limits/Site_Template_Limits_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 2
+        },
+        "tests/WP_Ultimo/List_Tables/Base_List_Table_Test.php": {
+            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 2,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 2
+        },
+        "tests/WP_Ultimo/Logger_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 3,
+            "WARNING|WordPress.PHP.NoSilencedErrors.Discouraged": 5,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 4,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.unlink_unlink": 5
+        },
+        "tests/WP_Ultimo/Managers/Domain_Manager_Test.php": {
+            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedCatch": 1,
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 1,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 1,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 2,
+            "WARNING|WordPress.PHP.DevelopmentFunctions.error_log_var_export": 4
+        },
+        "tests/WP_Ultimo/Managers/Event_Manager_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 1,
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 22,
+            "WARNING|PSR2.Methods.MethodDeclaration.Underscore": 2
+        },
+        "tests/WP_Ultimo/Managers/Form_Manager_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 3,
+            "ERROR|WordPress.Security.EscapeOutput.ExceptionNotEscaped": 2,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 7,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.callableFound": 2,
+            "WARNING|WordPress.DB.SlowDBQuery.slow_db_query_meta_key": 1
+        },
+        "tests/WP_Ultimo/Managers/Limitation_Manager_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 1,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.listFound": 2,
+            "WARNING|WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize": 1,
+            "WARNING|WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.json_encode_json_encode": 1
+        },
+        "tests/WP_Ultimo/Managers/Manager_Test_Trait.php": {
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound": 1
+        },
+        "tests/WP_Ultimo/Managers/Notes_Manager_Test.php": {
+            "ERROR|WordPress.Security.EscapeOutput.ExceptionNotEscaped": 1,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.callableFound": 1
+        },
+        "tests/WP_Ultimo/Managers/Site_Manager_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 5,
+            "WARNING|WordPress.WP.EnqueuedResourceParameters.MissingVersion": 1
+        },
+        "tests/WP_Ultimo/Models/Broadcast_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 1
+        },
+        "tests/WP_Ultimo/Models/Checkout_Form_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 1,
+            "WARNING|WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize": 4
+        },
+        "tests/WP_Ultimo/Models/Payment_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 1
+        },
+        "tests/WP_Ultimo/Models/Post_Base_Model_Test.php": {
+            "WARNING|WordPress.WP.AlternativeFunctions.strip_tags_strip_tags": 1
+        },
+        "tests/WP_Ultimo/Models/Product_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 1
+        },
+        "tests/WP_Ultimo/Session_Cookie_Test.php": {
+            "WARNING|WordPress.PHP.NoSilencedErrors.Discouraged": 2
+        },
+        "tests/WP_Ultimo/Signup_Metrics_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 1
+        },
+        "tests/WP_Ultimo/Site_Exporter/Network_Exporter_Test.php": {
+            "WARNING|WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_mkdir": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_rmdir": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.unlink_unlink": 1
+        },
+        "tests/WP_Ultimo/Site_Exporter/Self_Boot_Builder_Test.php": {
+            "WARNING|WordPress.PHP.DiscouragedPHPFunctions.system_calls_exec": 1,
+            "WARNING|WordPress.PHP.DiscouragedPHPFunctions.system_calls_proc_open": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_fclose": 3,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 5,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_mkdir": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_rmdir": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.json_encode_json_encode": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.unlink_unlink": 1
+        },
+        "tests/WP_Ultimo/Site_Exporter_Import_Move_Test.php": {
+            "WARNING|WordPress.PHP.NoSilencedErrors.Discouraged": 5,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_mkdir": 4,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_rmdir": 3,
+            "WARNING|WordPress.WP.AlternativeFunctions.unlink_unlink": 2
+        },
+        "tests/WP_Ultimo/Site_Exporter_Round_Trip_Test.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase": 1,
+            "WARNING|WordPress.PHP.NoSilencedErrors.Discouraged": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 4,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_mkdir": 7,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_rmdir": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.unlink_unlink": 1
+        },
+        "tests/WP_Ultimo/Site_Exporter_Zip_Contents_Test.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase": 1,
+            "WARNING|WordPress.PHP.NoSilencedErrors.Discouraged": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 8,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_mkdir": 5,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_rmdir": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.unlink_unlink": 1
+        },
+        "tests/WP_Ultimo/Tax/Dashboard_Taxes_Tab_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UselessOverridingMethod.Found": 1
+        },
+        "tests/WP_Ultimo/Tax/Tax_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1
+        },
+        "tests/WP_Ultimo/UI/Form_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 2,
+            "WARNING|WordPress.WP.AlternativeFunctions.json_encode_json_encode": 1
+        },
+        "tests/WP_Ultimo_Test.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 9
+        },
+        "tests/e2e/cypress/fixtures/advance-stripe-test-clock.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase": 2
+        },
+        "tests/e2e/cypress/fixtures/cleanup-stripe-test-clock.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase": 1
+        },
+        "tests/e2e/cypress/fixtures/setup-sso-test.php": {
+            "ERROR|WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 1
+        },
+        "tests/e2e/cypress/fixtures/setup-stripe-renewal-test.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase": 3
+        },
+        "tests/functional/SSO_Functional_Test.php": {
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 2,
+            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound": 1
+        },
+        "tests/performance-benchmark.php": {
+            "ERROR|WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 1,
+            "ERROR|WordPress.DateTime.RestrictedFunctions.date_date": 2,
+            "ERROR|WordPress.Security.EscapeOutput.OutputNotEscaped": 2,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotValidated": 1,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.json_encode_json_encode": 2
+        },
+        "tests/performance-comparator.php": {
+            "ERROR|Squiz.Commenting.VariableComment.MissingVar": 1,
+            "ERROR|Squiz.ControlStructures.ControlSignature.SpaceAfterCloseBrace": 2,
+            "ERROR|WordPress.DateTime.RestrictedFunctions.date_date": 1,
+            "ERROR|WordPress.Security.EscapeOutput.ExceptionNotEscaped": 2,
+            "ERROR|WordPress.Security.EscapeOutput.OutputNotEscaped": 2,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotValidated": 1,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 1,
+            "WARNING|Universal.Operators.StrictComparisons.LooseEqual": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.json_encode_json_encode": 1
+        },
+        "tests/simple-performance-test.php": {
+            "ERROR|Universal.Files.SeparateFunctionsFromOO.Mixed": 1,
+            "ERROR|WordPress.DateTime.RestrictedFunctions.date_date": 2,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.InputNotValidated": 1,
+            "ERROR|WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 1,
+            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
+            "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_fwrite": 9,
+            "WARNING|WordPress.WP.AlternativeFunctions.json_encode_json_encode": 2
+        },
+        "tests/unit/VueBuild_Test.php": {
+            "WARNING|WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 2
+        },
+        "utils/rector/src/Rector/YodaConditionsRector.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1,
+            "ERROR|Squiz.Commenting.FunctionComment.IncorrectTypeHint": 1,
+            "ERROR|Squiz.Commenting.FunctionComment.MissingParamComment": 1,
+            "ERROR|WordPress.Files.FileName.InvalidClassFileName": 1,
+            "ERROR|WordPress.Files.FileName.NotHyphenatedLowercase": 1
+        },
+        "utils/rector/tests/Rector/YodaConditionsRector/YodaConditionsRectorTest.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 2
+        },
+        "utils/rector/tests/Rector/YodaConditionsRector/config/configured_rule.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 2
+        },
+        "views/base/filter.php": {
+            "WARNING|Generic.CodeAnalysis.UnconditionalIfStatement.Found": 1
+        },
+        "views/base/wizard-body.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1
+        },
+        "views/checkout/fields/field-hidden.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1
+        },
+        "views/checkout/fields/field-products.php": {
+            "WARNING|Universal.Operators.StrictComparisons.LooseEqual": 1
+        },
+        "views/checkout/fields/field-radio.php": {
+            "WARNING|Universal.Operators.StrictComparisons.LooseEqual": 1
+        },
+        "views/checkout/register.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1
+        },
+        "views/checkout/templates/steps/clean.php": {
+            "WARNING|WordPress.PHP.StrictInArray.MissingTrueStrict": 2
+        },
+        "views/checkout/templates/steps/legacy.php": {
+            "WARNING|WordPress.PHP.StrictInArray.MissingTrueStrict": 2
+        },
+        "views/checkout/templates/steps/minimal.php": {
+            "WARNING|WordPress.PHP.StrictInArray.MissingTrueStrict": 2
+        },
+        "views/classes.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1
+        },
+        "views/dashboard-widgets/account-summary.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1
+        },
+        "views/dashboard-widgets/current-membership.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1
+        },
+        "views/dashboard-widgets/current-site.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1
+        },
+        "views/dashboard-widgets/invoices.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1
+        },
+        "views/dashboard-widgets/limits-and-quotas.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1,
+            "WARNING|Universal.Operators.StrictComparisons.LooseEqual": 1
+        },
+        "views/dashboard-widgets/login-additional-forms.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1
+        },
+        "views/dashboard-widgets/login-form.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1
+        },
+        "views/dashboard-widgets/my-sites.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1,
+            "WARNING|Universal.Operators.StrictComparisons.LooseEqual": 1
+        },
+        "views/dashboard-widgets/simple-text.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1
+        },
+        "views/dashboard-widgets/site-actions.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1,
+            "WARNING|Generic.CodeAnalysis.UnconditionalIfStatement.Found": 2
+        },
+        "views/dashboard-widgets/site-maintenance.php": {
+            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1
+        },
+        "views/events/ascii-badge.php": {
+            "ERROR|Squiz.Commenting.FileComment.Missing": 1
+        },
+        "views/events/widget-initiator.php": {
+            "WARNING|Universal.Operators.StrictComparisons.LooseEqual": 1
+        },
+        "views/legacy/signup/pricing-table/plan.php": {
+            "WARNING|Universal.Operators.StrictComparisons.LooseEqual": 1,
+            "WARNING|Universal.Operators.StrictComparisons.LooseNotEqual": 1
+        },
+        "views/legacy/signup/signup-main.php": {
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "views/limitations/plugin-selector.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 1
+        },
+        "views/limitations/theme-selector.php": {
+            "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 1
+        },
+        "views/settings/fields/field-ajax_button.php": {
+            "ERROR|WordPress.Files.FileName.NotHyphenatedLowercase": 1
+        },
+        "views/settings/fields/field-color.php": {
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "views/settings/fields/field-heading_collapsible.php": {
+            "ERROR|WordPress.Files.FileName.NotHyphenatedLowercase": 1
+        },
+        "views/settings/fields/field-multi_checkbox.php": {
+            "ERROR|WordPress.Files.FileName.NotHyphenatedLowercase": 1
+        },
+        "views/settings/fields/field-note.php": {
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "views/settings/fields/field-select.php": {
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "views/settings/fields/field-textarea.php": {
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "views/settings/fields/field-wp_editor.php": {
+            "ERROR|WordPress.Files.FileName.NotHyphenatedLowercase": 1,
+            "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
+        },
+        "views/wizards/multisite-setup/welcome.php": {
+            "ERROR|WordPress.WP.I18n.TextDomainMismatch": 13
+        },
+        "views/wizards/paypal-setup/instructions.php": {
+            "ERROR|WordPress.WP.I18n.MissingTranslatorsComment": 1
+        },
+        "views/wizards/setup/installation_steps.php": {
+            "ERROR|WordPress.Files.FileName.NotHyphenatedLowercase": 1
+        },
+        "views/wizards/setup/requirements_table.php": {
+            "ERROR|WordPress.Files.FileName.NotHyphenatedLowercase": 1
+        },
+        "views/wizards/setup/support_terms.php": {
+            "ERROR|WordPress.Files.FileName.NotHyphenatedLowercase": 1
+        }
+    }
+}

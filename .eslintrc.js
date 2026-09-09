@@ -26,7 +26,18 @@ module.exports = {
 		wu_fields: 'readonly',
 		wu_settings: 'readonly',
 		wu_addons: 'readonly',
+		wu_ajax_error: 'readonly',
+		wu_color_field_ids: 'readonly',
+		wu_coupon_data: 'readonly',
+		wu_default_pricing_option: 'readonly',
+		wu_initialize_editors: 'readonly',
+		wu_paypal_setup_wizard: 'readonly',
+		wu_visits_counter: 'readonly',
+		accounting: 'readonly',
+		wpu: 'readonly',
 		wubox: 'readonly',
+		wuboxL10n: 'readonly',
+		settings_loader: 'writable',
 		Swal: 'readonly',
 		ClipboardJS: 'readonly',
 		Shepherd: 'readonly',
@@ -68,5 +79,64 @@ module.exports = {
 		'vendor/',
 		'lib/',
 		'assets/js/lib/',
+	],
+	overrides: [
+		// Baseline legacy files narrowly so new files remain fully checked.
+		{
+			files: ['assets/js/flags.js'],
+			rules: {
+				'import/no-unresolved': 'off',
+			},
+		},
+		{
+			files: [
+				'assets/js/command-palette.js',
+				'assets/js/wu-password-reset.js',
+			],
+			rules: {
+				'jsdoc/require-param-type': 'off',
+			},
+		},
+		{
+			files: [
+				'assets/js/network-activate.js',
+				'assets/js/wu-password-toggle.js',
+			],
+			rules: {
+				'jsdoc/check-tag-names': 'off',
+			},
+		},
+		{
+			files: ['assets/js/settings-loader.js'],
+			rules: {
+				'jsdoc/require-returns-check': 'off',
+				'jsdoc/require-returns-type': 'off',
+			},
+		},
+		{
+			files: [
+				'assets/js/coupon-code.js',
+				'assets/js/template-previewer.js',
+				'assets/js/visits-counter.js',
+				'assets/js/wubox.js',
+			],
+			rules: {
+				eqeqeq: 'off',
+				'no-mixed-operators': 'off',
+				'no-mixed-spaces-and-tabs': 'off',
+				'no-nested-ternary': 'off',
+				'no-unused-expressions': 'off',
+			},
+		},
+		{
+			files: [
+				'assets/js/wu-password-reset.js',
+				'assets/js/wu-password-toggle.js',
+				'assets/js/wubox.js',
+			],
+			rules: {
+				'@wordpress/no-unused-vars-before-return': 'off',
+			},
+		},
 	],
 };
