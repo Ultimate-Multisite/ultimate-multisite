@@ -3254,6 +3254,58 @@ class Checkout_Test extends WP_UnitTestCase {
 		unset($_REQUEST['gateway']);
 	}
 
+	/**
+	 * Test process_order rejects a paid cart when no public gateway is active.
+	 */
+	public function test_process_order_returns_error_when_no_active_gateway_for_paid_cart(): void {
+
+		$paid_plan = wu_create_product([
+			'name'          => 'No Gateway Test Plan',
+			'slug'          => 'no-gateway-test-plan-' . wp_rand(1000, 9999),
+			'amount'        => 29.99,
+			'recurring'     => true,
+			'duration'      => 1,
+			'duration_unit' => 'month',
+			'type'          => 'plan',
+			'pricing_type'  => 'paid',
+			'active'        => true,
+		]);
+
+		if (is_wp_error($paid_plan)) {
+			$this->markTestSkipped('Product creation failed: ' . $paid_plan->get_error_message());
+		}
+
+		$active_gateways = wu_get_setting('active_gateways', []);
+		$checkout        = Checkout::get_instance();
+		$reflection      = new \ReflectionClass($checkout);
+		$setup_prop      = $reflection->getProperty('already_setup');
+
+		if (PHP_VERSION_ID < 80100) {
+			$setup_prop->setAccessible(true);
+		}
+
+		try {
+			$setup_prop->setValue($checkout, true);
+			wu_save_setting('active_gateways', []);
+			$this->ensure_session($checkout);
+
+			$this->assertNotFalse(wu_get_gateway('manual'));
+
+			$_REQUEST['products'] = [$paid_plan->get_id()];
+			$_REQUEST['gateway']  = 'manual';
+
+			$result = $checkout->process_order();
+
+			$this->assertWPError($result);
+			$this->assertSame('no-gateway', $result->get_error_code());
+		} finally {
+			$setup_prop->setValue($checkout, false);
+			wu_save_setting('active_gateways', $active_gateways);
+			$paid_plan->delete();
+			unset($_REQUEST['products'], $_REQUEST['gateway']);
+		}
+	}
+
 	// -------------------------------------------------------------------------
 	// process_checkout — error paths
 	// -------------------------------------------------------------------------

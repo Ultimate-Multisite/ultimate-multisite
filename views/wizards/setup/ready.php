@@ -36,6 +36,24 @@ defined('ABSPATH') || exit;
 		<?php esc_html_e('You now have everything you need in place to start building your Website as a Service business!', 'ultimate-multisite'); ?>
 	</p>
 
+	<?php if (empty(wu_get_active_gateway_as_options())) : ?>
+
+		<p class="wu-text-sm wu-text-yellow-800 wu-my-4">
+			<?php
+			printf(
+				/* translators: %s is a link to the payment gateway settings page */
+				esc_html__('Before accepting paid signups, configure a payment method under %s. Free signups do not require a payment method.', 'ultimate-multisite'),
+				sprintf(
+					'<a href="%s" class="wu-text-blue-600 hover:wu-underline">%s</a>',
+					esc_url(wu_network_admin_url('wp-ultimo-settings', ['tab' => 'payment-gateways'])),
+					esc_html__('Settings → Payment Gateways', 'ultimate-multisite')
+				)
+			);
+			?>
+		</p>
+
+	<?php endif; ?>
+
 	<p class="wu-text-sm wu-text-gray-500 wu-my-4">
 		<?php
 		printf(
