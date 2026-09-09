@@ -180,6 +180,81 @@ class Customer_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @dataProvider generated_username_names
+	 */
+	public function test_username_from_email_normalizes_name_spaces($first_name, $last_name, $expected): void {
+
+		$username = wu_username_from_email('username-probe@example.com', [
+			'first_name' => $first_name,
+			'last_name'  => $last_name,
+		]);
+
+		$this->assertSame($expected, $username);
+	}
+
+	public static function generated_username_names(): array {
+
+		return [
+			'compound first name' => ['Alice Beth', 'Example', 'alice.beth.example'],
+			'compound last name'  => ['Alice', 'Van Example', 'alice.van.example'],
+			'repeated spaces'     => ['  Alice   Beth  ', '  Van   Example  ', 'alice.beth.van.example'],
+			'already normalized'  => ['Alice.Beth', 'Example-Smith', 'alice.beth.example-smith'],
+		];
+	}
+
+	public function test_username_from_email_checks_normalized_name_for_collisions(): void {
+
+		$user_id  = self::factory()->user->create(['user_login' => 'alice.beth.example']);
+		$username = wu_username_from_email('username-probe@example.com', [
+			'first_name' => 'Alice Beth',
+			'last_name'  => 'Example',
+		]);
+
+		$this->assertMatchesRegularExpression('/^alice\.beth\.example-\d{4}$/', $username);
+		$this->assertFalse(username_exists($username));
+		$this->assertSame('alice.beth.example', get_userdata($user_id)->user_login);
+	}
+
+	public function test_username_from_email_checks_normalized_name_against_illegal_logins(): void {
+
+		$illegal_logins = static function ($logins) {
+			$logins[] = 'alice.beth.example';
+			return $logins;
+		};
+		add_filter('illegal_user_logins', $illegal_logins);
+
+		try {
+			$username = wu_username_from_email('username-probe@example.com', [
+				'first_name' => 'Alice Beth',
+				'last_name'  => 'Example',
+			]);
+
+			$this->assertMatchesRegularExpression('/^woo_user_\d{4}(?:-\d{4})?$/', $username);
+		} finally {
+			remove_filter('illegal_user_logins', $illegal_logins);
+		}
+	}
+
+	public function test_username_from_email_persists_without_spaces_when_password_is_generated(): void {
+
+		$email    = 'generated-username@example.com';
+		$username = wu_username_from_email($email, [
+			'first_name' => 'Alice Beth',
+			'last_name'  => 'Example',
+		]);
+		$customer = wu_create_customer([
+			'email'           => $email,
+			'username'        => $username,
+			'password'        => false,
+			'skip_validation' => true,
+		]);
+
+		$this->assertNotWPError($customer);
+		$this->assertInstanceOf(\WP_Ultimo\Models\Customer::class, $customer);
+		$this->assertSame('alice.beth.example', get_userdata($customer->get_user_id())->user_login);
+	}
+
+	/**
 	 * Test wu_username_from_email with common email prefix falls back to domain.
 	 */
 	public function test_username_from_email_common_prefix(): void {
