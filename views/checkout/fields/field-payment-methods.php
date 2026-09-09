@@ -27,6 +27,14 @@ $active_gateways = wu_get_active_gateway_as_options();
 
 	?>
 
+	<?php if (empty($active_gateways)) : ?>
+
+		<div class="wu-p-3 wu-bg-yellow-50 wu-border wu-border-solid wu-border-yellow-200 wu-rounded-sm wu-text-yellow-800" role="alert">
+			<?php esc_html_e('No payment methods are currently available. Please contact the site administrator.', 'ultimate-multisite'); ?>
+		</div>
+
+	<?php endif; ?>
+
 	<?php foreach ($active_gateways as $option_value => $option_name) : ?>
 
 		<?php if (count($active_gateways) === 1) : ?>
