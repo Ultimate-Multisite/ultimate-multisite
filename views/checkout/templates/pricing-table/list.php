@@ -34,11 +34,25 @@ foreach ($products as $index => &$_product) {
 		id="wu-product-<?php echo esc_attr($product->get_id()); ?>"
 		class="wu-relative wu-block wu-rounded-lg wu-border wu-border-gray-300 wu-bg-white wu-border-solid wu-shadow-sm wu-px-6 wu-py-4 wu-cursor-pointer hover:wu-border-gray-400 sm:wu-flex sm:wu-justify-between focus-within:wu-ring-1 focus-within:wu-ring-offset-2 focus-within:wu-ring-indigo-500">
 
-		<input v-if="<?php echo wp_json_encode($product->get_pricing_type() !== 'contact_us'); ?>" v-on:click="$parent.add_plan(<?php echo esc_attr($product->get_id()); ?>)" type="checkbox" name="products[]" value="<?php echo esc_attr($product->get_id()); ?>" class="screen-reader-text wu-hidden">
-
-		<input v-else v-on:click="$parent.open_url('<?php echo esc_url($product->get_contact_us_link()); ?>', '_blank');" type="checkbox" name="products[]" value="<?php echo esc_attr($product->get_id()); ?>" class="screen-reader-text wu-hidden">
-
 		<div class="wu-flex wu-items-center">
+			<input
+				v-if="<?php echo wp_json_encode($product->get_pricing_type() !== 'contact_us'); ?>"
+				v-on:change="$parent.add_plan(<?php echo esc_attr($product->get_id()); ?>)"
+				v-bind:checked="$parent.plan === <?php echo esc_attr($product->get_id()); ?>"
+				type="radio"
+				name="products[]"
+				value="<?php echo esc_attr($product->get_id()); ?>"
+				class="wu-mr-3 wu-h-4 wu-w-4 wu-flex-shrink-0"
+			>
+
+			<input
+				v-else
+				v-on:click="$parent.open_url('<?php echo esc_url($product->get_contact_us_link()); ?>', '_blank');"
+				type="button"
+				value="<?php esc_attr_e('Contact us', 'ultimate-multisite'); ?>"
+				class="button button-secondary wu-mr-3 wu-flex-shrink-0"
+			>
+
 			<div class="wu-text-sm">
 			<span id="server-size-0-label" class="wu-font-semibold wu-block wu-text-gray-900">
 				<?php echo esc_html($product->get_name()); ?>
