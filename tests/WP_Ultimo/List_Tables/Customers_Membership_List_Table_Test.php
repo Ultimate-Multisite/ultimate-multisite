@@ -117,15 +117,29 @@ class Customers_Membership_List_Table_Test extends WP_UnitTestCase {
 	// =========================================================================
 
 	/**
-	 * Test column_responsive outputs HTML without throwing.
-	 *
-	 * Note: wu_responsive_table_row() is a template helper not available in unit
-	 * test environment. We verify the method is callable and the item getters are
-	 * invoked correctly by checking the method exists and the column is defined.
+	 * Test column_responsive renders lifetime expiration labels.
 	 */
-	public function test_column_responsive_method_exists(): void {
+	public function test_column_responsive_renders_lifetime_expiration_labels(): void {
 
-		$this->assertTrue( method_exists( $this->table, 'column_responsive' ) );
+		foreach ( ['', null, '0000-00-00 00:00:00'] as $date_expiration ) {
+			$output = $this->get_column_responsive_output( $date_expiration );
+
+			$this->assertStringContainsString( 'Lifetime / It never expires', $output );
+			$this->assertStringNotContainsString( 'Expired', $output );
+			$this->assertStringNotContainsString( 'Expiring', $output );
+		}
+	}
+
+	/**
+	 * Test column_responsive renders future and past expiration labels.
+	 */
+	public function test_column_responsive_renders_timed_expiration_labels(): void {
+
+		$future_output = $this->get_column_responsive_output( gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ) );
+		$past_output   = $this->get_column_responsive_output( gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) );
+
+		$this->assertStringContainsString( 'Expiring', $future_output );
+		$this->assertStringContainsString( 'Expired', $past_output );
 	}
 
 	/**
@@ -136,5 +150,48 @@ class Customers_Membership_List_Table_Test extends WP_UnitTestCase {
 		$columns = $this->table->get_columns();
 
 		$this->assertArrayHasKey( 'responsive', $columns );
+	}
+
+	/**
+	 * Returns the responsive membership card output for an expiration date.
+	 *
+	 * @param string|null $date_expiration Membership expiration date.
+	 * @return string
+	 */
+	private function get_column_responsive_output($date_expiration): string {
+
+		$item = $this->getMockBuilder( \stdClass::class )
+			->addMethods(
+				[
+					'get_plan',
+					'get_addon_ids',
+					'get_id',
+					'get_hash',
+					'get_status_label',
+					'get_status_class',
+					'get_price_description',
+					'get_gateway',
+					'get_date_expiration',
+					'get_date_created',
+				]
+			)
+			->getMock();
+
+		$item->method( 'get_plan' )->willReturn( false );
+		$item->method( 'get_addon_ids' )->willReturn( [] );
+		$item->method( 'get_id' )->willReturn( 1 );
+		$item->method( 'get_hash' )->willReturn( 'membership-hash' );
+		$item->method( 'get_status_label' )->willReturn( 'Pending' );
+		$item->method( 'get_status_class' )->willReturn( 'wu-bg-yellow-200' );
+		$item->method( 'get_price_description' )->willReturn( 'Free' );
+		$item->method( 'get_gateway' )->willReturn( 'manual' );
+		$item->method( 'get_date_expiration' )->willReturn( $date_expiration );
+		$item->method( 'get_date_created' )->willReturn( '2025-01-01 00:00:00' );
+
+		ob_start();
+
+		$this->table->column_responsive( $item );
+
+		return (string) ob_get_clean();
 	}
 }
