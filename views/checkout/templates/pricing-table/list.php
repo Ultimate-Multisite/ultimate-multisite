@@ -47,7 +47,7 @@ foreach ($products as $index => &$_product) {
 
 			<input
 				v-else
-				v-on:click="$parent.open_url('<?php echo esc_url($product->get_contact_us_link()); ?>', '_blank');"
+				v-on:click="$parent.open_url(<?php echo esc_attr(wp_json_encode(esc_url_raw($product->get_contact_us_link()))); ?>, '_blank');"
 				type="button"
 				value="<?php esc_attr_e('Contact us', 'ultimate-multisite'); ?>"
 				class="button button-secondary wu-mr-3 wu-flex-shrink-0"
