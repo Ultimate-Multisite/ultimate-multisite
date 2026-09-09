@@ -11,6 +11,10 @@
 </p>
 
 <p align="center">
+  <a href="https://ultimatemultisite.com/demo/"><strong>Try the full Ultimate Multisite demo →</strong></a>
+</p>
+
+<p align="center">
   <a href="http://www.gnu.org/licenses/gpl-2.0.html"><img src="https://img.shields.io/badge/License-GPL%20v2-blue.svg" alt="License: GPL v2"></a>
   <a href="https://wordpress.org/"><img src="https://img.shields.io/badge/WordPress-6.8%20Tested-green.svg" alt="WordPress: 6.8 Tested"></a>
   <a href="https://php.net/"><img src="https://img.shields.io/badge/PHP-8.2%2B-purple.svg" alt="PHP: 8.2+"></a>
