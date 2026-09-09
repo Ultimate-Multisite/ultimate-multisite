@@ -189,8 +189,17 @@ jobs:
           # Ensure readme.txt is in trunk for wp.org metadata
           cp readme.txt "${SVN_DIR}/trunk/readme.txt"
 
-          # Stage changes in trunk only
+          # Sync the Playground preview Blueprint to the Plugin Directory assets.
+          svn update --set-depth=infinity "${SVN_DIR}/assets"
+          mkdir -p "${SVN_DIR}/assets/blueprints"
+          cp assets/blueprints/blueprint.json "${SVN_DIR}/assets/blueprints/blueprint.json"
+
+          # Stage changes in plugin code and Plugin Directory assets.
           cd "${SVN_DIR}"
+
+          if svn status assets/blueprints/blueprint.json | grep -q '^?'; then
+            svn add --parents -q assets/blueprints/blueprint.json
+          fi
 
           # Add new files in batches of 500 to avoid arg list / memory limits
           # Use '|| true' to prevent grep returning exit 1 (no match) from killing the script under pipefail
@@ -217,17 +226,17 @@ jobs:
             done
           fi
 
-          echo "=== SVN Status (trunk) ==="
-          svn status trunk > /tmp/svn-status.txt || true
+          echo "=== SVN Status (trunk and assets) ==="
+          svn status trunk assets > /tmp/svn-status.txt || true
           head -50 /tmp/svn-status.txt
           CHANGES=$(wc -l < /tmp/svn-status.txt)
           echo "Total trunk changes: ${CHANGES}"
 
           if [ "${CHANGES}" -eq 0 ]; then
-            echo "No changes to commit to trunk"
+            echo "No changes to commit"
           else
             echo "Committing ${CHANGES} changes to WordPress.org SVN..."
-            svn commit \
+            svn commit trunk assets \
               --username "${SVN_USERNAME}" \
               --password "${SVN_PASSWORD}" \
               --no-auth-cache \
