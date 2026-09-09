@@ -96,7 +96,7 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 	 * @return string Title of the page.
 	 */
 	public function get_title(): string {
-		return __('Enable WordPress Multisite', 'multisite-ultimate');
+		return __('Enable WordPress Multisite', 'ultimate-multisite');
 	}
 
 	/**
@@ -106,7 +106,7 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 	 * @return string Menu label of the page.
 	 */
 	public function get_menu_title() {
-		return __('Multisite Ultimate', 'multisite-ultimate');
+		return __('Ultimate Multisite', 'ultimate-multisite');
 	}
 
 	/**
@@ -129,22 +129,22 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 
 		return [
 			'welcome'   => [
-				'title'      => __('Multisite Required', 'multisite-ultimate'),
-				'next_label' => __('Get Started &rarr;', 'multisite-ultimate'),
+				'title'      => __('Multisite Required', 'ultimate-multisite'),
+				'next_label' => __('Get Started &rarr;', 'ultimate-multisite'),
 				'back'       => false,
 				'view'       => [$this, 'section_welcome'],
 			],
 			'configure' => [
-				'title'       => __('Network Configuration', 'multisite-ultimate'),
-				'description' => __('Configure your network settings. These settings determine how your sites will be structured.', 'multisite-ultimate'),
-				'next_label'  => __('Continue &rarr;', 'multisite-ultimate'),
+				'title'       => __('Network Configuration', 'ultimate-multisite'),
+				'description' => __('Configure your network settings. These settings determine how your sites will be structured.', 'ultimate-multisite'),
+				'next_label'  => __('Continue &rarr;', 'ultimate-multisite'),
 				'handler'     => [$this, 'handle_configure'],
 				'fields'      => [$this, 'get_network_configuration_fields'],
 				'back'        => true,
 			],
 			'install'   => [
-				'title'        => __('Installing Network', 'multisite-ultimate'),
-				'description'  => __('Setting up your WordPress Multisite network...', 'multisite-ultimate'),
+				'title'        => __('Installing Network', 'ultimate-multisite'),
+				'description'  => __('Setting up your WordPress Multisite network...', 'ultimate-multisite'),
 				'next_label'   => Core_Installer::get_instance()->all_done() ? __('Begin Ultimate Multisite Setup &rarr;', 'ultimate-multisite') : __('Install', 'ultimate-multisite'),
 				'disable_next' => true,
 				'handler'      => [$this, 'handle_install_complete'],
@@ -157,8 +157,8 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 				],
 			],
 			'complete'  => [
-				'title'       => __('Setup Complete', 'multisite-ultimate'),
-				'description' => __('WordPress Multisite setup is now complete!', 'multisite-ultimate'),
+				'title'       => __('Setup Complete', 'ultimate-multisite'),
+				'description' => __('WordPress Multisite setup is now complete!', 'ultimate-multisite'),
 				'view'        => [$this, 'section_complete'],
 				'back'        => false,
 				'next'        => false,
@@ -194,22 +194,22 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 		return [
 			'network_structure_header' => [
 				'type'  => 'header',
-				'title' => __('Network Structure', 'multisite-ultimate'),
-				'desc'  => __('Choose how you want your network sites to be organized:', 'multisite-ultimate'),
+				'title' => __('Network Structure', 'ultimate-multisite'),
+				'desc'  => __('Choose how you want your network sites to be organized:', 'ultimate-multisite'),
 			],
 			'subdomain_install'        => [
 				'type'    => 'select',
-				'title'   => __('Site Structure', 'multisite-ultimate'),
-				'desc'    => __('Choose between subdomains or subdirectories for your network sites.', 'multisite-ultimate'),
+				'title'   => __('Site Structure', 'ultimate-multisite'),
+				'desc'    => __('Choose between subdomains or subdirectories for your network sites.', 'ultimate-multisite'),
 				'options' => [
 					'1' => sprintf(
 						/* translators: %s is an example subdomain URL like site1.example.com */
-						__('Sub-domains — e.g. %s (Recommended)', 'multisite-ultimate'),
+						__('Sub-domains — e.g. %s (Recommended)', 'ultimate-multisite'),
 						'site1.' . esc_html($base_domain)
 					),
 					'0' => sprintf(
 						/* translators: %s is an example subdirectory URL like example.com/site1 */
-						__('Sub-directories — e.g. %s', 'multisite-ultimate'),
+						__('Sub-directories — e.g. %s', 'ultimate-multisite'),
 						esc_html($base_domain) . '/site1'
 					),
 				],
@@ -223,28 +223,28 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 							<span class="dashicons dashicons-info wu-text-blue-500"></span>
 						</div>
 						<div class="wu-ml-3">
-							<h4 class="wu-text-sm wu-font-medium wu-text-blue-700">' . esc_html__('Sub-domains are recommended for most businesses', 'multisite-ultimate') . '</h4>
-							<p class="wu-text-sm wu-text-blue-700 wu-mt-1">' . esc_html__('Sub-domains (e.g. site1.yourdomain.com) allow custom domain mapping and look more professional. Sub-directories (e.g. yourdomain.com/site1) are simpler to set up but cannot be changed later without rebuilding your network.', 'multisite-ultimate') . '</p>
+							<h4 class="wu-text-sm wu-font-medium wu-text-blue-700">' . esc_html__('Sub-domains are recommended for most businesses', 'ultimate-multisite') . '</h4>
+							<p class="wu-text-sm wu-text-blue-700 wu-mt-1">' . esc_html__('Sub-domains (e.g. site1.yourdomain.com) allow custom domain mapping and look more professional. Sub-directories (e.g. yourdomain.com/site1) are simpler to set up but cannot be changed later without rebuilding your network.', 'ultimate-multisite') . '</p>
 						</div>
 					</div>
 				</div>',
 			],
 			'network_details_header'   => [
 				'type'  => 'header',
-				'title' => __('Network Details', 'multisite-ultimate'),
+				'title' => __('Network Details', 'ultimate-multisite'),
 			],
 			'sitename'                 => [
 				'type'        => 'text',
-				'title'       => __('Network Title', 'multisite-ultimate'),
-				'desc'        => __('This will be the title of your network.', 'multisite-ultimate'),
-				'placeholder' => __('Enter network title', 'multisite-ultimate'),
+				'title'       => __('Network Title', 'ultimate-multisite'),
+				'desc'        => __('This will be the title of your network.', 'ultimate-multisite'),
+				'placeholder' => __('Enter network title', 'ultimate-multisite'),
 				'value'       => get_option('blogname') . ' Network',
 			],
 			'email'                    => [
 				'type'        => 'email',
-				'title'       => __('Network Admin Email', 'multisite-ultimate'),
-				'desc'        => __('This email address will be used for network administration.', 'multisite-ultimate'),
-				'placeholder' => __('Enter admin email', 'multisite-ultimate'),
+				'title'       => __('Network Admin Email', 'ultimate-multisite'),
+				'desc'        => __('This email address will be used for network administration.', 'ultimate-multisite'),
+				'placeholder' => __('Enter admin email', 'ultimate-multisite'),
 				'value'       => $user->user_email,
 			],
 			'backup_warning'           => [
@@ -255,8 +255,8 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 							<span class="dashicons dashicons-warning wu-text-yellow-500"></span>
 						</div>
 						<div class="wu-ml-3">
-							<h4 class="wu-text-sm wu-font-medium wu-text-yellow-800">' . esc_html__('Before You Continue', 'multisite-ultimate') . '</h4>
-							<p class="wu-text-sm wu-text-yellow-700 wu-mt-1">' . esc_html__('Please ensure you have a recent backup of your website files and database. The multisite setup process will modify your wp-config.php file and create new database tables.', 'multisite-ultimate') . '</p>
+							<h4 class="wu-text-sm wu-font-medium wu-text-yellow-800">' . esc_html__('Before You Continue', 'ultimate-multisite') . '</h4>
+							<p class="wu-text-sm wu-text-yellow-700 wu-mt-1">' . esc_html__('Please ensure you have a recent backup of your website files and database. The multisite setup process will modify your wp-config.php file and create new database tables.', 'ultimate-multisite') . '</p>
 						</div>
 					</div>
 				</div>',
@@ -276,7 +276,7 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 	public function handle_configure(): void {
 
 		if (! current_user_can('manage_options')) {
-			wp_die(esc_html__('Permission denied.', 'multisite-ultimate'));
+			wp_die(esc_html__('Permission denied.', 'ultimate-multisite'));
 		}
 
 		$subdomain_install = wu_request('subdomain_install', '0') === '1';
@@ -353,10 +353,10 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 				</div>
 				<div class="wu-ml-3">
 					<h4 class="wu-text-sm wu-font-medium wu-text-green-800">
-						<?php esc_html_e('Success!', 'multisite-ultimate'); ?>
+						<?php esc_html_e('Success!', 'ultimate-multisite'); ?>
 					</h4>
 					<p class="wu-text-sm wu-text-green-700 wu-mt-1">
-						<?php esc_html_e('WordPress Multisite has been successfully enabled. You can now continue with the Multisite Ultimate setup.', 'multisite-ultimate'); ?>
+						<?php esc_html_e('WordPress Multisite has been successfully enabled. You can now continue with the Ultimate Multisite setup.', 'ultimate-multisite'); ?>
 					</p>
 				</div>
 			</div>
@@ -364,7 +364,7 @@ class Multisite_Setup_Admin_Page extends Wizard_Admin_Page {
 
 		<div class="wu-flex wu-justify-center">
 			<a href="<?php echo esc_url($continue_url); ?>" class="button button-primary button-large">
-				<?php esc_html_e('Continue to Multisite Ultimate Setup', 'multisite-ultimate'); ?>
+				<?php esc_html_e('Continue to Ultimate Multisite Setup', 'ultimate-multisite'); ?>
 			</a>
 		</div>
 			<?php
@@ -433,19 +433,19 @@ RewriteRule . index.php [L]';
 		?>
 		<div class="wu-mb-6">
 			<p class="wu-text-gray-600 wu-mb-4">
-				<?php esc_html_e('We were unable to automatically configure your wp-config.php file. Please follow the manual instructions below to complete the multisite setup.', 'multisite-ultimate'); ?>
+				<?php esc_html_e('We were unable to automatically configure your wp-config.php file. Please follow the manual instructions below to complete the multisite setup.', 'ultimate-multisite'); ?>
 			</p>
 		</div>
 
 		<div class="wu-mb-6">
 			<h3 class="wu-text-lg wu-font-semibold wu-text-gray-900 wu-mb-3">
-				<?php esc_html_e('Step 1: Add to wp-config.php', 'multisite-ultimate'); ?>
+				<?php esc_html_e('Step 1: Add to wp-config.php', 'ultimate-multisite'); ?>
 			</h3>
 			<p class="wu-text-gray-600 wu-mb-4">
 				<?php
 				printf(
 					/* translators: %1$s is the wp-config.php filename, %2$s is the "Happy publishing" comment marker */
-					esc_html__('Add the following lines to your %1$s file, just before the comment %2$s:', 'multisite-ultimate'),
+					esc_html__('Add the following lines to your %1$s file, just before the comment %2$s:', 'ultimate-multisite'),
 					'<code>wp-config.php</code>',
 					'<code>/* That\'s all, stop editing! Happy publishing. */</code>'
 				);
@@ -459,10 +459,10 @@ RewriteRule . index.php [L]';
 		<?php if (got_url_rewrite()) : ?>
 		<div class="wu-mb-6">
 			<h3 class="wu-text-lg wu-font-semibold wu-text-gray-900 wu-mb-3">
-				<?php esc_html_e('Step 2: Add to .htaccess', 'multisite-ultimate'); ?>
+				<?php esc_html_e('Step 2: Add to .htaccess', 'ultimate-multisite'); ?>
 			</h3>
 			<p class="wu-text-gray-600 wu-mb-4">
-				<?php esc_html_e('Replace the existing WordPress rules in your .htaccess file with:', 'multisite-ultimate'); ?>
+				<?php esc_html_e('Replace the existing WordPress rules in your .htaccess file with:', 'ultimate-multisite'); ?>
 			</p>
 		<div class="wu-bg-gray-100 wu-border wu-border-gray-200 wu-rounded-lg wu-p-4 wu-mb-4">
 			<pre class="wu-text-sm wu-overflow-x-auto"><code><?php echo esc_html($htaccess_rules); ?></code></pre>
@@ -477,10 +477,10 @@ RewriteRule . index.php [L]';
 				</div>
 				<div class="wu-ml-3">
 					<h4 class="wu-text-sm wu-font-medium wu-text-blue-700">
-						<?php esc_html_e('Next Steps', 'multisite-ultimate'); ?>
+						<?php esc_html_e('Next Steps', 'ultimate-multisite'); ?>
 					</h4>
 					<p class="wu-text-sm wu-text-blue-700 wu-mt-1">
-						<?php esc_html_e('After making these changes, refresh this page. WordPress will detect that multisite is enabled and you can proceed with the Multisite Ultimate setup.', 'multisite-ultimate'); ?>
+						<?php esc_html_e('After making these changes, refresh this page. WordPress will detect that multisite is enabled and you can proceed with the Ultimate Multisite setup.', 'ultimate-multisite'); ?>
 					</p>
 				</div>
 			</div>
@@ -488,7 +488,7 @@ RewriteRule . index.php [L]';
 
 		<div class="wu-flex wu-justify-center">
 			<a href="<?php echo esc_url(admin_url('admin.php?page=wp-ultimo-multisite-setup&step=complete')); ?>" class="button button-primary button-large">
-				<?php esc_html_e('Refresh and Check Again', 'multisite-ultimate'); ?>
+				<?php esc_html_e('Refresh and Check Again', 'ultimate-multisite'); ?>
 			</a>
 		</div>
 		<?php

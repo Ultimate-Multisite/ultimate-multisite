@@ -220,6 +220,49 @@ class Multisite_Setup_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The conversion wizard uses the current product name and text domain.
+	 */
+	public function test_conversion_wizard_uses_ultimate_multisite_branding_and_text_domain(): void {
+
+		$domains = [];
+		$filter  = static function ($translation, $text, $domain) use (&$domains) {
+			$domains[] = $domain;
+
+			return $translation;
+		};
+
+		add_filter('gettext', $filter, 999, 3);
+
+		try {
+			$this->assertSame('Ultimate Multisite', $this->page->get_menu_title());
+			$this->page->get_title();
+			$this->page->get_sections();
+			$this->page->get_network_configuration_fields();
+
+			$_GET['result'] = 'success';
+			ob_start();
+			$this->page->section_complete();
+			$output = ob_get_clean();
+			unset($_GET['result']);
+
+			$this->assertStringContainsString('Ultimate Multisite setup', $output);
+			$this->assertStringContainsString('Continue to Ultimate Multisite Setup', $output);
+
+			$reflection = new \ReflectionClass($this->page);
+			$method     = $reflection->getMethod('display_manual_instructions');
+			$method->setAccessible(true);
+
+			ob_start();
+			$method->invoke($this->page);
+			ob_end_clean();
+		} finally {
+			remove_filter('gettext', $filter, 999);
+		}
+
+		$this->assertSame(['ultimate-multisite'], array_values(array_unique($domains)));
+	}
+
+	/**
 	 * get_logo() returns a non-empty string (asset URL).
 	 */
 	public function test_get_logo_returns_string(): void {
