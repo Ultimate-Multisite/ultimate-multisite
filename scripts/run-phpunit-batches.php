@@ -132,6 +132,37 @@ $clean_plugin_tables = static function () use ($table_prefix) {
 	$database->close();
 };
 
+$count_executed_files = static function ($junit_path, $batch) {
+	if ( ! is_file($junit_path)) {
+		throw new RuntimeException('PHPUnit did not write its JUnit report.');
+	}
+
+	$report = simplexml_load_file($junit_path);
+
+	if (false === $report) {
+		throw new RuntimeException('PHPUnit wrote an unreadable JUnit report.');
+	}
+
+	$test_cases = $report->xpath('//testcase[@file]');
+
+	if (false === $test_cases) {
+		throw new RuntimeException('PHPUnit JUnit report test cases could not be read.');
+	}
+
+	$expected_files = array_fill_keys($batch, true);
+	$executed_files = [];
+
+	foreach ($test_cases as $test_case) {
+		$test_file = realpath((string) $test_case['file']);
+
+		if (false !== $test_file && isset($expected_files[ $test_file ])) {
+			$executed_files[ $test_file ] = true;
+		}
+	}
+
+	return count($executed_files);
+};
+
 $batches        = array_chunk($test_files, $batch_size);
 $total_batches  = count($batches);
 $expected_files = count($test_files);
@@ -161,8 +192,17 @@ foreach ($batches as $index => $batch) {
 	}
 
 	$config_path = tempnam(sys_get_temp_dir(), 'wu-phpunit-batch-');
+	$junit_path  = tempnam(sys_get_temp_dir(), 'wu-phpunit-junit-');
 
-	if (false === $config_path) {
+	if (false === $config_path || false === $junit_path) {
+		if (false !== $config_path) {
+			unlink($config_path);
+		}
+
+		if (false !== $junit_path) {
+			unlink($junit_path);
+		}
+
 		fwrite(STDERR, "Unable to create a temporary PHPUnit configuration.\n");
 		exit(2);
 	}
@@ -180,6 +220,7 @@ foreach ($batches as $index => $batch) {
 
 	if (strlen($config) !== file_put_contents($config_path, $config)) {
 		unlink($config_path);
+		unlink($junit_path);
 		fwrite(STDERR, "Unable to write a temporary PHPUnit configuration.\n");
 		exit(2);
 	}
@@ -187,7 +228,7 @@ foreach ($batches as $index => $batch) {
 	fwrite(STDOUT, sprintf("Running PHPUnit batch %d/%d (%d files)\n", $current_batch, $total_batches, count($batch)));
 
 	$process = proc_open(
-		[PHP_BINARY, $phpunit, '--configuration', $config_path, '--no-coverage'],
+		[PHP_BINARY, $phpunit, '--configuration', $config_path, '--no-coverage', '--log-junit', $junit_path],
 		[STDIN, STDOUT, STDERR],
 		$pipes,
 		$project_root
@@ -195,13 +236,24 @@ foreach ($batches as $index => $batch) {
 
 	if ( ! is_resource($process)) {
 		unlink($config_path);
+		unlink($junit_path);
 		fwrite(STDERR, "Unable to start PHPUnit.\n");
 		exit(2);
 	}
 
-	$batch_status    = proc_close($process);
-	$executed_files += count($batch);
+	$batch_status = proc_close($process);
+
+	try {
+		$executed_files += $count_executed_files($junit_path, $batch);
+	} catch (RuntimeException $exception) {
+		unlink($config_path);
+		unlink($junit_path);
+		fwrite(STDERR, sprintf("Unable to verify PHPUnit batch %d: %s\n", $current_batch, $exception->getMessage()));
+		exit(2);
+	}
+
 	unlink($config_path);
+	unlink($junit_path);
 
 	if (0 !== $batch_status) {
 		fwrite(STDERR, sprintf("PHPUnit batch %d/%d failed with exit code %d.\n", $current_batch, $total_batches, $batch_status));
