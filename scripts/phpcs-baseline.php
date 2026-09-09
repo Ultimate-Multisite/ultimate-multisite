@@ -7,7 +7,7 @@
  * @since 2.15.2
  */
 
-const WU_PHPCS_BASELINE_VERSION = 1;
+const WU_PHPCS_BASELINE_VERSION = 2;
 
 $root          = dirname(__DIR__);
 $baseline_path = $root . '/phpcs-baseline.json';
@@ -49,7 +49,7 @@ try {
 }
 
 /**
- * Convert a PHPCS report into stable per-file, per-sniff counts.
+ * Convert a PHPCS report into stable per-file diagnostic identities.
  *
  * @param array  $report PHPCS JSON report.
  * @param string $root   Repository root.
@@ -71,7 +71,16 @@ function wu_phpcs_build_baseline(array $report, string $root): array {
 			: $file;
 
 		foreach ($details['messages'] ?? [] as $message) {
-			$key = ($message['type'] ?? 'UNKNOWN') . '|' . ($message['source'] ?? 'unknown');
+			$key = implode(
+				'|',
+				[
+					$message['type'] ?? 'UNKNOWN',
+					$message['source'] ?? 'unknown',
+					$message['line'] ?? 0,
+					$message['column'] ?? 0,
+					$message['message'] ?? '',
+				]
+			);
 			$baseline['files'][$relative_file][$key] = ($baseline['files'][$relative_file][$key] ?? 0) + 1;
 		}
 
