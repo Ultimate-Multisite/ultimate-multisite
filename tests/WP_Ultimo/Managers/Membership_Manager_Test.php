@@ -996,8 +996,10 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$manager->rollback_checkout_transaction();
 		$manager->commit_checkout_transaction();
 
+		$refreshed = wu_get_membership($membership->get_id());
+
 		$this->assertFalse($published, 'Rolled-back checkout must not publish its pending site.');
-		$this->assertNotFalse($membership->get_pending_site(), 'Rolled-back checkout should leave the pending site untouched.');
+		$this->assertNotFalse($refreshed->get_pending_site(), 'Rolled-back checkout should leave the stored pending site untouched.');
 	}
 
 	/**
