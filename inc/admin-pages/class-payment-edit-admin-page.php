@@ -14,6 +14,7 @@ defined('ABSPATH') || exit;
 
 use WP_Ultimo\Models\Payment;
 use WP_Ultimo\Database\Payments\Payment_Status;
+use WP_Ultimo\Database\Memberships\Membership_Status;
 
 /**
  * Ultimate Multisite Payment Edit/Add New Admin Page.
@@ -1452,20 +1453,53 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 	 */
 	public function handle_save(): bool {
 
-		$this->get_object()->recalculate_totals()->save();
+		$payment = $this->get_object();
 
-		$should_confirm_membership = wu_request('confirm_membership');
+		$should_confirm_membership = wu_request('confirm_membership')
+			&& Payment_Status::PENDING === $payment->get_status()
+			&& Payment_Status::COMPLETED === wu_request('status');
 
-		if ($should_confirm_membership) {
-			$membership = $this->get_object()->get_membership();
+		$payment->recalculate_totals();
+
+		// Persist the payment first: failed saves and repeat submissions grant nothing.
+		$saved = parent::handle_save();
+
+		if ($saved && $should_confirm_membership && Payment_Status::COMPLETED === $payment->get_status()) {
+			$membership = $payment->get_membership();
 
 			if ($membership) {
+				$is_initial_payment = Membership_Status::PENDING === $membership->get_status()
+					&& 0 === $membership->get_times_billed();
+
+				// The initial payment counts as a bill, but checkout already set its period.
 				$membership->add_to_times_billed(1);
 
-				$membership->renew(false, 'active');
+				if ($is_initial_payment) {
+					$membership->set_status(Membership_Status::ACTIVE);
+					$membership_saved = $membership->save();
+				} else {
+					$membership_saved = $membership->renew(false, Membership_Status::ACTIVE);
+				}
+
+				if (is_wp_error($membership_saved) || ! $membership_saved) {
+					// Leave the confirmation retryable when the membership could not be saved.
+					$payment->set_status(Payment_Status::PENDING);
+					$payment->save();
+
+					WP_Ultimo()->notices->add(
+						__('The membership could not be confirmed. Please review the membership and try again.', 'ultimate-multisite'),
+						'error',
+						'network-admin'
+					);
+					if ( ! headers_sent()) {
+						header_remove('Location');
+					}
+
+					return false;
+				}
 			}
 		}
 
-		return parent::handle_save();
+		return $saved;
 	}
 }

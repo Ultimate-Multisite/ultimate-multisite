@@ -96,6 +96,9 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 	 */
 	public function tearDown(): void {
 
+		$this->get_manager_instance()->rollback_checkout_transaction();
+		wu_save_setting('force_publish_sites_sync', false);
+
 		if ($this->customer && ! is_wp_error($this->customer)) {
 			$this->customer->delete();
 		}
@@ -205,6 +208,19 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$this->assertIsInt(
 			has_action('wu_transition_membership_status', [$manager, 'transition_membership_status'])
 		);
+	}
+
+	/**
+	 * Test init registers checkout transaction lifecycle hooks.
+	 */
+	public function test_init_registers_checkout_transaction_hooks(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertSame(0, has_action('wu_checkout_transaction_started', [$manager, 'begin_checkout_transaction']));
+		$this->assertSame(0, has_action('wu_checkout_transaction_committed', [$manager, 'commit_checkout_transaction']));
+		$this->assertSame(0, has_action('wu_checkout_transaction_rolled_back', [$manager, 'rollback_checkout_transaction']));
+		$this->assertSame(20, has_action('wu_membership_post_save', [$manager, 'maybe_defer_pending_site_publication']));
 	}
 
 	/**
@@ -410,6 +426,22 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 			Membership_Status::PENDING,
 			Membership_Status::TRIALING,
 			$membership->get_id()
+		);
+
+		$this->assertTrue(true);
+	}
+
+	/**
+	 * Test transition handler ignores a missing membership.
+	 */
+	public function test_transition_membership_status_missing_membership_returns_early(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$manager->transition_membership_status(
+			Membership_Status::PENDING,
+			Membership_Status::ACTIVE,
+			999999
 		);
 
 		$this->assertTrue(true);
@@ -788,13 +820,10 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 			}
 		);
 
-		$manager = $this->get_manager_instance();
+		$membership->set_status(Membership_Status::ACTIVE);
+		$saved = $membership->save();
 
-		$manager->transition_membership_status(
-			Membership_Status::PENDING,
-			Membership_Status::ACTIVE,
-			$membership->get_id()
-		);
+		$this->assertNotWPError($saved);
 
 		$this->assertFalse(
 			$published,
@@ -835,13 +864,10 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 			}
 		);
 
-		$manager = $this->get_manager_instance();
+		$membership->set_status(Membership_Status::ACTIVE);
+		$saved = $membership->save();
 
-		$manager->transition_membership_status(
-			Membership_Status::PENDING,
-			Membership_Status::ACTIVE,
-			$membership->get_id()
-		);
+		$this->assertNotWPError($saved);
 
 		$this->assertTrue(
 			$published,
@@ -850,6 +876,257 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 
 		// Restore setting.
 		wu_save_setting('force_publish_sites_sync', false);
+	}
+
+	/**
+	 * Publishing waits until checkout commits so the loopback can load the membership.
+	 */
+	public function test_transition_status_defers_publish_until_checkout_commit(): void {
+
+		wu_save_setting('force_publish_sites_sync', true);
+
+		$this->customer->set_email_verification('none');
+		$this->customer->save();
+
+		$membership = $this->create_membership(['status' => Membership_Status::PENDING]);
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Deferred Checkout Site',
+				'path'  => '/deferred-checkout/',
+			]
+		);
+
+		$published = false;
+		add_action(
+			'wu_before_pending_site_published',
+			function () use (&$published) {
+				$published = true;
+			}
+		);
+
+		$manager = $this->get_manager_instance();
+		$manager->begin_checkout_transaction();
+
+		$membership->set_status(Membership_Status::ACTIVE);
+		$saved = $membership->save();
+
+		$this->assertNotWPError($saved);
+
+		$this->assertFalse($published, 'Site publication must not start before the checkout transaction commits.');
+
+		$manager->commit_checkout_transaction();
+
+		$this->assertTrue($published, 'Site publication should start immediately after the checkout transaction commits.');
+	}
+
+	/**
+	 * A retry with an already-trialing membership still publishes after commit.
+	 */
+	public function test_trial_retry_without_status_change_defers_publish_until_checkout_commit(): void {
+
+		wu_save_setting('force_publish_sites_sync', true);
+
+		$this->customer->set_email_verification('none');
+		$this->customer->save();
+
+		$membership = $this->create_membership(['status' => Membership_Status::TRIALING]);
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Retried Trial Checkout Site',
+				'path'  => '/retried-trial-checkout/',
+			]
+		);
+
+		$published = false;
+		add_action(
+			'wu_before_pending_site_published',
+			function () use (&$published) {
+				$published = true;
+			}
+		);
+
+		$manager = $this->get_manager_instance();
+		$manager->begin_checkout_transaction();
+
+		$this->assertNotWPError($membership->save());
+		$this->assertFalse($published, 'Retried trial publication must not start before commit.');
+
+		$manager->commit_checkout_transaction();
+
+		$this->assertTrue($published, 'Retried trial publication should start after commit even without a status change.');
+	}
+
+	/**
+	 * A rolled-back checkout must discard deferred site publication.
+	 */
+	public function test_checkout_rollback_discards_deferred_site_publish(): void {
+
+		wu_save_setting('force_publish_sites_sync', true);
+
+		$this->customer->set_email_verification('none');
+		$this->customer->save();
+
+		$membership = $this->create_membership(['status' => Membership_Status::PENDING]);
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Rolled Back Checkout Site',
+				'path'  => '/rolled-back-checkout/',
+			]
+		);
+
+		$published = false;
+		add_action(
+			'wu_before_pending_site_published',
+			function () use (&$published) {
+				$published = true;
+			}
+		);
+
+		$manager = $this->get_manager_instance();
+		$manager->begin_checkout_transaction();
+
+		$membership->set_status(Membership_Status::ACTIVE);
+		$saved = $membership->save();
+
+		$this->assertNotWPError($saved);
+
+		$manager->rollback_checkout_transaction();
+		$manager->commit_checkout_transaction();
+
+		$refreshed = wu_get_membership($membership->get_id());
+
+		$this->assertFalse($published, 'Rolled-back checkout must not publish its pending site.');
+		$this->assertNotFalse($refreshed->get_pending_site(), 'Rolled-back checkout should leave the stored pending site untouched.');
+	}
+
+	/**
+	 * Publication is skipped when an add-on changes the membership before commit.
+	 */
+	public function test_checkout_commit_rechecks_membership_status(): void {
+
+		wu_save_setting('force_publish_sites_sync', true);
+
+		$membership = $this->create_membership(['status' => Membership_Status::PENDING]);
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Status Changed Checkout Site',
+				'path'  => '/status-changed-checkout/',
+			]
+		);
+
+		$published = false;
+		add_action(
+			'wu_before_pending_site_published',
+			function () use (&$published) {
+				$published = true;
+			}
+		);
+
+		$manager = $this->get_manager_instance();
+		$manager->begin_checkout_transaction();
+
+		$membership->set_status(Membership_Status::ACTIVE);
+		$this->assertNotWPError($membership->save());
+
+		$membership->set_status(Membership_Status::ON_HOLD);
+		$this->assertNotWPError($membership->save());
+
+		$manager->commit_checkout_transaction();
+
+		$this->assertFalse($published, 'A membership that is no longer active or trialing must not publish after commit.');
+	}
+
+	/**
+	 * Publication is skipped when email verification becomes pending before commit.
+	 */
+	public function test_checkout_commit_rechecks_email_verification(): void {
+
+		wu_save_setting('force_publish_sites_sync', true);
+
+		$this->customer->set_email_verification('none');
+		$this->customer->save();
+
+		$membership = $this->create_membership(['status' => Membership_Status::PENDING]);
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Verification Changed Checkout Site',
+				'path'  => '/verification-changed-checkout/',
+			]
+		);
+
+		$published = false;
+		add_action(
+			'wu_before_pending_site_published',
+			function () use (&$published) {
+				$published = true;
+			}
+		);
+
+		$manager = $this->get_manager_instance();
+		$manager->begin_checkout_transaction();
+
+		$membership->set_status(Membership_Status::ACTIVE);
+		$this->assertNotWPError($membership->save());
+
+		$this->customer->set_email_verification('pending');
+		$this->assertNotWPError($this->customer->save());
+
+		$manager->commit_checkout_transaction();
+
+		$this->assertFalse($published, 'A membership awaiting email verification must not publish after commit.');
+	}
+
+	/**
+	 * All memberships created by core or add-ons publish once after commit.
+	 */
+	public function test_checkout_commit_publishes_multiple_memberships(): void {
+
+		wu_save_setting('force_publish_sites_sync', true);
+
+		$memberships = [
+			$this->create_membership(['status' => Membership_Status::PENDING]),
+			$this->create_membership(['status' => Membership_Status::PENDING]),
+		];
+
+		foreach ($memberships as $index => $membership) {
+			$membership->create_pending_site(
+				[
+					'title' => 'Deferred Add-on Site ' . $index,
+					'path'  => '/deferred-addon-' . wp_rand() . '/',
+				]
+			);
+		}
+
+		$published_ids = [];
+		add_action(
+			'wu_before_pending_site_published',
+			function ($membership) use (&$published_ids) {
+				$published_ids[] = $membership->get_id();
+			}
+		);
+
+		$manager = $this->get_manager_instance();
+		$manager->begin_checkout_transaction();
+
+		foreach ($memberships as $membership) {
+			$membership->set_status(Membership_Status::ACTIVE);
+			$this->assertNotWPError($membership->save());
+		}
+
+		$this->assertSame([], $published_ids, 'Core and add-on memberships must remain deferred before commit.');
+
+		$manager->commit_checkout_transaction();
+
+		$expected_ids = array_map(fn($membership) => $membership->get_id(), $memberships);
+		sort($expected_ids);
+		sort($published_ids);
+
+		$this->assertSame($expected_ids, $published_ids, 'Every deferred membership should publish exactly once after commit.');
 	}
 
 	// ========================================================================

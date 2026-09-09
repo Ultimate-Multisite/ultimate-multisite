@@ -35,6 +35,7 @@ class Testable_Payment_Edit_Admin_Page extends Payment_Edit_Admin_Page {
 /**
  * Test class for Payment_Edit_Admin_Page.
  */
+// phpcs:ignore Generic.Files.OneObjectStructurePerFile.MultipleFound -- The page fixture above is local to this test.
 class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 	/**
@@ -73,7 +74,10 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			$_POST['cancel_membership'],
 			$_REQUEST['cancel_membership'],
 			$_POST['invoice_message'],
-			$_REQUEST['invoice_message']
+			$_REQUEST['invoice_message'],
+			$_POST['status'],
+			$_REQUEST['status'],
+			$_POST['active']
 		);
 		parent::tearDown();
 	}
@@ -737,6 +741,139 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Confirmation preserves the first period and extends genuine renewals once.
+	 *
+	 * @dataProvider manual_confirmation_periods
+	 */
+	public function test_manual_confirmation_period(string $status, int $times_billed, bool $renews, bool $fail_first = false): void {
+		$customer = wu_create_customer([
+			'user_id'            => self::factory()->user->create(),
+			'email_verification' => 'none',
+		]);
+		$this->assertNotWPError($customer);
+		$product = wu_create_product([
+			'name'          => 'Manual Confirmation Plan',
+			'slug'          => 'manual-confirmation-' . wp_generate_password(8, false),
+			'type'          => 'plan',
+			'pricing_type'  => 'paid',
+			'amount'        => 29.99,
+			'recurring'     => true,
+			'duration'      => 1,
+			'duration_unit' => 'month',
+		]);
+		$this->assertNotWPError($product);
+		$expiration = gmdate('Y-m-09 23:59:59', strtotime('+1 year'));
+		$membership = wu_create_membership([
+			'customer_id'     => $customer->get_id(),
+			'plan_id'         => $product->get_id(),
+			'status'          => $status,
+			'amount'          => 29.99,
+			'recurring'       => true,
+			'duration'        => 1,
+			'duration_unit'   => 'month',
+			'times_billed'    => $times_billed,
+			'date_expiration' => $expiration,
+		]);
+		$this->assertNotWPError($membership);
+		$payment = wu_create_payment([
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+			'gateway'       => 'manual',
+			'status'        => Payment_Status::PENDING,
+			'total'         => 128.99,
+		]);
+		$this->assertNotWPError($payment);
+
+		$membership->create_pending_site([
+			'title'         => 'Manual Confirmation Site',
+			'path'          => '/manual-confirmation-' . strtolower(wp_generate_password(8, false)) . '/',
+			'customer_id'   => $customer->get_id(),
+			'membership_id' => $membership->get_id(),
+		]);
+		$force_sync = wu_get_setting('force_publish_sites_sync', false);
+		wu_save_setting('force_publish_sites_sync', true);
+		add_filter('wp_redirect', '__return_false');
+
+		$this->page->object             = $payment;
+		$_POST['confirm_membership']    = '1';
+		$_REQUEST['confirm_membership'] = '1';
+		$_POST['status']                = Payment_Status::COMPLETED;
+		$_REQUEST['status']             = Payment_Status::COMPLETED;
+		$expected_expiration            = $renews ? gmdate('Y-m-d H:i:s', strtotime('+1 month', strtotime($expiration))) : $expiration;
+
+		try {
+			if ($fail_first) {
+				$fail_save = static function ($data, $_original, $model) use ($membership) {
+					if ($model->get_id() === $membership->get_id()) {
+						$model->set_status('invalid-status');
+					}
+					return $data;
+				};
+				add_filter('wu_membership_pre_save', $fail_save, 10, 3);
+				try {
+					$this->assertFalse($this->page->handle_save());
+				} finally {
+					remove_filter('wu_membership_pre_save', $fail_save, 10);
+				}
+				$this->assertSame(Payment_Status::PENDING, wu_get_payment($payment->get_id())->get_status());
+				$this->assertSame($times_billed, wu_get_membership($membership->get_id())->get_times_billed());
+				$this->assertSame($expiration, wu_get_membership($membership->get_id())->get_date_expiration());
+				$this->page->object = wu_get_payment($payment->get_id());
+			}
+
+			$this->assertTrue($this->page->handle_save());
+			$membership = wu_get_membership($membership->get_id());
+			$this->assertSame('active', $membership->get_status());
+			$this->assertSame($expected_expiration, $membership->get_date_expiration());
+			$this->assertSame($times_billed + 1, $membership->get_times_billed());
+			$this->assertSame(Payment_Status::COMPLETED, wu_get_payment($payment->get_id())->get_status());
+			if ('pending' === $status) {
+				$this->assertEmpty($membership->get_pending_site());
+				$this->assertCount(1, $membership->get_sites());
+			}
+
+			// A fresh request reposting the confirmation must not bill or extend again.
+			$this->page->object = wu_get_payment($payment->get_id());
+			$this->assertTrue($this->page->handle_save());
+			$membership = wu_get_membership($membership->get_id());
+			$this->assertSame($expected_expiration, $membership->get_date_expiration());
+			$this->assertSame($times_billed + 1, $membership->get_times_billed());
+		} finally {
+			remove_filter('wp_redirect', '__return_false');
+			wu_save_setting('force_publish_sites_sync', $force_sync);
+		}
+	}
+
+	public function manual_confirmation_periods(): array {
+		return [
+			'initial payment'        => ['pending', 0, false],
+			'active renewal'         => ['active', 1, true],
+			'pending billed renewal' => ['pending', 1, true],
+			'expired renewal'        => ['expired', 1, true],
+			'initial save retry'     => ['pending', 0, false, true],
+			'renewal save retry'     => ['active', 1, true, true],
+		];
+	}
+
+	/**
+	 * A failed payment save must not grant entitlement before the admin retries.
+	 */
+	public function test_confirmation_does_not_apply_when_payment_save_fails(): void {
+		$payment = $this->createMock(Payment::class);
+		$payment->method('recalculate_totals')->willReturn($payment);
+		$payment->method('get_status')->willReturn(Payment_Status::PENDING);
+		$payment->method('save')->willReturn(new \WP_Error('test', 'Save failed'));
+		$payment->method('load_attributes_from_post')->willReturn(null);
+		$payment->expects($this->never())->method('get_membership');
+		$this->page->object             = $payment;
+		$_REQUEST['confirm_membership'] = '1';
+		$_REQUEST['status']             = Payment_Status::COMPLETED;
+		$_POST['status']                = Payment_Status::COMPLETED;
+
+		$this->assertFalse($this->page->handle_save());
+	}
+
+	/**
 	 * Test handle_save returns false when parent save fails.
 	 */
 	public function test_handle_save_returns_false_on_save_error(): void {
@@ -936,6 +1073,7 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		} catch (\Throwable $e) {
 			// Source code bug: $payment->get_id() called before null check.
 			// This is expected behavior given the source code.
+			$this->assertInstanceOf(\Error::class, $e);
 		}
 		ob_end_clean();
 

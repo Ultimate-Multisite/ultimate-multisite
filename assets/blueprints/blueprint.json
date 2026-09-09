@@ -2,7 +2,7 @@
   "$schema": "https://playground.wordpress.net/blueprint-schema.json",
   "meta": {
     "title": "Ultimate Multisite Demo",
-    "description": "A demo of Ultimate Multisite running in your browser - transform your WordPress Multisite into a Website as a Service platform.",
+    "description": "Explore Ultimate Multisite on a WordPress Multisite network in your browser.",
     "author": "Ultimate Multisite Community",
     "categories": ["Multisite", "Site Management", "WaaS"]
   },
@@ -36,7 +36,7 @@
     {
       "step": "login",
       "username": "admin",
-      "password": "password"
+      "password": "[redacted-credential]"
     }
   ]
 }

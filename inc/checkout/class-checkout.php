@@ -623,6 +623,17 @@ class Checkout {
 		$wpdb->query('START TRANSACTION'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		try {
+			/**
+			 * Fires after the checkout database transaction starts.
+			 *
+			 * Site provisioning listeners can use this to defer work that must read
+			 * newly-created checkout records from another database connection.
+			 *
+			 * @since 2.15.2
+			 * @param Checkout $checkout The checkout instance.
+			 */
+			do_action('wu_checkout_transaction_started', $this);
+
 			/*
 			 * Allow developers to intercept an order submission.
 			 */
@@ -658,10 +669,44 @@ class Checkout {
 		if (is_wp_error($this->errors)) {
 			$wpdb->query('ROLLBACK'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
+			/**
+			 * Fires after the checkout database transaction rolls back.
+			 *
+			 * @since 2.15.2
+			 * @param \WP_Error $errors   The checkout errors that caused the rollback.
+			 * @param Checkout  $checkout The checkout instance.
+			 */
+			try {
+				do_action('wu_checkout_transaction_rolled_back', $this->errors, $this);
+			} catch (\Throwable $e) {
+				/*
+				 * The transaction is already rolled back. A lifecycle listener must
+				 * not prevent checkout from returning the original error response.
+				 */
+				wu_maybe_log_error($e);
+			}
+
 			wp_send_json_error($this->errors);
 		}
 
 		$wpdb->query('COMMIT'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		/**
+		 * Fires after the checkout database transaction commits.
+		 *
+		 * @since 2.15.2
+		 * @param array    $results  Checkout result data.
+		 * @param Checkout $checkout The checkout instance.
+		 */
+		try {
+			do_action('wu_checkout_transaction_committed', $results, $this);
+		} catch (\Throwable $e) {
+			/*
+			 * The order is durable at this point. Log extension failures instead
+			 * of returning an error that could prompt a duplicate payment attempt.
+			 */
+			wu_maybe_log_error($e);
+		}
 
 		// Clean up draft payment if it exists
 		$draft_payment_id = $this->session->get('draft_payment_id');
@@ -860,7 +905,7 @@ class Checkout {
 			*/
 		if ($cart->should_collect_payment() === false) {
 			$gateway = wu_get_gateway('free');
-		} elseif ( ! $gateway || $gateway->get_id() === 'free') {
+		} elseif ( ! $gateway || $gateway->get_id() === 'free' || ! array_key_exists($gateway_id, wu_get_active_gateway_as_options())) {
 			return new \WP_Error('no-gateway', __('Payment gateway not registered.', 'ultimate-multisite'));
 		}
 
@@ -1045,11 +1090,12 @@ class Checkout {
 
 				if (wu_get_setting('allow_trial_without_payment_method', false) && $this->customer->get_email_verification() !== 'pending') {
 					/*
-					 * In this particular case, we need to set the status to trialing here as we will not update the membership after and then, publish the site.
+					 * In this particular case, we need to set the status to trialing
+					 * here as we will not update the membership afterward. Saving the
+					 * transition lets Membership_Manager defer site publication until
+					 * the surrounding checkout transaction commits.
 					 */
 					$this->membership->set_status(Membership_Status::TRIALING);
-
-					$this->membership->publish_pending_site_async();
 				}
 
 				$this->membership->save();
@@ -3152,8 +3198,8 @@ class Checkout {
 				$gateway = wu_get_gateway($payment->get_gateway());
 			} elseif ($this->order->should_collect_payment() === false) {
 				$gateway = wu_get_gateway('free');
-			} elseif ($gateway && $gateway->get_id() === 'free') {
-					$this->errors = new \WP_Error('no-gateway', __('Payment gateway not registered.', 'ultimate-multisite'));
+			} elseif ( ! $gateway || $gateway->get_id() === 'free' || ! array_key_exists($gateway->get_id(), wu_get_active_gateway_as_options())) {
+				$this->errors = new \WP_Error('no-gateway', __('Payment gateway not registered.', 'ultimate-multisite'));
 
 					return false;
 			}

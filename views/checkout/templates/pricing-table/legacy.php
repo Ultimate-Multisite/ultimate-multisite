@@ -308,7 +308,7 @@ if (null !== $first_recurring_product) {
 				$prices_total = [
 					3  => __('every 3 months', 'ultimate-multisite'),
 					6  => sprintf(
-						// translators: %1$s: the duration number, %2$s: the duration unit.
+						// translators: %1$s: the duration number, %2$s: the duration unit (days, weeks, months, etc).
 						__('every %1$s %2$s', 'ultimate-multisite'),
 						6,
 						wu_get_translatable_string('months')

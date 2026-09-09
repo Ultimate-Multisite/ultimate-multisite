@@ -237,7 +237,7 @@ class Dashboard_Widgets implements \WP_Ultimo\Interfaces\Singleton {
 						'tab' => 'payment-gateways',
 					]
 				),
-				'done'              => ! empty(wu_get_active_gateways()),
+				'done'              => ! empty(wu_get_active_gateway_as_options()),
 			],
 			'your-first-customer' => [
 				'done'              => ! empty(wu_get_customers()),

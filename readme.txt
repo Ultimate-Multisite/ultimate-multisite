@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 8.2
 Tested up to: 7.1
-Stable tag: 2.15.1
+Stable tag: 2.15.2
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -251,6 +251,17 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+
+= 2.15.2 =
+Version [2.15.2] - Released on 2026-09-08
+- Fix: Checkout now requires existing WordPress users to log in, preserves correct membership expiration dates, and publishes pending sites only after signup records are committed.
+- Fix: SSO magic links now recognize direct custom domains, and SSO remains disabled until administrators explicitly enable it.
+- Fix: Setup wizard conditional fields and wp-config.php updates now behave reliably without duplicate constants.
+- Fix: Site duplication preserves empty plugin table schemas, settings stay isolated per network, and transient database misses recover correctly.
+- Fix: PayPal setup now rejects invalid webhook URLs with guidance for configuring a public HTTPS endpoint.
+- Fix: MCP integration now requires the canonical network-active MCP Adapter and reports missing or unsupported dependencies.
+- Fix: Order bump controls, translations, PHP 8.5 compatibility, and bundled frontend dependencies no longer emit known warnings or build failures.
+- Improved: Front-end My Sites toolbar queries are lighter on large networks, while dependency and CI maintenance improves release reliability.
 
 = 2.15.1 =
 Version 2.15.1 - Released on 2026-08-19

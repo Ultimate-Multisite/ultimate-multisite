@@ -288,7 +288,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 
 		$actions = [
 			'activate' => [
-				// translators: %s is the integration name
+				// translators: %s is the integration name.
 				'title' => sprintf(__('Setup %s', 'ultimate-multisite'), $this->get_title()),
 				'url'   => wu_network_admin_url(
 					'wp-ultimo-hosting-integration-wizard',
@@ -497,7 +497,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 * @since 2.0.0
 	 *
 	 * @param array $constant_values Key => Value of the necessary constants.
-	 * @return void
+	 * @return bool|\WP_Error Whether a constant was updated, or an update error.
 	 */
 	public function setup_constants($constant_values) {
 		/*
@@ -507,11 +507,20 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 		 *
 		 * Note that this is also performed on the get_constants_string.
 		 */
-		$values = shortcode_atts(array_flip($this->get_all_constants()), $constant_values);
+		$values  = shortcode_atts(array_flip($this->get_all_constants()), $constant_values);
+		$updated = false;
 
 		foreach ($values as $constant => $value) {
-			WP_Config::get_instance()->inject_wp_config_constant($constant, $value);
+			$result = WP_Config::get_instance()->inject_wp_config_constant($constant, $value);
+
+			if (is_wp_error($result)) {
+				return $result;
+			}
+
+			$updated = $updated || $result;
 		}
+
+		return $updated;
 	}
 
 	/**
@@ -565,7 +574,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 
 		$explainer_lines = [
 			'will'     => [
-				// translators: %s is the name of the integration e.g. RunCloud
+				// translators: %s: hosting provider name.
 				'send_domains' => sprintf(__('Send API calls to %s servers with domain names added to this network', 'ultimate-multisite'), $this->get_title()),
 			],
 			'will_not' => [],
@@ -573,11 +582,11 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 
 		if ($this->supports('autossl')) {
 
-			// translators: %s is the name of the integration e.g. RunCloud
+			// translators: %s: hosting provider name.
 			$explainer_lines['will'][] = sprintf(__('Fetch and install a SSL certificate on %s platform after the domain is added.', 'ultimate-multisite'), $this->get_title());
 		} else {
 
-			// translators: %s is the name of the integration e.g. RunCloud
+			// translators: %s: hosting provider name.
 			$explainer_lines['will_not'][] = sprintf(__('Fetch and install a SSL certificate on %s platform after the domain is added. This needs to be done manually.', 'ultimate-multisite'), $this->get_title());
 		}
 

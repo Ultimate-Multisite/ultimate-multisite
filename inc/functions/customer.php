@@ -321,7 +321,7 @@ function wu_get_all_customer_meta($customer_id, $include_unset = true) {
  * @param bool   $single       To return single values or not.
  * @return mixed
  */
-function wu_get_customer_meta($customer_id, $meta_key, $default = false, $single = true) {
+function wu_get_customer_meta($customer_id, $meta_key, $default = false, $single = true) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound -- Preserve the public parameter name for named-argument compatibility.
 
 	$customer = wu_get_customer($customer_id);
 
@@ -524,6 +524,12 @@ function wu_username_from_email($email, $new_user_args = [], $suffix = '') {
 	if ($suffix) {
 		$username .= $suffix;
 	}
+
+	/*
+	 * sanitize_user() preserves spaces in compound names. Match our WooCommerce
+	 * username convention, before checking blocked names and existing users.
+	 */
+	$username = preg_replace('/\s+/', '.', $username);
 
 	$illegal_logins = (array) apply_filters('illegal_user_logins', []); // phpcs:ignore
 

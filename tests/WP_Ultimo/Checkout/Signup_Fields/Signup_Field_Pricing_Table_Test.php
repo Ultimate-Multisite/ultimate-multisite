@@ -7,6 +7,7 @@
 
 namespace WP_Ultimo\Checkout\Signup_Fields;
 
+use WP_Ultimo\Checkout\Signup_Fields\Field_Templates\Pricing_Table\List_Pricing_Table_Field_Template;
 use WP_UnitTestCase;
 
 /**
@@ -203,6 +204,56 @@ class Signup_Field_Pricing_Table_Test extends WP_UnitTestCase {
 
 		// With no valid products, the result should be an array with one note field (template rendered).
 		$this->assertIsArray( $fields );
+	}
+
+	/**
+	 * Test list template uses contact products' configured labels with a default fallback.
+	 */
+	public function test_list_template_renders_contact_us_labels(): void {
+		$custom_label_product = wu_create_product(
+			[
+				'name'          => 'Custom Contact Product',
+				'slug'          => 'custom-contact-product-' . wp_rand(),
+				'pricing_type'  => 'contact_us',
+				'type'          => 'plan',
+				'duration'      => 1,
+				'duration_unit' => 'month',
+				'active'        => true,
+			]
+		);
+
+		$default_label_product = wu_create_product(
+			[
+				'name'          => 'Default Contact Product',
+				'slug'          => 'default-contact-product-' . wp_rand(),
+				'pricing_type'  => 'contact_us',
+				'type'          => 'plan',
+				'duration'      => 1,
+				'duration_unit' => 'month',
+				'active'        => true,
+			]
+		);
+
+		$custom_label_product->set_contact_us_label( 'Talk to Sales' );
+		$custom_label_product->save();
+
+		$template = new List_Pricing_Table_Field_Template();
+		$output   = $template->render(
+			[
+				'products'                  => [
+					['id' => $custom_label_product->get_id()],
+					['id' => $default_label_product->get_id()],
+				],
+				'duration'                  => 1,
+				'duration_unit'             => 'month',
+				'force_different_durations' => false,
+				'classes'                   => '',
+			]
+		);
+
+		$this->assertStringContainsString( 'type="button"', $output );
+		$this->assertStringContainsString( 'value="Talk to Sales"', $output );
+		$this->assertStringContainsString( 'value="Contact us"', $output );
 	}
 
 	/**

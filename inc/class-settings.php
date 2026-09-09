@@ -74,6 +74,8 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function init(): void {
 
+		add_action('init', [$this, 'maybe_preserve_legacy_sso_default'], 1);
+
 		add_action('init', [$this, 'handle_legacy_filters'], 2);
 
 		add_action('wu_render_settings', [$this, 'handle_legacy_scripts']);
@@ -90,6 +92,43 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 		// plugin deactivation in the correct state.
 		add_action('wu_activation', [$this, 'sync_wp_registration_option']);
 		add_action('wu_after_save_settings', [$this, 'sync_wp_registration_option']);
+	}
+
+	/**
+	 * Keep SSO on for networks that were relying on the pre-2.15.2 fallback.
+	 *
+	 * `get_setting_defaults()` returned `enable_sso => 1` until 2.15.1, so a network that
+	 * never opened the settings page still had SSO on. 2.15.2 changed that fallback to `0`
+	 * to give fresh installations a safer default, but the fallback is also what an older
+	 * network without a saved `enable_sso` key reads, so upgrading silently turns SSO off
+	 * for it — with no notice and nothing in the settings UI to explain the change.
+	 *
+	 * This writes the previous default once, and only for a network that is already set up
+	 * and has no value of its own. A fresh installation is untouched: the installer persists
+	 * the whole defaults map, so `enable_sso` is already present (and `0`) by the time this
+	 * runs. The saved key is its own guard — once written, this returns on the `isset()`
+	 * below and never writes again, so there is no migration flag to store or read.
+	 *
+	 * @since 2.15.3
+	 * @return void
+	 */
+	public function maybe_preserve_legacy_sso_default(): void {
+
+		$settings = $this->get_all();
+
+		/*
+		 * Nothing saved yet: the plugin has not been set up on this network, and the
+		 * installer will persist the current defaults, including the new SSO one.
+		 */
+		if (empty($settings)) {
+			return;
+		}
+
+		if (isset($settings['enable_sso'])) {
+			return;
+		}
+
+		$this->save_setting('enable_sso', 1);
 	}
 
 	/**

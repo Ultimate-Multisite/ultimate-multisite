@@ -32,7 +32,7 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 	/**
 	 * Minimum supported canonical MCP Adapter plugin version.
 	 *
-	 * @since 2.16.0
+	 * @since 2.15.2
 	 * @var string
 	 */
 	private const MINIMUM_MCP_ADAPTER_VERSION = '0.6.1';
@@ -40,7 +40,7 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 	/**
 	 * Canonical MCP Adapter plugin basename.
 	 *
-	 * @since 2.16.0
+	 * @since 2.15.2
 	 * @var string
 	 */
 	private const MCP_ADAPTER_PLUGIN_BASENAME = 'mcp-adapter/mcp-adapter.php';
@@ -48,7 +48,7 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 	/**
 	 * Minimum WordPress version with the Abilities API in core.
 	 *
-	 * @since 2.16.0
+	 * @since 2.15.2
 	 * @var string
 	 */
 	private const MINIMUM_WORDPRESS_VERSION = '6.9';
@@ -282,7 +282,7 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 	/**
 	 * Check whether the canonical MCP Adapter plugin is available.
 	 *
-	 * @since 2.16.0
+	 * @since 2.15.2
 	 * @return bool
 	 */
 	public function is_mcp_available(): bool {
@@ -303,7 +303,7 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 		/**
 		 * Filter whether the canonical MCP Adapter plugin is available.
 		 *
-		 * @since 2.16.0
+		 * @since 2.15.2
 		 * @param bool $available Whether a supported canonical plugin is available.
 		 * @return bool
 		 */
@@ -313,7 +313,7 @@ class MCP_Adapter implements \WP_Ultimo\Interfaces\Singleton {
 	/**
 	 * Get the MCP dependency requirement message.
 	 *
-	 * @since 2.16.0
+	 * @since 2.15.2
 	 * @return string
 	 */
 	private function get_dependency_message(): string {
