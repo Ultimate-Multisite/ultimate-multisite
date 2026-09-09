@@ -18,6 +18,56 @@ describe("Manual Gateway Checkout Flow", () => {
 		});
 	});
 
+	it("Preserves plan focus after checkout refreshes", () => {
+		const planSelector = '#wrapper-field-pricing_table input[type="radio"][name="products[]"]';
+
+		cy.intercept("POST", "**/admin-ajax.php*", (req) => {
+			if (req.body.action === "wu_create_order" || req.url.includes("action=wu_create_order")) {
+				req.alias = "createOrder";
+				req.continue((response) => {
+					response.setDelay(500);
+				});
+			}
+		});
+
+		cy.clearCookies();
+		cy.visit("/register", { failOnStatusCode: false });
+		cy.get("#field-email_address", { timeout: 30000 }).should("be.visible");
+		cy.wait("@createOrder");
+
+		cy.get(planSelector).should("have.length.at.least", 2).then(($plans) => {
+			const unselectedPlan = Array.from($plans).find((plan) => ! plan.checked);
+
+			expect(unselectedPlan).to.exist;
+			cy.wrap(unselectedPlan).focus().type(" ");
+			cy.wait("@createOrder");
+			cy.get(`${planSelector}[value="${unselectedPlan.value}"]`).should("be.focused");
+		});
+
+		cy.get(`${planSelector}:checked`).type("{rightarrow}");
+		cy.wait("@createOrder");
+		cy.get(`${planSelector}:checked`).should("be.focused");
+
+		cy.get(planSelector).then(($plans) => {
+			const unselectedPlan = Array.from($plans).find((plan) => ! plan.checked);
+
+			expect(unselectedPlan).to.exist;
+			cy.wrap(unselectedPlan).click();
+			cy.wait("@createOrder");
+			cy.get(`${planSelector}[value="${unselectedPlan.value}"]`).should("be.focused");
+		});
+
+		cy.get(planSelector).then(($plans) => {
+			const unselectedPlan = Array.from($plans).find((plan) => ! plan.checked);
+
+			expect(unselectedPlan).to.exist;
+			cy.wrap(unselectedPlan).click();
+			cy.get("#field-email_address").focus().type("focus").should("be.focused");
+			cy.wait("@createOrder");
+			cy.get("#field-email_address").should("be.focused");
+		});
+	});
+
 	it("Should complete the UM checkout form with manual gateway", {
 		retries: 0,
 	}, () => {
