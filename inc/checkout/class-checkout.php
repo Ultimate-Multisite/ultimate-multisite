@@ -676,7 +676,15 @@ class Checkout {
 			 * @param \WP_Error $errors   The checkout errors that caused the rollback.
 			 * @param Checkout  $checkout The checkout instance.
 			 */
-			do_action('wu_checkout_transaction_rolled_back', $this->errors, $this);
+			try {
+				do_action('wu_checkout_transaction_rolled_back', $this->errors, $this);
+			} catch (\Throwable $e) {
+				/*
+				 * The transaction is already rolled back. A lifecycle listener must
+				 * not prevent checkout from returning the original error response.
+				 */
+				wu_maybe_log_error($e);
+			}
 
 			wp_send_json_error($this->errors);
 		}
@@ -690,7 +698,15 @@ class Checkout {
 		 * @param array    $results  Checkout result data.
 		 * @param Checkout $checkout The checkout instance.
 		 */
-		do_action('wu_checkout_transaction_committed', $results, $this);
+		try {
+			do_action('wu_checkout_transaction_committed', $results, $this);
+		} catch (\Throwable $e) {
+			/*
+			 * The order is durable at this point. Log extension failures instead
+			 * of returning an error that could prompt a duplicate payment attempt.
+			 */
+			wu_maybe_log_error($e);
+		}
 
 		// Clean up draft payment if it exists
 		$draft_payment_id = $this->session->get('draft_payment_id');
@@ -1074,11 +1090,12 @@ class Checkout {
 
 				if (wu_get_setting('allow_trial_without_payment_method', false) && $this->customer->get_email_verification() !== 'pending') {
 					/*
-					 * In this particular case, we need to set the status to trialing here as we will not update the membership after and then, publish the site.
+					 * In this particular case, we need to set the status to trialing
+					 * here as we will not update the membership afterward. Saving the
+					 * transition lets Membership_Manager defer site publication until
+					 * the surrounding checkout transaction commits.
 					 */
 					$this->membership->set_status(Membership_Status::TRIALING);
-
-					$this->membership->publish_pending_site_async();
 				}
 
 				$this->membership->save();

@@ -99,9 +99,9 @@ class Membership_Manager extends Base_Manager {
 
 		add_action('wu_transition_membership_status', [$this, 'handle_pending_site_on_cancellation'], 10, 3);
 
-		add_action('wu_checkout_transaction_started', [$this, 'begin_checkout_transaction'], 10, 0);
-		add_action('wu_checkout_transaction_committed', [$this, 'commit_checkout_transaction'], 10, 0);
-		add_action('wu_checkout_transaction_rolled_back', [$this, 'rollback_checkout_transaction'], 10, 0);
+		add_action('wu_checkout_transaction_started', [$this, 'begin_checkout_transaction'], 0, 0);
+		add_action('wu_checkout_transaction_committed', [$this, 'commit_checkout_transaction'], 0, 0);
+		add_action('wu_checkout_transaction_rolled_back', [$this, 'rollback_checkout_transaction'], 0, 0);
 
 		/*
 		 * Deal with delayed/schedule swaps
@@ -451,15 +451,7 @@ class Membership_Manager extends Base_Manager {
 		 */
 		$membership = wu_get_membership($membership_id);
 
-		/*
-		 * If the customer has not yet verified their email, hold off on
-		 * publishing the pending site. The site will be published later
-		 * when the customer completes email verification (handled in
-		 * Customer_Manager::handle_email_verification()).
-		 */
-		$customer = $membership->get_customer();
-
-		if ($customer && $customer->get_email_verification() === 'pending') {
+		if ( ! $this->can_publish_pending_site($membership)) {
 			return;
 		}
 
@@ -475,6 +467,43 @@ class Membership_Manager extends Base_Manager {
 		}
 
 		$membership->publish_pending_site_async();
+	}
+
+	/**
+	 * Checks whether a membership is still eligible for pending-site publication.
+	 *
+	 * The state is checked from storage immediately before dispatch so gateway or
+	 * add-on changes made later in the same checkout are respected.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @param \WP_Ultimo\Models\Membership|false $membership Membership to check.
+	 * @return bool
+	 */
+	private function can_publish_pending_site($membership): bool {
+
+		if ( ! $membership) {
+			return false;
+		}
+
+		$allowed_statuses = [
+			Membership_Status::ACTIVE,
+			Membership_Status::TRIALING,
+		];
+
+		if ( ! in_array($membership->get_status(), $allowed_statuses, true)) {
+			return false;
+		}
+
+		/*
+		 * If the customer has not yet verified their email, hold off on
+		 * publishing the pending site. The site will be published later
+		 * when the customer completes email verification (handled in
+		 * Customer_Manager::handle_email_verification()).
+		 */
+		$customer = $membership->get_customer();
+
+		return ! $customer || 'pending' !== $customer->get_email_verification();
 	}
 
 	/**
@@ -504,8 +533,18 @@ class Membership_Manager extends Base_Manager {
 		foreach ($membership_ids as $membership_id) {
 			$membership = wu_get_membership($membership_id);
 
-			if ($membership) {
+			if ( ! $this->can_publish_pending_site($membership)) {
+				continue;
+			}
+
+			try {
 				$membership->publish_pending_site_async();
+			} catch (\Throwable $e) {
+				/*
+				 * The checkout transaction is already committed. Log a failed
+				 * dispatch and continue so other memberships and listeners run.
+				 */
+				wu_maybe_log_error($e);
 			}
 		}
 	}
