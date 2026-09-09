@@ -398,19 +398,47 @@
 					});
 
 				},
-				remember_plan_focus(product_id, event) {
+				clear_plan_focus(plan_focus) {
 
-					if (! event || event.target !== event.target.ownerDocument.activeElement) {
-
-						this.plan_focus = null;
+					if (plan_focus && plan_focus !== this.plan_focus) {
 
 						return;
 					}
 
-					this.plan_focus = {
+					if (this.plan_focus && this.plan_focus.on_focus) {
+
+						this.$el.removeEventListener('focusin', this.plan_focus.on_focus);
+					}
+
+					this.plan_focus = null;
+
+				},
+				remember_plan_focus(product_id, event) {
+
+					this.clear_plan_focus();
+
+					if (! event || event.target !== event.target.ownerDocument.activeElement) {
+
+						return;
+					}
+
+					const plan_focus = {
 						element: event.target,
+						has_moved: false,
 						product_id,
 					};
+
+					plan_focus.on_focus = function (focus_event) {
+
+						if (focus_event.target !== plan_focus.element) {
+
+							plan_focus.has_moved = true;
+						}
+
+					};
+
+					this.$el.addEventListener('focusin', plan_focus.on_focus);
+					this.plan_focus = plan_focus;
 
 				},
 				restore_plan_focus(plan_focus) {
@@ -428,12 +456,15 @@
 						}
 
 						const active_element = this.$el.ownerDocument.activeElement;
-						this.plan_focus = null;
 
-						if (active_element !== this.$el.ownerDocument.body && active_element !== plan_focus.element) {
+						if (plan_focus.has_moved || (active_element !== this.$el.ownerDocument.body && active_element !== plan_focus.element)) {
+
+							this.clear_plan_focus(plan_focus);
 
 							return;
 						}
+
+						this.clear_plan_focus(plan_focus);
 
 						jQuery(this.$el).find('input[type="radio"][name="products[]"]').filter(function () {
 
@@ -585,7 +616,12 @@
 
 						that.restore_plan_focus(plan_focus);
 
-					}, this.handle_errors);
+					}, function (errors) {
+
+						that.clear_plan_focus(plan_focus);
+						that.handle_errors(errors);
+
+					});
 
 				},
 				get_errors() {
