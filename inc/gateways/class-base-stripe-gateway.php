@@ -2806,9 +2806,17 @@ class Base_Stripe_Gateway extends Base_Gateway {
 
 		/*
 		 * Now try to get a subscription from the invoice object.
+		 * Basil moved the reference into parent.subscription_details. Keep the
+		 * legacy shape for older events, including expanded subscription objects.
 		 */
-		if ( ! empty($invoice->subscription)) {
-			$subscription = $this->get_stripe_client()->subscriptions->retrieve($invoice->subscription);
+		$invoice_subscription_id = $invoice->subscription ?? $invoice->parent->subscription_details->subscription ?? null;
+
+		if (is_object($invoice_subscription_id)) {
+			$invoice_subscription_id = $invoice_subscription_id->id ?? null;
+		}
+
+		if (is_string($invoice_subscription_id) && '' !== $invoice_subscription_id) {
+			$subscription = $this->get_stripe_client()->subscriptions->retrieve($invoice_subscription_id);
 		}
 
 		/*
