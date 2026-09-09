@@ -50,7 +50,7 @@ class Customers_Membership_List_Table extends Membership_List_Table {
 
 		if (empty($date_expiration) || '0000-00-00 00:00:00' === $date_expiration) {
 			// translators: %1$s: lifetime membership label, %2$s: lifetime expiration description.
-			$expiration_label = sprintf('%1$s / %2$s', __('Lifetime', 'ultimate-multisite'), __('It never expires', 'ultimate-multisite'));
+			$expiration_label = sprintf(__('%1$s / %2$s', 'ultimate-multisite'), __('Lifetime', 'ultimate-multisite'), __('It never expires', 'ultimate-multisite'));
 		} else {
 			$expired = time() >= strtotime($date_expiration);
 			// translators: %s is a placeholder for the human-readable time difference, e.g., "2 hours ago".
