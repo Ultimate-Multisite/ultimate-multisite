@@ -96,6 +96,9 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 	 */
 	public function tearDown(): void {
 
+		$this->get_manager_instance()->rollback_checkout_transaction();
+		wu_save_setting('force_publish_sites_sync', false);
+
 		if ($this->customer && ! is_wp_error($this->customer)) {
 			$this->customer->delete();
 		}
@@ -205,6 +208,18 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$this->assertIsInt(
 			has_action('wu_transition_membership_status', [$manager, 'transition_membership_status'])
 		);
+	}
+
+	/**
+	 * Test init registers checkout transaction lifecycle hooks.
+	 */
+	public function test_init_registers_checkout_transaction_hooks(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertIsInt(has_action('wu_checkout_transaction_started', [$manager, 'begin_checkout_transaction']));
+		$this->assertIsInt(has_action('wu_checkout_transaction_committed', [$manager, 'commit_checkout_transaction']));
+		$this->assertIsInt(has_action('wu_checkout_transaction_rolled_back', [$manager, 'rollback_checkout_transaction']));
 	}
 
 	/**
@@ -850,6 +865,89 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 
 		// Restore setting.
 		wu_save_setting('force_publish_sites_sync', false);
+	}
+
+	/**
+	 * Publishing waits until checkout commits so the loopback can load the membership.
+	 */
+	public function test_transition_status_defers_publish_until_checkout_commit(): void {
+
+		wu_save_setting('force_publish_sites_sync', true);
+
+		$this->customer->set_email_verification('none');
+		$this->customer->save();
+
+		$membership = $this->create_membership(['status' => Membership_Status::PENDING]);
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Deferred Checkout Site',
+				'path'  => '/deferred-checkout/',
+			]
+		);
+
+		$published = false;
+		add_action(
+			'wu_before_pending_site_published',
+			function () use (&$published) {
+				$published = true;
+			}
+		);
+
+		$manager = $this->get_manager_instance();
+		$manager->begin_checkout_transaction();
+		$manager->transition_membership_status(
+			Membership_Status::PENDING,
+			Membership_Status::ACTIVE,
+			$membership->get_id()
+		);
+
+		$this->assertFalse($published, 'Site publication must not start before the checkout transaction commits.');
+
+		$manager->commit_checkout_transaction();
+
+		$this->assertTrue($published, 'Site publication should start immediately after the checkout transaction commits.');
+	}
+
+	/**
+	 * A rolled-back checkout must discard deferred site publication.
+	 */
+	public function test_checkout_rollback_discards_deferred_site_publish(): void {
+
+		wu_save_setting('force_publish_sites_sync', true);
+
+		$this->customer->set_email_verification('none');
+		$this->customer->save();
+
+		$membership = $this->create_membership(['status' => Membership_Status::PENDING]);
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Rolled Back Checkout Site',
+				'path'  => '/rolled-back-checkout/',
+			]
+		);
+
+		$published = false;
+		add_action(
+			'wu_before_pending_site_published',
+			function () use (&$published) {
+				$published = true;
+			}
+		);
+
+		$manager = $this->get_manager_instance();
+		$manager->begin_checkout_transaction();
+		$manager->transition_membership_status(
+			Membership_Status::PENDING,
+			Membership_Status::ACTIVE,
+			$membership->get_id()
+		);
+		$manager->rollback_checkout_transaction();
+		$manager->commit_checkout_transaction();
+
+		$this->assertFalse($published, 'Rolled-back checkout must not publish its pending site.');
+		$this->assertNotFalse($membership->get_pending_site(), 'Rolled-back checkout should leave the pending site untouched.');
 	}
 
 	// ========================================================================

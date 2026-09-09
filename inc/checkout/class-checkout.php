@@ -623,6 +623,17 @@ class Checkout {
 		$wpdb->query('START TRANSACTION'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		try {
+			/**
+			 * Fires after the checkout database transaction starts.
+			 *
+			 * Site provisioning listeners can use this to defer work that must read
+			 * newly-created checkout records from another database connection.
+			 *
+			 * @since 2.15.2
+			 * @param Checkout $checkout The checkout instance.
+			 */
+			do_action('wu_checkout_transaction_started', $this);
+
 			/*
 			 * Allow developers to intercept an order submission.
 			 */
@@ -658,10 +669,28 @@ class Checkout {
 		if (is_wp_error($this->errors)) {
 			$wpdb->query('ROLLBACK'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
+			/**
+			 * Fires after the checkout database transaction rolls back.
+			 *
+			 * @since 2.15.2
+			 * @param \WP_Error $errors   The checkout errors that caused the rollback.
+			 * @param Checkout  $checkout The checkout instance.
+			 */
+			do_action('wu_checkout_transaction_rolled_back', $this->errors, $this);
+
 			wp_send_json_error($this->errors);
 		}
 
 		$wpdb->query('COMMIT'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		/**
+		 * Fires after the checkout database transaction commits.
+		 *
+		 * @since 2.15.2
+		 * @param array    $results  Checkout result data.
+		 * @param Checkout $checkout The checkout instance.
+		 */
+		do_action('wu_checkout_transaction_committed', $results, $this);
 
 		// Clean up draft payment if it exists
 		$draft_payment_id = $this->session->get('draft_payment_id');

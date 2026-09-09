@@ -48,6 +48,22 @@ class Membership_Manager extends Base_Manager {
 	protected $model_class = \WP_Ultimo\Models\Membership::class;
 
 	/**
+	 * Whether a checkout database transaction is currently open.
+	 *
+	 * @since 2.15.2
+	 * @var bool
+	 */
+	private $checkout_transaction_in_progress = false;
+
+	/**
+	 * Membership IDs whose pending sites should publish after checkout commits.
+	 *
+	 * @since 2.15.2
+	 * @var int[]
+	 */
+	private $deferred_pending_site_publications = [];
+
+	/**
 	 * Instantiate the necessary hooks.
 	 *
 	 * @since 2.0.0
@@ -82,6 +98,10 @@ class Membership_Manager extends Base_Manager {
 		add_action('wu_transition_membership_status', [$this, 'transition_membership_status'], 10, 3);
 
 		add_action('wu_transition_membership_status', [$this, 'handle_pending_site_on_cancellation'], 10, 3);
+
+		add_action('wu_checkout_transaction_started', [$this, 'begin_checkout_transaction'], 10, 0);
+		add_action('wu_checkout_transaction_committed', [$this, 'commit_checkout_transaction'], 10, 0);
+		add_action('wu_checkout_transaction_rolled_back', [$this, 'rollback_checkout_transaction'], 10, 0);
 
 		/*
 		 * Deal with delayed/schedule swaps
@@ -443,7 +463,63 @@ class Membership_Manager extends Base_Manager {
 			return;
 		}
 
+		/*
+		 * A checkout activates free memberships before its database transaction
+		 * commits. Starting the loopback here lets the second request race the
+		 * commit and fail to load the newly created membership. Publish as soon as
+		 * the checkout signals that its transaction committed instead.
+		 */
+		if ($this->checkout_transaction_in_progress) {
+			$this->deferred_pending_site_publications[ $membership_id ] = (int) $membership_id;
+			return;
+		}
+
 		$membership->publish_pending_site_async();
+	}
+
+	/**
+	 * Marks the beginning of a checkout database transaction.
+	 *
+	 * @since 2.15.2
+	 * @return void
+	 */
+	public function begin_checkout_transaction() {
+
+		$this->checkout_transaction_in_progress   = true;
+		$this->deferred_pending_site_publications = [];
+	}
+
+	/**
+	 * Publishes pending sites after the checkout transaction commits.
+	 *
+	 * @since 2.15.2
+	 * @return void
+	 */
+	public function commit_checkout_transaction() {
+
+		$membership_ids = $this->deferred_pending_site_publications;
+
+		$this->rollback_checkout_transaction();
+
+		foreach ($membership_ids as $membership_id) {
+			$membership = wu_get_membership($membership_id);
+
+			if ($membership) {
+				$membership->publish_pending_site_async();
+			}
+		}
+	}
+
+	/**
+	 * Clears pending-site publications when checkout rolls back.
+	 *
+	 * @since 2.15.2
+	 * @return void
+	 */
+	public function rollback_checkout_transaction() {
+
+		$this->checkout_transaction_in_progress   = false;
+		$this->deferred_pending_site_publications = [];
 	}
 
 	/**
