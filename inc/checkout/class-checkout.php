@@ -905,7 +905,7 @@ class Checkout {
 			*/
 		if ($cart->should_collect_payment() === false) {
 			$gateway = wu_get_gateway('free');
-		} elseif ( ! $gateway || $gateway->get_id() === 'free') {
+		} elseif ( ! $gateway || $gateway->get_id() === 'free' || ! array_key_exists($gateway_id, wu_get_active_gateway_as_options())) {
 			return new \WP_Error('no-gateway', __('Payment gateway not registered.', 'ultimate-multisite'));
 		}
 
@@ -3198,8 +3198,8 @@ class Checkout {
 				$gateway = wu_get_gateway($payment->get_gateway());
 			} elseif ($this->order->should_collect_payment() === false) {
 				$gateway = wu_get_gateway('free');
-			} elseif ($gateway && $gateway->get_id() === 'free') {
-					$this->errors = new \WP_Error('no-gateway', __('Payment gateway not registered.', 'ultimate-multisite'));
+			} elseif ( ! $gateway || $gateway->get_id() === 'free' || ! array_key_exists($gateway->get_id(), wu_get_active_gateway_as_options())) {
+				$this->errors = new \WP_Error('no-gateway', __('Payment gateway not registered.', 'ultimate-multisite'));
 
 					return false;
 			}
