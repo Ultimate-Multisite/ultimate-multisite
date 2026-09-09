@@ -8,6 +8,7 @@
 	<exclude-pattern>/node_modules/</exclude-pattern>
 	<exclude-pattern>/dependencies/</exclude-pattern>
 	<exclude-pattern>/../wordpress/</exclude-pattern>
+	<exclude-pattern>/scripts/phpcs-baseline.php</exclude-pattern>
 	<exclude-pattern>/inc/site-exporter/mu-migration/</exclude-pattern>
 	<!-- In-tree vendored copy of jasny/sso (PascalCase + camelCase preserved for upstream diffability). -->
 	<exclude-pattern>/inc/sso/jasny/</exclude-pattern>

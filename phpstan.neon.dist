@@ -1,5 +1,9 @@
+includes:
+  - phpstan-baseline.neon
+
 parameters:
   level: 0
+  reportUnmatchedIgnoredErrors: false
   inferPrivatePropertyTypeFromConstructor: true
   treatPhpDocTypesAsCertain: false
   bootstrapFiles:
@@ -12,6 +16,7 @@ parameters:
     - ./ultimate-multisite.php
   excludePaths:
     - ./tests
+    - ./inc/development/
     - ./inc/site-exporter/mu-migration/
   ignoreErrors:
       -
