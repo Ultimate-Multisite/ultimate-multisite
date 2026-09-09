@@ -102,6 +102,7 @@ class Membership_Manager extends Base_Manager {
 		add_action('wu_checkout_transaction_started', [$this, 'begin_checkout_transaction'], 0, 0);
 		add_action('wu_checkout_transaction_committed', [$this, 'commit_checkout_transaction'], 0, 0);
 		add_action('wu_checkout_transaction_rolled_back', [$this, 'rollback_checkout_transaction'], 0, 0);
+		add_action('wu_membership_post_save', [$this, 'maybe_defer_pending_site_publication'], 20, 2);
 
 		/*
 		 * Deal with delayed/schedule swaps
@@ -467,6 +468,35 @@ class Membership_Manager extends Base_Manager {
 		}
 
 		$membership->publish_pending_site_async();
+	}
+
+	/**
+	 * Queues an eligible pending site when checkout saves without a status change.
+	 *
+	 * Trial retries can save an already-trialing membership, which does not emit a
+	 * status transition. Watching saves only while checkout owns a transaction
+	 * ensures those pending sites are still published after commit without changing
+	 * normal webhook or administrative save behavior.
+	 *
+	 * @since 2.15.2
+	 *
+	 * @param array                        $_data      The saved membership data.
+	 * @param \WP_Ultimo\Models\Membership $membership The saved membership.
+	 * @return void
+	 */
+	public function maybe_defer_pending_site_publication($_data, $membership): void {
+
+		if (
+			! $this->checkout_transaction_in_progress
+			|| ! $this->can_publish_pending_site($membership)
+			|| ! $membership->get_pending_site()
+		) {
+			return;
+		}
+
+		$membership_id = $membership->get_id();
+
+		$this->deferred_pending_site_publications[ $membership_id ] = (int) $membership_id;
 	}
 
 	/**

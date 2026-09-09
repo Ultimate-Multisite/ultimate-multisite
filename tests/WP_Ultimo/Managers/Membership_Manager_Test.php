@@ -220,6 +220,7 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$this->assertSame(0, has_action('wu_checkout_transaction_started', [$manager, 'begin_checkout_transaction']));
 		$this->assertSame(0, has_action('wu_checkout_transaction_committed', [$manager, 'commit_checkout_transaction']));
 		$this->assertSame(0, has_action('wu_checkout_transaction_rolled_back', [$manager, 'rollback_checkout_transaction']));
+		$this->assertSame(20, has_action('wu_membership_post_save', [$manager, 'maybe_defer_pending_site_publication']));
 	}
 
 	/**
@@ -917,6 +918,44 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$manager->commit_checkout_transaction();
 
 		$this->assertTrue($published, 'Site publication should start immediately after the checkout transaction commits.');
+	}
+
+	/**
+	 * A retry with an already-trialing membership still publishes after commit.
+	 */
+	public function test_trial_retry_without_status_change_defers_publish_until_checkout_commit(): void {
+
+		wu_save_setting('force_publish_sites_sync', true);
+
+		$this->customer->set_email_verification('none');
+		$this->customer->save();
+
+		$membership = $this->create_membership(['status' => Membership_Status::TRIALING]);
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Retried Trial Checkout Site',
+				'path'  => '/retried-trial-checkout/',
+			]
+		);
+
+		$published = false;
+		add_action(
+			'wu_before_pending_site_published',
+			function () use (&$published) {
+				$published = true;
+			}
+		);
+
+		$manager = $this->get_manager_instance();
+		$manager->begin_checkout_transaction();
+
+		$this->assertNotWPError($membership->save());
+		$this->assertFalse($published, 'Retried trial publication must not start before commit.');
+
+		$manager->commit_checkout_transaction();
+
+		$this->assertTrue($published, 'Retried trial publication should start after commit even without a status change.');
 	}
 
 	/**
