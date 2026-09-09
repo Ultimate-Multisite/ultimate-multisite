@@ -155,6 +155,58 @@ class Stripe_Webhook_Process_Test extends \WP_UnitTestCase {
 		parent::tearDown();
 	}
 
+	public static function invoice_subscription_shapes(): array {
+		$expanded = [
+			'id'     => 'sub_test123',
+			'object' => 'subscription',
+		];
+		return [
+			'legacy ID'       => [['subscription' => 'sub_test123'], true],
+			'legacy expanded' => [['subscription' => $expanded], true],
+			'Basil ID'        => [['parent' => ['subscription_details' => ['subscription' => 'sub_test123']]], true],
+			'Basil expanded'  => [['parent' => ['subscription_details' => ['subscription' => $expanded]]], true],
+			'no reference'    => [[], false],
+		];
+	}
+
+	/**
+	 * @dataProvider invoice_subscription_shapes
+	 */
+	public function test_invoice_payment_completes_active_membership(array $shape, bool $linked): void {
+		$payment = wu_create_payment([
+			'customer_id'   => self::$customer->get_id(),
+			'membership_id' => $this->membership->get_id(),
+			'gateway'       => 'stripe',
+			'status'        => 'pending',
+			'subtotal'      => 29,
+			'total'         => 29,
+		]);
+		$this->assertNotWPError($payment);
+		$this->assertGreaterThan(0, $payment->get_id());
+
+		$this->subscriptions_mock->expects($linked ? $this->once() : $this->never())
+			->method('retrieve')
+			->with('sub_test123')
+			->willReturn($this->make_stripe_subscription());
+
+		$event = $this->make_stripe_event('invoice.payment_succeeded', array_merge([
+			'id'          => 'in_active_membership',
+			'object'      => 'invoice',
+			'customer'    => 'cus_test123',
+			'currency'    => 'usd',
+			'amount_paid' => 2900,
+			'total'       => 2900,
+		], $shape));
+
+		try {
+			$this->dispatch_webhook($event);
+			$this->assertSame($linked ? 'completed' : 'pending', wu_get_payment($payment->get_id())->get_status());
+			$this->assertSame(Membership_Status::ACTIVE, wu_get_membership($this->membership->get_id())->get_status());
+		} finally {
+			$payment->delete();
+		}
+	}
+
 	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
