@@ -90,6 +90,79 @@ class Settings_Test extends WP_UnitTestCase {
 	// get_setting / save_setting
 	// ------------------------------------------------------------------
 
+	// ------------------------------------------------------------------
+	// maybe_preserve_legacy_sso_default
+	// ------------------------------------------------------------------
+
+	/**
+	 * Replace the saved settings array and drop the in-memory cache.
+	 *
+	 * @param array $settings Settings to persist.
+	 */
+	private function replace_saved_settings(array $settings) {
+		wu_save_option(Settings::KEY, $settings);
+
+		$ref = new \ReflectionProperty(Settings::class, 'settings');
+		if (PHP_VERSION_ID < 80100) {
+			$ref->setAccessible(true);
+		}
+		$ref->setValue($this->settings, null);
+	}
+
+	public function test_legacy_sso_default_is_preserved_on_a_network_without_a_saved_value() {
+		$saved = $this->settings->get_all();
+
+		// A network set up before the enable_sso key existed.
+		$this->replace_saved_settings(['company_name' => 'Existing Network']);
+
+		$this->settings->maybe_preserve_legacy_sso_default();
+
+		$this->assertEquals(1, $this->settings->get_setting('enable_sso'), 'An upgrade must not silently turn SSO off.');
+
+		$this->replace_saved_settings($saved);
+	}
+
+	public function test_a_saved_sso_value_is_never_overwritten() {
+		$saved = $this->settings->get_all();
+
+		$this->replace_saved_settings(['enable_sso' => 0]);
+
+		$this->settings->maybe_preserve_legacy_sso_default();
+
+		$this->assertEquals(0, $this->settings->get_setting('enable_sso'), 'A network that chose to disable SSO keeps its choice.');
+
+		$this->replace_saved_settings($saved);
+	}
+
+	public function test_a_fresh_install_keeps_the_new_default() {
+		$saved = $this->settings->get_all();
+
+		// Nothing saved yet: the installer has not run, so there is nothing to preserve.
+		$this->replace_saved_settings([]);
+
+		$this->settings->maybe_preserve_legacy_sso_default();
+
+		$this->assertArrayNotHasKey('enable_sso', $this->settings->get_all(), 'A fresh installation must not be seeded by the migration.');
+
+		$this->replace_saved_settings($saved);
+	}
+
+	public function test_the_migration_writes_only_once() {
+		$saved = $this->settings->get_all();
+
+		$this->replace_saved_settings(['company_name' => 'Existing Network']);
+
+		$this->settings->maybe_preserve_legacy_sso_default();
+
+		// A later choice to disable SSO must survive the migration running again.
+		$this->settings->save_setting('enable_sso', 0);
+		$this->settings->maybe_preserve_legacy_sso_default();
+
+		$this->assertEquals(0, $this->settings->get_setting('enable_sso'), 'The migration must be a one-time write.');
+
+		$this->replace_saved_settings($saved);
+	}
+
 	public function test_save_setting_stores_value() {
 		$this->settings->save_setting('test_key_123', 'test_value_123');
 
