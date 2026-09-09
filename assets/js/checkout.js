@@ -179,6 +179,7 @@
 			inline_login_password: '',
 			custom_amounts: wu_checkout.custom_amounts || {},
 			pwyw_recurring: wu_checkout.pwyw_recurring || {},
+			plan_focus: null,
 		};
 
 		hooks.applyFilters('wu_before_form_init', initial_data);
@@ -397,7 +398,55 @@
 					});
 
 				},
-				add_plan(product_id) {
+				remember_plan_focus(product_id, event) {
+
+					if (! event || event.target !== event.target.ownerDocument.activeElement) {
+
+						this.plan_focus = null;
+
+						return;
+					}
+
+					this.plan_focus = {
+						element: event.target,
+						product_id,
+					};
+
+				},
+				restore_plan_focus(plan_focus) {
+
+					if (! plan_focus || plan_focus !== this.plan_focus) {
+
+						return;
+					}
+
+					this.$nextTick(function () {
+
+						if (plan_focus !== this.plan_focus || String(this.plan) !== String(plan_focus.product_id)) {
+
+							return;
+						}
+
+						const active_element = this.$el.ownerDocument.activeElement;
+						this.plan_focus = null;
+
+						if (active_element !== this.$el.ownerDocument.body && active_element !== plan_focus.element) {
+
+							return;
+						}
+
+						jQuery(this.$el).find('input[type="radio"][name="products[]"]').filter(function () {
+
+							return String(this.value) === String(plan_focus.product_id);
+
+						}).trigger('focus');
+
+					});
+
+				},
+				add_plan(product_id, event) {
+
+					this.remember_plan_focus(product_id, event);
 
 					if (this.plan) {
 
@@ -476,6 +525,7 @@
 					this.order = false;
 
 					const that = this;
+					const plan_focus = this.plan_focus;
 
 					const _request = this.debounce(this.request);
 
@@ -486,6 +536,7 @@
 					delete data.city_list;
 					delete data.uses_postal_code;
 					delete data.labels;
+					delete data.plan_focus;
 
 					_request('wu_create_order', this.filter_for_request(data, 'wu_create_order'), function (results) {
 
@@ -531,6 +582,8 @@
 						} // ed if;
 
 						that.unblock();
+
+						that.restore_plan_focus(plan_focus);
 
 					}, this.handle_errors);
 

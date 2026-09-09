@@ -37,7 +37,7 @@ foreach ($products as $index => &$_product) {
 		<div class="wu-flex wu-items-center">
 			<input
 				v-if="<?php echo wp_json_encode($product->get_pricing_type() !== 'contact_us'); ?>"
-				v-on:change="$parent.add_plan(<?php echo esc_attr($product->get_id()); ?>)"
+				v-on:change="$parent.add_plan(<?php echo esc_attr($product->get_id()); ?>, $event)"
 				v-bind:checked="$parent.plan === <?php echo esc_attr($product->get_id()); ?>"
 				type="radio"
 				name="products[]"
