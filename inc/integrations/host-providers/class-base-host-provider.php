@@ -497,7 +497,7 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 	 * @since 2.0.0
 	 *
 	 * @param array $constant_values Key => Value of the necessary constants.
-	 * @return void
+	 * @return bool|\WP_Error Whether a constant was updated, or an update error.
 	 */
 	public function setup_constants($constant_values) {
 		/*
@@ -507,11 +507,20 @@ abstract class Base_Host_Provider implements DNS_Provider_Interface {
 		 *
 		 * Note that this is also performed on the get_constants_string.
 		 */
-		$values = shortcode_atts(array_flip($this->get_all_constants()), $constant_values);
+		$values  = shortcode_atts(array_flip($this->get_all_constants()), $constant_values);
+		$updated = false;
 
 		foreach ($values as $constant => $value) {
-			WP_Config::get_instance()->inject_wp_config_constant($constant, $value);
+			$result = WP_Config::get_instance()->inject_wp_config_constant($constant, $value);
+
+			if (is_wp_error($result)) {
+				return $result;
+			}
+
+			$updated = $updated || $result;
 		}
+
+		return $updated;
 	}
 
 	/**
