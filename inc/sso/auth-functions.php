@@ -16,8 +16,6 @@
  * @subpackage SSO
  */
 
-use Delight\Cookie\Cookie;
-
 defined('ABSPATH') || exit;
 
 
@@ -151,11 +149,37 @@ if ( ! function_exists('wp_set_auth_cookie') ) :
 			return;
 		}
 
-		Cookie::setcookie($auth_cookie_name, $auth_cookie, $expire, PLUGINS_COOKIE_PATH, COOKIE_DOMAIN, $secure, true, $secure ? 'None' : 'Lax');
-		Cookie::setcookie($auth_cookie_name, $auth_cookie, $expire, ADMIN_COOKIE_PATH, COOKIE_DOMAIN, $secure, true, $secure ? 'None' : 'Lax');
-		Cookie::setcookie(LOGGED_IN_COOKIE, $logged_in_cookie, $expire, COOKIEPATH, COOKIE_DOMAIN, $secure_logged_in_cookie, true, $secure_logged_in_cookie ? 'None' : 'Lax');
+		/*
+		 * Use PHP's native cookie encoding, as WordPress does. Delight encodes
+		 * spaces as '+', but PHP decodes incoming cookies with rawurldecode(),
+		 * leaving a literal '+' in space-containing usernames and breaking auth.
+		 */
+		$auth_cookie_options = [
+			'expires'  => $expire,
+			'path'     => PLUGINS_COOKIE_PATH,
+			'domain'   => (string) COOKIE_DOMAIN,
+			'secure'   => (bool) $secure,
+			'httponly' => true,
+			'samesite' => $secure ? 'None' : 'Lax',
+		];
+
+		setcookie($auth_cookie_name, $auth_cookie, $auth_cookie_options);
+		$auth_cookie_options['path'] = ADMIN_COOKIE_PATH;
+		setcookie($auth_cookie_name, $auth_cookie, $auth_cookie_options);
+
+		$logged_in_cookie_options = [
+			'expires'  => $expire,
+			'path'     => COOKIEPATH,
+			'domain'   => (string) COOKIE_DOMAIN,
+			'secure'   => (bool) $secure_logged_in_cookie,
+			'httponly' => true,
+			'samesite' => $secure_logged_in_cookie ? 'None' : 'Lax',
+		];
+
+		setcookie(LOGGED_IN_COOKIE, $logged_in_cookie, $logged_in_cookie_options);
 		if ( COOKIEPATH !== SITECOOKIEPATH ) {
-			Cookie::setcookie(LOGGED_IN_COOKIE, $logged_in_cookie, $expire, SITECOOKIEPATH, COOKIE_DOMAIN, $secure_logged_in_cookie, true, $secure_logged_in_cookie ? 'None' : 'Lax');
+			$logged_in_cookie_options['path'] = SITECOOKIEPATH;
+			setcookie(LOGGED_IN_COOKIE, $logged_in_cookie, $logged_in_cookie_options);
 		}
 	}
 
