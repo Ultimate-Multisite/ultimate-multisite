@@ -37,6 +37,13 @@ defined('ABSPATH') || exit;
 class Base_Stripe_Gateway extends Base_Gateway {
 
 	/**
+	 * Pin requests and new webhook endpoints independently of SDK upgrades.
+	 *
+	 * @var string
+	 */
+	private const STRIPE_API_VERSION = '2025-08-27.basil';
+
+	/**
 	 * Allow gateways to declare multiple additional ids.
 	 *
 	 * These ids can be retrieved alongside the main id,
@@ -153,7 +160,8 @@ class Base_Stripe_Gateway extends Base_Gateway {
 			}
 
 			$client_config = [
-				'api_key' => $this->secret_key,
+				'api_key'        => $this->secret_key,
+				'stripe_version' => self::STRIPE_API_VERSION,
 			];
 
 			// Set Stripe-Account header for Connect mode
@@ -673,6 +681,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 
 			$this->get_stripe_client()->webhookEndpoints->create(
 				[
+					'api_version'    => self::STRIPE_API_VERSION,
 					'enabled_events' => ['*'],
 					'url'            => $webhook_url,
 					'description'    => 'Added by Ultimate Multisite. Required to correctly handle changes in subscription status.',
@@ -1303,6 +1312,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 			 */
 			$this->get_stripe_client()->webhookEndpoints->create(
 				[
+					'api_version'    => self::STRIPE_API_VERSION,
 					'enabled_events' => ['*'],
 					'url'            => $webhook_url,
 					'description'    => 'Added by Ultimate Multisite. Required to correctly handle changes in subscription status.',
@@ -1777,9 +1787,8 @@ class Base_Stripe_Gateway extends Base_Gateway {
 		 * unlocks the multi-interval case without changing single-interval
 		 * behaviour.
 		 *
-		 * Requires Stripe API version 2025-06-30.basil or later. The bundled
-		 * stripe/stripe-php SDK pins a newer version (2025-08-27.basil at the
-		 * time of writing), so this is always satisfied.
+		 * Requires Stripe API version 2025-06-30.basil or later. The explicit
+		 * STRIPE_API_VERSION pin satisfies this independently of SDK upgrades.
 		 *
 		 * @since 2.5.x
 		 */
