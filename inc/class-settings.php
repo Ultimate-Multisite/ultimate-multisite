@@ -34,6 +34,14 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 	const KEY = 'v2_settings';
 
 	/**
+	 * Network option used to serialize the legacy SSO default migration.
+	 *
+	 * @since 2.15.3
+	 * @var string
+	 */
+	const LEGACY_SSO_DEFAULT_LOCK = 'wu_legacy_sso_default_lock';
+
+	/**
 	 * Holds the array containing all the saved settings.
 	 *
 	 * @since 2.0.0
@@ -128,7 +136,33 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			return;
 		}
 
-		$this->save_setting('enable_sso', 1);
+		/*
+		 * add_network_option() is an atomic network-scoped lock. Once acquired,
+		 * load the option again instead of saving the array cached before another
+		 * request could have changed it.
+		 */
+		$network_id = get_current_network_id();
+
+		if ( ! add_network_option($network_id, self::LEGACY_SSO_DEFAULT_LOCK, 1)) {
+			return;
+		}
+
+		try {
+			$settings = wu_get_option(self::KEY);
+
+			if (empty($settings) || isset($settings['enable_sso'])) {
+				return;
+			}
+
+			$settings['enable_sso'] = 1;
+
+			if (wu_save_option(self::KEY, $settings)) {
+				$this->settings            = $settings;
+				$this->settings_network_id = $network_id;
+			}
+		} finally {
+			delete_network_option($network_id, self::LEGACY_SSO_DEFAULT_LOCK);
+		}
 	}
 
 	/**
