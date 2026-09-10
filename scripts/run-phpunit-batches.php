@@ -243,6 +243,14 @@ foreach ($batches as $index => $batch) {
 
 	$batch_status = proc_close($process);
 
+	if (0 !== $batch_status) {
+		unlink($config_path);
+		unlink($junit_path);
+		fwrite(STDERR, sprintf("PHPUnit batch %d/%d failed with exit code %d.\n", $current_batch, $total_batches, $batch_status));
+		$exit_status = 1;
+		continue;
+	}
+
 	try {
 		$executed_files += $count_executed_files($junit_path, $batch);
 	} catch (RuntimeException $exception) {
@@ -254,11 +262,6 @@ foreach ($batches as $index => $batch) {
 
 	unlink($config_path);
 	unlink($junit_path);
-
-	if (0 !== $batch_status) {
-		fwrite(STDERR, sprintf("PHPUnit batch %d/%d failed with exit code %d.\n", $current_batch, $total_batches, $batch_status));
-		$exit_status = 1;
-	}
 }
 
 try {
@@ -268,15 +271,15 @@ try {
 	exit(2);
 }
 
+if (0 !== $exit_status) {
+	exit(1);
+}
+
 fwrite(STDOUT, sprintf("PHPUnit test-file accounting: %d/%d executed.\n", $executed_files, $expected_files));
 
 if ($executed_files !== $expected_files) {
 	fwrite(STDERR, "PHPUnit did not execute every discovered test file.\n");
 	exit(2);
-}
-
-if (0 !== $exit_status) {
-	exit(1);
 }
 
 exit(0);
