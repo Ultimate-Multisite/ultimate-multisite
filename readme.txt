@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 8.2
 Tested up to: 7.1
-Stable tag: 2.15.2
+Stable tag: 2.16.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -251,6 +251,14 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+
+= 2.16.0 =
+Version [2.16.0] - Released on 2026-09-09
+- New: Try Ultimate Multisite in a live WordPress.org Playground preview before installing it.
+- Fix: Checkout plan labels, keyboard selection, existing-user login, and missing-payment-gateway guidance now work reliably.
+- Fix: Stripe subscriptions using Basil invoice references, SSO authentication cookies, and networks upgrading without saved SSO settings now behave correctly.
+- Fix: Setup wizard branding and wp-config.php error reporting, manual payment periods, and lifetime membership expiration now display and save correctly.
+- Improved: Translation comment handling and release quality checks are more reliable.
 
 = 2.15.2 =
 Version [2.15.2] - Released on 2026-09-08
