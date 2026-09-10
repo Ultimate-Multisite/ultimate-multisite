@@ -171,9 +171,13 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 
 		$payment = wu_get_payment(wu_request('id'));
 
+		if ( ! $payment) {
+			return;
+		}
+
 		$line_item = wu_get_line_item(wu_request('line_item_id'), $payment->get_id());
 
-		if ( ! $line_item || ! $payment) {
+		if ( ! $line_item) {
 			return;
 		}
 
