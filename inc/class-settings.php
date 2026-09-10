@@ -34,7 +34,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 	const KEY = 'v2_settings';
 
 	/**
-	 * Network option used to serialize the legacy SSO default migration.
+	 * Database lock used to serialize the legacy SSO default migration.
 	 *
 	 * @since 2.15.3
 	 * @var string
@@ -137,13 +137,16 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 		}
 
 		/*
-		 * add_network_option() is an atomic network-scoped lock. Once acquired,
-		 * load the option again instead of saving the array cached before another
-		 * request could have changed it.
+		 * A named database lock is released automatically if this request's
+		 * connection closes. Once acquired, load the option again instead of
+		 * saving the array cached before another request could have changed it.
 		 */
-		$network_id = get_current_network_id();
+		global $wpdb;
 
-		if ( ! add_network_option($network_id, self::LEGACY_SSO_DEFAULT_LOCK, 1)) {
+		$network_id = get_current_network_id();
+		$lock_name  = sprintf('%s_%d', self::LEGACY_SSO_DEFAULT_LOCK, $network_id);
+
+		if (1 !== (int) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock_name))) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Named locks are connection-scoped.
 			return;
 		}
 
@@ -161,7 +164,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 				$this->settings_network_id = $network_id;
 			}
 		} finally {
-			delete_network_option($network_id, self::LEGACY_SSO_DEFAULT_LOCK);
+			$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock_name)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Named locks are connection-scoped.
 		}
 	}
 
