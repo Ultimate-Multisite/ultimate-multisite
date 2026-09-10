@@ -762,6 +762,7 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			'duration_unit' => 'month',
 		]);
 		$this->assertNotWPError($product);
+		// Keep the day low so adding one month cannot overflow a short month.
 		$expiration = gmdate('Y-m-09 23:59:59', strtotime('+1 year'));
 		$membership = wu_create_membership([
 			'customer_id'     => $customer->get_id(),
@@ -1056,11 +1057,6 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 
 	/**
 	 * Test render_delete_line_item_modal returns early when no payment found.
-	 *
-	 * Note: The source code calls $payment->get_id() before the null check (line 173),
-	 * so passing a non-existent numeric id is required to avoid a fatal error.
-	 * wu_get_payment(0) returns false, which causes the fatal. We use a non-existent
-	 * positive id so wu_get_payment returns null/false and the early return triggers.
 	 */
 	public function test_render_delete_line_item_modal_returns_early_no_payment(): void {
 		// Use a non-existent payment id — wu_get_payment returns null.
@@ -1068,17 +1064,10 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['line_item_id'] = 'nonexistent';
 
 		ob_start();
-		try {
-			$this->page->render_delete_line_item_modal();
-		} catch (\Throwable $e) {
-			// Source code bug: $payment->get_id() called before null check.
-			// This is expected behavior given the source code.
-			$this->assertInstanceOf(\Error::class, $e);
-		}
-		ob_end_clean();
+		$this->page->render_delete_line_item_modal();
+		$output = ob_get_clean();
 
-		// Test passes — we verified the method handles missing payment.
-		$this->assertTrue(true);
+		$this->assertSame('', $output, 'A missing payment must produce no output.');
 
 		unset($_REQUEST['id'], $_REQUEST['line_item_id']);
 	}
