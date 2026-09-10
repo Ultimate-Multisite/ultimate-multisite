@@ -136,17 +136,10 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 			return;
 		}
 
-		/*
-		 * A named database lock is released automatically if this request's
-		 * connection closes. Once acquired, load the option again instead of
-		 * saving the array cached before another request could have changed it.
-		 */
-		global $wpdb;
-
 		$network_id = get_current_network_id();
-		$lock_name  = sprintf('%s_%d', self::LEGACY_SSO_DEFAULT_LOCK, $network_id);
+		$lock_name  = $this->acquire_settings_lock($network_id);
 
-		if (1 !== (int) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock_name))) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Named locks are connection-scoped.
+		if (false === $lock_name) {
 			return;
 		}
 
@@ -164,8 +157,45 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 				$this->settings_network_id = $network_id;
 			}
 		} finally {
-			$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock_name)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Named locks are connection-scoped.
+			$this->release_settings_lock($lock_name);
 		}
+	}
+
+	/**
+	 * Acquires a connection-scoped lock for settings writes on a network.
+	 *
+	 * The database releases named locks when the connection closes, so an
+	 * interrupted request cannot block later writes permanently.
+	 *
+	 * @since 2.15.3
+	 * @param int $network_id Network to lock.
+	 * @return string|false Lock name when acquired, or false when busy.
+	 */
+	private function acquire_settings_lock(int $network_id): string|false {
+
+		global $wpdb;
+
+		$lock_name = sprintf('%s_%d', self::LEGACY_SSO_DEFAULT_LOCK, $network_id);
+
+		if (1 !== (int) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock_name))) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Named locks are connection-scoped.
+			return false;
+		}
+
+		return $lock_name;
+	}
+
+	/**
+	 * Releases a connection-scoped settings write lock.
+	 *
+	 * @since 2.15.3
+	 * @param string $lock_name Lock name to release.
+	 * @return void
+	 */
+	private function release_settings_lock(string $lock_name): void {
+
+		global $wpdb;
+
+		$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock_name)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Named locks are connection-scoped.
 	}
 
 	/**
@@ -412,22 +442,33 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function save_setting($setting, $value) {
 
-		$settings = $this->get_all();
+		$network_id = get_current_network_id();
+		$lock_name  = $this->acquire_settings_lock($network_id);
 
-		$value = apply_filters('wu_save_setting', $value, $setting, $settings);
-
-		if (is_callable($value)) {
-			$value = call_user_func($value);
+		if (false === $lock_name) {
+			return false;
 		}
 
-		$settings[ $setting ] = $value;
+		try {
+			$settings = wu_get_option(self::KEY);
 
-		$status = wu_save_option(self::KEY, $settings);
+			$value = apply_filters('wu_save_setting', $value, $setting, $settings);
 
-		$this->settings            = $settings;
-		$this->settings_network_id = get_current_network_id();
+			if (is_callable($value)) {
+				$value = call_user_func($value);
+			}
 
-		return $status;
+			$settings[ $setting ] = $value;
+
+			$status = wu_save_option(self::KEY, $settings);
+
+			$this->settings            = $settings;
+			$this->settings_network_id = $network_id;
+
+			return $status;
+		} finally {
+			$this->release_settings_lock($lock_name);
+		}
 	}
 
 	/**
@@ -444,66 +485,71 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 	 */
 	public function save_settings($settings_to_save = [], $reset = false) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
 
-		$settings = [];
+		$network_id = get_current_network_id();
+		$lock_name  = $this->acquire_settings_lock($network_id);
 
-		$sections = $this->get_sections();
-
-		$saved_settings = $this->get_all();
-
-		do_action('wu_before_save_settings', $settings_to_save);
-
-		foreach ($sections as $section_slug => $section) {
-			foreach ($section['fields'] ?? [] as $field_slug => $field_atts) {
-				$field_default = $field_atts['default'] ?? false;
-
-				if (is_callable($field_default)) {
-					$field_default = call_user_func($field_default);
-				}
-
-				$existing_value = $saved_settings[ $field_slug ] ?? $field_default;
-
-				$field = new Field($field_slug, $field_atts);
-
-				$new_value = $settings_to_save[ $field_slug ] ?? $existing_value;
-
-				/**
-				 * For the current tab, we need to assume toggle fields.
-				 */
-				if (wu_request('tab', 'general') === $section_slug && 'toggle' === $field->type && ! isset($settings_to_save[ $field_slug ])) {
-					$new_value = false;
-				}
-
-				$value = $new_value;
-
-				$field->set_value($value);
-
-				if ($field->get_value() !== null) {
-					$settings[ $field_slug ] = $field->get_value();
-				}
-
-				do_action('wu_saving_setting', $field_slug, $field, $settings_to_save);
-			}
+		if (false === $lock_name) {
+			return [];
 		}
 
-		/**
-		 * Allow developers to filter settings before save by Ultimate Multisite.
-		 *
-		 * @since 2.0.18
-		 *
-		 * @param array  $settings         The settings to be saved.
-		 * @param array  $settings_to_save The new settings to add.
-		 * @param array $saved_settings   The current settings saved.
-		 */
-		$settings = apply_filters('wu_pre_save_settings', $settings, $settings_to_save, $saved_settings);
+		try {
+			$settings       = [];
+			$sections       = $this->get_sections();
+			$saved_settings = wu_get_option(self::KEY);
 
-		wu_save_option(self::KEY, $settings);
+			do_action('wu_before_save_settings', $settings_to_save);
 
-		$this->settings            = $settings;
-		$this->settings_network_id = get_current_network_id();
+			foreach ($sections as $section_slug => $section) {
+				foreach ($section['fields'] ?? [] as $field_slug => $field_atts) {
+					$field_default = $field_atts['default'] ?? false;
 
-		do_action('wu_after_save_settings', $settings, $settings_to_save, $saved_settings);
+					if (is_callable($field_default)) {
+						$field_default = call_user_func($field_default);
+					}
 
-		return $settings;
+					$existing_value = $saved_settings[ $field_slug ] ?? $field_default;
+					$field          = new Field($field_slug, $field_atts);
+					$new_value      = $settings_to_save[ $field_slug ] ?? $existing_value;
+
+					/**
+					 * For the current tab, we need to assume toggle fields.
+					 */
+					if (wu_request('tab', 'general') === $section_slug && 'toggle' === $field->type && ! isset($settings_to_save[ $field_slug ])) {
+						$new_value = false;
+					}
+
+					$field->set_value($new_value);
+
+					if ($field->get_value() !== null) {
+						$settings[ $field_slug ] = $field->get_value();
+					}
+
+					do_action('wu_saving_setting', $field_slug, $field, $settings_to_save);
+				}
+			}
+
+			/**
+			 * Allow developers to filter settings before save by Ultimate Multisite.
+			 *
+			 * @since 2.0.18
+			 *
+			 * @param array  $settings         The settings to be saved.
+			 * @param array  $settings_to_save The new settings to add.
+			 * @param array $saved_settings   The current settings saved.
+			 */
+			$settings = apply_filters('wu_pre_save_settings', $settings, $settings_to_save, $saved_settings);
+
+			wu_save_option(self::KEY, $settings);
+
+			$this->settings            = $settings;
+			$this->settings_network_id = $network_id;
+
+			do_action('wu_after_save_settings', $settings, $settings_to_save, $saved_settings);
+
+			return $settings;
+		} finally {
+			$this->release_settings_lock($lock_name);
+		}
 	}
 
 	/**
