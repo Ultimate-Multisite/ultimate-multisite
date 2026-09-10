@@ -204,7 +204,14 @@ class Customer_Functions_Test extends WP_UnitTestCase {
 
 	public function test_username_from_email_checks_normalized_name_for_collisions(): void {
 
-		$user_id  = self::factory()->user->create(['user_login' => 'alice.beth.example']);
+		$customer = wu_create_customer([
+			'email'    => 'alice.beth.example@example.com',
+			'username' => 'alice.beth.example',
+			'password' => 'Str0ngP@ss!',
+		]);
+		$this->assertNotWPError($customer);
+
+		$user_id  = $customer->get_user_id();
 		$username = wu_username_from_email('username-probe@example.com', [
 			'first_name' => 'Alice Beth',
 			'last_name'  => 'Example',
