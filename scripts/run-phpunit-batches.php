@@ -252,11 +252,14 @@ foreach ($batches as $index => $batch) {
 			fwrite(STDERR, sprintf("PHPUnit batch %d/%d was killed; retrying each file separately.\n", $current_batch, $total_batches));
 
 			foreach ($batch as $test_file) {
-				$retry_process = proc_open(
+				$retry_environment                         = getenv();
+				$retry_environment['PHPUNIT_BATCH_NUMBER'] = '0';
+				$retry_process                             = proc_open(
 					[PHP_BINARY, __FILE__, $test_file],
 					[STDIN, STDOUT, STDERR],
 					$retry_pipes,
-					$project_root
+					$project_root,
+					$retry_environment
 				);
 
 				if ( ! is_resource($retry_process) || 0 !== proc_close($retry_process)) {
