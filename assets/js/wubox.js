@@ -204,10 +204,24 @@
 		loaded();
 	};
 	const showFormErrors = (form, errors) => {
+		const fallbackMessage = (typeof wuboxL10n !== "undefined" && wuboxL10n.server_error) ? wuboxL10n.server_error : "An unexpected error occurred. Please try again or contact support if the problem persists.";
+		let normalizedErrors = errors;
+		if (! Array.isArray(normalizedErrors) || normalizedErrors.length === 0) {
+			normalizedErrors = normalizedErrors && typeof normalizedErrors.message === "string" ? [ normalizedErrors ] : [ { code: "server-error", message: fallbackMessage } ];
+		}
+		normalizedErrors = normalizedErrors.map((error) => {
+			if (error && typeof error.message === "string") {
+				return error;
+			}
+			return {
+				code: "server-error",
+				message: typeof error === "string" ? error : fallbackMessage
+			};
+		});
 		const formId = form.getAttribute("id");
 		const errorApp = window[ "wu_" + formId + "_errors" ];
 		if (errorApp) {
-			errorApp.errors = errors;
+			errorApp.errors = normalizedErrors;
 		}
 		const formAppEl = document.querySelector('[data-wu-app="' + formId + '_errors"]');
 		if (formAppEl) {
@@ -226,7 +240,7 @@
 		if (window[ "wu_" + form.getAttribute("id") + "_errors" ]) {
 			window[ "wu_" + form.getAttribute("id") + "_errors" ].errors = [];
 		}
-		const submitButton = event.submitter.value;
+		const submitButton = event.submitter ? event.submitter.value : "";
 		const formData = new FormData(form);
 		formData.append("submit", submitButton);
 		let response;
@@ -249,14 +263,20 @@
 			showFormErrors(form, [ { code: "server-error", message } ]);
 			return;
 		}
-		if (response === null || response.data === null) {
+		if (! response || typeof response !== "object" || typeof response.success !== "boolean") {
 			blocked_form.unblock();
-			removeBox();
+			showFormErrors(form);
 			return;
 		}
 		if (! response.success) {
 			blocked_form.unblock();
 			showFormErrors(form, response.data);
+			return;
+		}
+		if (response.data === null || typeof response.data === "undefined") {
+			blocked_form.unblock();
+			removeBox();
+			return;
 		}
 		if (typeof response.data.tables === "object") {
 			blocked_form.unblock();

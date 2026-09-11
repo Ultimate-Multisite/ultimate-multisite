@@ -151,7 +151,12 @@ class Form_Manager extends Base_Manager {
 		$form = $this->get_form(wu_request('form'));
 
 		if ( ! wp_verify_nonce(wu_request('_wpnonce'), 'wu_form_' . $form['id'])) {
-			wp_send_json_error();
+			wp_send_json_error(
+				new \WP_Error(
+					'form-session-expired',
+					__('Your form session has expired. Reload the page and try again.', 'ultimate-multisite')
+				)
+			);
 		}
 
 		/**

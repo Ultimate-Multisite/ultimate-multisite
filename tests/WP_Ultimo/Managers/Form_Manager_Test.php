@@ -1077,6 +1077,40 @@ class Form_Manager_Test extends \WP_UnitTestCase {
 		$this->assertStringContainsString('delete=0', $response['data']['redirect_url']);
 	}
 
+	/**
+	 * Test an invalid form nonce returns structured error data.
+	 */
+	public function test_handle_form_invalid_nonce_returns_descriptive_error(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$manager->register_form(
+			'invalid_nonce_form_xyz',
+			[
+				'capability' => 'read',
+				'handler'    => '__return_true',
+			]
+		);
+
+		wp_set_current_user(self::factory()->user->create(['role' => 'administrator']));
+
+		$_SERVER['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest';
+		$_REQUEST['form']                 = 'invalid_nonce_form_xyz';
+		$_REQUEST['_wpnonce']             = 'invalid';
+
+		$result = $this->call_in_ajax_context([$manager, 'handle_form']);
+
+		unset($_SERVER['HTTP_X_REQUESTED_WITH'], $_REQUEST['form'], $_REQUEST['_wpnonce']);
+
+		$response = json_decode($result['output'], true);
+
+		$this->assertTrue($result['exception'], 'Should terminate via wp_die()');
+		$this->assertIsArray($response);
+		$this->assertFalse($response['success']);
+		$this->assertSame('form-session-expired', $response['data'][0]['code']);
+		$this->assertSame('Your form session has expired. Reload the page and try again.', $response['data'][0]['message']);
+	}
+
 	// =========================================================================
 	// init (hook registration)
 	// =========================================================================
