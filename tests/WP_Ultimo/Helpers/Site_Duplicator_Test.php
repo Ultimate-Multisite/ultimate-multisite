@@ -822,6 +822,45 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test duplicated site roles are available to extension hooks.
+	 */
+	public function test_wu_duplicate_site_action_receives_reloaded_roles() {
+		$role_slug    = 'site_duplicator_template_role';
+		$role_at_hook = false;
+		$result       = false;
+		$role_hook    = function () use (&$role_at_hook, $role_slug) {
+			$role_at_hook = wp_roles()->get_role($role_slug);
+		};
+
+		switch_to_blog($this->template_site_id);
+		add_role($role_slug, 'Site Duplicator Template Role', ['read' => true]);
+		restore_current_blog();
+
+		add_action('wu_duplicate_site', $role_hook);
+
+		try {
+			$result = Site_Duplicator::duplicate_site(
+				$this->template_site_id,
+				'Role Hook Site',
+				[
+					'domain' => 'role-hook.example.com',
+					'path'   => '/',
+					'title'  => 'Role Hook Site',
+				]
+			);
+
+			$this->assertIsInt($result);
+			$this->assertNotFalse($role_at_hook);
+		} finally {
+			remove_action('wu_duplicate_site', $role_hook);
+
+			if ($result) {
+				wpmu_delete_blog($result, true);
+			}
+		}
+	}
+
+	/**
 	 * Test backfill_kit_settings is a no-op when template has no Kit.
 	 */
 	public function test_backfill_kit_settings_noop_without_elementor() {
