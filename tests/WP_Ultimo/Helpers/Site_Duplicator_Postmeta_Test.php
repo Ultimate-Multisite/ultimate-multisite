@@ -870,6 +870,206 @@ class Site_Duplicator_Postmeta_Test extends WP_UnitTestCase {
 	}
 
 	// =========================================================================
+	// rewrite_backfilled_postmeta_urls — serialized values
+	// =========================================================================
+
+	/**
+	 * Test that a serialized postmeta value holding the template URL stays
+	 * readable after the rewrite when the target host has a different length.
+	 *
+	 * The fixture hosts differ in length (template.example.com is 3 bytes
+	 * longer than clone.example.com). A raw SQL REPLACE() changes the bytes of
+	 * every s:N:"..." string but not N, so the whole value stops unserializing.
+	 * The rewrite must recount the lengths, i.e. be serialize-aware.
+	 */
+	public function test_rewrite_keeps_serialized_postmeta_readable_when_host_length_changes() {
+		$post_id = $this->create_target_post();
+
+		$meta_id = $this->insert_raw_postmeta(
+			$post_id,
+			'_extra',
+			maybe_serialize(
+				[
+					'image_url' => 'http://template.example.com/wp-content/uploads/sites/2/a.jpg',
+					'nested'    => [
+						'home' => 'http://template.example.com/',
+						'json' => '{"url":"http:\/\/template.example.com\/x"}',
+						'n'    => 3,
+					],
+				]
+			)
+		);
+
+		Testable_Site_Duplicator::rewrite_backfilled_postmeta_urls($this->from_blog_id, $this->to_blog_id);
+
+		$stored = $this->read_raw_postmeta($meta_id);
+		$parsed = maybe_unserialize($stored);
+
+		$this->assertIsArray($parsed, 'Rewritten serialized postmeta must still unserialize.');
+		$this->assertEquals('http://clone.example.com/wp-content/uploads/sites/2/a.jpg', $parsed['image_url']);
+		$this->assertEquals('http://clone.example.com/', $parsed['nested']['home']);
+		$this->assertEquals('{"url":"http:\/\/clone.example.com\/x"}', $parsed['nested']['json']);
+		$this->assertEquals(3, $parsed['nested']['n']);
+		$this->assertStringNotContainsString('template.example.com', $stored);
+	}
+
+	/**
+	 * Test that a serialized option holding the template URL stays readable.
+	 *
+	 * The options table is rewritten by the same method: plugin settings
+	 * (currency tables, analytics modules) live there as serialized arrays.
+	 */
+	public function test_rewrite_keeps_serialized_option_readable_when_host_length_changes() {
+		global $wpdb;
+
+		$table = $wpdb->get_blog_prefix($this->to_blog_id) . 'options';
+
+		$wpdb->insert(
+			$table,
+			[
+				'option_name'  => 'rewrite_test_settings',
+				'option_value' => maybe_serialize(
+					[
+						'logo' => 'http://template.example.com/logo.png',
+						'rate' => '1.25',
+					]
+				),
+				'autoload'     => 'no',
+			]
+		);
+
+		Testable_Site_Duplicator::rewrite_backfilled_postmeta_urls($this->from_blog_id, $this->to_blog_id);
+
+		$stored = $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$table} WHERE option_name = %s", 'rewrite_test_settings')); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name comes from get_blog_prefix().
+		$parsed = maybe_unserialize($stored);
+
+		$this->assertIsArray($parsed, 'Rewritten serialized option must still unserialize.');
+		$this->assertEquals('http://clone.example.com/logo.png', $parsed['logo']);
+		$this->assertEquals('1.25', $parsed['rate']);
+	}
+
+	/**
+	 * Test that a serialized string containing `";` is rewritten correctly.
+	 *
+	 * CSS such as content:""; and escaped JSON put `";` inside the string body.
+	 * A rewrite that located string ends by scanning for `";` would cut the
+	 * value short; the unserialize/replace/serialize pass must not care.
+	 */
+	public function test_rewrite_handles_embedded_quote_semicolon_in_serialized_string() {
+		$post_id = $this->create_target_post();
+
+		$css = 'a{content:"";} b{background:url(http://template.example.com/b.png)}';
+
+		$meta_id = $this->insert_raw_postmeta(
+			$post_id,
+			'_extra',
+			maybe_serialize(
+				[
+					'css'   => $css,
+					'after' => 'x',
+				]
+			)
+		);
+
+		Testable_Site_Duplicator::rewrite_backfilled_postmeta_urls($this->from_blog_id, $this->to_blog_id);
+
+		$parsed = maybe_unserialize($this->read_raw_postmeta($meta_id));
+
+		$this->assertIsArray($parsed);
+		$this->assertEquals('a{content:"";} b{background:url(http://clone.example.com/b.png)}', $parsed['css']);
+		$this->assertEquals('x', $parsed['after']);
+	}
+
+	/**
+	 * Test that hosts of the same length are still rewritten.
+	 *
+	 * Control case: with equal host lengths REPLACE() never corrupted anything,
+	 * so the change must not alter what happens there — the URL is rewritten
+	 * and the value stays readable. Only equal hosts short-circuit the method.
+	 */
+	public function test_rewrite_same_length_hosts_are_rewritten() {
+		// Same byte length as template.example.com.
+		update_blog_option($this->to_blog_id, 'siteurl', 'http://tempclon.example.com');
+
+		$post_id = $this->create_target_post();
+
+		$meta_id = $this->insert_raw_postmeta($post_id, '_extra', maybe_serialize(['u' => 'http://template.example.com/']));
+
+		Testable_Site_Duplicator::rewrite_backfilled_postmeta_urls($this->from_blog_id, $this->to_blog_id);
+
+		$parsed = maybe_unserialize($this->read_raw_postmeta($meta_id));
+
+		$this->assertIsArray($parsed);
+		$this->assertEquals('http://tempclon.example.com/', $parsed['u']);
+	}
+
+	/**
+	 * Test that a row without the template URL is left byte-identical.
+	 */
+	public function test_rewrite_leaves_rows_without_template_url_untouched() {
+		$post_id = $this->create_target_post();
+
+		$raw = maybe_serialize(
+			[
+				'u' => 'http://clone.example.com/already-ok',
+				'k' => 'v',
+			]
+		);
+
+		$meta_id = $this->insert_raw_postmeta($post_id, '_ok', $raw);
+
+		Testable_Site_Duplicator::rewrite_backfilled_postmeta_urls($this->from_blog_id, $this->to_blog_id);
+
+		$this->assertSame($raw, $this->read_raw_postmeta($meta_id));
+	}
+
+	/**
+	 * Create a post on the target blog and return its ID.
+	 */
+	private function create_target_post() {
+		switch_to_blog($this->to_blog_id);
+		$post_id = self::factory()->post->create(['post_type' => 'page']);
+		restore_current_blog();
+
+		return $post_id;
+	}
+
+	/**
+	 * Insert a raw postmeta row on the target blog, bypassing the meta API
+	 * (which would re-serialize) — this is the state backfill_all_postmeta()
+	 * leaves behind: template rows copied verbatim.
+	 *
+	 * @return int meta_id
+	 */
+	private function insert_raw_postmeta($post_id, $meta_key, $raw_value) {
+		global $wpdb;
+
+		// phpcs:disable WordPress.DB.SlowDBQuery -- Raw fixture row, not a query filter.
+		$wpdb->insert(
+			$wpdb->get_blog_prefix($this->to_blog_id) . 'postmeta',
+			[
+				'post_id'    => $post_id,
+				'meta_key'   => $meta_key,
+				'meta_value' => $raw_value,
+			]
+		);
+		// phpcs:enable
+
+		return (int) $wpdb->insert_id;
+	}
+
+	/**
+	 * Read a postmeta value on the target blog exactly as stored.
+	 */
+	private function read_raw_postmeta($meta_id) {
+		global $wpdb;
+
+		$table = $wpdb->get_blog_prefix($this->to_blog_id) . 'postmeta';
+
+		return (string) $wpdb->get_var($wpdb->prepare("SELECT meta_value FROM {$table} WHERE meta_id = %d", $meta_id)); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name comes from get_blog_prefix().
+	}
+
+	// =========================================================================
 	// Edge cases
 	// =========================================================================
 
