@@ -241,6 +241,24 @@ class Plugin_Limits_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Creates a site for plugin cache tests.
+	 *
+	 * @return int
+	 */
+	private function create_test_site() {
+
+		$site = wu_create_site(
+			[
+				'domain' => 'plugin-limits-' . wp_rand() . '.example.com',
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		return $site->get_id();
+	}
+
+	/**
 	 * Test the site-level list of one site is never served to another site.
 	 *
 	 * The `option_active_plugins` filter stays attached across switch_to_blog(),
@@ -251,8 +269,8 @@ class Plugin_Limits_Test extends \WP_UnitTestCase {
 
 		$instance = $this->get_instance();
 
-		$site_a = self::factory()->blog->create();
-		$site_b = self::factory()->blog->create();
+		$site_a = $this->create_test_site();
+		$site_b = $this->create_test_site();
 
 		switch_to_blog($site_a);
 		$result_a = $instance->deactivate_plugins(['site-a/site-a.php']);
@@ -274,8 +292,8 @@ class Plugin_Limits_Test extends \WP_UnitTestCase {
 
 		$instance = $this->get_instance();
 
-		$site_a = self::factory()->blog->create();
-		$site_b = self::factory()->blog->create();
+		$site_a = $this->create_test_site();
+		$site_b = $this->create_test_site();
 
 		switch_to_blog($site_a);
 		$result_a = $instance->deactivate_network_plugins(['site-a/site-a.php' => 1]);
@@ -297,8 +315,8 @@ class Plugin_Limits_Test extends \WP_UnitTestCase {
 
 		$instance = $this->get_instance();
 
-		$site_a = self::factory()->blog->create();
-		$site_b = self::factory()->blog->create();
+		$site_a = $this->create_test_site();
+		$site_b = $this->create_test_site();
 
 		foreach ([$site_a, $site_b] as $site_id) {
 			switch_to_blog($site_id);
@@ -323,7 +341,7 @@ class Plugin_Limits_Test extends \WP_UnitTestCase {
 
 		$instance = $this->get_instance();
 
-		$site_id = self::factory()->blog->create();
+		$site_id = $this->create_test_site();
 
 		switch_to_blog($site_id);
 
@@ -343,7 +361,7 @@ class Plugin_Limits_Test extends \WP_UnitTestCase {
 
 		$instance = $this->get_instance();
 
-		$site_id = self::factory()->blog->create();
+		$site_id = $this->create_test_site();
 
 		switch_to_blog($site_id);
 
@@ -363,7 +381,7 @@ class Plugin_Limits_Test extends \WP_UnitTestCase {
 
 		$instance = $this->get_instance();
 
-		$site_id = self::factory()->blog->create();
+		$site_id = $this->create_test_site();
 
 		switch_to_blog($site_id);
 
