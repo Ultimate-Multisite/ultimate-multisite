@@ -674,10 +674,22 @@ class Site_Duplicator {
 	 * commentmeta tables, correcting any template references left by the
 	 * backfill or missed by MUCD's pass.
 	 *
+	 * The substitution has to be serialize-aware. postmeta and options routinely
+	 * hold PHP-serialized values (Elementor `_extra`, image-optimizer LCP data,
+	 * plugin settings, currency tables...). A raw SQL REPLACE() rewrites the
+	 * bytes of every `s:N:"..."` string that contains the host but leaves N
+	 * untouched, so whenever the target host length differs from the template
+	 * host length every such value stops unserializing (unserialize() returns
+	 * false) and the plugin that owns it silently falls back to its defaults.
+	 * MUCD_Data::update() already implements the row-by-row, primary-key based,
+	 * serialize-aware pass that copy_data() runs on the copied rows; this method
+	 * reuses it instead of issuing REPLACE().
+	 *
 	 * Safe to run after MUCD has already rewritten the copied rows: those rows
-	 * no longer contain the source URL, so REPLACE() is a no-op for them.
+	 * no longer contain the source URL, so they are never selected.
 	 *
 	 * @since 2.3.2
+	 * @since 2.16.1 Routes the rewrite through MUCD_Data::update() (serialize-aware) instead of SQL REPLACE().
 	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/834
 	 *
 	 * @param int $from_site_id Source (template) blog ID.
@@ -730,7 +742,7 @@ class Site_Duplicator {
 			"{$to_prefix}commentmeta" => 'meta_value',
 		];
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		foreach ($tables as $table => $column) {
 
 			// Skip tables that don't exist (e.g. termmeta on older WP versions).
@@ -750,14 +762,13 @@ class Site_Duplicator {
 					continue;
 				}
 
-				$wpdb->query(
-					$wpdb->prepare(
-						"UPDATE `{$table}` SET `{$column}` = REPLACE(`{$column}`, %s, %s) WHERE `{$column}` LIKE %s",
-						$from,
-						$to,
-						'%' . $wpdb->esc_like($from) . '%'
-					)
-				);
+				/*
+				 * Serialize-aware, primary-key based replacement — the same
+				 * pass MUCD_Data::db_update_data() runs on the copied rows.
+				 * Rows that do not contain $from are never selected, and rows
+				 * whose value does not change are skipped by update().
+				 */
+				\MUCD_Data::update($table, [$column], $from, $to);
 			}
 		}
 		// phpcs:enable
