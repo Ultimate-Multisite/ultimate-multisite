@@ -22,20 +22,24 @@ class Plugin_Limits {
 	use \WP_Ultimo\Traits\Singleton;
 
 	/**
-	 * Site-level plugins cache.
+	 * Site-level plugins cache, keyed by blog ID.
+	 *
+	 * The filters this class registers stay attached while WordPress is
+	 * switched to another site, so this cache must never be shared between
+	 * sites.
 	 *
 	 * @since 2.0.0
-	 * @var null|array
+	 * @var array<int, array>
 	 */
-	protected $plugins = null;
+	protected $plugins = [];
 
 	/**
-	 * Network plugins cache.
+	 * Network plugins cache, keyed by blog ID.
 	 *
 	 * @since 2.0.0
-	 * @var null|array
+	 * @var array<int, array>
 	 */
-	protected $network_plugins = null;
+	protected $network_plugins = [];
 
 	/**
 	 * Runs on the first and only instantiation.
@@ -70,6 +74,13 @@ class Plugin_Limits {
 			add_filter('show_network_active_plugins', '__return_true');
 
 			add_action('load-plugins.php', [$this, 'admin_page_hooks']);
+
+			/*
+			 * The option filters above are not removed when WordPress switches
+			 * to another site, so the lists they cache must not outlive the
+			 * site they were built for.
+			 */
+			add_action('switch_blog', [$this, 'flush_plugin_caches']);
 		}
 
 		add_action('wu_site_post_save', [$this, 'activate_and_inactive_plugins'], 10, 3);
@@ -226,11 +237,13 @@ class Plugin_Limits {
 			return $plugins;
 		}
 
+		$blog_id = get_current_blog_id();
+
 		/*
-		 * Get the network plugins cache, if they're set.
+		 * Get the network plugins cache for the current site, if it's set.
 		 */
-		if (is_array($this->network_plugins)) {
-			return $this->network_plugins;
+		if (isset($this->network_plugins[ $blog_id ])) {
+			return $this->network_plugins[ $blog_id ];
 		}
 
 		$plugin_limits = wu_get_current_site()->get_limitations()->plugins;
@@ -258,7 +271,7 @@ class Plugin_Limits {
 			}
 		}
 
-		$this->network_plugins = $plugins;
+		$this->network_plugins[ $blog_id ] = $plugins;
 
 		return $plugins;
 	}
@@ -279,11 +292,13 @@ class Plugin_Limits {
 			return $plugins;
 		}
 
+		$blog_id = get_current_blog_id();
+
 		/*
-		 * Get the site-level plugins cache, if they're set.
+		 * Get the site-level plugins cache for the current site, if it's set.
 		 */
-		if (is_array($this->plugins)) {
-			return $this->plugins;
+		if (isset($this->plugins[ $blog_id ])) {
+			return $this->plugins[ $blog_id ];
 		}
 
 		$plugin_limits = wu_get_current_site()->get_limitations()->plugins;
@@ -312,9 +327,29 @@ class Plugin_Limits {
 			}
 		}
 
-		$this->plugins = $plugins;
+		$this->plugins[ $blog_id ] = $plugins;
 
 		return $plugins;
+	}
+
+	/**
+	 * Flushes the plugin caches when WordPress switches to another site.
+	 *
+	 * The `option_active_plugins` and `site_option_active_sitewide_plugins`
+	 * filters stay attached across `switch_to_blog()`, so a list built for one
+	 * site must not be served on the next one. The per-site keys already
+	 * guarantee that; dropping the caches on every switch also keeps them from
+	 * growing in long-running processes and makes sure a site whose active
+	 * plugins changed while switched is read again instead of served stale.
+	 *
+	 * @since 2.16.1
+	 * @return void
+	 */
+	public function flush_plugin_caches(): void {
+
+		$this->plugins = [];
+
+		$this->network_plugins = [];
 	}
 
 	/**
