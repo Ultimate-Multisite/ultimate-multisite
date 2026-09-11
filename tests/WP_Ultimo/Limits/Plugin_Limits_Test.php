@@ -199,38 +199,203 @@ class Plugin_Limits_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test plugins property exists.
+	 * Test plugins property starts as an empty per-site cache.
 	 */
 	public function test_plugins_property() {
 
 		$instance = $this->get_instance();
 
-		$ref = new \ReflectionProperty($instance, 'plugins');
+		$value = $this->get_cache($instance, 'plugins');
 
-		if (PHP_VERSION_ID < 80100) {
-			$ref->setAccessible(true);
-		}
-
-		$value = $ref->getValue($instance);
-
-		$this->assertNull($value);
+		$this->assertSame([], $value);
 	}
 
 	/**
-	 * Test network_plugins property exists.
+	 * Test network_plugins property starts as an empty per-site cache.
 	 */
 	public function test_network_plugins_property() {
 
 		$instance = $this->get_instance();
 
-		$ref = new \ReflectionProperty($instance, 'network_plugins');
+		$value = $this->get_cache($instance, 'network_plugins');
+
+		$this->assertSame([], $value);
+	}
+
+	/**
+	 * Reads one of the protected caches.
+	 *
+	 * @param Plugin_Limits $instance The instance to read from.
+	 * @param string        $property The cache property name.
+	 * @return mixed
+	 */
+	private function get_cache($instance, $property) {
+
+		$ref = new \ReflectionProperty($instance, $property);
 
 		if (PHP_VERSION_ID < 80100) {
 			$ref->setAccessible(true);
 		}
 
-		$value = $ref->getValue($instance);
+		return $ref->getValue($instance);
+	}
 
-		$this->assertNull($value);
+	/**
+	 * Creates a site for plugin cache tests.
+	 *
+	 * @return int
+	 */
+	private function create_test_site() {
+
+		$site = wu_create_site(
+			[
+				'domain' => 'plugin-limits-' . wp_rand() . '.example.com',
+			]
+		);
+
+		$this->assertNotWPError($site);
+
+		return $site->get_id();
+	}
+
+	/**
+	 * Test the site-level list of one site is never served to another site.
+	 *
+	 * The `option_active_plugins` filter stays attached across switch_to_blog(),
+	 * and WordPress writes back what it reads through it, so a shared cache
+	 * stores one site's active plugins inside another site.
+	 */
+	public function test_deactivate_plugins_is_not_shared_between_sites() {
+
+		$instance = $this->get_instance();
+
+		$site_a = $this->create_test_site();
+		$site_b = $this->create_test_site();
+
+		switch_to_blog($site_a);
+		$result_a = $instance->deactivate_plugins(['site-a/site-a.php']);
+		restore_current_blog();
+
+		switch_to_blog($site_b);
+		$result_b = $instance->deactivate_plugins(['site-b/site-b.php']);
+		restore_current_blog();
+
+		$this->assertContains('site-a/site-a.php', $result_a);
+		$this->assertContains('site-b/site-b.php', $result_b);
+		$this->assertNotContains('site-a/site-a.php', $result_b);
+	}
+
+	/**
+	 * Test the network list of one site is never served to another site.
+	 */
+	public function test_deactivate_network_plugins_is_not_shared_between_sites() {
+
+		$instance = $this->get_instance();
+
+		$site_a = $this->create_test_site();
+		$site_b = $this->create_test_site();
+
+		switch_to_blog($site_a);
+		$result_a = $instance->deactivate_network_plugins(['site-a/site-a.php' => 1]);
+		restore_current_blog();
+
+		switch_to_blog($site_b);
+		$result_b = $instance->deactivate_network_plugins(['site-b/site-b.php' => 1]);
+		restore_current_blog();
+
+		$this->assertArrayHasKey('site-a/site-a.php', $result_a);
+		$this->assertArrayHasKey('site-b/site-b.php', $result_b);
+		$this->assertArrayNotHasKey('site-a/site-a.php', $result_b);
+	}
+
+	/**
+	 * Test both caches are stored under the ID of the site they were built for.
+	 */
+	public function test_caches_are_keyed_by_blog_id() {
+
+		$instance = $this->get_instance();
+
+		$site_a = $this->create_test_site();
+		$site_b = $this->create_test_site();
+
+		foreach ([$site_a, $site_b] as $site_id) {
+			switch_to_blog($site_id);
+
+			$instance->deactivate_plugins(['some/some.php']);
+			$instance->deactivate_network_plugins(['some/some.php' => 1]);
+
+			restore_current_blog();
+		}
+
+		$this->assertSame([$site_a, $site_b], array_keys($this->get_cache($instance, 'plugins')));
+		$this->assertSame([$site_a, $site_b], array_keys($this->get_cache($instance, 'network_plugins')));
+	}
+
+	/**
+	 * Test the cache is still reused within a single site.
+	 *
+	 * Non-regression guard: making the cache per-site must not turn it off. The
+	 * second call is answered from the cache, so its own argument is ignored.
+	 */
+	public function test_deactivate_plugins_still_caches_within_the_same_site() {
+
+		$instance = $this->get_instance();
+
+		$site_id = $this->create_test_site();
+
+		switch_to_blog($site_id);
+
+		$first  = $instance->deactivate_plugins(['first/first.php']);
+		$second = $instance->deactivate_plugins(['second/second.php']);
+
+		restore_current_blog();
+
+		$this->assertSame($first, $second);
+		$this->assertNotContains('second/second.php', $second);
+	}
+
+	/**
+	 * Test the network cache is still reused within a single site.
+	 */
+	public function test_deactivate_network_plugins_still_caches_within_the_same_site() {
+
+		$instance = $this->get_instance();
+
+		$site_id = $this->create_test_site();
+
+		switch_to_blog($site_id);
+
+		$first  = $instance->deactivate_network_plugins(['first/first.php' => 1]);
+		$second = $instance->deactivate_network_plugins(['second/second.php' => 1]);
+
+		restore_current_blog();
+
+		$this->assertSame($first, $second);
+		$this->assertArrayNotHasKey('second/second.php', $second);
+	}
+
+	/**
+	 * Test flush_plugin_caches empties both caches.
+	 */
+	public function test_flush_plugin_caches_empties_both_caches() {
+
+		$instance = $this->get_instance();
+
+		$site_id = $this->create_test_site();
+
+		switch_to_blog($site_id);
+
+		$instance->deactivate_plugins(['some/some.php']);
+		$instance->deactivate_network_plugins(['some/some.php' => 1]);
+
+		restore_current_blog();
+
+		$this->assertNotSame([], $this->get_cache($instance, 'plugins'));
+		$this->assertNotSame([], $this->get_cache($instance, 'network_plugins'));
+
+		$instance->flush_plugin_caches();
+
+		$this->assertSame([], $this->get_cache($instance, 'plugins'));
+		$this->assertSame([], $this->get_cache($instance, 'network_plugins'));
 	}
 }

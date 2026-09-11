@@ -273,6 +273,156 @@ class Sunrise_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Seed the sunrise meta network option and reset the static read cache.
+	 *
+	 * Sunrise::read_sunrise_meta() caches the meta on a static property after
+	 * the first read, so the cache has to be dropped for the seeded value to
+	 * be visible to the code under test.
+	 *
+	 * @param bool $active Value to store under the `active` key.
+	 */
+	private function seed_sunrise_meta($active) {
+
+		update_network_option(
+			null,
+			'wu_sunrise_meta',
+			[
+				'active'           => $active,
+				'created'          => 1600000000,
+				'last_activated'   => 1600000000,
+				'last_deactivated' => 1600000000,
+				'last_modified'    => 1600000000,
+			]
+		);
+
+		Sunrise::$sunrise_meta = null;
+	}
+
+	/**
+	 * Read the `active` flag straight from the network option.
+	 *
+	 * Deliberately bypasses read_sunrise_meta() so the assertion measures what
+	 * was persisted, not what the static cache happens to hold.
+	 *
+	 * @return bool
+	 */
+	private function read_persisted_active_flag() {
+
+		$meta = get_network_option(null, 'wu_sunrise_meta', []);
+
+		return ! empty($meta['active']);
+	}
+
+	/**
+	 * Force WP_Ultimo::is_loaded() to a given value and return the previous one.
+	 *
+	 * @param bool $loaded Value to force.
+	 * @return bool The previous value, to restore afterwards.
+	 */
+	private function force_plugin_loaded_state($loaded) {
+
+		$plugin   = \WP_Ultimo();
+		$property = (new \ReflectionObject($plugin))->getProperty('loaded');
+
+		// Only call setAccessible() on PHP < 8.1 where it's needed
+		if (PHP_VERSION_ID < 80100) {
+			$property->setAccessible(true);
+		}
+
+		$previous = $property->getValue($plugin);
+
+		$property->setValue($plugin, $loaded);
+
+		return $previous;
+	}
+
+	/**
+	 * A process that does not have the plugin running must not deactivate sunrise.
+	 *
+	 * sunrise.php is a drop-in, so maybe_tap_on_init() also runs in processes
+	 * that never load plugins: `wp --skip-plugins`, the installer, or a custom
+	 * bootstrap. There the main plugin class is absent and the state observed
+	 * at the decision point is exactly the one reproduced here - `false`,
+	 * because function_exists() short circuits the very same expression.
+	 *
+	 * PHP cannot undeclare a function inside a running process, so the fixture
+	 * drives the other half of that same expression: is_loaded() returns false,
+	 * which is what a process without the plugin produces.
+	 *
+	 * Before the fix this wrote `active => false` for the whole network, which
+	 * takes down domain mapping until a process that does load plugins reaches
+	 * `init` again.
+	 */
+	public function test_maybe_tap_on_init_does_not_deactivate_when_plugin_is_not_loaded() {
+
+		$this->seed_sunrise_meta(true);
+
+		$previous = $this->force_plugin_loaded_state(false);
+
+		try {
+			Sunrise::maybe_tap_on_init();
+
+			$this->assertTrue(
+				$this->read_persisted_active_flag(),
+				'A process that does not have Ultimate Multisite loaded must not turn the network wide sunrise flag off.'
+			);
+		} finally {
+			$this->force_plugin_loaded_state($previous);
+
+			Sunrise::$sunrise_meta = null;
+		}
+	}
+
+	/**
+	 * The activation half of maybe_tap_on_init() must keep working.
+	 *
+	 * Control for the test above: when the plugin is loaded, init is still
+	 * allowed to turn the flag on.
+	 */
+	public function test_maybe_tap_on_init_still_activates_when_plugin_is_loaded() {
+
+		$this->seed_sunrise_meta(false);
+
+		$previous = $this->force_plugin_loaded_state(true);
+
+		try {
+			Sunrise::maybe_tap_on_init();
+
+			$this->assertTrue(
+				$this->read_persisted_active_flag(),
+				'With the plugin loaded, init must still turn the sunrise flag on.'
+			);
+		} finally {
+			$this->force_plugin_loaded_state($previous);
+
+			Sunrise::$sunrise_meta = null;
+		}
+	}
+
+	/**
+	 * A genuine deactivation must still turn the flag off.
+	 *
+	 * This is the call \WP_Ultimo\Hooks::on_deactivation() makes from the
+	 * register_deactivation_hook() callback, and it is the path that keeps the
+	 * meta accurate now that init no longer deactivates.
+	 */
+	public function test_explicit_deactivation_still_turns_the_flag_off() {
+
+		$this->seed_sunrise_meta(true);
+
+		try {
+			$this->assertTrue(Sunrise::maybe_tap('deactivating'));
+
+			$this->assertFalse(
+				$this->read_persisted_active_flag(),
+				'An explicit deactivation must still turn the sunrise flag off.'
+			);
+		} finally {
+			Sunrise::$sunrise_meta = null;
+		}
+	}
+
+	/**
 	 * Test manage_sunrise_updates method doesn't throw fatal errors.
 	 */
 	public function test_manage_sunrise_updates_no_fatal_errors() {

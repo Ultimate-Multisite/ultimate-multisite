@@ -509,14 +509,30 @@ class Sunrise {
 	/**
 	 * Makes sure the meta file accurately reflects the state of the main plugin.
 	 *
+	 * This method runs from sunrise.php, which is a drop-in: it is loaded on
+	 * every request, including processes that never load the plugin stack at
+	 * all - WP-CLI invoked with --skip-plugins, the WordPress installer and
+	 * upgrader, or any custom bootstrap that skips plugins. In those processes
+	 * the main plugin class is simply not there, and that says nothing about
+	 * whether the plugin is active for the network.
+	 *
+	 * Because the meta is network wide and persisted, this hook can only ever
+	 * turn the flag ON. Turning it OFF is the job of the deactivation hook,
+	 * \WP_Ultimo\Hooks::on_deactivation(), which only runs when the plugin is
+	 * genuinely deactivated.
+	 *
 	 * @since 2.0.11
+	 * @since 2.16.1 Never deactivates. Not seeing the plugin in the current
+	 *               process is not proof that it was deactivated.
 	 * @return void
 	 */
 	public static function maybe_tap_on_init(): void {
 
-		$state = function_exists('WP_Ultimo') && WP_Ultimo()->is_loaded();
+		if ( ! function_exists('WP_Ultimo') || ! WP_Ultimo()->is_loaded()) {
+			return;
+		}
 
-		self::maybe_tap($state ? 'activating' : 'deactivating');
+		self::maybe_tap('activating');
 	}
 
 	/**
