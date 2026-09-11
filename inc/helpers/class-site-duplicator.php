@@ -550,6 +550,15 @@ class Site_Duplicator {
 
 		$profile_stage = microtime(true);
 		wp_cache_flush();
+
+		/*
+		 * Rebuild the in-memory role map from the copied options table before
+		 * invoking extension hooks. A cache flush does not reset WP_Roles, and
+		 * a hook that adds a role with an empty role map would overwrite
+		 * user_roles with that single role.
+		 */
+		wp_roles()->for_site($args->to_site_id);
+
 		self::profile_sovereign_provisioning_stage(
 			(int) $args->to_site_id,
 			'um_duplicator.wp_cache_flush',
