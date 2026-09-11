@@ -145,4 +145,15 @@ class Url_Helpers_Test extends WP_UnitTestCase {
 		$this->assertIsString($url);
 		$this->assertStringContainsString('wu-ajax=1', $url);
 	}
+
+	/**
+	 * Test wu_ajax_url uses the canonical root path for subdirectory sites.
+	 */
+	public function test_ajax_url_preserves_subdirectory_trailing_slash(): void {
+		$site_id = self::factory()->blog->create(['path' => '/customer-site/']);
+		$url     = wu_ajax_url(null, [], $site_id);
+
+		$this->assertSame('/customer-site/', wp_parse_url($url, PHP_URL_PATH));
+		$this->assertStringContainsString('wu-ajax=1', $url);
+	}
 }

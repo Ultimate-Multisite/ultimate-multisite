@@ -825,7 +825,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 				'wu-stripe-portal' => true,
 				'membership'       => $membership->get_hash(),
 			],
-			home_url()
+			home_url('/')
 		);
 	}
 
