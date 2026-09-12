@@ -206,7 +206,9 @@
 	const showFormErrors = (form, errors) => {
 		const fallbackMessage = (typeof wuboxL10n !== "undefined" && wuboxL10n.server_error) ? wuboxL10n.server_error : "An unexpected error occurred. Please try again or contact support if the problem persists.";
 		let normalizedErrors = errors;
-		if (! Array.isArray(normalizedErrors) || normalizedErrors.length === 0) {
+		if (typeof normalizedErrors === "string") {
+			normalizedErrors = [ { code: "server-error", message: normalizedErrors } ];
+		} else if (! Array.isArray(normalizedErrors) || normalizedErrors.length === 0) {
 			normalizedErrors = normalizedErrors && typeof normalizedErrors.message === "string" ? [ normalizedErrors ] : [ { code: "server-error", message: fallbackMessage } ];
 		}
 		normalizedErrors = normalizedErrors.map((error) => {

@@ -13,6 +13,8 @@ final class Wubox_Assets_Test extends TestCase {
 		$source_contents = file_get_contents($source_path);
 
 		$this->assertNotFalse($source_contents);
+		$this->assertStringContainsString('if (typeof normalizedErrors === "string")', $source_contents);
+		$this->assertStringContainsString('normalizedErrors = [ { code: "server-error", message: normalizedErrors } ];', $source_contents);
 		$this->assertStringContainsString('if (! Array.isArray(normalizedErrors) || normalizedErrors.length === 0)', $source_contents);
 		$this->assertStringContainsString('errorApp.errors = normalizedErrors;', $source_contents);
 	}
