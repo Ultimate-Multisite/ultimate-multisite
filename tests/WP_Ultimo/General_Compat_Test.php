@@ -48,6 +48,38 @@ class General_Compat_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test Gutenberg support skips ordinary admin screens.
+	 */
+	public function test_gutenberg_support_skips_ordinary_admin_screens(): void {
+
+		set_current_screen('dashboard');
+		wp_deregister_script('wu-gutenberg-support');
+
+		Gutenberg_Support::get_instance()->add_scripts();
+
+		$this->assertFalse(wp_script_is('wu-gutenberg-support', 'registered'));
+		$this->assertFalse(wp_script_is('wu-gutenberg-support', 'enqueued'));
+	}
+
+	/**
+	 * Test Gutenberg support enqueues and localizes assets in the block editor.
+	 */
+	public function test_gutenberg_support_loads_on_block_editor_screens(): void {
+
+		set_current_screen('post');
+		$screen = get_current_screen();
+
+		$screen->is_block_editor(true);
+
+		wp_deregister_script('wu-gutenberg-support');
+
+		Gutenberg_Support::get_instance()->add_scripts();
+
+		$this->assertTrue(wp_script_is('wu-gutenberg-support', 'enqueued'));
+		$this->assertNotEmpty(wp_scripts()->get_data('wu-gutenberg-support', 'data'));
+	}
+
+	/**
 	 * Test Divi et-cache files are deleted only for the cloned site.
 	 */
 	public function test_clear_divi_static_css_cache_deletes_cloned_site_cache_only(): void {
