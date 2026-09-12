@@ -839,7 +839,7 @@ class Payment extends Base_Model implements Notable {
 			'reference' => $this->get_hash(),
 		];
 
-		return add_query_arg($url_atts, get_site_url(wu_get_main_site_id()));
+		return add_query_arg($url_atts, get_site_url(wu_get_main_site_id(), '/'));
 	}
 
 	/**

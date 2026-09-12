@@ -916,7 +916,7 @@ class Customer extends Base_Model implements Billable, Notable {
 		 * @param Customer $customer The customer object.
 		 * @param int      $blog_id  The blog ID used to build the URL.
 		 */
-		$base_url = apply_filters('wu_customer_verification_base_url', get_home_url($blog_id), $this, $blog_id);
+		$base_url = apply_filters('wu_customer_verification_base_url', get_home_url($blog_id, '/'), $this, $blog_id);
 
 		if ( ! $key) {
 			return $base_url;

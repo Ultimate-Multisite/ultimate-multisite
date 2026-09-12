@@ -235,7 +235,7 @@ class Template_Previewer {
 			$args['open'] = 1;
 		}
 
-		return add_query_arg($args, home_url());
+		return add_query_arg($args, home_url('/'));
 	}
 
 	/**
@@ -302,6 +302,7 @@ class Template_Previewer {
 
 					$redirect_to = add_query_arg($this->get_preview_parameter(), current($site_ids), $redirect_to);
 
+					// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- Preserve mapped-domain preview redirects.
 					wp_redirect($redirect_to);
 
 					exit;

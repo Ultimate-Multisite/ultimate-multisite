@@ -76,7 +76,9 @@ function wu_ajax_url($when = null, $query_args = [], $site_id = false, $scheme =
 		$site_id = get_current_blog_id();
 	}
 
-	$base_url = get_home_url($site_id, '', $scheme);
+	// Use the canonical root path so subdirectory installs do not redirect POST
+	// requests from `/network?wu-ajax=1` to `/network/?wu-ajax=1` and lose data.
+	$base_url = get_home_url($site_id, '/', $scheme);
 
 	if ( ! is_array($query_args)) {
 		$query_args = [];

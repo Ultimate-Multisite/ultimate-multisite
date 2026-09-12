@@ -2254,7 +2254,7 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 				[
 					'title'   => __('Security Mode', 'ultimate-multisite'),
 					// Translators: Placeholder adds the security mode key and current site url with query string
-					'desc'    => sprintf(__('Only Ultimate Multisite and other must-use plugins will run on your WordPress install while this option is enabled.<div class="wu-mt-2"><b>Important:</b> Copy the following URL to disable security mode if something goes wrong and this page becomes unavailable:<code>%2$s</code></div>', 'ultimate-multisite'), $security_mode_key, get_site_url() . $security_mode_key),
+					'desc'    => sprintf(__('Only Ultimate Multisite and other must-use plugins will run on your WordPress install while this option is enabled.<div class="wu-mt-2"><b>Important:</b> Copy the following URL to disable security mode if something goes wrong and this page becomes unavailable:<code>%2$s</code></div>', 'ultimate-multisite'), $security_mode_key, get_site_url(null, '/') . $security_mode_key),
 					'type'    => 'toggle',
 					'default' => 0,
 				]

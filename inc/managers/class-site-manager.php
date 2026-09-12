@@ -1717,7 +1717,7 @@ class Site_Manager extends Base_Manager {
 					[
 						'wu_go_live' => $site->get_id(),
 					],
-					get_home_url()
+					get_home_url(null, '/')
 				),
 				'wu_go_live_' . $site->get_id()
 			);

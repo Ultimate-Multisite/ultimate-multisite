@@ -72,7 +72,7 @@ class Template_Previewer_Customize_Admin_Page extends Customizer_Admin_Page {
 	 */
 	public function get_preview_url() {
 
-		$url = get_site_url(null);
+		$url = get_site_url(null, '/');
 
 		return add_query_arg(
 			[
