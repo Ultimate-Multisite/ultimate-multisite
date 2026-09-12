@@ -18,6 +18,9 @@ use WP_Ultimo\Integrations\Host_Providers\Cloudflare_Host_Provider;
 use WP_Ultimo\Integrations\Host_Providers\DNS_Provider_Interface;
 use WP_UnitTestCase;
 
+// Existing test fixtures use camelCase counters and full WordPress HTTP callback signatures.
+// phpcs:disable WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+
 /**
  * Tests for Cloudflare_Host_Provider.
  *
@@ -34,19 +37,42 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 	private Cloudflare_Host_Provider $provider;
 
 	/**
+	 * The WordPress network object present before each test.
+	 *
+	 * @var \WP_Network|null
+	 */
+	private $original_current_site;
+
+	/**
+	 * The original WordPress network domain.
+	 *
+	 * @var string
+	 */
+	private $original_current_site_domain;
+
+	/**
 	 * Set up test fixtures.
 	 */
 	public function set_up(): void {
 
 		parent::set_up();
 
-		$this->provider = Cloudflare_Host_Provider::get_instance();
+		global $current_site;
+
+		$this->original_current_site        = $current_site;
+		$this->original_current_site_domain = $current_site->domain;
+		$this->provider                     = Cloudflare_Host_Provider::get_instance();
 	}
 
 	/**
 	 * Tear down — remove any HTTP mocks registered during the test.
 	 */
 	public function tear_down(): void {
+
+		global $current_site;
+
+		$current_site         = $this->original_current_site;
+		$current_site->domain = $this->original_current_site_domain;
 
 		remove_all_filters('pre_http_request');
 
@@ -1658,7 +1684,6 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		global $current_site;
 
-		$current_site         = new \stdClass();
 		$current_site->domain = 'mynetwork.com';
 
 		$called = false;
@@ -1691,7 +1716,6 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		global $current_site;
 
-		$current_site         = new \stdClass();
 		$current_site->domain = 'mynetwork.com';
 
 		$called = false;
@@ -1724,7 +1748,6 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		global $current_site;
 
-		$current_site         = new \stdClass();
 		$current_site->domain = 'mynetwork.com';
 
 		$apiCalled = false;
@@ -1778,7 +1801,6 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		global $current_site;
 
-		$current_site         = new \stdClass();
 		$current_site->domain = 'mynetwork.com';
 
 		// Bypass Domain_Manager::should_create_www_subdomain() by filtering the result.
@@ -1847,7 +1869,6 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		global $current_site;
 
-		$current_site         = new \stdClass();
 		$current_site->domain = 'mynetwork.com';
 
 		$called = false;
@@ -1879,7 +1900,6 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		global $current_site;
 
-		$current_site         = new \stdClass();
 		$current_site->domain = 'mynetwork.com';
 
 		$called = false;
@@ -1911,7 +1931,6 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		global $current_site;
 
-		$current_site         = new \stdClass();
 		$current_site->domain = 'mynetwork.com';
 
 		add_filter(
@@ -1947,7 +1966,6 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		global $current_site;
 
-		$current_site         = new \stdClass();
 		$current_site->domain = 'mynetwork.com';
 
 		$deleteCalled = false;
@@ -1997,7 +2015,6 @@ class Cloudflare_Host_Provider_Test extends WP_UnitTestCase {
 
 		global $current_site;
 
-		$current_site         = new \stdClass();
 		$current_site->domain = 'mynetwork.com';
 
 		$dnsEntry = (object) ['id' => 'rec-fail-delete'];
