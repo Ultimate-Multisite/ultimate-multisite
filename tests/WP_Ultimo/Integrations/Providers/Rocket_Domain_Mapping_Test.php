@@ -215,19 +215,19 @@ class Rocket_Domain_Mapping_Test extends WP_UnitTestCase {
 	public function rocket_access_token_response_provider(): array {
 
 		return [
-			'direct token'        => [
+			'direct token'          => [
 				['token' => 'direct-token'],
 				'direct-token',
 			],
-			'direct access token' => [
+			'direct access token'   => [
 				['access_token' => 'direct-access-token'],
 				'direct-access-token',
 			],
-			'nested token'        => [
+			'nested token'          => [
 				['result' => ['token' => 'nested-token']],
 				'nested-token',
 			],
-			'nested access token' => [
+			'nested access token'   => [
 				['result' => ['access_token' => 'nested-access-token']],
 				'nested-access-token',
 			],
