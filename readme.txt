@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 8.2
 Tested up to: 7.1
-Stable tag: 2.16.0
+Stable tag: 2.16.1
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -251,6 +251,12 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+
+= 2.16.1 =
+Version [2.16.1] - Released on 2026-09-11
+- Fix: Site templates now retain readable serialized settings and refresh cloned-site roles reliably.
+- Fix: Per-site plugin access and mapped domains now remain reliable across multisite requests and maintenance operations.
+- Fix: Checkout works correctly on subdirectory networks, while payment management and SSO migrations handle edge cases safely.
 
 = 2.16.0 =
 Version [2.16.0] - Released on 2026-09-09
