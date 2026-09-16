@@ -1009,15 +1009,12 @@ class Checkout_Element extends Base_Element {
 				// Translators: Placeholder receives the customer display name
 				printf(esc_html__('Hi %s. You have a pending payment for your membership!', 'ultimate-multisite'), esc_html($customer->get_display_name()));
 
-				$payment_url = add_query_arg(
-					[
-						'payment' => $pending_payment->get_hash(),
-					],
-					wu_get_registration_url()
-				);
+				$payment_url = $pending_payment->get_payment_url();
 
-				// Translators: The link to registration url with payment hash
-				echo '<br>' . wp_kses_post(sprintf(__('Click <a href="%s">here</a> to pay.', 'ultimate-multisite'), esc_attr($payment_url)));
+				if ($payment_url) {
+					// translators: %s is the payment URL.
+					echo '<br>' . wp_kses_post(sprintf(__('Click <a href="%s">here</a> to pay.', 'ultimate-multisite'), esc_attr($payment_url)));
+				}
 
 				echo '</p>';
 

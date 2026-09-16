@@ -153,6 +153,63 @@ class Magic_Link {
 	}
 
 	/**
+	 * Generate a magic link for a customer to pay an outstanding payment.
+	 *
+	 * Payment links target the network main site, where customers are not
+	 * necessarily site members. Access is therefore bound to payment ownership
+	 * rather than normal site membership.
+	 *
+	 * @since 2.16.2
+	 *
+	 * @param \WP_Ultimo\Models\Payment $payment    Payment to be paid.
+	 * @param string                    $redirect_to Exact payment checkout URL.
+	 * @return string|false The magic link URL or false on failure.
+	 */
+	public function generate_payment_magic_link($payment, $redirect_to) {
+
+		if ( ! $this->is_enabled() || ! $payment instanceof \WP_Ultimo\Models\Payment || ! $payment->is_payable() ) {
+			return false;
+		}
+
+		$user_id = get_current_user_id();
+
+		if ( ! $user_id || ! $this->verify_payment_access($payment, $user_id, $redirect_to) ) {
+			return false;
+		}
+
+		$target_host  = wp_parse_url($redirect_to, PHP_URL_HOST);
+		$current_host = wp_parse_url(home_url('/'), PHP_URL_HOST);
+
+		if ( ! $target_host || $target_host === $current_host ) {
+			return false;
+		}
+
+		$site_id = wu_get_main_site_id();
+		$token   = $this->generate_token();
+
+		$token_data = array(
+			'user_id'     => $user_id,
+			'site_id'     => $site_id,
+			'redirect_to' => $redirect_to,
+			'created_at'  => time(),
+			'user_agent'  => $this->get_user_agent(),
+			'ip_address'  => $this->get_client_ip(),
+			'purpose'     => 'payment',
+			'payment_id'  => $payment->get_id(),
+		);
+
+		$transient_key = self::TRANSIENT_PREFIX . $token;
+
+		wu_switch_blog_and_run(
+			fn() => set_transient($transient_key, $token_data, self::TOKEN_EXPIRATION)
+		);
+
+		$magic_link = add_query_arg(self::TOKEN_QUERY_ARG, $token, $redirect_to);
+
+		return apply_filters('wu_magic_link_url', $magic_link, $user_id, $site_id, $redirect_to);
+	}
+
+	/**
 	 * Generate a magic link for cross-network authentication.
 	 *
 	 * Unlike generate_magic_link(), this method stores the transient on the
@@ -247,6 +304,41 @@ class Magic_Link {
 	}
 
 	/**
+	 * Verify that a user owns a payable payment and its fixed checkout URL.
+	 *
+	 * @since 2.16.2
+	 *
+	 * @param \WP_Ultimo\Models\Payment $payment    Payment being accessed.
+	 * @param int                       $user_id     User ID to authenticate.
+	 * @param string                    $redirect_to Payment checkout URL.
+	 * @return bool True when access is allowed, false otherwise.
+	 */
+	protected function verify_payment_access($payment, $user_id, $redirect_to) {
+
+		if ( ! $payment instanceof \WP_Ultimo\Models\Payment || ! $payment->is_payable() ) {
+			return false;
+		}
+
+		$customer = $payment->get_customer();
+
+		if ( ! $customer || (int) $customer->get_user_id() !== (int) $user_id ) {
+			return false;
+		}
+
+		$args = array(
+			'payment' => $payment->get_hash(),
+		);
+
+		if ( ! $payment->get_membership_id() ) {
+			$args['checkout_form'] = 'wu-pay-invoice';
+		}
+
+		$expected_url = add_query_arg($args, wu_get_registration_url());
+
+		return $expected_url === $redirect_to;
+	}
+
+	/**
 	 * Handle magic link token verification and login.
 	 *
 	 * @since 2.0.0
@@ -280,8 +372,15 @@ class Magic_Link {
 			return;
 		}
 
-		// Verify user still has access to the site.
-		if ( ! $this->verify_user_site_access($user_id, $site_id) ) {
+		if ( 'payment' === ($token_data['purpose'] ?? '') ) {
+			$payment = wu_get_payment((int) ($token_data['payment_id'] ?? 0));
+
+			if ( ! $payment || ! $this->verify_payment_access($payment, $user_id, $redirect_to) ) {
+				$this->handle_invalid_token('User does not have access to this payment.');
+				return;
+			}
+		} elseif ( ! $this->verify_user_site_access($user_id, $site_id) ) {
+			// Verify user still has access to the site.
 			$this->handle_invalid_token('User does not have access to this site.');
 			return;
 		}
@@ -324,9 +423,23 @@ class Magic_Link {
 	protected function verify_and_consume_token($token) {
 
 		$transient_key = self::TRANSIENT_PREFIX . $token;
+		$claim_key     = $transient_key . '_claim';
 
 		$token_data = wu_switch_blog_and_run(
-			fn() => get_transient($transient_key)
+			function () use ($claim_key, $transient_key) {
+
+				if ( ! add_option($claim_key, time(), '', false) ) {
+					return false;
+				}
+
+				$token_data = get_transient($transient_key);
+
+				if ( false === $token_data ) {
+					delete_option($claim_key);
+				}
+
+				return $token_data;
+			}
 		);
 
 		if ( false === $token_data ) {
@@ -338,14 +451,22 @@ class Magic_Link {
 		if ( ! $this->verify_security_context($token_data) ) {
 			wu_log_add('magic-link', sprintf('Security context mismatch for token: %s', $token));
 			wu_switch_blog_and_run(
-				fn() => delete_transient($transient_key)
+				function () use ($claim_key, $transient_key) {
+
+					delete_transient($transient_key);
+					delete_option($claim_key);
+				}
 			);
 			return false;
 		}
 
-		// Delete the transient to ensure one-time use.
+		// Delete the token before releasing its atomic consumption claim.
 		wu_switch_blog_and_run(
-			fn() => delete_transient($transient_key)
+			function () use ($claim_key, $transient_key) {
+
+				delete_transient($transient_key);
+				delete_option($claim_key);
+			}
 		);
 
 		// Log successful authentication for audit trail.
