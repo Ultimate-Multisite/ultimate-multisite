@@ -288,6 +288,7 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 		);
 
 		$this->assertSame('payment', $token_data['purpose']);
+		$this->assertSame($objects['user_id'], $token_data['user_id']);
 		$this->assertSame($payment->get_id(), $token_data['payment_id']);
 		$this->assertSame($redirect_to, $token_data['redirect_to']);
 

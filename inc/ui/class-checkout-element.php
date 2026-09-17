@@ -1011,7 +1011,7 @@ class Checkout_Element extends Base_Element {
 
 				$payment_url = $pending_payment->get_payment_url();
 
-				if ($payment_url) {
+				if (false !== $payment_url) {
 					// translators: %s is the payment URL.
 					echo '<br>' . wp_kses_post(sprintf(__('Click <a href="%s">here</a> to pay.', 'ultimate-multisite'), esc_attr($payment_url)));
 				}

@@ -49,6 +49,14 @@ class Magic_Link {
 	const TOKEN_EXPIRATION = 600;
 
 	/**
+	 * Claim expiration time in seconds.
+	 *
+	 * @since 2.16.2
+	 * @var int
+	 */
+	const CLAIM_EXPIRATION = 30;
+
+	/**
 	 * Initialize hooks.
 	 *
 	 * @since 2.0.0
@@ -177,17 +185,18 @@ class Magic_Link {
 			return false;
 		}
 
-		$target_host  = wp_parse_url($redirect_to, PHP_URL_HOST);
-		$current_host = wp_parse_url(home_url('/'), PHP_URL_HOST);
+		$target_host   = wp_parse_url($redirect_to, PHP_URL_HOST);
+		$target_scheme = wp_parse_url($redirect_to, PHP_URL_SCHEME);
+		$current_host  = wp_parse_url(home_url('/'), PHP_URL_HOST);
 
-		if ( ! $target_host || $target_host === $current_host ) {
+		if ( ! $target_host || 'https' !== strtolower((string) $target_scheme) || $target_host === $current_host ) {
 			return false;
 		}
 
 		$site_id = wu_get_main_site_id();
 		$token   = $this->generate_token();
 
-		$token_data = array(
+		$token_data = [
 			'user_id'     => $user_id,
 			'site_id'     => $site_id,
 			'redirect_to' => $redirect_to,
@@ -196,7 +205,7 @@ class Magic_Link {
 			'ip_address'  => $this->get_client_ip(),
 			'purpose'     => 'payment',
 			'payment_id'  => $payment->get_id(),
-		);
+		];
 
 		$transient_key = self::TRANSIENT_PREFIX . $token;
 
@@ -325,9 +334,9 @@ class Magic_Link {
 			return false;
 		}
 
-		$args = array(
+		$args = [
 			'payment' => $payment->get_hash(),
-		);
+		];
 
 		if ( ! $payment->get_membership_id() ) {
 			$args['checkout_form'] = 'wu-pay-invoice';
@@ -428,8 +437,24 @@ class Magic_Link {
 		$token_data = wu_switch_blog_and_run(
 			function () use ($claim_key, $transient_key) {
 
-				if ( ! add_option($claim_key, time(), '', false) ) {
+				$token_data = get_transient($transient_key);
+
+				if ( false === $token_data ) {
 					return false;
+				}
+
+				if ( ! add_option($claim_key, time(), '', false) ) {
+					$claim_created_at = (int) get_option($claim_key, 0);
+
+					if ( time() - $claim_created_at <= self::CLAIM_EXPIRATION ) {
+						return false;
+					}
+
+					delete_option($claim_key);
+
+					if ( ! add_option($claim_key, time(), '', false) ) {
+						return false;
+					}
 				}
 
 				$token_data = get_transient($transient_key);
