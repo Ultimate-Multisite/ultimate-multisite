@@ -271,6 +271,23 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Removed instruction URLs resolve to the configuration step.
+	 */
+	public function test_removed_instruction_url_resolves_to_configuration(): void {
+
+		$integration = new Integration('inline-instructions-provider', 'Inline Instructions Provider');
+		$integration->set_supports(['no-instructions']);
+
+		$ref = new \ReflectionProperty(Hosting_Integration_Wizard_Admin_Page::class, 'integration');
+		$ref->setAccessible(true);
+		$ref->setValue($this->page, $integration);
+
+		$_GET['step'] = 'instructions';
+
+		$this->assertSame('config', $this->page->get_current_section());
+	}
+
+	/**
 	 * get_sections() removes 'config' when integration supports 'no-config'.
 	 */
 	public function test_get_sections_removes_config_when_no_config_supported(): void {
