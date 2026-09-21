@@ -138,7 +138,7 @@ if ( ! class_exists('MUCD_Data') ) {
 				self::do_sql_query($create_statement_sql);
 
 				// Populate database with data from source table
-				self::do_sql_query('INSERT `' . $table_name . '` SELECT * FROM `' . $table . '`');
+				self::do_sql_query('INSERT IGNORE `' . $table_name . '` SELECT * FROM `' . $table . '`');
 
 				$wpdb->get_results('SET foreign_key_checks = 1'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			}

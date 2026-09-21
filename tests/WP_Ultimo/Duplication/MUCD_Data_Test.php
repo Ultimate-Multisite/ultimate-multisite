@@ -629,6 +629,60 @@ class MUCD_Data_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test table copies continue when a destination row races the bulk insert.
+	 */
+	public function test_db_copy_tables_ignores_destination_key_collisions() {
+		global $wpdb;
+
+		$from_site_id = self::factory()->blog->create();
+		$to_site_id   = self::factory()->blog->create();
+		$from_options = $wpdb->get_blog_prefix($from_site_id) . 'options';
+		$to_options   = $wpdb->get_blog_prefix($to_site_id) . 'options';
+		$injected     = false;
+
+		update_blog_option($from_site_id, 'wu_copy_collision', 'template-value');
+		update_blog_option($from_site_id, 'wu_copy_marker', 'copied-value');
+
+		$table_filter = static function ($copy, $table, $table_base_name) {
+			return 'options' === $table_base_name;
+		};
+		$query_filter = static function ($query) use (&$injected, $from_options, $to_options, $wpdb) {
+			$copy_query_suffix = '`' . $to_options . '` SELECT * FROM `' . $from_options . '`';
+
+			if ( ! $injected && false !== strpos($query, $copy_query_suffix)) {
+				$injected = true;
+				$wpdb->insert(
+					$to_options,
+					[
+						'option_name'  => 'wu_copy_collision',
+						'option_value' => 'destination-value',
+						'autoload'     => 'yes',
+					],
+					['%s', '%s', '%s']
+				);
+			}
+
+			return $query;
+		};
+
+		add_filter('wu_mucd_should_copy_table', $table_filter, 10, 3);
+		add_filter('query', $query_filter);
+
+		try {
+			\MUCD_Data::db_copy_tables($from_site_id, $to_site_id);
+
+			$this->assertTrue($injected, 'The simulated destination-row race must run before the bulk copy.');
+			$this->assertSame('destination-value', get_blog_option($to_site_id, 'wu_copy_collision'));
+			$this->assertSame('copied-value', get_blog_option($to_site_id, 'wu_copy_marker'));
+		} finally {
+			remove_filter('query', $query_filter);
+			remove_filter('wu_mucd_should_copy_table', $table_filter, 10);
+			wpmu_delete_blog($from_site_id, true);
+			wpmu_delete_blog($to_site_id, true);
+		}
+	}
+
+	/**
 	 * Test runtime-only tables are excluded from template copies by default.
 	 */
 	public function test_should_copy_table_skips_runtime_tables() {
