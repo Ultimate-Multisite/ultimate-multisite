@@ -800,7 +800,11 @@ class Payment extends Base_Model implements Notable {
 			$args['checkout_form'] = 'wu-pay-invoice';
 		}
 
-		return add_query_arg($args, wu_get_registration_url());
+		$payment_url = add_query_arg($args, wu_get_registration_url());
+
+		$magic_link = \WP_Ultimo\SSO\Magic_Link::get_instance()->generate_payment_magic_link($this, $payment_url);
+
+		return $magic_link ?: $payment_url;
 	}
 
 	/**

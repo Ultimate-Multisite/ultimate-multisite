@@ -17,6 +17,34 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 		return Magic_Link::get_instance();
 	}
 
+	/**
+	 * Create a payable payment owned by a new customer.
+	 *
+	 * @return array{customer: \WP_Ultimo\Models\Customer, payment: \WP_Ultimo\Models\Payment, user_id: int}
+	 */
+	private function create_payable_payment() {
+
+		$user_id  = self::factory()->user->create();
+		$customer = wu_create_customer(['user_id' => $user_id]);
+
+		$this->assertNotWPError($customer);
+
+		$payment = wu_create_payment(
+			[
+				'customer_id' => $customer->get_id(),
+				'currency'    => 'USD',
+				'subtotal'    => 25,
+				'total'       => 25,
+				'status'      => 'pending',
+				'gateway'     => 'manual',
+			]
+		);
+
+		$this->assertNotWPError($payment);
+
+		return compact('customer', 'payment', 'user_id');
+	}
+
 	public function set_up() {
 
 		parent::set_up();
@@ -219,6 +247,108 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 		$result = $instance->generate_magic_link(999999, get_current_blog_id());
 
 		$this->assertFalse($result);
+	}
+
+	/**
+	 * Test payment magic links bind a customer to a single payment checkout URL.
+	 */
+	public function test_generate_payment_magic_link_for_owner() {
+
+		$objects     = $this->create_payable_payment();
+		$payment     = $objects['payment'];
+		$redirect_to = add_query_arg(
+			[
+				'payment'       => $payment->get_hash(),
+				'checkout_form' => 'wu-pay-invoice',
+			],
+			wu_get_registration_url()
+		);
+
+		wp_set_current_user($objects['user_id']);
+
+		$site_id = self::factory()->blog->create();
+		switch_to_blog($site_id);
+		update_option('home', 'https://customer.example.test');
+
+		try {
+			$magic_link = $payment->get_payment_url();
+		} finally {
+			restore_current_blog();
+		}
+
+		$this->assertIsString($magic_link);
+		$this->assertStringContainsString($payment->get_hash(), $magic_link);
+		$this->assertSame($redirect_to, remove_query_arg(Magic_Link::TOKEN_QUERY_ARG, $magic_link));
+
+		parse_str((string) wp_parse_url($magic_link, PHP_URL_QUERY), $query_args);
+		$this->assertArrayHasKey(Magic_Link::TOKEN_QUERY_ARG, $query_args);
+
+		$token_data = wu_switch_blog_and_run(
+			fn() => get_transient(Magic_Link::TRANSIENT_PREFIX . $query_args[ Magic_Link::TOKEN_QUERY_ARG ])
+		);
+
+		$this->assertSame('payment', $token_data['purpose']);
+		$this->assertSame($objects['user_id'], $token_data['user_id']);
+		$this->assertSame($payment->get_id(), $token_data['payment_id']);
+		$this->assertSame($redirect_to, $token_data['redirect_to']);
+
+		$consume = new \ReflectionMethod($this->get_instance(), 'verify_and_consume_token');
+
+		if (PHP_VERSION_ID < 80100) {
+			$consume->setAccessible(true);
+		}
+
+		$this->assertIsArray($consume->invoke($this->get_instance(), $query_args[ Magic_Link::TOKEN_QUERY_ARG ]));
+		$this->assertFalse($consume->invoke($this->get_instance(), $query_args[ Magic_Link::TOKEN_QUERY_ARG ]));
+	}
+
+	/**
+	 * Test payment magic links reject users who do not own the payment.
+	 */
+	public function test_generate_payment_magic_link_rejects_non_owner() {
+
+		$objects = $this->create_payable_payment();
+		$payment = $objects['payment'];
+
+		wp_set_current_user(self::factory()->user->create());
+
+		$this->assertFalse(
+			$this->get_instance()->generate_payment_magic_link($payment, $payment->get_payment_url())
+		);
+	}
+
+	/**
+	 * Test payment access rejects a modified checkout URL.
+	 */
+	public function test_verify_payment_access_rejects_modified_redirect() {
+
+		$objects     = $this->create_payable_payment();
+		$payment     = $objects['payment'];
+		$redirect_to = add_query_arg('payment', $payment->get_hash(), wu_get_registration_url());
+		$redirect_to = add_query_arg('redirect_to', 'https://attacker.example.test', $redirect_to);
+		$ref         = new \ReflectionMethod($this->get_instance(), 'verify_payment_access');
+
+		if (PHP_VERSION_ID < 80100) {
+			$ref->setAccessible(true);
+		}
+
+		$this->assertFalse($ref->invoke($this->get_instance(), $payment, $objects['user_id'], $redirect_to));
+	}
+
+	/**
+	 * Test payment magic links reject payments that can no longer be paid.
+	 */
+	public function test_generate_payment_magic_link_rejects_non_payable_payment() {
+
+		$objects = $this->create_payable_payment();
+		$payment = $objects['payment'];
+		$payment->set_status('completed');
+
+		wp_set_current_user($objects['user_id']);
+
+		$this->assertFalse(
+			$this->get_instance()->generate_payment_magic_link($payment, add_query_arg('payment', $payment->get_hash(), wu_get_registration_url()))
+		);
 	}
 
 	/**

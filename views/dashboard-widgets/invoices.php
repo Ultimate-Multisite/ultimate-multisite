@@ -7,7 +7,7 @@
 defined('ABSPATH') || exit;
 
 ?>
-<div class="wu-styling <?php echo esc_attr($className); ?>">
+<div class="wu-styling <?php echo esc_attr($className); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase ?>">
 
 	<div class="<?php echo esc_attr(wu_env_picker('', 'wu-widget-inset')); ?>">
 
@@ -52,9 +52,11 @@ defined('ABSPATH') || exit;
 					esc_html__('Download Invoice', 'ultimate-multisite')
 				);
 
-				$payment_column = $payment->get_status() === 'pending' ? [
+				$payment_url = $payment->get_payment_url();
+
+				$payment_column = $payment_url ? [
 					'pay_now' => [
-						'url'   => add_query_arg(['payment' => $payment->get_hash()], wu_get_registration_url()),
+						'url'   => $payment_url,
 						'icon'  => 'dashicons-wu-credit-card wu-align-middle wu-mr-1',
 						'label' => esc_html__('Go to payment', 'ultimate-multisite'),
 						'value' => esc_html__('Pay Now', 'ultimate-multisite'),
