@@ -32,24 +32,30 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @return string
 	 */
-	public function get_capability_id(): string {
+	public function get_capability_id() {
 
 		return 'domain-mapping';
 	}
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @return string
 	 */
-	public function get_title(): string {
+	public function get_title() {
 
 		return __('Domain Mapping', 'ultimate-multisite');
 	}
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @return array
 	 */
-	public function get_explainer_lines(): array {
+	public function get_explainer_lines() {
 
 		return [
 			'will'     => [
@@ -65,8 +71,10 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @return void
 	 */
-	public function register_hooks(): void {
+	public function register_hooks() {
 
 		add_action('wu_add_domain', [$this, 'on_add_domain'], 10, 2);
 		add_action('wu_remove_domain', [$this, 'on_remove_domain'], 10, 2);
@@ -146,7 +154,9 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 			'DELETE'
 		);
 
-		if (is_wp_error($response) && 404 === (int) $response->get_error_data('status')) {
+		$error_data = is_wp_error($response) ? $response->get_error_data() : [];
+
+		if (is_wp_error($response) && 404 === (int) ($error_data['status'] ?? 0)) {
 			wu_log_add('integration-bigscoots', sprintf('BigScoots subsite %d was already absent.', $site_id));
 
 			return;
@@ -211,7 +221,7 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 	 * @param object $domain Domain model passed by the domain manager.
 	 * @return void
 	 */
-	public function request_ssl($domain): void {
+	public function request_ssl($domain) {
 
 		if ( ! is_object($domain) || ! method_exists($domain, 'get_blog_id')) {
 			$this->log_error('Could not request SSL because the mapped domain did not include a site ID.');

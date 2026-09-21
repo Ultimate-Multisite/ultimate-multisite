@@ -45,7 +45,7 @@ class BigScoots_Integration extends Integration {
 	 */
 	public function __construct() {
 
-		parent::__construct('bigscoots', 'BigScoots');
+		parent::__construct('bigscoots', __('BigScoots', 'ultimate-multisite'));
 
 		$this->set_constants(
 			[
