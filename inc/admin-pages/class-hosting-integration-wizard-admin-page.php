@@ -134,6 +134,27 @@ class Hosting_Integration_Wizard_Admin_Page extends Wizard_Admin_Page {
 	}
 
 	/**
+	 * Returns the current wizard section.
+	 *
+	 * Old instruction links should open the combined configuration step when an
+	 * integration no longer uses a separate instructions screen.
+	 *
+	 * @since 2.16.2
+	 * @return string
+	 */
+	public function get_current_section() {
+
+		$current_section = parent::get_current_section();
+		$sections        = $this->get_sections();
+
+		if ('instructions' === $current_section && ! isset($sections['instructions']) && isset($sections['config'])) {
+			return 'config';
+		}
+
+		return $current_section;
+	}
+
+	/**
 	 * Returns the sections for this Wizard.
 	 *
 	 * @since 2.0.0
