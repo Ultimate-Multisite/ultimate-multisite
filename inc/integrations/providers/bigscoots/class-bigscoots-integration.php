@@ -362,6 +362,10 @@ class BigScoots_Integration extends Integration {
 			return $decoded['error'];
 		}
 
+		if (is_array($decoded) && isset($decoded['response']['error']) && is_string($decoded['response']['error'])) {
+			return $decoded['response']['error'];
+		}
+
 		if (is_array($decoded) && isset($decoded['response']['message']) && is_string($decoded['response']['message'])) {
 			return $decoded['response']['message'];
 		}

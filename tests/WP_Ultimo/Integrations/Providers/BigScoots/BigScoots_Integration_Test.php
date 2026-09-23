@@ -178,6 +178,39 @@ class BigScoots_Integration_Test extends WP_UnitTestCase {
 		$this->assertStringContainsString('Your plan type should be multisite or hybrid.', $result->get_error_message());
 	}
 
+	public function test_api_call_returns_nested_api_error_message(): void {
+
+		$integration = $this->getMockBuilder(BigScoots_Integration::class)
+			->onlyMethods(['get_credential'])
+			->getMock();
+
+		$integration->method('get_credential')->willReturn('configured');
+
+		$intercept = function () {
+
+			return [
+				'headers'  => [],
+				'body'     => '{"success":false,"response":{"error":"Your plan type should be multisite or hybrid."}}',
+				'response' => [
+					'code'    => 400,
+					'message' => 'Bad Request',
+				],
+				'cookies'  => [],
+			];
+		};
+
+		add_filter('pre_http_request', $intercept);
+
+		try {
+			$result = $integration->bigscoots_api_call('/v1/multi-sites/sub-sites/primary-uuid');
+		} finally {
+			remove_filter('pre_http_request', $intercept);
+		}
+
+		$this->assertInstanceOf(\WP_Error::class, $result);
+		$this->assertStringContainsString('Your plan type should be multisite or hybrid.', $result->get_error_message());
+	}
+
 	public function test_test_connection_uses_primary_site_endpoint(): void {
 
 		$integration = $this->getMockBuilder(BigScoots_Integration::class)
