@@ -163,7 +163,9 @@ class GridPane_Domain_Mapping_Test extends WP_UnitTestCase {
 
 	public function test_rate_limited_write_slot_schedules_domain_add(): void {
 
-		update_network_option(null, 'wu_gridpane_next_write_slot', time() + 30);
+		$reserved_slot = time() + 30;
+
+		update_network_option(null, 'wu_gridpane_next_write_slot', $reserved_slot);
 
 		$this->integration->expects($this->never())
 			->method('send_gridpane_api_request');
@@ -182,6 +184,32 @@ class GridPane_Domain_Mapping_Test extends WP_UnitTestCase {
 		);
 
 		$this->assertNotEmpty($actions);
+		$this->assertSame($reserved_slot, (int) get_network_option(null, 'wu_gridpane_next_write_slot', 0));
+	}
+
+	public function test_queued_domain_add_runs_when_its_write_slot_is_available(): void {
+
+		$domain  = 'queued.example.com';
+		$mapping = wu_create_domain(
+			[
+				'blog_id'        => 1,
+				'domain'         => $domain,
+				'active'         => true,
+				'primary_domain' => false,
+				'secure'         => false,
+				'stage'          => \WP_Ultimo\Database\Domains\Domain_Stage::DONE,
+			]
+		);
+
+		$this->assertNotWPError($mapping);
+
+		update_network_option(null, 'wu_gridpane_next_write_slot', time() - 1);
+
+		$this->integration->expects($this->once())
+			->method('send_gridpane_api_request')
+			->with('domain', $this->isType('array'), 'POST');
+
+		$this->module->retry_add_domain($domain, 1);
 	}
 
 	public function test_api_rate_limit_extends_shared_write_cooldown(): void {

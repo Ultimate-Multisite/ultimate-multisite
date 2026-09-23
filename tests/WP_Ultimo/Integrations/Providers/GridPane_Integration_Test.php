@@ -164,6 +164,31 @@ class GridPane_Integration_Test extends WP_UnitTestCase {
 		$integration->delete_credentials();
 	}
 
+	public function test_discovery_rejects_an_unmatched_sole_site(): void {
+
+		$integration = $this->getMockBuilder(GridPane_Integration::class)
+			->onlyMethods(['fetch_all'])
+			->getMock();
+
+		$integration->expects($this->once())
+			->method('fetch_all')
+			->with('site')
+			->willReturn(
+				[
+					[
+						'id'        => 123456,
+						'server_id' => 12345,
+						'url'       => 'https://unmatched.example.com',
+					],
+				]
+			);
+
+		$result = $integration->discover_site_configuration();
+
+		$this->assertWPError($result);
+		$this->assertSame('gridpane-site-not-found', $result->get_error_code());
+	}
+
 	public function test_fetch_all_returns_error_instead_of_partial_results_at_safety_limit(): void {
 
 		$integration = $this->getMockBuilder(GridPane_Integration::class)
@@ -183,6 +208,58 @@ class GridPane_Integration_Test extends WP_UnitTestCase {
 
 		$this->assertWPError($result);
 		$this->assertSame('gridpane-pagination-limit', $result->get_error_code());
+	}
+
+	public function test_fetch_all_rejects_an_invalid_next_endpoint(): void {
+
+		$integration = $this->getMockBuilder(GridPane_Integration::class)
+			->onlyMethods(['send_gridpane_api_request'])
+			->getMock();
+
+		$integration->expects($this->once())
+			->method('send_gridpane_api_request')
+			->willReturn(
+				[
+					'data'  => [],
+					'links' => ['next' => 'https://untrusted.example.com/api/v1/site?page=2'],
+				]
+			);
+
+		$result = $integration->fetch_all('site');
+
+		$this->assertWPError($result);
+		$this->assertSame('gridpane-invalid-endpoint', $result->get_error_code());
+	}
+
+	public function test_http_error_with_invalid_json_retains_its_status(): void {
+
+		$this->integration->save_credentials(['WU_GRIDPANE_API_TOKEN' => 'test-bearer-token']);
+
+		$callback = function () {
+			return [
+				'headers'  => ['retry-after' => '75'],
+				'body'     => '<html>Too Many Requests</html>',
+				'response' => [
+					'code'    => 429,
+					'message' => 'Too Many Requests',
+				],
+				'cookies'  => [],
+				'filename' => null,
+			];
+		};
+
+		add_filter('pre_http_request', $callback);
+
+		try {
+			$result = $this->integration->send_gridpane_api_request('domain', [], 'GET');
+		} finally {
+			remove_filter('pre_http_request', $callback);
+		}
+
+		$this->assertWPError($result);
+		$this->assertSame('gridpane-http-error', $result->get_error_code());
+		$this->assertSame(429, $result->get_error_data()['status']);
+		$this->assertSame(75, $result->get_error_data()['retry_after']);
 	}
 
 	public function test_legacy_api_key_is_accepted_as_bearer_token(): void {

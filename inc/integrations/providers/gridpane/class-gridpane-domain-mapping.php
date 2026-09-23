@@ -135,7 +135,13 @@ class GridPane_Domain_Mapping extends Base_Capability_Module implements Domain_M
 	 * @param int    $attempt Current attempt number.
 	 * @return void
 	 */
-	public function retry_add_domain(string $domain, int $attempt): void {
+	public function retry_add_domain(string $domain, int $attempt) {
+
+		if (function_exists('wu_get_domain_by_domain') && ! wu_get_domain_by_domain($domain)) {
+			$this->log_domain($domain, sprintf('Skipped stale add of "%s" because the mapping no longer exists.', $domain));
+
+			return;
+		}
 
 		$this->push_domain($domain, $attempt);
 	}
@@ -155,12 +161,6 @@ class GridPane_Domain_Mapping extends Base_Capability_Module implements Domain_M
 
 		if ('' !== $network_host && str_ends_with(strtolower($domain), '.' . $network_host)) {
 			$this->log_domain($domain, sprintf('Skipped "%s" because GridPane already covers network subdomains with its wildcard configuration.', $domain));
-
-			return;
-		}
-
-		if ($attempt > 1 && function_exists('wu_get_domain_by_domain') && ! wu_get_domain_by_domain($domain)) {
-			$this->log_domain($domain, sprintf('Skipped stale add of "%s" because the mapping no longer exists.', $domain));
 
 			return;
 		}
@@ -252,7 +252,13 @@ class GridPane_Domain_Mapping extends Base_Capability_Module implements Domain_M
 	 * @param int    $attempt Current attempt number.
 	 * @return void
 	 */
-	public function retry_remove_domain(string $domain, int $attempt): void {
+	public function retry_remove_domain(string $domain, int $attempt) {
+
+		if (function_exists('wu_get_domain_by_domain') && wu_get_domain_by_domain($domain)) {
+			$this->log_domain($domain, sprintf('Skipped stale removal of "%s" because the domain has been mapped again.', $domain));
+
+			return;
+		}
 
 		$this->pull_domain($domain, $attempt);
 	}
@@ -267,12 +273,6 @@ class GridPane_Domain_Mapping extends Base_Capability_Module implements Domain_M
 	 * @return void
 	 */
 	private function pull_domain(string $domain, int $attempt): void {
-
-		if ($attempt > 1 && function_exists('wu_get_domain_by_domain') && wu_get_domain_by_domain($domain)) {
-			$this->log_domain($domain, sprintf('Skipped stale removal of "%s" because the domain has been mapped again.', $domain));
-
-			return;
-		}
 
 		$wait = $this->reserve_write_slot();
 
@@ -340,8 +340,6 @@ class GridPane_Domain_Mapping extends Base_Capability_Module implements Domain_M
 
 			return 0;
 		}
-
-		update_network_option(null, 'wu_gridpane_next_write_slot', $next + $spacing);
 
 		return $next - $now;
 	}

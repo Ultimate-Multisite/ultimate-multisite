@@ -239,10 +239,6 @@ class GridPane_Integration extends Integration {
 			}
 		}
 
-		if (1 === count($sites) && empty($matches)) {
-			$matches = $sites;
-		}
-
 		if (1 !== count($matches) || empty($matches[0]['id']) || empty($matches[0]['server_id'])) {
 			return new \WP_Error(
 				'gridpane-site-not-found',
@@ -291,7 +287,12 @@ class GridPane_Integration extends Integration {
 				$items = array_merge($items, $data);
 			}
 
-			$next = $this->normalize_next_endpoint($response['links']['next'] ?? '');
+			$raw_next = (string) ($response['links']['next'] ?? '');
+			$next     = $this->normalize_next_endpoint($raw_next);
+
+			if ('' !== $raw_next && '' === $next) {
+				return new \WP_Error('gridpane-invalid-endpoint', __('GridPane returned an invalid API endpoint.', 'ultimate-multisite'));
+			}
 		}
 
 		if ($next) {
@@ -357,12 +358,13 @@ class GridPane_Integration extends Integration {
 		$status_code = (int) wp_remote_retrieve_response_code($response);
 		$body        = wp_remote_retrieve_body($response);
 		$decoded     = '' === $body ? [] : json_decode($body, true);
-
-		if ('' !== $body && JSON_ERROR_NONE !== json_last_error()) {
-			return new \WP_Error('gridpane-invalid-json', __('GridPane returned a malformed API response.', 'ultimate-multisite'));
-		}
+		$json_valid  = '' === $body || JSON_ERROR_NONE === json_last_error();
 
 		if ($status_code >= 200 && $status_code < 300) {
+			if ( ! $json_valid) {
+				return new \WP_Error('gridpane-invalid-json', __('GridPane returned a malformed API response.', 'ultimate-multisite'));
+			}
+
 			return is_array($decoded) ? $decoded : [];
 		}
 
