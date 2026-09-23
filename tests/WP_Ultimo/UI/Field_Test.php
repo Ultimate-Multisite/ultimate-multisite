@@ -240,6 +240,19 @@ class Field_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test field with input group HTML attributes.
+	 */
+	public function test_field_with_input_group_html_attr(): void {
+		$field = new Field('test_field', [
+			'input_group_html_attr' => [
+				'dir' => 'ltr',
+			],
+		]);
+
+		$this->assertSame('ltr', $field->input_group_html_attr['dir']);
+	}
+
+	/**
 	 * Test field with wrapper classes.
 	 */
 	public function test_field_with_wrapper_classes(): void {

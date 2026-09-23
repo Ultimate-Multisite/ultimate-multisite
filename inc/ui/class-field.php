@@ -62,6 +62,7 @@ defined('ABSPATH') || exit;
  * @property string suffix
  * @property array prefix_html_attr
  * @property array suffix_html_attr
+ * @property array input_group_html_attr
  * @since 2.0.0
  */
 class Field implements \JsonSerializable {
@@ -284,6 +285,7 @@ class Field implements \JsonSerializable {
 			'wrapper_html_attr',
 			'prefix_html_attr',
 			'suffix_html_attr',
+			'input_group_html_attr',
 			'prefix',
 			'suffix',
 			'button',
