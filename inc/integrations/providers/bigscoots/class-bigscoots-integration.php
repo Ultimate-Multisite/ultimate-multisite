@@ -76,16 +76,40 @@ class BigScoots_Integration extends Integration {
 	/**
 	 * {@inheritdoc}
 	 */
+	public function is_ready_for_connection_test() {
+
+		return empty($this->get_missing_connection_test_constants());
+	}
+
+	/**
+	 * {@inheritdoc}
+	 */
+	public function get_missing_connection_test_constants() {
+
+		$missing = [];
+
+		foreach (['WU_BIGSCOOTS_API_EMAIL', 'WU_BIGSCOOTS_API_KEY'] as $constant) {
+			if ('' === $this->get_credential($constant)) {
+				$missing[] = $constant;
+			}
+		}
+
+		return $missing;
+	}
+
+	/**
+	 * {@inheritdoc}
+	 */
 	public function get_fields(): array {
 
 		return [
-			'WU_BIGSCOOTS_API_EMAIL'    => [
+			'WU_BIGSCOOTS_API_EMAIL' => [
 				'title'       => __('BigScoots Account Email', 'ultimate-multisite'),
 				'desc'        => __('The email address used to sign in to your BigScoots WPO account.', 'ultimate-multisite'),
 				'type'        => 'email',
 				'placeholder' => __('you@example.com', 'ultimate-multisite'),
 			],
-			'WU_BIGSCOOTS_API_KEY'      => [
+			'WU_BIGSCOOTS_API_KEY'   => [
 				'title'       => __('BigScoots API Key', 'ultimate-multisite'),
 				'desc'        => __('In the WPO Portal, open Edit Profile & Security and enable API Access to generate this key.', 'ultimate-multisite'),
 				'type'        => 'password',
@@ -94,10 +118,55 @@ class BigScoots_Integration extends Integration {
 					'autocomplete' => 'new-password',
 				],
 			],
+		];
+	}
+
+	/**
+	 * Returns provider-specific guidance for the configuration step.
+	 *
+	 * @since 2.16.2
+	 * @return array{title: string, description: string, steps: array<int, string>}
+	 */
+	public function get_configuration_instructions(): array {
+
+		return [
+			'title'       => __('BigScoots WPO configuration checklist', 'ultimate-multisite'),
+			'description' => __('Ultimate Multisite verifies your WPO credentials first, then retrieves the primary sites available to your account so you do not need to find or copy a UUID manually.', 'ultimate-multisite'),
+			'steps'       => [
+				__('Sign in to the BigScoots WPO Portal, open <strong>Edit Profile &amp; Security</strong>, and enable API Access to generate an API key.', 'ultimate-multisite'),
+				__('Enter the email address used to sign in to that WPO account and the generated API key.', 'ultimate-multisite'),
+				__('Test the credentials. On the next step, select the primary site that hosts this WordPress multisite network.', 'ultimate-multisite'),
+				__('The selected WPO site must use a <strong>multisite</strong> or <strong>hybrid</strong> plan type. If BigScoots reports another plan type, contact BigScoots support and ask them to enable multisite API access for the site.', 'ultimate-multisite'),
+			],
+		];
+	}
+
+	/**
+	 * Returns the API-backed primary site selection field.
+	 *
+	 * @since 2.16.2
+	 * @return array
+	 */
+	public function get_resource_selection_fields(): array {
+
+		$sites = $this->get_available_sites();
+
+		if (is_wp_error($sites)) {
+			$sites = [];
+		}
+
+		return [
 			'WU_BIGSCOOTS_PRIMARY_UUID' => [
-				'title'       => __('BigScoots Primary Site UUID', 'ultimate-multisite'),
-				'desc'        => __('The primary site UUID for the multisite installation in your WPO account.', 'ultimate-multisite'),
-				'placeholder' => __('e.g. 123e4567-e89b-12d3-a456-426614174000', 'ultimate-multisite'),
+				'title'       => __('BigScoots Primary Site', 'ultimate-multisite'),
+				'desc'        => empty($sites)
+					? __('No eligible primary sites were returned. Go back, verify the credentials, and confirm the WPO account contains a multisite or hybrid site.', 'ultimate-multisite')
+					: __('Select the primary WPO site that hosts this WordPress multisite network.', 'ultimate-multisite'),
+				'type'        => 'select',
+				'options'     => $sites,
+				'placeholder' => __('Select a primary site', 'ultimate-multisite'),
+				'html_attr'   => [
+					'required' => 'required',
+				],
 			],
 		];
 	}
@@ -113,7 +182,9 @@ class BigScoots_Integration extends Integration {
 		$primary_uuid = $this->get_credential('WU_BIGSCOOTS_PRIMARY_UUID');
 
 		if (empty($primary_uuid)) {
-			return new \WP_Error('bigscoots-missing-primary-uuid', __('BigScoots primary site UUID is required.', 'ultimate-multisite'));
+			$sites = $this->get_available_sites();
+
+			return is_wp_error($sites) ? $sites : true;
 		}
 
 		$response = $this->bigscoots_api_call('/v1/multi-sites/sub-sites/' . rawurlencode($primary_uuid));
@@ -123,6 +194,63 @@ class BigScoots_Integration extends Integration {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Retrieves eligible primary sites for the configured WPO account.
+	 *
+	 * @since 2.16.2
+	 * @return array<string, string>|\WP_Error Site UUID => display label pairs.
+	 */
+	public function get_available_sites() {
+
+		$accounts = $this->bigscoots_api_call('/v1/accounts/');
+
+		if (is_wp_error($accounts)) {
+			return $accounts;
+		}
+
+		$account_uuids = array_unique($this->extract_property_values($accounts, 'account_uuid'));
+
+		if (empty($account_uuids)) {
+			return new \WP_Error('bigscoots-no-accounts', __('BigScoots did not return an account for these credentials.', 'ultimate-multisite'));
+		}
+
+		$options = [];
+
+		foreach ($account_uuids as $account_uuid) {
+			$response = $this->bigscoots_api_call('/v1/sites/account/' . rawurlencode($account_uuid));
+
+			if (is_wp_error($response)) {
+				return $response;
+			}
+
+			$sites = isset($response->response) ? $response->response : $response;
+
+			foreach ((array) $sites as $site) {
+				$site = (object) $site;
+
+				if (empty($site->site_uuid) || empty($site->type) || 'primary' !== $site->type) {
+					continue;
+				}
+
+				$domain = ! empty($site->domain) ? (string) $site->domain : __('Primary site', 'ultimate-multisite');
+				$uuid   = (string) $site->site_uuid;
+
+				$options[ $uuid ] = sprintf(
+					/* translators: 1: Site domain, 2: BigScoots site UUID. */
+					__('%1$s — %2$s', 'ultimate-multisite'),
+					$domain,
+					$uuid
+				);
+			}
+		}
+
+		if (empty($options)) {
+			return new \WP_Error('bigscoots-no-sites', __('BigScoots did not return any eligible primary sites for this account.', 'ultimate-multisite'));
+		}
+
+		return $options;
 	}
 
 	/**
@@ -239,5 +367,31 @@ class BigScoots_Integration extends Integration {
 		}
 
 		return $fallback ?: __('Unknown API error.', 'ultimate-multisite');
+	}
+
+	/**
+	 * Recursively extracts string values for a property from an API response.
+	 *
+	 * @since 2.16.2
+	 *
+	 * @param mixed  $value    API response value.
+	 * @param string $property Property name to collect.
+	 * @return array<int, string>
+	 */
+	private function extract_property_values($value, string $property): array {
+
+		$values = [];
+
+		foreach ((array) $value as $key => $item) {
+			if ($property === $key && is_string($item) && '' !== $item) {
+				$values[] = $item;
+			}
+
+			if (is_array($item) || is_object($item)) {
+				$values = array_merge($values, $this->extract_property_values($item, $property));
+			}
+		}
+
+		return $values;
 	}
 }

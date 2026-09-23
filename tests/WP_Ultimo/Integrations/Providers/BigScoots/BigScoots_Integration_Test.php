@@ -22,10 +22,54 @@ class BigScoots_Integration_Test extends WP_UnitTestCase {
 
 		$fields = (new BigScoots_Integration())->get_fields();
 
-		$this->assertCount(3, $fields);
+		$this->assertCount(2, $fields);
 		$this->assertSame('email', $fields['WU_BIGSCOOTS_API_EMAIL']['type']);
 		$this->assertSame('password', $fields['WU_BIGSCOOTS_API_KEY']['type']);
-		$this->assertArrayHasKey('WU_BIGSCOOTS_PRIMARY_UUID', $fields);
+		$this->assertArrayNotHasKey('WU_BIGSCOOTS_PRIMARY_UUID', $fields);
+	}
+
+	public function test_connection_test_is_ready_before_site_selection(): void {
+
+		$integration = $this->getMockBuilder(BigScoots_Integration::class)
+			->onlyMethods(['get_credential'])
+			->getMock();
+
+		$integration->method('get_credential')->willReturnMap(
+			[
+				['WU_BIGSCOOTS_API_EMAIL', 'owner@example.com'],
+				['WU_BIGSCOOTS_API_KEY', 'secret-key'],
+				['WU_BIGSCOOTS_PRIMARY_UUID', ''],
+			]
+		);
+
+		$this->assertTrue($integration->is_ready_for_connection_test());
+		$this->assertSame([], $integration->get_missing_connection_test_constants());
+	}
+
+	public function test_get_configuration_instructions_explains_site_selection(): void {
+
+		$instructions = (new BigScoots_Integration())->get_configuration_instructions();
+
+		$this->assertNotEmpty($instructions['title']);
+		$this->assertStringContainsString('UUID', $instructions['description']);
+		$this->assertCount(4, $instructions['steps']);
+		$this->assertStringContainsString('multisite', $instructions['steps'][3]);
+	}
+
+	public function test_get_resource_selection_fields_returns_api_sites(): void {
+
+		$integration = $this->getMockBuilder(BigScoots_Integration::class)
+			->onlyMethods(['get_available_sites'])
+			->getMock();
+
+		$integration->method('get_available_sites')->willReturn(
+			['site-uuid' => 'example.com — site-uuid']
+		);
+
+		$fields = $integration->get_resource_selection_fields();
+
+		$this->assertSame('select', $fields['WU_BIGSCOOTS_PRIMARY_UUID']['type']);
+		$this->assertSame(['site-uuid' => 'example.com — site-uuid'], $fields['WU_BIGSCOOTS_PRIMARY_UUID']['options']);
 	}
 
 	public function test_detect_requires_all_credentials(): void {
@@ -152,17 +196,62 @@ class BigScoots_Integration_Test extends WP_UnitTestCase {
 		$this->assertTrue($integration->test_connection());
 	}
 
-	public function test_test_connection_requires_primary_site_uuid(): void {
+	public function test_test_connection_discovers_sites_before_uuid_selection(): void {
 
 		$integration = $this->getMockBuilder(BigScoots_Integration::class)
-			->onlyMethods(['get_credential'])
+			->onlyMethods(['get_available_sites', 'get_credential'])
 			->getMock();
 
 		$integration->method('get_credential')->willReturn('');
+		$integration->expects($this->once())
+			->method('get_available_sites')
+			->willReturn(['site-uuid' => 'example.com — site-uuid']);
 
-		$result = $integration->test_connection();
+		$this->assertTrue($integration->test_connection());
+	}
 
-		$this->assertInstanceOf(\WP_Error::class, $result);
-		$this->assertSame('bigscoots-missing-primary-uuid', $result->get_error_code());
+	public function test_get_available_sites_discovers_primary_sites(): void {
+
+		$integration = $this->getMockBuilder(BigScoots_Integration::class)
+			->onlyMethods(['bigscoots_api_call'])
+			->getMock();
+
+		$integration->method('bigscoots_api_call')->willReturnCallback(
+			function (string $endpoint) {
+
+				if ('/v1/accounts/' === $endpoint) {
+					return (object) [
+						'response' => (object) [
+							'primaryOwner' => (object) ['account_uuid' => 'account-uuid'],
+						],
+					];
+				}
+
+				$this->assertSame('/v1/sites/account/account-uuid', $endpoint);
+
+				return (object) [
+					'response' => [
+						(object) [
+							'type'      => 'primary',
+							'domain'    => 'example.com',
+							'site_uuid' => 'site-uuid',
+						],
+						(object) [
+							'type'      => 'staging',
+							'domain'    => 'staging.example.com',
+							'site_uuid' => 'staging-uuid',
+						],
+						(object) [
+							'domain'    => 'unknown.example.com',
+							'site_uuid' => 'unknown-uuid',
+						],
+					],
+				];
+			}
+		);
+
+		$sites = $integration->get_available_sites();
+
+		$this->assertSame(['site-uuid' => 'example.com — site-uuid'], $sites);
 	}
 }

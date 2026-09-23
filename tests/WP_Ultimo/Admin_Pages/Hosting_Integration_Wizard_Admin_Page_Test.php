@@ -65,7 +65,10 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 		unset(
 			$_GET['integration'],
 			$_GET['step'],
+			$_POST['RESOURCE_ID'],
 			$_POST['saving_config'],
+			$_POST['saving_selection'],
+			$_REQUEST['saving_selection'],
 			$_REQUEST['step']
 		);
 
@@ -295,6 +298,35 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 		$sections = $this->page->get_sections();
 
 		$this->assertArrayHasKey('config', $sections);
+	}
+
+	/**
+	 * Resource discovery integrations select and validate a resource after credentials.
+	 */
+	public function test_get_sections_adds_resource_selection_flow(): void {
+
+		$integration = new class('resource-provider', 'Resource Provider') extends Integration {
+			public function get_resource_selection_fields(): array {
+				return [
+					'RESOURCE_ID' => [
+						'type'    => 'select',
+						'options' => ['resource-id' => 'Resource'],
+					],
+				];
+			}
+		};
+
+		$ref = new \ReflectionProperty(Hosting_Integration_Wizard_Admin_Page::class, 'integration');
+		$ref->setAccessible(true);
+		$ref->setValue($this->page, $integration);
+
+		$section_keys = array_keys($this->page->get_sections());
+
+		$this->assertContains('selection', $section_keys);
+		$this->assertContains('validation', $section_keys);
+		$this->assertLessThan(array_search('selection', $section_keys, true), array_search('testing', $section_keys, true));
+		$this->assertLessThan(array_search('validation', $section_keys, true), array_search('selection', $section_keys, true));
+		$this->assertLessThan(array_search('done', $section_keys, true), array_search('validation', $section_keys, true));
 	}
 
 	/**
@@ -632,6 +664,36 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 
 		remove_all_filters('wp_redirect');
 		unset($_POST['saving_config'], $_REQUEST['saving_config']);
+	}
+
+	/**
+	 * Resource selection rejects a value when the provider returned no options.
+	 */
+	public function test_handle_resource_selection_rejects_when_no_resources_are_available(): void {
+
+		$integration = new class('resource-provider', 'Resource Provider') extends Integration {
+			public function get_resource_selection_fields(): array {
+				return [
+					'RESOURCE_ID' => [
+						'type'    => 'select',
+						'options' => [],
+					],
+				];
+			}
+		};
+		$integration->set_optional_constants(['RESOURCE_ID']);
+
+		$ref = new \ReflectionProperty(Hosting_Integration_Wizard_Admin_Page::class, 'integration');
+		$ref->setAccessible(true);
+		$ref->setValue($this->page, $integration);
+
+		$nonce                        = wp_create_nonce('saving_selection');
+		$_POST['saving_selection']    = $nonce;
+		$_REQUEST['saving_selection'] = $nonce;
+		$_POST['RESOURCE_ID']         = 'forged-resource';
+
+		$this->expectException(\WPDieException::class);
+		$this->page->handle_resource_selection();
 	}
 
 	// -------------------------------------------------------------------------

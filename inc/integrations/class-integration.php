@@ -366,6 +366,35 @@ class Integration {
 	}
 
 	/**
+	 * Updates only the supplied credential values.
+	 *
+	 * Unlike save_credentials(), this method preserves configured credentials
+	 * that are not present in the supplied array. This supports multi-step setup
+	 * flows where a resource is selected after API credentials are verified.
+	 *
+	 * @since 2.16.2
+	 *
+	 * @param array $values Key => Value pairs of credential constants.
+	 * @return void
+	 */
+	public function update_credentials(array $values): void {
+
+		$allowed_constants = $this->get_all_constants();
+
+		foreach ($values as $constant_name => $value) {
+			if ( ! in_array($constant_name, $allowed_constants, true)) {
+				continue;
+			}
+
+			if ( ! empty($value)) {
+				update_network_option(null, 'wu_hosting_credential_' . $constant_name, Credential_Store::encrypt($value));
+			} else {
+				delete_network_option(null, 'wu_hosting_credential_' . $constant_name);
+			}
+		}
+	}
+
+	/**
 	 * Deletes all stored credentials for this integration.
 	 *
 	 * @since 2.5.0
@@ -434,6 +463,31 @@ class Integration {
 		}
 
 		return $missing;
+	}
+
+	/**
+	 * Checks whether enough credentials are available to test the connection.
+	 *
+	 * Integrations with API-backed resource selection can override this while
+	 * keeping the selected resource required for normal operation.
+	 *
+	 * @since 2.16.2
+	 * @return bool
+	 */
+	public function is_ready_for_connection_test() {
+
+		return $this->is_setup();
+	}
+
+	/**
+	 * Returns credentials missing from the connection-test stage.
+	 *
+	 * @since 2.16.2
+	 * @return array
+	 */
+	public function get_missing_connection_test_constants() {
+
+		return $this->get_missing_constants();
 	}
 
 	/**
