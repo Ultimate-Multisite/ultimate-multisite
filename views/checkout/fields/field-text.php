@@ -27,7 +27,7 @@ defined('ABSPATH') || exit;
 
 	<?php if ($field->prefix) : ?>
 
-	<div class="sm:wu-flex wu-items-stretch wu-content-center">
+	<div class="sm:wu-flex wu-items-stretch wu-content-center" <?php wu_print_html_attributes($field->input_group_html_attr ?? []); ?>>
 
 		<div <?php wu_print_html_attributes($field->prefix_html_attr ?? []); ?>>
 			<?php echo wp_kses($field->prefix, wu_kses_allowed_html()); ?>

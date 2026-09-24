@@ -186,6 +186,7 @@ class Signup_Field_Site_Url_Test extends WP_UnitTestCase {
 		$this->assertArrayHasKey('site_url', $fields);
 		$this->assertEquals('text', $fields['site_url']['type']);
 		$this->assertEquals('Site URL', $fields['site_url']['name']);
+		$this->assertSame('ltr', $fields['site_url']['html_attr']['dir']);
 	}
 
 	/**
@@ -236,5 +237,6 @@ class Signup_Field_Site_Url_Test extends WP_UnitTestCase {
 		$this->assertArrayHasKey('site_url', $fields);
 		$this->assertArrayHasKey('prefix', $fields['site_url']);
 		$this->assertArrayHasKey('suffix', $fields['site_url']);
+		$this->assertSame('ltr', $fields['site_url']['input_group_html_attr']['dir']);
 	}
 }
