@@ -377,7 +377,7 @@ class Integration {
 	 * @param array $values Key => Value pairs of credential constants.
 	 * @return void
 	 */
-	public function update_credentials(array $values): void {
+	public function update_credentials(array $values) {
 
 		$allowed_constants = $this->get_all_constants();
 
