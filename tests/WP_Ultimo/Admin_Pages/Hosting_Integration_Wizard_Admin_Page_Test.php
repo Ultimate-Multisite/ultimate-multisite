@@ -330,6 +330,30 @@ class Hosting_Integration_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The default view does not pass its callable metadata into the template context.
+	 */
+	public function test_default_view_renders_section_with_callable_view(): void {
+
+		$section = [
+			'title'   => 'Select Site',
+			'content' => 'Selection ready',
+			'view'    => [$this->page, 'default_view'],
+			'handler' => [$this->page, 'default_handler'],
+		];
+
+		$ref = new \ReflectionProperty(Wizard_Admin_Page::class, 'current_section');
+		$ref->setAccessible(true);
+		$ref->setValue($this->page, $section);
+
+		ob_start();
+		$this->page->default_view();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString('Select Site', $output);
+		$this->assertStringContainsString('Selection ready', $output);
+	}
+
+	/**
 	 * get_sections() activation section has view and handler callbacks.
 	 */
 	public function test_get_sections_activation_has_view_and_handler(): void {
