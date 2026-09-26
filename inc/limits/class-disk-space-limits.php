@@ -85,10 +85,7 @@ class Disk_Space_Limits {
 		$plan              = $site ? $site->get_plan() : false;
 		$network_id        = $site ? $site->get_site_id() : get_current_network_id();
 		$network_site_id   = get_main_site_id($network_id);
-		$network_site      = wu_get_site($network_site_id);
-		$network_admin_url = $network_site
-			? trailingslashit($network_site->get_active_site_url()) . 'wp-admin/network/'
-			: trailingslashit(get_admin_url($network_site_id, 'network/'));
+		$network_admin_url = trailingslashit(get_admin_url($network_site_id, 'network/'));
 
 		if ( $plan && $this->plan_disk_space_limit_applied ) {
 			$message = sprintf(
