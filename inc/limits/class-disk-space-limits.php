@@ -39,6 +39,14 @@ class Disk_Space_Limits {
 	protected $started = false;
 
 	/**
+	 * Whether the current quota was supplied by a numeric plan disk-space limit.
+	 *
+	 * @since 2.16.2
+	 * @var boolean
+	 */
+	protected $plan_disk_space_limit_applied = false;
+
+	/**
 	 * Runs on the first and only instantiation.
 	 *
 	 * @since 2.0.0
@@ -51,6 +59,56 @@ class Disk_Space_Limits {
 		add_filter( 'get_space_allowed', array($this, 'apply_disk_space_limitations') );
 
 		add_action( 'wu_async_after_membership_update_products', array($this, 'handle_downgrade') );
+
+		add_action( 'admin_notices', array($this, 'render_quota_settings_notice') );
+	}
+
+	/**
+	 * Shows super admins which setting controls an exhausted Media Library quota.
+	 *
+	 * @since 2.16.2
+	 * @return void
+	 */
+	public function render_quota_settings_notice(): void {
+
+		if ( ! is_super_admin() || ! function_exists( 'get_current_screen' ) ) {
+			return;
+		}
+
+		$screen = get_current_screen();
+
+		if ( ! $screen || 'upload' !== $screen->base || get_site_option( 'upload_space_check_disabled' ) || get_space_used() < get_space_allowed() ) {
+			return;
+		}
+
+		$site            = wu_get_current_site();
+		$plan            = $site ? $site->get_plan() : false;
+		$network_id      = $site ? $site->get_site_id() : get_current_network_id();
+		$network_site_id = get_main_site_id($network_id);
+
+		if ( $plan && $this->plan_disk_space_limit_applied ) {
+			$message = sprintf(
+				/* translators: %s: URL to the Ultimate Multisite plan disk-space limit. */
+				__( 'This site has reached the disk-space limit defined by its Ultimate Multisite plan. <a href="%s">Update the plan\'s Disk Space Allowance</a>.', 'ultimate-multisite' ),
+				esc_url(
+					add_query_arg(
+						[
+							'page' => 'wp-ultimo-edit-product',
+							'id'   => $plan->get_id(),
+						],
+						get_admin_url($network_site_id, 'network/admin.php')
+					)
+				)
+			);
+		} else {
+			$message = sprintf(
+				/* translators: %s: URL to the current network Upload Settings page. */
+				__( 'This site has reached its WordPress upload quota. <a href="%s">Update the Upload Settings</a> for this network.', 'ultimate-multisite' ),
+				esc_url( get_admin_url($network_site_id, 'network/settings.php') )
+			);
+		}
+
+		printf('<div class="notice notice-info"><p>%s</p></div>', wp_kses_post($message));
 	}
 
 	/**
@@ -182,6 +240,8 @@ class Disk_Space_Limits {
 	 */
 	public function apply_disk_space_limitations($disk_space) {
 
+		$this->plan_disk_space_limit_applied = false;
+
 		if ( ! $this->should_load() ) {
 			return $disk_space;
 		}
@@ -189,6 +249,8 @@ class Disk_Space_Limits {
 		$modified_disk_space = wu_get_current_site()->get_limitations()->disk_space->get_limit();
 
 		if ( is_numeric( $modified_disk_space ) ) {
+			$this->plan_disk_space_limit_applied = true;
+
 			return $modified_disk_space;
 		}
 
