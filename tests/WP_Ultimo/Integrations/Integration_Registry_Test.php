@@ -40,6 +40,7 @@ class Integration_Registry_Test extends WP_UnitTestCase {
 		$this->assertNotNull($this->registry->get('wpengine'));
 		$this->assertNotNull($this->registry->get('wpmudev'));
 		$this->assertNotNull($this->registry->get('hostinger'));
+		$this->assertNotNull($this->registry->get('bigscoots'));
 	}
 
 	public function test_get_returns_null_for_unknown(): void {
@@ -76,6 +77,7 @@ class Integration_Registry_Test extends WP_UnitTestCase {
 			'laravel-forge',
 			'cyberpanel',
 			'hostinger',
+			'bigscoots',
 		];
 
 		foreach ($this->registry->get_all() as $integration) {
