@@ -51,6 +51,46 @@ class Disk_Space_Limits {
 		add_filter( 'get_space_allowed', array($this, 'apply_disk_space_limitations') );
 
 		add_action( 'wu_async_after_membership_update_products', array($this, 'handle_downgrade') );
+
+		add_action( 'admin_notices', array($this, 'render_quota_settings_notice') );
+	}
+
+	/**
+	 * Shows super admins which setting controls an exhausted Media Library quota.
+	 *
+	 * @since 2.16.2
+	 * @return void
+	 */
+	public function render_quota_settings_notice(): void {
+
+		if ( ! is_super_admin() || ! function_exists( 'get_current_screen' ) ) {
+			return;
+		}
+
+		$screen = get_current_screen();
+
+		if ( ! $screen || 'upload' !== $screen->base || get_site_option( 'upload_space_check_disabled' ) || get_space_used() < get_space_allowed() ) {
+			return;
+		}
+
+		$site = wu_get_current_site();
+		$plan = $site ? $site->get_plan() : false;
+
+		if ( $plan && $plan->has_module_limitation( 'disk_space' ) ) {
+			$message = sprintf(
+				/* translators: %s: URL to the Ultimate Multisite plan disk-space limit. */
+				__( 'This site has reached the disk-space limit defined by its Ultimate Multisite plan. <a href="%s">Update the plan\'s Disk Space Allowance</a>.', 'ultimate-multisite' ),
+				esc_url( wu_network_admin_url( 'wp-ultimo-edit-product', ['id' => $plan->get_id()] ) )
+			);
+		} else {
+			$message = sprintf(
+				/* translators: %s: URL to the current network Upload Settings page. */
+				__( 'This site has reached its WordPress upload quota. <a href="%s">Update the Upload Settings</a> for this network.', 'ultimate-multisite' ),
+				esc_url( network_admin_url( 'settings.php' ) )
+			);
+		}
+
+		printf('<div class="notice notice-info"><p>%s</p></div>', wp_kses_post($message));
 	}
 
 	/**
