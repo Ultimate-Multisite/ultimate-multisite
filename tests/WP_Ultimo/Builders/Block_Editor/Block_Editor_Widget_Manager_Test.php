@@ -32,7 +32,7 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 	public function test_init_registers_scripts_hook_only_in_admin(): void {
 
 		// Remove any existing hooks first.
-		remove_all_actions('init');
+		remove_all_actions('admin_enqueue_scripts');
 
 		// Simulate frontend context — set_current_screen('front') sets is_admin() to false.
 		set_current_screen('front');
@@ -40,8 +40,8 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 		$this->manager->init();
 
 		$this->assertFalse(
-			has_action('init', [$this->manager, 'register_scripts']),
-			'register_scripts should NOT be hooked on init when on the frontend.'
+			has_action('admin_enqueue_scripts', [$this->manager, 'register_scripts']),
+			'register_scripts should NOT be hooked on admin_enqueue_scripts when on the frontend.'
 		);
 	}
 
@@ -51,20 +51,49 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 	public function test_init_registers_scripts_hook_in_admin(): void {
 
 		// Remove any existing hooks first.
-		remove_all_actions('init');
+		remove_all_actions('admin_enqueue_scripts');
 
 		// Simulate admin context.
 		set_current_screen('dashboard');
 
 		$this->manager->init();
 
-		$priority = has_action('init', [$this->manager, 'register_scripts']);
+		$priority = has_action('admin_enqueue_scripts', [$this->manager, 'register_scripts']);
 
 		// has_action returns the priority (int) or false.
 		$this->assertNotFalse(
 			$priority,
-			'register_scripts should be hooked on init when in admin.'
+			'register_scripts should be hooked on admin_enqueue_scripts when in admin.'
 		);
+	}
+
+	/**
+	 * Test block settings are evaluated only on block editor screens.
+	 */
+	public function test_register_scripts_defers_block_settings_outside_editor(): void {
+
+		$evaluations = 0;
+		$filter      = static function ($blocks) use (&$evaluations) {
+
+			++$evaluations;
+
+			return $blocks;
+		};
+
+		add_filter('wu_blocks', $filter);
+
+		set_current_screen('dashboard');
+		$this->manager->register_scripts();
+
+		$this->assertSame(0, $evaluations);
+
+		set_current_screen('post');
+		get_current_screen()->is_block_editor(true);
+		$this->manager->register_scripts();
+
+		remove_filter('wu_blocks', $filter);
+
+		$this->assertSame(1, $evaluations);
 	}
 
 	/**
@@ -115,5 +144,97 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 		$result = $this->manager->is_block_preview(false);
 
 		$this->assertFalse($result, 'Should return false when not in REST edit context.');
+	}
+
+	/**
+	 * Test attributes use defaults without evaluating field option providers.
+	 */
+	public function test_get_attributes_from_fields_does_not_evaluate_field_options(): void {
+
+		$element = $this->getMockBuilder('\WP_Ultimo\UI\Simple_Text_Element')
+			->disableOriginalConstructor()
+			->onlyMethods(['defaults', 'fields'])
+			->getMock();
+
+		$element->expects($this->once())
+			->method('defaults')
+			->willReturn(
+				[
+					'enabled'                     => 1,
+					'columns'                     => 4,
+					'site_manage_type'            => 'default',
+					'page_id'                     => 0,
+					'limit'                       => 0,
+					'template_selection_template' => 'clean',
+					'internal_state'              => [],
+				]
+			);
+
+		$element->expects($this->once())
+			->method('fields')
+			->willReturn(
+				[
+					'enabled'            => [
+						'type'    => 'toggle',
+						'options' => static function () {
+							throw new \RuntimeException('Block attribute registration must not evaluate options.');
+						},
+					],
+					'columns'            => ['type' => 'number'],
+					'site_manage_type'   => ['type' => 'select'],
+					'page_id'            => [
+						'type'    => 'select',
+						'options' => static function () {
+							throw new \RuntimeException('Block attribute registration must not evaluate options.');
+						},
+					],
+					'limit'              => [
+						'type'  => 'int',
+						'value' => 10,
+					],
+					'template_selection' => [
+						'type'   => 'group',
+						'fields' => [
+							'template_selection_template' => [
+								'type'    => 'select',
+								'options' => static function () {
+									throw new \RuntimeException('Block attribute registration must not evaluate grouped options.');
+								},
+							],
+						],
+					],
+					'_heading'           => ['type' => 'header'],
+				]
+			);
+
+		$this->assertSame(
+			[
+				'enabled'                     => [
+					'default' => true,
+					'type'    => 'boolean',
+				],
+				'columns'                     => [
+					'default' => 4,
+					'type'    => 'integer',
+				],
+				'site_manage_type'            => [
+					'default' => 'default',
+					'type'    => 'string',
+				],
+				'page_id'                     => [
+					'default' => '0',
+					'type'    => 'string',
+				],
+				'limit'                       => [
+					'default' => 0,
+					'type'    => 'integer',
+				],
+				'template_selection_template' => [
+					'default' => 'clean',
+					'type'    => 'string',
+				],
+			],
+			$this->manager->get_attributes_from_fields($element)
+		);
 	}
 }

@@ -108,6 +108,41 @@ function wu_is_new_site_page() {
 }
 
 /**
+ * Returns a request-memoized list of pages for select field options.
+ *
+ * @since 2.0.0
+ * @param string $default_label The label for the current page option.
+ * @return array
+ */
+function wu_get_pages_as_options($default_label) {
+
+	static $pages_by_context = [];
+
+	$current_page_id = get_the_ID();
+
+	if ( ! $current_page_id && is_admin()) {
+		$requested_page_id = wu_request('post', 0);
+		$current_page_id   = is_scalar($requested_page_id) ? absint($requested_page_id) : 0;
+	}
+
+	$context_key = implode(':', [get_current_blog_id(), $current_page_id, get_current_user_id(), determine_locale()]);
+
+	if ( ! array_key_exists($context_key, $pages_by_context)) {
+		$page_query_args = $current_page_id ? ['exclude' => [$current_page_id]] : []; // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
+
+		$pages_by_context[ $context_key ] = get_pages($page_query_args) ?: [];
+	}
+
+	$pages_list = [0 => $default_label];
+
+	foreach ($pages_by_context[ $context_key ] as $page) {
+		$pages_list[ $page->ID ] = $page->post_title;
+	}
+
+	return $pages_list;
+}
+
+/**
  * Checks if the current page is a login page.
  *
  * @since 2.0.11
