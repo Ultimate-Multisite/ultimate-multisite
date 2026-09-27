@@ -81,10 +81,11 @@ class Disk_Space_Limits {
 			return;
 		}
 
-		$site            = wu_get_current_site();
-		$plan            = $site ? $site->get_plan() : false;
-		$network_id      = $site ? $site->get_site_id() : get_current_network_id();
-		$network_site_id = get_main_site_id($network_id);
+		$site              = wu_get_current_site();
+		$plan              = $site ? $site->get_plan() : false;
+		$network_id        = $site ? $site->get_site_id() : get_current_network_id();
+		$network_site_id   = get_main_site_id($network_id);
+		$network_admin_url = trailingslashit(get_admin_url($network_site_id, 'network/'));
 
 		if ( $plan && $this->plan_disk_space_limit_applied ) {
 			$message = sprintf(
@@ -96,7 +97,7 @@ class Disk_Space_Limits {
 							'page' => 'wp-ultimo-edit-product',
 							'id'   => $plan->get_id(),
 						],
-						get_admin_url($network_site_id, 'network/admin.php')
+						$network_admin_url . 'admin.php'
 					)
 				)
 			);
@@ -104,7 +105,7 @@ class Disk_Space_Limits {
 			$message = sprintf(
 				/* translators: %s: URL to the current network Upload Settings page. */
 				__( 'This site has reached its WordPress upload quota. <a href="%s">Update the Upload Settings</a> for this network.', 'ultimate-multisite' ),
-				esc_url( get_admin_url($network_site_id, 'network/settings.php') )
+				esc_url( $network_admin_url . 'settings.php' )
 			);
 		}
 
