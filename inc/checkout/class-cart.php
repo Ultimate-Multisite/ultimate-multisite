@@ -2290,9 +2290,16 @@ class Cart implements \JsonSerializable {
 			return true;
 		}
 
-		// Check if this is the initial membership payment with trial
+		/*
+		 * Check if this is the initial membership payment with trial.
+		 *
+		 * A recovered pending payment stores the recurring amount even when the
+		 * amount due during the trial is zero. The trialing membership is the
+		 * source of truth here; checking the payment total would incorrectly send
+		 * a restored no-payment trial through a paid gateway.
+		 */
 		if ($this->membership && $this->payment && $this->membership->is_trialing()) {
-			return empty($this->payment->get_total());
+			return true;
 		}
 
 		/*
