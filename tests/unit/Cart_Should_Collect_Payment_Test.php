@@ -220,12 +220,25 @@ class Cart_Should_Collect_Payment_Test extends WP_UnitTestCase {
 	public function test_restored_pending_payment_retains_no_payment_trial(): void {
 		wu_save_setting( self::TRIAL_SETTING, true );
 
-		$unique   = uniqid( 'restored-trial-' );
+		$unique  = uniqid( 'restored-trial-' );
+		$user_id = self::factory()->user->create(
+			[
+				'user_login' => $unique,
+				'user_email' => $unique . '@example.com',
+			]
+		);
+
+		$stale_customer = wu_get_customer_by_user_id( $user_id );
+
+		if ( $stale_customer ) {
+			$stale_customer->delete();
+		}
+
 		$customer = wu_create_customer(
 			[
+				'user_id'  => $user_id,
 				'username' => $unique,
 				'email'    => $unique . '@example.com',
-				'password' => 'password123',
 			]
 		);
 
@@ -291,6 +304,17 @@ class Cart_Should_Collect_Payment_Test extends WP_UnitTestCase {
 			$restored_cart->should_collect_payment(),
 			'A restored no-payment trial must use the free gateway even though its pending payment stores the recurring amount.'
 		);
+
+		wu_save_setting( self::TRIAL_SETTING, false );
+		$this->assertTrue(
+			$restored_cart->should_collect_payment(),
+			'A restored trial must still collect payment when the network requires a payment method.'
+		);
+
+		$payment->delete();
+		$membership->delete();
+		$customer->delete();
+		$product->delete();
 	}
 
 	/**
