@@ -130,6 +130,30 @@ class Checkout_Functions_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test the helper uses the disabled setting default.
+	 */
+	public function test_multiple_memberships_enabled_defaults_to_disabled(): void {
+		$default_value = null;
+		$callback      = function ($value, $setting, $fallback) use (&$default_value) {
+			if ('enable_multiple_memberships' === $setting) {
+				$default_value = $fallback;
+			}
+
+			return $value;
+		};
+
+		add_filter('wu_get_setting', $callback, 10, 4);
+
+		try {
+			wu_multiple_memberships_enabled();
+		} finally {
+			remove_filter('wu_get_setting', $callback, 10);
+		}
+
+		$this->assertFalse($default_value);
+	}
+
+	/**
 	 * Test wu_get_registration_url returns string.
 	 */
 	public function test_get_registration_url_returns_string(): void {

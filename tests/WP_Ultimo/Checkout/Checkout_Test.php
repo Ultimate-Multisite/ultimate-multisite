@@ -3255,6 +3255,125 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test the duplicate-signup filter follows the setting and remains overrideable.
+	 */
+	public function test_duplicate_signup_policy_uses_setting_as_filter_default(): void {
+
+		$customer = self::$customer;
+		$plan     = wu_create_product([
+			'name'          => 'Additional Membership Test Plan',
+			'slug'          => 'additional-membership-test-plan-' . wp_rand(1000, 9999),
+			'amount'        => 0,
+			'recurring'     => false,
+			'duration'      => 1,
+			'duration_unit' => 'month',
+			'type'          => 'plan',
+			'pricing_type'  => 'free',
+			'active'        => true,
+		]);
+
+		$this->assertNotWPError($plan);
+
+		$membership = wu_create_membership([
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $plan->get_id(),
+			'status'      => Membership_Status::ACTIVE,
+		]);
+
+		$this->assertNotWPError($membership);
+
+		$checkout             = Checkout::get_instance();
+		$reflection           = new \ReflectionClass($checkout);
+		$setup_prop           = $reflection->getProperty('already_setup');
+		$original_setting     = wu_get_setting('enable_multiple_memberships', false);
+		$_REQUEST['products'] = [$plan->get_id()];
+		$_REQUEST['gateway']  = 'free';
+		$_REQUEST['user_id']  = $customer->get_user_id();
+
+		if (PHP_VERSION_ID < 80100) {
+			$setup_prop->setAccessible(true);
+		}
+
+		$setup_prop->setValue($checkout, true);
+		$this->ensure_session($checkout);
+		wp_set_current_user($customer->get_user_id());
+		$checkout->step      = ['fields' => []];
+		$checkout->steps     = [];
+		$checkout->step_name = null;
+
+		$scenarios = [
+			'disabled setting blocks by default' => [false, null, false],
+			'enabled setting allows by default'  => [true, null, true],
+			'filter can allow when disabled'     => [false, true, true],
+			'filter can block when enabled'      => [true, false, false],
+		];
+
+		$created_memberships = [];
+		$created_payments    = [];
+
+		try {
+			foreach ($scenarios as $message => [$setting, $override, $expected]) {
+				wu_save_setting('enable_multiple_memberships', $setting);
+
+				$policy_callback = null;
+				if (null !== $override) {
+					$policy_callback = function () use ($override) {
+						return $override;
+					};
+					add_filter('wu_allow_duplicate_signup', $policy_callback, 10, 4);
+				}
+
+				$observed_default  = null;
+				$observer_callback = function ($allow) use (&$observed_default) {
+					$observed_default = (bool) $allow;
+
+					return $allow;
+				};
+				add_filter('wu_allow_duplicate_signup', $observer_callback, PHP_INT_MAX, 4);
+
+				try {
+					$result = $checkout->process_order();
+				} finally {
+					remove_filter('wu_allow_duplicate_signup', $observer_callback, PHP_INT_MAX);
+					if ($policy_callback) {
+						remove_filter('wu_allow_duplicate_signup', $policy_callback, 10);
+					}
+				}
+
+				$this->assertSame($expected, $observed_default, $message);
+
+				if ($expected) {
+					$this->assertIsArray($result, $message);
+					$created_memberships[] = $result['membership_id'];
+					$created_payments[]    = $result['payment_id'];
+				} else {
+					$this->assertWPError($result);
+					$this->assertSame('duplicate_signup', $result->get_error_code());
+				}
+			}
+		} finally {
+			$setup_prop->setValue($checkout, false);
+			wu_save_setting('enable_multiple_memberships', $original_setting);
+			wp_set_current_user(0);
+			foreach ($created_payments as $payment_id) {
+				$created_payment = wu_get_payment($payment_id);
+				if ($created_payment) {
+					$created_payment->delete();
+				}
+			}
+			foreach ($created_memberships as $membership_id) {
+				$created_membership = wu_get_membership($membership_id);
+				if ($created_membership) {
+					$created_membership->delete();
+				}
+			}
+			$membership->delete();
+			$plan->delete();
+			unset($_REQUEST['products'], $_REQUEST['gateway'], $_REQUEST['user_id']);
+		}
+	}
+
+	/**
 	 * Test process_order rejects a paid cart when no public gateway is active.
 	 */
 	public function test_process_order_returns_error_when_no_active_gateway_for_paid_cart(): void {

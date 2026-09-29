@@ -197,13 +197,12 @@ function wu_get_login_url($path = false): string {
 /**
  * Checks if we allow for multiple memberships.
  *
- * @todo: review this.
  * @since 2.0.0
  * @return boolean
  */
 function wu_multiple_memberships_enabled() {
 
-	return (bool) wu_get_setting('enable_multiple_memberships', true);
+	return (bool) wu_get_setting('enable_multiple_memberships', false);
 }
 
 /**

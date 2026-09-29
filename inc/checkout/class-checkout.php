@@ -810,8 +810,8 @@ class Checkout {
 		 * payment records are created — so there are no orphaned records
 		 * to clean up when the checkout is blocked.
 		 *
-		 * Filterable via `wu_allow_duplicate_signup` for sites that
-		 * intentionally permit re-registration (e.g. multi-membership).
+		 * The multiple-memberships setting supplies the default policy, and
+		 * `wu_allow_duplicate_signup` allows extensions to refine it per checkout.
 		 *
 		 * @since 2.5.1
 		 */
@@ -838,8 +838,8 @@ class Checkout {
 					 * Filters whether to allow a duplicate signup when the
 					 * customer already has an active membership.
 					 *
-					 * Return `true` to allow the checkout to proceed. The
-					 * default is `false` (block the signup).
+					 * Return `true` to allow the checkout to proceed. By default,
+					 * this follows the global multiple-memberships setting.
 					 *
 					 * @since 2.5.1
 					 *
@@ -850,7 +850,7 @@ class Checkout {
 					 */
 					$allow = apply_filters(
 						'wu_allow_duplicate_signup',
-						false,
+						wu_multiple_memberships_enabled(),
 						$existing_membership,
 						$existing_customer,
 						$cart
