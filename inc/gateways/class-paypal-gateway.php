@@ -566,6 +566,11 @@ class PayPal_Gateway extends Base_PayPal_Gateway {
 		 * Loop products and add them to the paypal
 		 */
 		foreach ($cart->get_line_items() as $line_item) {
+			// Recurring items belong to the billing agreement, not the initial payment request.
+			if ($line_item->is_recurring()) {
+				continue;
+			}
+
 			$total      = $line_item->get_total();
 			$sub_total  = $line_item->get_subtotal();
 			$tax_amount = $line_item->get_tax_total();
