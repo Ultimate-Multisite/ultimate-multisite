@@ -305,6 +305,29 @@ class Cart_Should_Collect_Payment_Test extends WP_UnitTestCase {
 			'A restored no-payment trial must use the free gateway even though its pending payment stores the recurring amount.'
 		);
 
+		$initial_cart->add_line_item(
+			new Line_Item(
+				[
+					'product'    => $product,
+					'type'       => 'fee',
+					'recurring'  => false,
+					'unit_price' => 2.50,
+					'quantity'   => 1,
+				]
+			)
+		);
+		$payment->set_line_items( $initial_cart->get_line_items() );
+		$payment->save();
+
+		$restored_cart_with_fee = new Cart( ['payment_id' => $payment->get_id()] );
+
+		$this->assertSame( 4.99, (float) $restored_cart_with_fee->get_recurring_total() );
+		$this->assertSame( 7.49, (float) $restored_cart_with_fee->get_total() );
+		$this->assertTrue(
+			$restored_cart_with_fee->should_collect_payment(),
+			'A restored trial with a one-time setup fee must collect that fee even when no payment method is required for the trial.'
+		);
+
 		wu_save_setting( self::TRIAL_SETTING, false );
 		$this->assertTrue(
 			$restored_cart->should_collect_payment(),
