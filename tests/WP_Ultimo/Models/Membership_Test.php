@@ -2009,6 +2009,7 @@ class Membership_Test extends \WP_UnitTestCase {
 			);
 		} finally {
 			$connection->get_var($connection->prepare('SELECT RELEASE_LOCK(%s)', $lock_name));
+			$connection->close();
 			wu_unschedule_action('wu_async_publish_pending_site', $action_args, 'membership');
 		}
 	}
@@ -2053,12 +2054,17 @@ class Membership_Test extends \WP_UnitTestCase {
 			$membership->get_id()
 		);
 		$connection = new \wpdb(DB_USER, DB_PASSWORD, DB_NAME, DB_HOST);
-		$this->assertSame(
-			1,
-			(int) $connection->get_var($connection->prepare('SELECT GET_LOCK(%s, 0)', $lock_name)),
-			'The publication lock must be released after the guarded operation returns.'
-		);
-		$connection->get_var($connection->prepare('SELECT RELEASE_LOCK(%s)', $lock_name));
+
+		try {
+			$this->assertSame(
+				1,
+				(int) $connection->get_var($connection->prepare('SELECT GET_LOCK(%s, 0)', $lock_name)),
+				'The publication lock must be released after the guarded operation returns.'
+			);
+		} finally {
+			$connection->get_var($connection->prepare('SELECT RELEASE_LOCK(%s)', $lock_name));
+			$connection->close();
+		}
 	}
 
 	/**
