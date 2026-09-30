@@ -41,6 +41,30 @@ if ( ! defined('MUCD_MAX_NUMBER_OF_SITE')) {
  */
 class Site_Duplicator {
 
+	/** Host-owned clone state, never inherited from a template. */
+	public const CLONE_STATUS_META = 'wu_clone_status';
+
+	/**
+	 * Check native cloning and storage readiness without a plugin-specific marker.
+	 *
+	 * @param int $site_id Destination blog ID.
+	 * @return bool Whether the site can receive its customer handoff.
+	 */
+	public static function is_site_ready($site_id) {
+		$site = get_site($site_id);
+		if ( ! $site || $site->archived || $site->spam || $site->deleted) {
+			return false;
+		}
+
+		$status = get_site_meta($site_id, self::CLONE_STATUS_META, true);
+		if ('complete' !== $status && ('' !== $status || get_site_meta($site_id, 'wu_template_id', true))) {
+			return false;
+		}
+
+		/** Storage providers may defer readiness until the completed clone is synchronized. */
+		return (bool) apply_filters('wu_site_clone_ready', true, (int) $site_id);
+	}
+
 	/**
 	 * Static-only class.
 	 */
@@ -422,194 +446,273 @@ class Site_Duplicator {
 
 		\MUCD_Duplicate::bypass_server_limit();
 
-		if ($args->copy_files) {
-			$profile_stage = microtime(true);
-			\MUCD_Files::copy_files($args->from_site_id, $args->to_site_id);
-			self::profile_sovereign_provisioning_stage(
+		$archived          = (int) get_blog_status($args->to_site_id, 'archived');
+		$previous_archived = get_site_meta($args->to_site_id, 'wu_clone_previous_archived', true);
+		if ('' === $previous_archived) {
+			update_site_meta($args->to_site_id, 'wu_clone_previous_archived', $archived);
+		} else {
+			$archived = (int) $previous_archived;
+		}
+		update_site_meta($args->to_site_id, self::CLONE_STATUS_META, 'copying');
+		update_blog_status($args->to_site_id, 'archived', 1);
+		$caller_blog_id = get_current_blog_id();
+		$switch_depth   = count($GLOBALS['_wp_switched_stack'] ?? []);
+
+		try {
+			do_action('wu_before_site_clone', (int) $args->to_site_id, (int) $args->from_site_id);
+			if ($args->copy_files) {
+				$profile_stage = microtime(true);
+				$copied_files  = \MUCD_Files::copy_files($args->from_site_id, $args->to_site_id);
+				if (is_wp_error($copied_files)) {
+					update_site_meta($args->to_site_id, self::CLONE_STATUS_META, 'failed');
+					return $copied_files;
+				}
+				self::profile_sovereign_provisioning_stage(
 				(int) $args->to_site_id,
 				'um_duplicator.copy_files',
 				microtime(true) - $profile_stage,
 				array('from_site_id' => (int) $args->from_site_id)
-			);
-		}
+				);
+			}
 
-		/**
-		 * Supress email change notification on site duplication processes.
-		 */
-		add_filter('send_site_admin_email_change_email', '__return_false');
+			/**
+			 * Supress email change notification on site duplication processes.
+			 */
+			add_filter('send_site_admin_email_change_email', '__return_false');
 
-		$profile_stage = microtime(true);
-		\MUCD_Data::copy_data($args->from_site_id, $args->to_site_id);
-		self::profile_sovereign_provisioning_stage(
+			$profile_stage = microtime(true);
+			\MUCD_Data::copy_data($args->from_site_id, $args->to_site_id);
+			update_site_meta($args->to_site_id, 'wu_template_id', (int) $args->from_site_id);
+			if (\MUCD_Data::get_copy_error()) {
+				update_site_meta($args->to_site_id, self::CLONE_STATUS_META, 'failed');
+				return new \WP_Error('site_clone_database_failed', __('Could not copy the complete template database.', 'ultimate-multisite'));
+			}
+			self::profile_sovereign_provisioning_stage(
 			(int) $args->to_site_id,
 			'um_duplicator.copy_data',
 			microtime(true) - $profile_stage,
 			array('from_site_id' => (int) $args->from_site_id)
-		);
+			);
 
-		/*
-		 * Resolve the real template source from wu_template_id site meta.
-		 *
-		 * MUCD's hooks pass a from_site_id that may differ from the template
-		 * the customer actually selected at checkout. WP Ultimo stores the
-		 * customer's real choice in the wu_template_id site meta key.
-		 * Prefer that over the explicit param when available.
-		 *
-		 * Intentionally kept in a separate variable: copy_data() and
-		 * copy_files() have already run with $args->from_site_id. Mutating
-		 * that property would cause copy_users() and downstream callers to
-		 * reference a different source than the one whose data was copied,
-		 * creating an inconsistent clone. Use $template_site_id only for the
-		 * post-copy backfill, integrity check, and action payload.
-		 *
-		 * @since 2.3.1
-		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
-		 */
-		$template_site_id = (int) $args->from_site_id;
-		$profile_stage    = microtime(true);
-		$meta_template    = (int) get_site_meta($args->to_site_id, 'wu_template_id', true);
-		if (0 < $meta_template && $meta_template !== (int) $args->from_site_id) {
-			$template_site_id = $meta_template;
-		}
-		self::profile_sovereign_provisioning_stage(
+			/*
+			* Resolve the real template source from wu_template_id site meta.
+			*
+			* MUCD's hooks pass a from_site_id that may differ from the template
+			* the customer actually selected at checkout. WP Ultimo stores the
+			* customer's real choice in the wu_template_id site meta key.
+			* Prefer that over the explicit param when available.
+			*
+			* Intentionally kept in a separate variable: copy_data() and
+			* copy_files() have already run with $args->from_site_id. Mutating
+			* that property would cause copy_users() and downstream callers to
+			* reference a different source than the one whose data was copied,
+			* creating an inconsistent clone. Use $template_site_id only for the
+			* post-copy backfill, integrity check, and action payload.
+			*
+			* @since 2.3.1
+			* @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
+			*/
+			$template_site_id = (int) $args->from_site_id;
+			$profile_stage    = microtime(true);
+			$meta_template    = (int) get_site_meta($args->to_site_id, 'wu_template_id', true);
+			if (0 < $meta_template && $meta_template !== (int) $args->from_site_id) {
+				$template_site_id = $meta_template;
+			}
+			self::profile_sovereign_provisioning_stage(
 			(int) $args->to_site_id,
 			'um_duplicator.resolve_template_site_id',
 			microtime(true) - $profile_stage,
 			array('template_site_id' => (int) $template_site_id)
-		);
+			);
 
-		/*
-		 * Backfill postmeta that MUCD_Data::copy_data() misses.
-		 *
-		 * MUCD copies table data with INSERT ... SELECT (full-table copy), but
-		 * certain post types end up with missing postmeta rows — particularly
-		 * nav_menu_item, attachment, and elementor_library posts. The Elementor
-		 * Kit post (usually ID 3) also gets stub postmeta that must be
-		 * overwritten with the real template values.
-		 *
-		 * @since 2.3.1
-		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
-		 */
-		$profile_stage = microtime(true);
-		self::backfill_postmeta($template_site_id, $args->to_site_id);
-		self::profile_sovereign_provisioning_stage(
+			/*
+			* Backfill postmeta that MUCD_Data::copy_data() misses.
+			*
+			* MUCD copies table data with INSERT ... SELECT (full-table copy), but
+			* certain post types end up with missing postmeta rows — particularly
+			* nav_menu_item, attachment, and elementor_library posts. The Elementor
+			* Kit post (usually ID 3) also gets stub postmeta that must be
+			* overwritten with the real template values.
+			*
+			* @since 2.3.1
+			* @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
+			*/
+			$profile_stage = microtime(true);
+			self::backfill_postmeta($template_site_id, $args->to_site_id);
+			self::profile_sovereign_provisioning_stage(
 			(int) $args->to_site_id,
 			'um_duplicator.backfill_postmeta',
 			microtime(true) - $profile_stage,
 			array('template_site_id' => (int) $template_site_id)
-		);
+			);
 
-		/*
-		 * Rewrite source URLs to target URLs in backfilled postmeta rows.
-		 *
-		 * backfill_postmeta() inserts rows after MUCD_Data::copy_data() has
-		 * already run its source→target URL replacement pass, so those rows
-		 * contain raw template URLs. Apply the same replacement here.
-		 *
-		 * @since 2.3.2
-		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/834
-		 */
-		$profile_stage = microtime(true);
-		self::rewrite_backfilled_postmeta_urls($template_site_id, $args->to_site_id);
-		self::profile_sovereign_provisioning_stage(
+			/*
+			* Rewrite source URLs to target URLs in backfilled postmeta rows.
+			*
+			* backfill_postmeta() inserts rows after MUCD_Data::copy_data() has
+			* already run its source→target URL replacement pass, so those rows
+			* contain raw template URLs. Apply the same replacement here.
+			*
+			* @since 2.3.2
+			* @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/834
+			*/
+			$profile_stage = microtime(true);
+			self::rewrite_backfilled_postmeta_urls($template_site_id, $args->to_site_id);
+			self::profile_sovereign_provisioning_stage(
 			(int) $args->to_site_id,
 			'um_duplicator.rewrite_backfilled_postmeta_urls',
 			microtime(true) - $profile_stage,
 			array('template_site_id' => (int) $template_site_id)
-		);
+			);
 
-		/*
-		 * Verify Kit integrity after backfill.
-		 *
-		 * Compares the byte length of _elementor_page_settings between the
-		 * template and the clone. If the clone has less than 80% of the
-		 * template's byte count, the Kit fix is re-applied as a safety net.
-		 *
-		 * @since 2.3.1
-		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
-		 */
-		$profile_stage = microtime(true);
-		self::verify_kit_integrity($template_site_id, $args->to_site_id);
-		self::profile_sovereign_provisioning_stage(
+			/*
+			* Verify Kit integrity after backfill.
+			*
+			* Compares the byte length of _elementor_page_settings between the
+			* template and the clone. If the clone has less than 80% of the
+			* template's byte count, the Kit fix is re-applied as a safety net.
+			*
+			* @since 2.3.1
+			* @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/820
+			*/
+			$profile_stage = microtime(true);
+			self::verify_kit_integrity($template_site_id, $args->to_site_id);
+			self::profile_sovereign_provisioning_stage(
 			(int) $args->to_site_id,
 			'um_duplicator.verify_kit_integrity',
 			microtime(true) - $profile_stage,
 			array('template_site_id' => (int) $template_site_id)
-		);
+			);
 
-		if ($args->keep_users) {
-			$profile_stage = microtime(true);
-			\MUCD_Duplicate::copy_users($args->from_site_id, $args->to_site_id);
-			self::profile_sovereign_provisioning_stage(
+			if ($args->keep_users) {
+				$profile_stage = microtime(true);
+				\MUCD_Duplicate::copy_users($args->from_site_id, $args->to_site_id);
+				self::profile_sovereign_provisioning_stage(
 				(int) $args->to_site_id,
 				'um_duplicator.copy_users',
 				microtime(true) - $profile_stage,
 				array('from_site_id' => (int) $args->from_site_id)
-			);
-		}
+				);
+			}
 
-		$profile_stage = microtime(true);
-		wp_cache_flush();
+			$profile_stage = microtime(true);
+			wp_cache_flush();
 
-		/*
-		 * Rebuild the in-memory role map from the copied options table before
-		 * invoking extension hooks. A cache flush does not reset WP_Roles, and
-		 * a hook that adds a role with an empty role map would overwrite
-		 * user_roles with that single role.
-		 */
-		wp_roles()->for_site($args->to_site_id);
+			/*
+			* Rebuild the in-memory role map from the copied options table before
+			* invoking extension hooks. A cache flush does not reset WP_Roles, and
+			* a hook that adds a role with an empty role map would overwrite
+			* user_roles with that single role.
+			*/
+			wp_roles()->for_site($args->to_site_id);
 
-		self::profile_sovereign_provisioning_stage(
+			self::profile_sovereign_provisioning_stage(
 			(int) $args->to_site_id,
 			'um_duplicator.wp_cache_flush',
 			microtime(true) - $profile_stage
-		);
+			);
 
-		// Ensure the requested title is applied after duplication, since the
-		// table copy may overwrite the blogname option set during site creation.
-		// When no title was provided (e.g. WooCommerce checkout flow), fall back
-		// to the subdomain portion of the site's domain so the duplicated site
-		// doesn't keep the template's blogname.
-		$new_title = ! empty($args->title)
+			// Ensure the requested title is applied after duplication, since the
+			// table copy may overwrite the blogname option set during site creation.
+			// When no title was provided (e.g. WooCommerce checkout flow), fall back
+			// to the subdomain portion of the site's domain so the duplicated site
+			// doesn't keep the template's blogname.
+			$new_title = ! empty($args->title)
 			? $args->title
 			: ucfirst(preg_replace('/\..*$/', '', $args->domain));
 
-		$profile_stage = microtime(true);
-		update_blog_option($args->to_site_id, 'blogname', $new_title);
-		self::profile_sovereign_provisioning_stage(
+			$profile_stage = microtime(true);
+			update_blog_option($args->to_site_id, 'blogname', $new_title);
+			self::profile_sovereign_provisioning_stage(
 			(int) $args->to_site_id,
 			'um_duplicator.update_blogname',
 			microtime(true) - $profile_stage
-		);
+			);
 
-		/**
-		 * Allow developers to hook after a site duplication happens.
-		 *
-		 * @since 1.9.4
-		 * @return void
-		 */
-		$profile_stage = microtime(true);
-		do_action(
+			/**
+			 * Allow developers to hook after a site duplication happens.
+			 *
+			 * @since 1.9.4
+			 * @return void
+			 */
+			$profile_stage = microtime(true);
+			do_action(
 			'wu_duplicate_site',
 			[
 				'from_site_id' => $template_site_id,
 				'site_id'      => $args->to_site_id,
 			]
-		);
-		self::profile_sovereign_provisioning_stage(
+			);
+			self::profile_sovereign_provisioning_stage(
 			(int) $args->to_site_id,
 			'um_duplicator.duplicate_site_hooks',
 			microtime(true) - $profile_stage
-		);
+			);
 
-		self::profile_sovereign_provisioning_stage(
+			switch_to_blog($args->to_site_id);
+			try {
+				$configuration = get_option('wu_template_clone_configuration', []);
+				$configuration = is_array($configuration) ? $configuration : [];
+				if (array_key_exists('public', $configuration)) {
+					update_option('blog_public', (int) (bool) $configuration['public']);
+					update_blog_status($args->to_site_id, 'public', (int) (bool) $configuration['public']);
+				}
+
+				$payload = [
+					'from_site_id' => (int) $args->from_site_id,
+					'site_id'      => (int) $args->to_site_id,
+				];
+				$result  = \WP_Ultimo\Compat\Template_Clone_Compat::initialize($configuration, $payload);
+				/**
+				 * Initialize plugin-owned state after the final data copy, in destination context.
+				 * Return WP_Error to leave the clone unavailable; never overwrite a prior error.
+				 *
+				 * @param true|\WP_Error $result Initialization result.
+				 * @param array $clone Source and destination blog IDs.
+				 */
+				$result = apply_filters(
+				'wu_initialize_cloned_site',
+				$result,
+				[
+					'from_site_id' => (int) $args->from_site_id,
+					'site_id'      => (int) $args->to_site_id,
+				]
+				);
+				if (true !== $result) {
+					update_site_meta($args->to_site_id, self::CLONE_STATUS_META, 'failed');
+					return is_wp_error($result) ? $result : new \WP_Error('site_clone_initialization_failed', __('Clone initialization did not complete.', 'ultimate-multisite'));
+				}
+			} finally {
+				restore_current_blog();
+			}
+
+			update_site_meta($args->to_site_id, self::CLONE_STATUS_META, 'complete');
+			update_blog_status($args->to_site_id, 'archived', $archived);
+			delete_site_meta($args->to_site_id, 'wu_clone_previous_archived');
+
+			self::profile_sovereign_provisioning_stage(
 			(int) $args->to_site_id,
 			'um_duplicator.total',
 			microtime(true) - $profile_total,
 			array('from_site_id' => (int) $args->from_site_id)
-		);
+			);
 
-		return $args->to_site_id;
+			return $args->to_site_id;
+		} catch (\Throwable $error) {
+			update_site_meta($args->to_site_id, self::CLONE_STATUS_META, 'failed');
+			wu_log_add('site-duplication', $error->getMessage(), LogLevel::ERROR);
+			return new \WP_Error('site_clone_failed', __('The template clone could not be completed.', 'ultimate-multisite'));
+		} finally {
+			remove_filter('send_site_admin_email_change_email', '__return_false');
+			$remaining_switches = count($GLOBALS['_wp_switched_stack'] ?? []) - $switch_depth;
+			while ($remaining_switches > 0) {
+				restore_current_blog();
+				--$remaining_switches;
+			}
+			if (get_current_blog_id() !== $caller_blog_id) {
+				switch_to_blog($caller_blog_id);
+			}
+		}
 	}
 
 	/**
@@ -754,13 +857,10 @@ class Site_Duplicator {
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		foreach ($tables as $table => $column) {
 
-			// Skip tables that don't exist (e.g. termmeta on older WP versions).
-			$exists = $wpdb->get_var(
-				$wpdb->prepare(
-					'SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s LIMIT 1',
-					$table
-				)
-			);
+			// Catalogue queries omit temporary tables and can be restricted by DB permissions.
+			$suppressed = $wpdb->suppress_errors();
+			$exists     = $wpdb->get_results($wpdb->prepare('DESCRIBE %i', $table));
+			$wpdb->suppress_errors($suppressed);
 
 			if ( ! $exists) {
 				continue;
