@@ -109,13 +109,13 @@ class Site_Duplicator {
 	 * @return void
 	 */
 	private static function set_clone_status($site_id, $status): void {
-		update_site_meta($site_id, self::CLONE_STATUS_META, $status);
-
 		if ('copying' === $status) {
 			update_site_meta($site_id, self::CLONE_STATUS_STARTED_AT_META, time());
+			update_site_meta($site_id, self::CLONE_STATUS_META, $status);
 			return;
 		}
 
+		update_site_meta($site_id, self::CLONE_STATUS_META, $status);
 		delete_site_meta($site_id, self::CLONE_STATUS_STARTED_AT_META);
 	}
 

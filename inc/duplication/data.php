@@ -633,7 +633,7 @@ if ( ! class_exists('MUCD_Data') ) {
 						);
 					}
 
-					$results = self::do_sql_query($sql_query, 'results', false, false);
+					$results = self::do_sql_query($sql_query, 'results', false);
 
 					if ($results) {
 						foreach ($results as $row) {
@@ -659,7 +659,7 @@ if ( ! class_exists('MUCD_Data') ) {
 								);
 							}
 
-							self::do_sql_query($update_sql, '', true, false);
+							self::do_sql_query($update_sql);
 						}
 					}
 				}
