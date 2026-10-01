@@ -139,7 +139,7 @@ class Core_Installer extends Base_Installer {
 					// translators: %s is the error returned by the database server.
 					$error_message .= '. ' . sprintf(__('Database error: %s', 'ultimate-multisite'), $database_error);
 				} else {
-					$error_message .= '. ' . __('The database did not provide an error message. Please ask your hosting provider to check the database permissions and server error logs.', 'ultimate-multisite');
+					$error_message .= '. ' . __('An unknown error has occurred. Please check the server error logs.', 'ultimate-multisite');
 				}
 
 				throw new \Exception(esc_html($error_message));
