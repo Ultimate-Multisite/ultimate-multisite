@@ -314,15 +314,19 @@ class Membership_Manager extends Base_Manager {
 			// Publishing can finish before a storage provider completes its clone sync.
 			$sites = $membership->get_sites();
 			if ( ! empty($sites)) {
-				$ready = false;
+				$ready        = false;
+				$clone_failed = false;
 				foreach ($sites as $site) {
 					if (\WP_Ultimo\Helpers\Site_Duplicator::is_site_ready($site->get_id())) {
 						$ready = true;
 						break;
 					}
+					if (\WP_Ultimo\Helpers\Site_Duplicator::is_clone_failed($site->get_id())) {
+						$clone_failed = true;
+					}
 				}
 				if ( ! $ready) {
-					wp_send_json(['publish_status' => 'running']);
+					wp_send_json(['publish_status' => $clone_failed ? 'failed' : 'running']);
 					exit;
 				}
 			}

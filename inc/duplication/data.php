@@ -367,7 +367,7 @@ if ( ! class_exists('MUCD_Data') ) {
 			global $wpdb;
 
 			$wpdb->last_error = '';
-			$has_rows         = self::do_sql_query('SELECT 1 FROM `' . $table . '` LIMIT 1', 'var', false);
+			$has_rows         = self::do_sql_query('SELECT 1 FROM `' . $table . '` LIMIT 1', 'var', false, false);
 
 			if ('' !== $wpdb->last_error) {
 				return true;
@@ -832,9 +832,10 @@ if ( ! class_exists('MUCD_Data') ) {
 		 * @param  string $sql_query The SQL query to execute.
 		 * @param  string $type      Type of result to return.
 		 * @param  bool   $log       Whether to log the query.
+		 * @param  bool   $capture_copy_error Whether to retain a query failure as a fatal copy error.
 		 * @return mixed  Results of the query.
 		 */
-		public static function do_sql_query($sql_query, $type = '', $log = true) {
+		public static function do_sql_query($sql_query, $type = '', $log = true, $capture_copy_error = true) {
 			global $wpdb;
 
 			$wpdb->suppress_errors();
@@ -867,7 +868,7 @@ if ( ! class_exists('MUCD_Data') ) {
 
 			if ('' !== $wpdb->last_error) {
 				$last_error = $wpdb->last_error;
-				if ('' === self::$copy_error) {
+				if ($capture_copy_error && '' === self::$copy_error) {
 					self::$copy_error = $last_error;
 				}
 
