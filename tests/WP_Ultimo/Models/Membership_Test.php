@@ -1986,8 +1986,8 @@ class Membership_Test extends \WP_UnitTestCase {
 		$connection  = new \wpdb(DB_USER, DB_PASSWORD, DB_NAME, DB_HOST);
 		$action_args = ['membership_id' => $membership->get_id()];
 
-		$this->assertLessThanOrEqual(64, strlen($lock_name), 'MySQL named locks must not exceed 64 characters.');
 		try {
+			$this->assertLessThanOrEqual(64, strlen($lock_name), 'MySQL named locks must not exceed 64 characters.');
 			$this->assertSame(
 				1,
 				(int) $connection->get_var($connection->prepare('SELECT GET_LOCK(%s, 0)', $lock_name)),
