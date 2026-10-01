@@ -121,11 +121,39 @@ class Current_Test extends \WP_UnitTestCase {
 
 		$expected['page_id'] = $front_page;
 		$expected['page']    = 2;
-		unset($expected['paged']);
 
 		$this->assertSame($expected, $this->current->preserve_static_front_page($vars));
 		update_option('page_on_front', 0);
 		$this->assertSame($vars, $this->current->preserve_static_front_page($vars));
+	}
+
+	/** The early request filter must leave paged available when WordPress computes flags. */
+	public function test_static_front_page_keeps_is_paged_flag(): void {
+
+		$front_page = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_content' => 'First page<!--nextpage-->Second page',
+			]
+		);
+		update_option('show_on_front', 'page');
+		update_option('page_on_front', $front_page);
+		$this->go_to(
+			add_query_arg(
+				[
+					'products' => [123],
+					'paged'    => 2,
+				],
+				home_url('/')
+			)
+		);
+
+		$this->assertTrue(is_paged());
+		$this->assertTrue(is_front_page());
+		$this->assertTrue(is_page());
+		$this->assertSame($front_page, get_queried_object_id());
+		$this->assertSame(2, (int) get_query_var('page'));
+		$this->assertSame(['123'], get_query_var('products'));
 	}
 
 	/**

@@ -193,7 +193,7 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 		// Match WordPress's handling of multipage static-front-page content.
 		if (! empty($query_vars['paged'])) {
 			$query_vars['page'] = $query_vars['paged'];
-			unset($query_vars['paged']);
+			// Keep paged until parse_query() has computed the is_paged flag.
 		}
 
 		return $query_vars;
