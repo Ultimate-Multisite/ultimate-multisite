@@ -131,7 +131,7 @@ if ( ! class_exists('MUCD_Files') ) {
 			}
 
 			if ( ! $wp_filesystem->is_dir($src) ) {
-				if ( ! $is_source_root) {
+				if ( ! $is_source_root || $wp_filesystem->exists($src)) {
 					self::$copy_failed = true;
 				}
 				return;

@@ -477,14 +477,14 @@ if ( ! class_exists('MUCD_Data') ) {
 			// Bugfix : escape '_' , '%' and '/' character for mysql 'like' queries
 			$to_blog_prefix_like = $wpdb->esc_like($to_blog_prefix);
 
-			$results = self::do_sql_query('SHOW TABLES LIKE \'' . $to_blog_prefix_like . '%\'', 'col', false, false);
+			$results = self::do_sql_query('SHOW TABLES LIKE \'' . $to_blog_prefix_like . '%\'', 'col', false);
 
 			foreach ( $results as $k => $v ) {
 				$tables[ str_replace($to_blog_prefix, '', (string) $v) ] = [];
 			}
 
 			foreach ( $tables as $table => $col) {
-				$results = self::do_sql_query('SHOW COLUMNS FROM `' . $to_blog_prefix . $table . '`', 'col', false, false);
+				$results = self::do_sql_query('SHOW COLUMNS FROM `' . $to_blog_prefix . $table . '`', 'col', false);
 
 				$columns = [];
 

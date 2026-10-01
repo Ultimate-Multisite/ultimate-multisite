@@ -109,6 +109,7 @@
 					stopped_count: 0,
 					running_count: 0,
 					site_ready: false,
+					clone_failed: false,
 					// True when the URL already carries a _t= cache-bust param added by a
 					// prior completion redirect.  Used to prevent any second full-page
 					// navigation and break the infinite-reload loop that occurred when the
@@ -143,6 +144,10 @@
 			},
 			methods: {
 				async check_site_created() {
+					if (this.clone_failed) {
+						return;
+					}
+
 					const url = new URL(wu_thank_you.ajaxurl);
 					url.searchParams.set("action", "wu_check_pending_site_created");
 					url.searchParams.set("membership_hash", wu_thank_you.membership_hash);
@@ -201,6 +206,9 @@
 							const wait = this.running_count < 20 ? 1500 : 3000;
 							setTimeout(this.check_site_created, wait);
 						}
+					} else if (response.publish_status === "failed") {
+						this.creating = false;
+						this.clone_failed = true;
 					} else {
 						// status === "stopped": async job not started yet OR site already created.
 						//
