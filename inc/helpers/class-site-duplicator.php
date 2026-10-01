@@ -44,6 +44,42 @@ class Site_Duplicator {
 	/** Host-owned clone state, never inherited from a template. */
 	public const CLONE_STATUS_META = 'wu_clone_status';
 
+	/** Timestamp recording when a clone entered its copying state. */
+	private const CLONE_STATUS_STARTED_AT_META = 'wu_clone_status_started_at';
+
+	/** Seconds a clone may remain in copying before it is considered failed. */
+	private const CLONE_STATUS_TIMEOUT = 300;
+
+	/**
+	 * Get the clone status and expire interrupted copying operations.
+	 *
+	 * @param int $site_id Destination blog ID.
+	 * @return string Clone status.
+	 */
+	public static function get_clone_status($site_id) {
+		$status = (string) get_site_meta($site_id, self::CLONE_STATUS_META, true);
+
+		if ('copying' === $status) {
+			$started_at = (int) get_site_meta($site_id, self::CLONE_STATUS_STARTED_AT_META, true);
+			if (0 === $started_at || time() - $started_at >= self::CLONE_STATUS_TIMEOUT) {
+				self::set_clone_status($site_id, 'failed');
+				return 'failed';
+			}
+		}
+
+		return $status;
+	}
+
+	/**
+	 * Determine whether the clone has reached a terminal failure state.
+	 *
+	 * @param int $site_id Destination blog ID.
+	 * @return bool Whether the clone failed.
+	 */
+	public static function is_clone_failed($site_id) {
+		return 'failed' === self::get_clone_status($site_id);
+	}
+
 	/**
 	 * Check native cloning and storage readiness without a plugin-specific marker.
 	 *
@@ -56,13 +92,31 @@ class Site_Duplicator {
 			return false;
 		}
 
-		$status = get_site_meta($site_id, self::CLONE_STATUS_META, true);
+		$status = self::get_clone_status($site_id);
 		if ('complete' !== $status && ('' !== $status || get_site_meta($site_id, 'wu_template_id', true))) {
 			return false;
 		}
 
 		/** Storage providers may defer readiness until the completed clone is synchronized. */
 		return (bool) apply_filters('wu_site_clone_ready', true, (int) $site_id);
+	}
+
+	/**
+	 * Persist clone state and retain a timeout marker while copying.
+	 *
+	 * @param int    $site_id Destination blog ID.
+	 * @param string $status Clone status.
+	 * @return void
+	 */
+	private static function set_clone_status($site_id, $status): void {
+		update_site_meta($site_id, self::CLONE_STATUS_META, $status);
+
+		if ('copying' === $status) {
+			update_site_meta($site_id, self::CLONE_STATUS_STARTED_AT_META, time());
+			return;
+		}
+
+		delete_site_meta($site_id, self::CLONE_STATUS_STARTED_AT_META);
 	}
 
 	/**
@@ -453,7 +507,7 @@ class Site_Duplicator {
 		} else {
 			$archived = (int) $previous_archived;
 		}
-		update_site_meta($args->to_site_id, self::CLONE_STATUS_META, 'copying');
+		self::set_clone_status($args->to_site_id, 'copying');
 		update_blog_status($args->to_site_id, 'archived', 1);
 		$caller_blog_id = get_current_blog_id();
 		$switch_depth   = count($GLOBALS['_wp_switched_stack'] ?? []);
@@ -464,7 +518,7 @@ class Site_Duplicator {
 				$profile_stage = microtime(true);
 				$copied_files  = \MUCD_Files::copy_files($args->from_site_id, $args->to_site_id);
 				if (is_wp_error($copied_files)) {
-					update_site_meta($args->to_site_id, self::CLONE_STATUS_META, 'failed');
+					self::set_clone_status($args->to_site_id, 'failed');
 					return $copied_files;
 				}
 				self::profile_sovereign_provisioning_stage(
@@ -484,7 +538,7 @@ class Site_Duplicator {
 			\MUCD_Data::copy_data($args->from_site_id, $args->to_site_id);
 			update_site_meta($args->to_site_id, 'wu_template_id', (int) $args->from_site_id);
 			if (\MUCD_Data::get_copy_error()) {
-				update_site_meta($args->to_site_id, self::CLONE_STATUS_META, 'failed');
+				self::set_clone_status($args->to_site_id, 'failed');
 				return new \WP_Error('site_clone_database_failed', __('Could not copy the complete template database.', 'ultimate-multisite'));
 			}
 			self::profile_sovereign_provisioning_stage(
@@ -679,14 +733,14 @@ class Site_Duplicator {
 				]
 				);
 				if (true !== $result) {
-					update_site_meta($args->to_site_id, self::CLONE_STATUS_META, 'failed');
+					self::set_clone_status($args->to_site_id, 'failed');
 					return is_wp_error($result) ? $result : new \WP_Error('site_clone_initialization_failed', __('Clone initialization did not complete.', 'ultimate-multisite'));
 				}
 			} finally {
 				restore_current_blog();
 			}
 
-			update_site_meta($args->to_site_id, self::CLONE_STATUS_META, 'complete');
+			self::set_clone_status($args->to_site_id, 'complete');
 			update_blog_status($args->to_site_id, 'archived', $archived);
 			delete_site_meta($args->to_site_id, 'wu_clone_previous_archived');
 
@@ -699,7 +753,7 @@ class Site_Duplicator {
 
 			return $args->to_site_id;
 		} catch (\Throwable $error) {
-			update_site_meta($args->to_site_id, self::CLONE_STATUS_META, 'failed');
+			self::set_clone_status($args->to_site_id, 'failed');
 			wu_log_add('site-duplication', $error->getMessage(), LogLevel::ERROR);
 			return new \WP_Error('site_clone_failed', __('The template clone could not be completed.', 'ultimate-multisite'));
 		} finally {

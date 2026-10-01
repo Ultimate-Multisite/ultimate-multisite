@@ -95,7 +95,7 @@ if ( ! class_exists('MUCD_Files') ) {
 				}
 
 				MUCD_Duplicate::write_log('Copy files from ' . $dir['from_dir_path'] . ' to ' . $dir['to_dir_path']);
-				self::recurse_copy($dir['from_dir_path'], $dir['to_dir_path'], $dir['exclude_dirs']);
+				self::recurse_copy($dir['from_dir_path'], $dir['to_dir_path'], $dir['exclude_dirs'], true);
 			}
 
 			if (self::$copy_failed) {
@@ -111,8 +111,9 @@ if ( ! class_exists('MUCD_Files') ) {
 		 * @param  string $src source directory path.
 		 * @param  string $dst destination directory path.
 		 * @param  array  $exclude_dirs directories to ignore.
+		 * @param  bool   $is_source_root Whether this is the root source directory.
 		 */
-		public static function recurse_copy($src, $dst, $exclude_dirs = []): void {
+		public static function recurse_copy($src, $dst, $exclude_dirs = [], $is_source_root = false): void {
 			global $wp_filesystem;
 
 			if ( ! $wp_filesystem ) {
@@ -130,7 +131,9 @@ if ( ! class_exists('MUCD_Files') ) {
 			}
 
 			if ( ! $wp_filesystem->is_dir($src) ) {
-				self::$copy_failed = true;
+				if ( ! $is_source_root) {
+					self::$copy_failed = true;
+				}
 				return;
 			}
 

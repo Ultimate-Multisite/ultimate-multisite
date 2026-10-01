@@ -367,7 +367,7 @@ if ( ! class_exists('MUCD_Data') ) {
 			global $wpdb;
 
 			$wpdb->last_error = '';
-			$has_rows         = self::do_sql_query('SELECT 1 FROM `' . $table . '` LIMIT 1', 'var', false);
+			$has_rows         = self::do_sql_query('SELECT 1 FROM `' . $table . '` LIMIT 1', 'var', false, false);
 
 			if ('' !== $wpdb->last_error) {
 				return true;
@@ -477,14 +477,14 @@ if ( ! class_exists('MUCD_Data') ) {
 			// Bugfix : escape '_' , '%' and '/' character for mysql 'like' queries
 			$to_blog_prefix_like = $wpdb->esc_like($to_blog_prefix);
 
-			$results = self::do_sql_query('SHOW TABLES LIKE \'' . $to_blog_prefix_like . '%\'', 'col', false);
+			$results = self::do_sql_query('SHOW TABLES LIKE \'' . $to_blog_prefix_like . '%\'', 'col', false, false);
 
 			foreach ( $results as $k => $v ) {
 				$tables[ str_replace($to_blog_prefix, '', (string) $v) ] = [];
 			}
 
 			foreach ( $tables as $table => $col) {
-				$results = self::do_sql_query('SHOW COLUMNS FROM `' . $to_blog_prefix . $table . '`', 'col', false);
+				$results = self::do_sql_query('SHOW COLUMNS FROM `' . $to_blog_prefix . $table . '`', 'col', false, false);
 
 				$columns = [];
 
@@ -633,7 +633,7 @@ if ( ! class_exists('MUCD_Data') ) {
 						);
 					}
 
-					$results = self::do_sql_query($sql_query, 'results', false);
+					$results = self::do_sql_query($sql_query, 'results', false, false);
 
 					if ($results) {
 						foreach ($results as $row) {
@@ -659,7 +659,7 @@ if ( ! class_exists('MUCD_Data') ) {
 								);
 							}
 
-							self::do_sql_query($update_sql);
+							self::do_sql_query($update_sql, '', true, false);
 						}
 					}
 				}
@@ -832,9 +832,10 @@ if ( ! class_exists('MUCD_Data') ) {
 		 * @param  string $sql_query The SQL query to execute.
 		 * @param  string $type      Type of result to return.
 		 * @param  bool   $log       Whether to log the query.
+		 * @param  bool   $capture_copy_error Whether to retain a query failure as a fatal copy error.
 		 * @return mixed  Results of the query.
 		 */
-		public static function do_sql_query($sql_query, $type = '', $log = true) {
+		public static function do_sql_query($sql_query, $type = '', $log = true, $capture_copy_error = true) {
 			global $wpdb;
 
 			$wpdb->suppress_errors();
@@ -867,7 +868,7 @@ if ( ! class_exists('MUCD_Data') ) {
 
 			if ('' !== $wpdb->last_error) {
 				$last_error = $wpdb->last_error;
-				if ('' === self::$copy_error) {
+				if ($capture_copy_error && '' === self::$copy_error) {
 					self::$copy_error = $last_error;
 				}
 
