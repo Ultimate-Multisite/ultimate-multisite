@@ -94,6 +94,8 @@ class Core_Installer extends Base_Installer {
 	 */
 	public function _install_database_tables(): void { // phpcs:ignore PSR2.Methods.MethodDeclaration.Underscore
 
+		global $wpdb;
+
 		$tables = \WP_Ultimo\Loaders\Table_Loader::get_instance()->get_tables();
 
 		foreach ($tables as $table_name => $table) {
@@ -108,12 +110,37 @@ class Core_Installer extends Base_Installer {
 				continue;
 			}
 
-			$table->install();
+			// Keep database output out of the AJAX response, even when WP_DEBUG_DISPLAY is enabled.
+			$suppress_errors = $wpdb->suppress_errors(true);
 
-			if (! $table->get_version()) {
+			try {
+				$wpdb->last_error = '';
+				$table->install();
+
+				// Reading the table version can run another query and clear the creation error.
+				$database_error = $wpdb->last_error;
+				$table_version  = $table->get_version();
+				$database_error = $database_error ?: $wpdb->last_error;
+			} finally {
+				$wpdb->suppress_errors($suppress_errors);
+			}
+
+			if (! $table_version) {
 
 				// translators: %s is the name of a database table, e.g. wu_memberships.
-				$error_message = sprintf(__('Installation of the table %s failed', 'ultimate-multisite'), $table->get_name());
+				$error_message = sprintf(__('Installation of the table %s failed', 'ultimate-multisite'), $table->table_name);
+
+				if ($database_error) {
+					// Never include the configured database password in the displayed or logged message.
+					if (defined('DB_PASSWORD') && '' !== DB_PASSWORD) {
+						$database_error = str_replace(DB_PASSWORD, '[redacted]', $database_error);
+					}
+
+					// translators: %s is the error returned by the database server.
+					$error_message .= '. ' . sprintf(__('Database error: %s', 'ultimate-multisite'), $database_error);
+				} else {
+					$error_message .= '. ' . __('The database did not provide an error message. Please ask your hosting provider to check the database permissions and server error logs.', 'ultimate-multisite');
+				}
 
 				throw new \Exception(esc_html($error_message));
 			}
