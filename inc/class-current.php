@@ -89,6 +89,7 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 		 */
 		add_action('init', [$this, 'add_rewrite_rules']);
 		add_filter('query_vars', [$this, 'add_query_vars']);
+		add_filter('request', [$this, 'preserve_static_front_page']);
 
 		add_action('wu_after_save_settings', [$this, 'flush_rewrite_rules_on_update']);
 		add_action('wu_core_update', [$this, 'flush_rewrite_rules_on_update']);
@@ -154,6 +155,46 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 		$query_vars[] = 'duration_unit';
 		$query_vars[] = 'template_name';
 		$query_vars[] = 'wu_preselected';
+
+		return $query_vars;
+	}
+
+	/**
+	 * Keep our checkout parameters from disqualifying WordPress's static front page.
+	 *
+	 * Public query variables are imported from GET and POST. WordPress only maps
+	 * an otherwise unrouted request to page_on_front when its query contains a
+	 * small allowlist of keys. Our parameters describe checkout state, not a
+	 * different content route, and must remain available to the checkout.
+	 *
+	 * @param array $query_vars Parsed WordPress request variables.
+	 * @return array
+	 */
+	public function preserve_static_front_page($query_vars) {
+
+		if ('page' !== get_option('show_on_front') || ! get_option('page_on_front')) {
+			return $query_vars;
+		}
+
+		$routing_vars = $query_vars;
+		if (isset($routing_vars['pagename']) && '' === $routing_vars['pagename']) {
+			unset($routing_vars['pagename']);
+		}
+		unset($routing_vars['embed']);
+
+		$keys         = array_keys($routing_vars);
+		$our_vars     = $this->add_query_vars([]);
+		$allowed_keys = array_merge($our_vars, ['preview', 'page', 'paged', 'cpage']);
+		if (! array_intersect($keys, $our_vars) || array_diff($keys, $allowed_keys)) {
+			return $query_vars;
+		}
+
+		$query_vars['page_id'] = (int) get_option('page_on_front');
+		// Match WordPress's handling of multipage static-front-page content.
+		if (! empty($query_vars['paged'])) {
+			$query_vars['page'] = $query_vars['paged'];
+			unset($query_vars['paged']);
+		}
 
 		return $query_vars;
 	}
