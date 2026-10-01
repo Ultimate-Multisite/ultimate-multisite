@@ -26,6 +26,136 @@ class Current_Test extends \WP_UnitTestCase {
 		$this->current = Current::get_instance();
 	}
 
+	/** Checkout preselection must not turn a static front page into the blog index. */
+	public function test_static_front_page_with_checkout_query_vars(): void {
+
+		$front_page = self::factory()->post->create(['post_type' => 'page']);
+		update_option('show_on_front', 'page');
+		update_option('page_on_front', $front_page);
+
+		$this->go_to(
+			add_query_arg(
+				[
+					'products'      => [123],
+					'duration'      => 1,
+					'duration_unit' => 'month',
+				],
+				home_url('/')
+			)
+		);
+
+		$this->assertTrue(is_front_page());
+		$this->assertTrue(is_page());
+		$this->assertFalse(is_home());
+		$this->assertSame($front_page, get_queried_object_id());
+		$this->assertSame(['123'], get_query_var('products'));
+	}
+
+	/** WordPress also imports public query variables from the native form's POST body. */
+	public function test_static_front_page_with_checkout_post_vars(): void {
+
+		$front_page = self::factory()->post->create(['post_type' => 'page']);
+		update_option('show_on_front', 'page');
+		update_option('page_on_front', $front_page);
+		$this->go_to(home_url('/'));
+
+		$_POST = [
+			'products'        => [123],
+			'checkout_action' => 'wu_checkout',
+		];
+		try {
+			$GLOBALS['wp']->main();
+
+			$this->assertTrue(is_front_page());
+			$this->assertTrue(is_page());
+			$this->assertFalse(is_home());
+			$this->assertSame($front_page, get_queried_object_id());
+			$this->assertSame(['123'], get_query_var('products'));
+		} finally {
+			$_POST = [];
+		}
+	}
+
+	/** Explicit content routes and unrelated plugin query variables must win. */
+	public function test_static_front_page_preserves_other_routes(): void {
+
+		update_option('show_on_front', 'page');
+		update_option('page_on_front', self::factory()->post->create(['post_type' => 'page']));
+
+		foreach (['pagename', 'page_id', 'p', 's', 'feed', 'error', 'post_type', 'author', 'other_plugin_route'] as $key) {
+			$vars = [
+				'products' => [123],
+				$key       => 'another-route',
+			];
+			$this->assertSame($vars, $this->current->preserve_static_front_page($vars), $key);
+		}
+		$this->assertSame([], $this->current->preserve_static_front_page([]));
+	}
+
+	/** A latest-posts homepage remains a blog index even with checkout state. */
+	public function test_static_front_page_does_not_override_posts_homepage(): void {
+
+		update_option('show_on_front', 'posts');
+		$this->go_to(add_query_arg('products', [123], home_url('/')));
+
+		$this->assertTrue(is_home());
+		$this->assertTrue(is_front_page());
+		$this->assertFalse(is_page());
+		$this->assertSame(['123'], get_query_var('products'));
+	}
+
+	/** Preserve the complete parameter set and WordPress's multipage correction. */
+	public function test_static_front_page_retains_parameters_and_pagination(): void {
+
+		$front_page = self::factory()->post->create(['post_type' => 'page']);
+		update_option('show_on_front', 'page');
+		update_option('page_on_front', $front_page);
+
+		$vars = array_fill_keys($this->current->add_query_vars([]), 'value');
+
+		$vars['pagename'] = '';
+		$vars['embed']    = 'true';
+		$vars['paged']    = 2;
+
+		$expected = $vars;
+
+		$expected['page_id'] = $front_page;
+		$expected['page']    = 2;
+
+		$this->assertSame($expected, $this->current->preserve_static_front_page($vars));
+		update_option('page_on_front', 0);
+		$this->assertSame($vars, $this->current->preserve_static_front_page($vars));
+	}
+
+	/** The early request filter must leave paged available when WordPress computes flags. */
+	public function test_static_front_page_keeps_is_paged_flag(): void {
+
+		$front_page = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_content' => 'First page<!--nextpage-->Second page',
+			]
+		);
+		update_option('show_on_front', 'page');
+		update_option('page_on_front', $front_page);
+		$this->go_to(
+			add_query_arg(
+				[
+					'products' => [123],
+					'paged'    => 2,
+				],
+				home_url('/')
+			)
+		);
+
+		$this->assertTrue(is_paged());
+		$this->assertTrue(is_front_page());
+		$this->assertTrue(is_page());
+		$this->assertSame($front_page, get_queried_object_id());
+		$this->assertSame(2, (int) get_query_var('page'));
+		$this->assertSame(['123'], get_query_var('products'));
+	}
+
 	/**
 	 * Test that load_currents skips re-run on admin when site is already set.
 	 */
