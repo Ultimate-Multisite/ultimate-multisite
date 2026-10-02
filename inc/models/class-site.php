@@ -2091,6 +2091,30 @@ class Site extends Base_Model implements Limitable, Notable {
 				);
 			}
 		} else {
+			$clone_status = get_site_meta($this->get_id(), \WP_Ultimo\Helpers\Site_Duplicator::CLONE_STATUS_META, true);
+			if ('copying' === $clone_status) {
+				return new \WP_Error('site_clone_in_progress', __('The template clone is still running.', 'ultimate-multisite'));
+			}
+			if ('failed' === $clone_status && $this->get_template_id()) {
+				$retry = \WP_Ultimo\Helpers\Site_Duplicator::duplicate_site(
+					$this->get_template_id(),
+					$this->get_title(),
+					array_merge(
+						$this->get_duplication_arguments(),
+						[
+							'to_site_id' => $this->get_id(),
+							'domain'     => $this->get_domain(),
+							'path'       => $this->get_path(),
+							'email'      => get_blog_option($this->get_id(), 'admin_email'),
+						]
+						)
+				);
+				if (is_wp_error($retry)) {
+					return $retry;
+				}
+				$this->archived = (int) get_blog_status($this->get_id(), 'archived');
+				$this->public   = (int) get_blog_status($this->get_id(), 'public');
+			}
 			$saved = wp_update_site($this->get_id(), $this->to_array());
 		}
 
@@ -2312,7 +2336,7 @@ class Site extends Base_Model implements Limitable, Notable {
 			microtime(true) - $profile_total
 		);
 
-		return $saved;
+		return isset($error) ? $error : $saved;
 	}
 
 	/**

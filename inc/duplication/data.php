@@ -23,6 +23,14 @@ if ( ! class_exists('MUCD_Data') ) {
 
 		private static $to_site_id;
 
+		/** @var string First SQL failure in the current copy, retained across later successful queries. */
+		private static $copy_error = '';
+
+		/** @return string First database-copy error, or an empty string. */
+		public static function get_copy_error() {
+			return self::$copy_error;
+		}
+
 		/**
 		 * Copy and Update tables from a site to another
 		 *
@@ -32,6 +40,7 @@ if ( ! class_exists('MUCD_Data') ) {
 		 */
 		public static function copy_data($from_site_id, $to_site_id): void {
 			self::$to_site_id = $to_site_id;
+			self::$copy_error = '';
 
 			// Copy
 			$saved_options = self::db_copy_tables($from_site_id, $to_site_id);
@@ -54,6 +63,8 @@ if ( ! class_exists('MUCD_Data') ) {
 
 			global $wpdb;
 
+			$destination_meta = get_site_meta($to_site_id);
+
 			// Delete everything
 			$wpdb->delete( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				_get_meta_table('blog'),
@@ -61,12 +72,23 @@ if ( ! class_exists('MUCD_Data') ) {
 					'blog_id' => $to_site_id,
 				]
 			);
+			wp_cache_delete($to_site_id, 'blog_meta');
 
 			$meta = get_site_meta($from_site_id);
 
 			foreach ($meta as $meta_key => $list) {
+				if (str_starts_with($meta_key, 'wu_clone_') || str_starts_with($meta_key, 'wu_mt_')) {
+					continue;
+				}
 				foreach ($list as $value) {
-					add_site_meta($to_site_id, $meta_key, $value);
+					add_site_meta($to_site_id, $meta_key, maybe_unserialize($value));
+				}
+			}
+			foreach ($destination_meta as $meta_key => $list) {
+				if (str_starts_with($meta_key, 'wu_clone_') || str_starts_with($meta_key, 'wu_mt_')) {
+					foreach ($list as $value) {
+						add_site_meta($to_site_id, $meta_key, maybe_unserialize($value));
+					}
 				}
 			}
 		}
@@ -110,9 +132,8 @@ if ( ! class_exists('MUCD_Data') ) {
 				$from_site_table = self::do_sql_query($sql_query, 'col');
 			}
 
-			if (empty($from_site_table)) {
-				$from_site_table = self::get_existing_blog_tables($from_site_id);
-			}
+			// Registry-backed tables include required core/plugin tables hidden from INFORMATION_SCHEMA.
+			$from_site_table = array_unique(array_merge((array) $from_site_table, self::get_existing_blog_tables($from_site_id)));
 
 			foreach ($from_site_table as $table) {
 				$table_base_name = substr((string) $table, $from_site_prefix_length);
@@ -346,7 +367,7 @@ if ( ! class_exists('MUCD_Data') ) {
 			global $wpdb;
 
 			$wpdb->last_error = '';
-			$has_rows         = self::do_sql_query('SELECT 1 FROM `' . $table . '` LIMIT 1', 'var', false);
+			$has_rows         = self::do_sql_query('SELECT 1 FROM `' . $table . '` LIMIT 1', 'var', false, false);
 
 			if ('' !== $wpdb->last_error) {
 				return true;
@@ -391,11 +412,20 @@ if ( ! class_exists('MUCD_Data') ) {
 
 			global $wpdb;
 
-			$tables   = [];
-			$site_id  = (int) $site_id;
-			$blog_set = $wpdb->tables('blog', true, $site_id);
+			$tables            = [];
+			$site_id           = (int) $site_id;
+			$blog_set          = $wpdb->tables('blog', true, $site_id);
+			$agent_initializer = '\SdAiAgent\Core\CloneInitialization';
+			if (class_exists($agent_initializer)) {
+				$blog_set = array_merge($blog_set, $agent_initializer::definition_tables($site_id));
+			}
+			/** Plugins may declare configuration tables that must accompany the core site tables. */
+			$blog_set = (array) apply_filters('wu_mucd_blog_tables', $blog_set, $site_id);
 
 			foreach ($blog_set as $table_name) {
+				if ( ! is_string($table_name) || ! preg_match('/^[A-Za-z0-9_]+$/', $table_name) || ! str_starts_with($table_name, $wpdb->get_blog_prefix($site_id))) {
+					continue;
+				}
 				$suppress_errors = $wpdb->suppress_errors();
 				$exists          = (bool) $wpdb->get_results('DESCRIBE `' . $table_name . '`'); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Table names cannot be bound and temporary PHPUnit tables are intentionally probed.
 				$wpdb->suppress_errors($suppress_errors);
@@ -647,6 +677,32 @@ if ( ! class_exists('MUCD_Data') ) {
 		 */
 		public static function replace($val, $from_string, $to_string) {
 			if (is_string($val)) {
+				// Replace decoded JSON values, not its syntax: checkout values may contain quotes.
+				$json = json_decode($val);
+				if (JSON_ERROR_NONE === json_last_error() && (is_object($json) || is_array($json))) {
+					$original_json = wp_json_encode($json);
+					$decoded_from  = str_replace('\\/', '/', $from_string);
+					$decoded_to    = str_replace('\\/', '/', $to_string);
+					$replace_json  = static function ($value) use (&$replace_json, $decoded_from, $decoded_to) {
+						if (is_array($value) || is_object($value)) {
+							foreach ($value as $key => $item) {
+								if (is_object($value)) {
+									$value->{$key} = $replace_json($item);
+								} else {
+									$value[ $key ] = $replace_json($item);
+								}
+							}
+							return $value;
+						}
+						return is_string($value) ? str_replace($decoded_from, $decoded_to, $value) : $value;
+					};
+					$updated       = $replace_json($json);
+					$encoded       = wp_json_encode($updated);
+					if ($original_json === $encoded) {
+						return $val;
+					}
+					return is_string($encoded) ? $encoded : $val;
+				}
 				// Guard: if the target string is already present and the source
 				// is not, skip replacement to prevent double-substitution.
 				if ($from_string !== $to_string && strpos($val, $to_string) !== false && strpos($val, $from_string) === false) {
@@ -776,9 +832,10 @@ if ( ! class_exists('MUCD_Data') ) {
 		 * @param  string $sql_query The SQL query to execute.
 		 * @param  string $type      Type of result to return.
 		 * @param  bool   $log       Whether to log the query.
+		 * @param  bool   $capture_copy_error Whether to retain a query failure as a fatal copy error.
 		 * @return mixed  Results of the query.
 		 */
-		public static function do_sql_query($sql_query, $type = '', $log = true) {
+		public static function do_sql_query($sql_query, $type = '', $log = true, $capture_copy_error = true) {
 			global $wpdb;
 
 			$wpdb->suppress_errors();
@@ -811,6 +868,9 @@ if ( ! class_exists('MUCD_Data') ) {
 
 			if ('' !== $wpdb->last_error) {
 				$last_error = $wpdb->last_error;
+				if ($capture_copy_error && '' === self::$copy_error) {
+					self::$copy_error = $last_error;
+				}
 
 				self::sql_error($sql_query, $last_error);
 
