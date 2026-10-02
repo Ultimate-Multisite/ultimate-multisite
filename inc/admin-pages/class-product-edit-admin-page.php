@@ -188,7 +188,7 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 
 		$re_assignment_product = wu_get_product($new_product_id);
 
-		if ($re_assignment_product) {
+		if ($re_assignment_product && wu_is_plan_type($re_assignment_product->get_type())) {
 			$query = $wpdb->prepare(
 				"UPDATE {$wpdb->base_prefix}wu_memberships
 				 SET plan_id = %d
