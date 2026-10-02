@@ -7,6 +7,9 @@ namespace WP_Ultimo\SSO;
  */
 class Magic_Link_Test extends \WP_UnitTestCase {
 
+	private $original_home;
+	private $original_registration_page;
+
 	/**
 	 * Get a fresh Magic_Link instance.
 	 *
@@ -24,6 +27,15 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 	 */
 	private function create_payable_payment() {
 
+		$page_id = self::factory()->post->create([
+			'post_type'    => 'page',
+			'post_status'  => 'publish',
+			'post_name'    => 'register',
+			'post_content' => '[wu_checkout]',
+		]);
+		wu_save_setting('default_registration_page', $page_id);
+		update_option('home', set_url_scheme($this->original_home, 'https'));
+
 		$user_id  = self::factory()->user->create();
 		$customer = wu_create_customer(['user_id' => $user_id]);
 
@@ -31,12 +43,13 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 
 		$payment = wu_create_payment(
 			[
-				'customer_id' => $customer->get_id(),
-				'currency'    => 'USD',
-				'subtotal'    => 25,
-				'total'       => 25,
-				'status'      => 'pending',
-				'gateway'     => 'manual',
+				'customer_id'   => $customer->get_id(),
+				'membership_id' => 0,
+				'currency'      => 'USD',
+				'subtotal'      => 25,
+				'total'         => 25,
+				'status'        => 'pending',
+				'gateway'       => 'manual',
 			]
 		);
 
@@ -49,6 +62,9 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 
 		parent::set_up();
 
+		$this->original_home              = get_option('home');
+		$this->original_registration_page = wu_get_setting('default_registration_page', 0);
+
 		// Enable magic links by default for tests
 		add_filter('wu_magic_links_enabled', '__return_true');
 	}
@@ -56,6 +72,9 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 	public function tear_down() {
 
 		remove_filter('wu_magic_links_enabled', '__return_true');
+		update_option('home', $this->original_home);
+		wu_save_setting('default_registration_page', $this->original_registration_page);
+		wp_set_current_user(0);
 
 		parent::tear_down();
 	}
@@ -254,15 +273,8 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 	 */
 	public function test_generate_payment_magic_link_for_owner() {
 
-		$objects     = $this->create_payable_payment();
-		$payment     = $objects['payment'];
-		$redirect_to = add_query_arg(
-			[
-				'payment'       => $payment->get_hash(),
-				'checkout_form' => 'wu-pay-invoice',
-			],
-			wu_get_registration_url()
-		);
+		$objects = $this->create_payable_payment();
+		$payment = $objects['payment'];
 
 		wp_set_current_user($objects['user_id']);
 
@@ -271,7 +283,14 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 		update_option('home', 'https://customer.example.test');
 
 		try {
-			$magic_link = $payment->get_payment_url();
+			$redirect_to = add_query_arg(
+				[
+					'payment'       => $payment->get_hash(),
+					'checkout_form' => 'wu-pay-invoice',
+				],
+				wu_get_registration_url()
+			);
+			$magic_link  = $payment->get_payment_url();
 		} finally {
 			restore_current_blog();
 		}

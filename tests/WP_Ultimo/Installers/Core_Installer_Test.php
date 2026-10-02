@@ -104,7 +104,8 @@ class Core_Installer_Test extends \WP_UnitTestCase {
 		$result = $this->run_install('');
 
 		$this->assertWPError($result);
-		$this->assertStringContainsString('The database did not provide an error message.', $result->get_error_message());
+		$this->assertStringContainsString('An unknown error has occurred.', $result->get_error_message());
+		$this->assertStringContainsString('Please check the server error logs.', $result->get_error_message());
 	}
 
 	public function test_database_password_is_redacted(): void {
