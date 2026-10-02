@@ -21,6 +21,8 @@
 
 namespace WP_Ultimo\Checkout;
 
+use WP_Ultimo\Database\Memberships\Membership_Status;
+use WP_Ultimo\Database\Payments\Payment_Status;
 use WP_UnitTestCase;
 
 /**
@@ -203,6 +205,139 @@ class Cart_Should_Collect_Payment_Test extends WP_UnitTestCase {
 			$cart->should_collect_payment(),
 			'Documents the 2026-05-27 outage configuration: with allow_trial_without_payment_method ON, a trial cart skips payment collection and routes through the free gateway (which bypasses WooCommerce). If this ever changes, the change must be reviewed deliberately — this setting must stay OFF in production.'
 		);
+	}
+
+	/**
+	 * A pending payment restored during the final checkout request must retain
+	 * the trial that was activated when the order was created.
+	 *
+	 * The pending payment stores the recurring amount, not the amount due today.
+	 * Treating that non-zero total as proof that there is no trial sends the
+	 * restored checkout to Stripe without a payment intent.
+	 *
+	 * @return void
+	 */
+	public function test_restored_pending_payment_retains_no_payment_trial(): void {
+		wu_save_setting( self::TRIAL_SETTING, true );
+
+		$unique  = uniqid( 'restored-trial-' );
+		$user_id = self::factory()->user->create(
+			[
+				'user_login' => $unique,
+				'user_email' => $unique . '@example.com',
+			]
+		);
+
+		$stale_customer = wu_get_customer_by_user_id( $user_id );
+
+		if ( $stale_customer ) {
+			$stale_customer->delete();
+		}
+
+		$customer = wu_create_customer(
+			[
+				'user_id'  => $user_id,
+				'username' => $unique,
+				'email'    => $unique . '@example.com',
+			]
+		);
+
+		$this->assertNotWPError( $customer );
+		wp_set_current_user( $customer->get_user_id() );
+
+		$product = wu_create_product(
+			[
+				'name'                => 'Restored no-payment trial',
+				'slug'                => 'restored-no-payment-trial-' . uniqid(),
+				'amount'              => 4.99,
+				'type'                => 'plan',
+				'active'              => true,
+				'recurring'           => true,
+				'duration'            => 1,
+				'duration_unit'       => 'month',
+				'trial_duration'      => 90,
+				'trial_duration_unit' => 'day',
+			]
+		);
+
+		$this->assertNotWPError( $product );
+
+		$initial_cart = $this->build_cart_for_product( $product->get_id() );
+		$membership   = wu_create_membership(
+			[
+				'customer_id'     => $customer->get_id(),
+				'plan_id'         => $product->get_id(),
+				'status'          => Membership_Status::TRIALING,
+				'recurring'       => true,
+				'amount'          => 4.99,
+				'duration'        => 1,
+				'duration_unit'   => 'month',
+				'date_trial_end'  => gmdate( 'Y-m-d 23:59:59', strtotime( '+90 days' ) ),
+				'date_expiration' => gmdate( 'Y-m-d 23:59:59', strtotime( '+90 days' ) ),
+			]
+		);
+
+		$this->assertNotWPError( $membership );
+
+		$payment = wu_create_payment(
+			[
+				'customer_id'   => $customer->get_id(),
+				'membership_id' => $membership->get_id(),
+				'status'        => Payment_Status::PENDING,
+				'subtotal'      => 4.99,
+				'total'         => 4.99,
+			]
+		);
+
+		$this->assertNotWPError( $payment );
+
+		$payment->set_line_items( $initial_cart->get_line_items() );
+		$payment->save();
+
+		$restored_cart = new Cart( ['payment_id' => $payment->get_id()] );
+
+		$this->assertFalse( $restored_cart->errors->has_errors() );
+		$this->assertSame( 'retry', $restored_cart->get_cart_type() );
+		$this->assertSame( 4.99, (float) $restored_cart->get_payment()->get_total() );
+		$this->assertTrue( $restored_cart->has_trial() );
+		$this->assertFalse(
+			$restored_cart->should_collect_payment(),
+			'A restored no-payment trial must use the free gateway even though its pending payment stores the recurring amount.'
+		);
+
+		$initial_cart->add_line_item(
+			new Line_Item(
+				[
+					'product'    => $product,
+					'type'       => 'fee',
+					'recurring'  => false,
+					'unit_price' => 2.50,
+					'quantity'   => 1,
+				]
+			)
+		);
+		$payment->set_line_items( $initial_cart->get_line_items() );
+		$payment->save();
+
+		$restored_cart_with_fee = new Cart( ['payment_id' => $payment->get_id()] );
+
+		$this->assertSame( 4.99, (float) $restored_cart_with_fee->get_recurring_total() );
+		$this->assertSame( 7.49, (float) $restored_cart_with_fee->get_total() );
+		$this->assertTrue(
+			$restored_cart_with_fee->should_collect_payment(),
+			'A restored trial with a one-time setup fee must collect that fee even when no payment method is required for the trial.'
+		);
+
+		wu_save_setting( self::TRIAL_SETTING, false );
+		$this->assertTrue(
+			$restored_cart->should_collect_payment(),
+			'A restored trial must still collect payment when the network requires a payment method.'
+		);
+
+		$payment->delete();
+		$membership->delete();
+		$customer->delete();
+		$product->delete();
 	}
 
 	/**

@@ -1769,11 +1769,20 @@ class Cart implements \JsonSerializable {
 	public function should_collect_payment() {
 
 		$should_collect_payment = true;
+		$amount_due_today       = 0;
+
+		foreach ($this->line_items as $line_item) {
+			if ($line_item->is_recurring()) {
+				continue;
+			}
+
+			$amount_due_today += $line_item->get_total();
+		}
 
 		if ($this->is_free() && $this->get_recurring_total() === 0.0) {
 			$should_collect_payment = false;
 		} elseif ($this->has_trial()) {
-			$should_collect_payment = ! wu_get_setting('allow_trial_without_payment_method', false);
+			$should_collect_payment = $amount_due_today > 0 || ! wu_get_setting('allow_trial_without_payment_method', false);
 		}
 
 		return (bool) apply_filters('wu_cart_should_collect_payment', $should_collect_payment, $this);
@@ -2290,9 +2299,16 @@ class Cart implements \JsonSerializable {
 			return true;
 		}
 
-		// Check if this is the initial membership payment with trial
+		/*
+		 * Check if this is the initial membership payment with trial.
+		 *
+		 * A recovered pending payment stores the recurring amount even when the
+		 * amount due during the trial is zero. The trialing membership is the
+		 * source of truth here; checking the payment total would incorrectly send
+		 * a restored no-payment trial through a paid gateway.
+		 */
 		if ($this->membership && $this->payment && $this->membership->is_trialing()) {
-			return empty($this->payment->get_total());
+			return true;
 		}
 
 		/*

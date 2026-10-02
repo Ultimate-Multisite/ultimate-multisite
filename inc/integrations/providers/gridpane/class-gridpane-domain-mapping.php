@@ -183,8 +183,12 @@ class GridPane_Domain_Mapping extends Base_Capability_Module implements Domain_M
 
 		$wait = $this->reserve_write_slot();
 
-		if ($wait > 0 && $this->schedule_retry(self::RETRY_ADD_HOOK, $domain, $attempt, $wait)) {
-			$this->log_domain($domain, sprintf('Queued adding "%1$s" to GridPane in %2$d seconds to respect its write limit.', $domain, $wait));
+		if ($wait > 0) {
+			if ($this->schedule_retry(self::RETRY_ADD_HOOK, $domain, $attempt, $wait)) {
+				$this->log_domain($domain, sprintf('Queued adding "%1$s" to GridPane in %2$d seconds to respect its write limit.', $domain, $wait));
+			} else {
+				$this->log_domain($domain, 'Could not queue the GridPane add operation.', LogLevel::ERROR);
+			}
 
 			return;
 		}
@@ -276,8 +280,12 @@ class GridPane_Domain_Mapping extends Base_Capability_Module implements Domain_M
 
 		$wait = $this->reserve_write_slot();
 
-		if ($wait > 0 && $this->schedule_retry(self::RETRY_REMOVE_HOOK, $domain, $attempt, $wait)) {
-			$this->log_domain($domain, sprintf('Queued removing "%1$s" from GridPane in %2$d seconds to respect its write limit.', $domain, $wait));
+		if ($wait > 0) {
+			if ($this->schedule_retry(self::RETRY_REMOVE_HOOK, $domain, $attempt, $wait)) {
+				$this->log_domain($domain, sprintf('Queued removing "%1$s" from GridPane in %2$d seconds to respect its write limit.', $domain, $wait));
+			} else {
+				$this->log_domain($domain, 'Could not queue the GridPane remove operation.', LogLevel::ERROR);
+			}
 
 			return;
 		}
@@ -367,9 +375,9 @@ class GridPane_Domain_Mapping extends Base_Capability_Module implements Domain_M
 			return true;
 		}
 
-		wu_schedule_single_action(time() + max(1, $delay), $hook, $args, self::ACTION_GROUP);
+		$action_id = wu_schedule_single_action(time() + max(1, $delay), $hook, $args, self::ACTION_GROUP);
 
-		return true;
+		return $action_id > 0;
 	}
 
 	/**

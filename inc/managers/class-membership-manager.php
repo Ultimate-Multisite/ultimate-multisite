@@ -311,9 +311,25 @@ class Membership_Manager extends Base_Manager {
 		$pending_site = $membership->get_pending_site();
 
 		if ( ! $pending_site) {
-			/**
-			 * We do not have a pending site, so we can assume the site was created.
-			 */
+			// Publishing can finish before a storage provider completes its clone sync.
+			$sites = $membership->get_sites();
+			if ( ! empty($sites)) {
+				$ready        = false;
+				$clone_failed = false;
+				foreach ($sites as $site) {
+					if (\WP_Ultimo\Helpers\Site_Duplicator::is_site_ready($site->get_id())) {
+						$ready = true;
+						break;
+					}
+					if (\WP_Ultimo\Helpers\Site_Duplicator::is_clone_failed($site->get_id())) {
+						$clone_failed = true;
+					}
+				}
+				if ( ! $ready) {
+					wp_send_json(['publish_status' => $clone_failed ? 'failed' : 'running']);
+					exit;
+				}
+			}
 			wp_send_json(['publish_status' => 'completed']);
 
 			exit;

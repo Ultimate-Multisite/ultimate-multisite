@@ -18,6 +18,31 @@ require_once WP_ULTIMO_PLUGIN_DIR . '/inc/duplication/data.php';
  */
 class MUCD_Data_Test extends WP_UnitTestCase {
 
+	/** Replacing checkout placeholders must preserve valid JSON, escapes and scalar types. */
+	public function test_json_replacement_escapes_customer_values() {
+		$original = wp_json_encode((object) [
+			'name'         => '{{chapter}}',
+			'notification' => (object) [
+				'enabled'    => false,
+				'recipients' => ['{{chapter}}'],
+			],
+		]);
+		$result   = \MUCD_Data::replace($original, '{{chapter}}', 'A "quoted" chapter \\ office');
+		$decoded  = json_decode($result);
+		$this->assertSame(JSON_ERROR_NONE, json_last_error());
+		$this->assertSame('A "quoted" chapter \\ office', $decoded->name);
+		$this->assertFalse($decoded->notification->enabled);
+		$this->assertSame(['A "quoted" chapter \\ office'], $decoded->notification->recipients);
+	}
+
+	/** Escaped URL replacement must work without converting empty objects into arrays. */
+	public function test_json_url_replacement_preserves_objects() {
+		$result  = \MUCD_Data::replace('{"url":"https:\\/\\/template.example\\/image.jpg","settings":{}}', 'template.example', 'customer.example');
+		$decoded = json_decode($result);
+		$this->assertSame('https://customer.example/image.jpg', $decoded->url);
+		$this->assertInstanceOf(\stdClass::class, $decoded->settings);
+	}
+
 	/**
 	 * Test basic string replacement.
 	 */

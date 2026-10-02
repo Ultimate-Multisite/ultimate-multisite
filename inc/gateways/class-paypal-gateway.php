@@ -560,12 +560,18 @@ class PayPal_Gateway extends Base_PayPal_Gateway {
 		 * After that, we need to add the additional
 		 * products.
 		 */
-		$product_index = 0;
+		$product_index   = 0;
+		$discounts_total = 0;
 
 		/*
 		 * Loop products and add them to the paypal
 		 */
 		foreach ($cart->get_line_items() as $line_item) {
+			// Recurring items belong to the billing agreement, not the initial payment request.
+			if ($line_item->is_recurring()) {
+				continue;
+			}
+
 			$total      = $line_item->get_total();
 			$sub_total  = $line_item->get_subtotal();
 			$tax_amount = $line_item->get_tax_total();
@@ -581,13 +587,14 @@ class PayPal_Gateway extends Base_PayPal_Gateway {
 			$args['PAYMENTREQUEST_0_ITEMAMT'] += $sub_total;
 			$args['PAYMENTREQUEST_0_TAXAMT']  += $tax_amount;
 			$args['PAYMENTREQUEST_0_AMT']      = $args['PAYMENTREQUEST_0_AMT'] + $sub_total + $tax_amount;
+			$discounts_total                  -= $line_item->get_discount_total();
 
 			$args = array_merge($args, $product_args);
 
 			++$product_index;
 		}
 
-		$discounts_total = $cart->get_total_discounts();
+		$discounts_total = round($discounts_total, wu_currency_decimal_filter());
 
 		if ( ! empty($discounts_total)) {
 			__('Account credit and other discounts', 'ultimate-multisite');

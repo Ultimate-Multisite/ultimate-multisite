@@ -69,6 +69,13 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 	const PENDING_SITE_PUBLISH_WATCHDOG_DELAY = 5 * MINUTE_IN_SECONDS;
 
 	/**
+	 * Prefix for the connection-scoped pending-site publication lock.
+	 *
+	 * @since 2.16.2
+	 */
+	const PENDING_SITE_PUBLISH_LOCK_PREFIX = 'wu_pending_site_publish';
+
+	/**
 	 * ID of the customer attached to this membership.
 	 *
 	 * @since 2.0.0
@@ -2274,6 +2281,43 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 	 */
 	public function publish_pending_site() {
 
+		$lock_name = $this->acquire_pending_site_publish_lock();
+
+		if (is_wp_error($lock_name)) {
+			wu_log_add("membership-{$this->get_id()}", $lock_name->get_error_message());
+
+			return $lock_name;
+		}
+
+		if (false === $lock_name) {
+			$this->schedule_pending_site_async_watchdog(['membership_id' => $this->get_id()]);
+
+			return true;
+		}
+
+		try {
+			/*
+			 * A previous worker can delete pending_site while another process still
+			 * holds its serialized value in persistent object cache. Re-read the
+			 * authoritative row after acquiring the lock so a late watchdog cannot
+			 * publish that stale object as a second site.
+			 */
+			wp_cache_delete($this->get_id(), 'wu_membership_meta');
+
+			return $this->publish_pending_site_locked();
+		} finally {
+			$this->release_pending_site_publish_lock($lock_name);
+		}
+	}
+
+	/**
+	 * Publish a pending site while holding the membership publication lock.
+	 *
+	 * @since 2.16.2
+	 * @return true|\WP_Error
+	 */
+	private function publish_pending_site_locked() {
+
 		$profile_total = microtime(true);
 
 		/*
@@ -2440,6 +2484,59 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Acquire the connection-scoped publication lock for this membership.
+	 *
+	 * MySQL releases named locks when the connection closes, so an interrupted
+	 * clone cannot leave a permanent lock behind. The non-blocking acquisition
+	 * lets a competing loopback or Action Scheduler worker defer to the winner's
+	 * watchdog without holding another database connection open.
+	 *
+	 * @since 2.16.2
+	 * @return string|false|\WP_Error Lock name when acquired, false when busy, or an error when locking fails.
+	 */
+	private function acquire_pending_site_publish_lock() {
+
+		global $wpdb;
+
+		$installation_id = substr(md5(DB_NAME . '|' . $wpdb->base_prefix), 0, 12);
+		$lock_name       = sprintf(
+			'%s_%s_%d_%d',
+			self::PENDING_SITE_PUBLISH_LOCK_PREFIX,
+			$installation_id,
+			get_current_network_id(),
+			$this->get_id()
+		);
+		$lock_result     = $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock_name)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Named locks are connection-scoped.
+
+		if (null === $lock_result) {
+			return new \WP_Error(
+				'pending_site_publish_lock_failed',
+				__('Unable to acquire the pending-site publication lock.', 'ultimate-multisite')
+			);
+		}
+
+		if (1 !== (int) $lock_result) {
+			return false;
+		}
+
+		return $lock_name;
+	}
+
+	/**
+	 * Release the connection-scoped publication lock.
+	 *
+	 * @since 2.16.2
+	 * @param string $lock_name Lock name to release.
+	 * @return void
+	 */
+	private function release_pending_site_publish_lock($lock_name) {
+
+		global $wpdb;
+
+		$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock_name)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Named locks are connection-scoped.
 	}
 
 	/**

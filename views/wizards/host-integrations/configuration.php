@@ -13,11 +13,11 @@ $back_url = $page->get_prev_section_link();
 $configuration_instructions = $configuration_instructions ?? [];
 ?>
 <h1>
-	<?php esc_html_e('We are almost there!', 'ultimate-multisite'); ?>
+	<?php esc_html_e('Configure the integration', 'ultimate-multisite'); ?>
 </h1>
 
 <p class="wu-text-lg wu-text-gray-600 wu-my-4">
-	<?php esc_html_e('You should have all the information we need in hand right now. The next step is to configure it.', 'ultimate-multisite'); ?>
+	<?php esc_html_e('Follow the setup notes, enter the required details, then test the connection.', 'ultimate-multisite'); ?>
 </p>
 
 <?php if ( ! empty($configuration_instructions)) : ?>
@@ -35,7 +35,7 @@ $configuration_instructions = $configuration_instructions ?? [];
 		<?php endif; ?>
 
 		<?php if ( ! empty($configuration_instructions['steps'])) : ?>
-			<ol class="wu-mb-0 wu-pl-6 wu-text-blue-900">
+			<ol class="wu-mb-0 wu-pl-6 wu-text-blue-900 wu-space-y-3">
 				<?php foreach ($configuration_instructions['steps'] as $step) : ?>
 					<li class="wu-mb-2"><?php echo wp_kses_post($step); ?></li>
 				<?php endforeach; ?>

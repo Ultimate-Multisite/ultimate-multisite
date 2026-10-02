@@ -302,7 +302,10 @@ defined('ABSPATH') || exit;
 
 					<?php if ($site->get_type() === 'pending') : ?>
 
-					<a v-if="!creating" href="<?php echo esc_attr(wu_get_current_url()); ?>" class="wu-block sm:wu-inline-block wu-no-underline">
+					<div v-cloak v-if="clone_failed" class="wu-block sm:wu-inline-block wu-text-red-600">
+						<?php esc_html_e('Site creation failed.', 'ultimate-multisite'); ?>
+					</div>
+					<a v-else-if="!creating" href="<?php echo esc_attr(wu_get_current_url()); ?>" class="wu-block sm:wu-inline-block wu-no-underline">
 						<span class="dashicons-wu-cycle wu-align-middle wu-mr-1"></span>
 						<?php esc_html_e('Check Status', 'ultimate-multisite'); ?>
 					</a>

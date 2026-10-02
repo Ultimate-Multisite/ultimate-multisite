@@ -1968,6 +1968,106 @@ class Membership_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * A competing database connection holding the publication lock must prevent
+	 * a second worker from creating the same pending site.
+	 */
+	public function test_publish_pending_site_bails_when_membership_lock_is_busy(): void {
+		global $wpdb;
+
+		$membership  = $this->make_membership_with_pending_meta();
+		$pending     = $this->attach_pending_site_with_publishing($membership, false);
+		$lock_name   = sprintf(
+			'%s_%s_%d_%d',
+			Membership::PENDING_SITE_PUBLISH_LOCK_PREFIX,
+			substr(md5(DB_NAME . '|' . $wpdb->base_prefix), 0, 12),
+			get_current_network_id(),
+			$membership->get_id()
+		);
+		$connection  = new \wpdb(DB_USER, DB_PASSWORD, DB_NAME, DB_HOST);
+		$action_args = ['membership_id' => $membership->get_id()];
+
+		try {
+			$this->assertLessThanOrEqual(64, strlen($lock_name), 'MySQL named locks must not exceed 64 characters.');
+			$this->assertSame(
+				1,
+				(int) $connection->get_var($connection->prepare('SELECT GET_LOCK(%s, 0)', $lock_name)),
+				'Pre-condition: the competing database connection must own the publication lock.'
+			);
+
+			$result = $membership->publish_pending_site();
+
+			$this->assertTrue($result, 'A competing publisher should be treated as already handling the site.');
+			$this->assertNotFalse($membership->get_pending_site(), 'The competing caller must leave pending-site state untouched.');
+
+			$blog_count = (int) $wpdb->get_var(
+				$wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->blogs} WHERE path = %s", $pending->get_path())
+			);
+			$this->assertSame(0, $blog_count, 'The competing caller must not create a duplicate blog.');
+			$this->assertNotFalse(
+				wu_next_scheduled_action('wu_async_publish_pending_site', $action_args, 'membership'),
+				'A competing caller must leave a watchdog in case the lock owner is interrupted.'
+			);
+		} finally {
+			$connection->get_var($connection->prepare('SELECT RELEASE_LOCK(%s)', $lock_name));
+			$connection->close();
+			wu_unschedule_action('wu_async_publish_pending_site', $action_args, 'membership');
+		}
+	}
+
+	/**
+	 * Publication must discard a stale cached pending site after another worker
+	 * has deleted the authoritative metadata row.
+	 */
+	public function test_publish_pending_site_rechecks_pending_meta_after_lock(): void {
+		$membership = $this->make_membership_with_pending_meta();
+		$pending    = $this->attach_pending_site_with_publishing($membership, false);
+
+		$this->assertNotFalse($membership->get_pending_site(), 'Pre-condition: pending-site metadata must be cached.');
+
+		global $wpdb;
+		$meta_table = _get_meta_table('wu_membership');
+		$wpdb->delete(
+			$meta_table,
+			[
+				'wu_membership_id' => $membership->get_id(),
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Direct fixture mutation intentionally leaves the object cache stale.
+				'meta_key'         => Membership::META_PENDING_SITE,
+			],
+			['%d', '%s']
+		);
+
+		$result = $membership->publish_pending_site();
+
+		$this->assertTrue($result, 'A stale cached pending site should be treated as already published.');
+		$this->assertFalse($membership->get_pending_site(), 'The stale pending-site cache must be invalidated.');
+
+		$blog_count = (int) $wpdb->get_var(
+			$wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->blogs} WHERE path = %s", $pending->get_path())
+		);
+		$this->assertSame(0, $blog_count, 'A stale cached pending site must not create a duplicate blog.');
+
+		$lock_name  = sprintf(
+			'%s_%s_%d_%d',
+			Membership::PENDING_SITE_PUBLISH_LOCK_PREFIX,
+			substr(md5(DB_NAME . '|' . $wpdb->base_prefix), 0, 12),
+			get_current_network_id(),
+			$membership->get_id()
+		);
+		$connection = new \wpdb(DB_USER, DB_PASSWORD, DB_NAME, DB_HOST);
+
+		try {
+			$this->assertSame(
+				1,
+				(int) $connection->get_var($connection->prepare('SELECT GET_LOCK(%s, 0)', $lock_name)),
+				'The publication lock must be released after the guarded operation returns.'
+			);
+		} finally {
+			$connection->get_var($connection->prepare('SELECT RELEASE_LOCK(%s)', $lock_name));
+			$connection->close();
+		}
+	}
+
+	/**
 	 * Stale is_publishing flag (started more than 5 minutes ago) must
 	 * cause publish_pending_site() to fall through and complete the
 	 * publish on behalf of the dead caller — the previous behaviour

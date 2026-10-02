@@ -31,6 +31,9 @@ if ( ! class_exists('MUCD_Files') ) {
 	 */
 	class MUCD_Files {
 
+		/** @var bool Whether the current file copy encountered a filesystem error. */
+		private static $copy_failed = false;
+
 		/**
 		 * Copy files from one site to another
 		 *
@@ -39,6 +42,8 @@ if ( ! class_exists('MUCD_Files') ) {
 		 * @param  int $to_site_id   new site id.
 		 */
 		public static function copy_files($from_site_id, $to_site_id) {
+			self::$copy_failed = false;
+
 			/*
 			 * Two switch_to_blog() calls are pushed onto the WordPress blog
 			 * stack to read uploads info from the source and destination sites,
@@ -86,13 +91,16 @@ if ( ! class_exists('MUCD_Files') ) {
 
 			foreach ($dirs as $dir) {
 				if (isset($dir['to_dir_path']) && ! self::init_dir($dir['to_dir_path'])) {
-					self::mkdir_error($dir['to_dir_path'], $to_site_id);
+					return new \WP_Error('clone_upload_directory_failed', __('Could not prepare the cloned upload directory.', 'ultimate-multisite'));
 				}
 
 				MUCD_Duplicate::write_log('Copy files from ' . $dir['from_dir_path'] . ' to ' . $dir['to_dir_path']);
-				self::recurse_copy($dir['from_dir_path'], $dir['to_dir_path'], $dir['exclude_dirs']);
+				self::recurse_copy($dir['from_dir_path'], $dir['to_dir_path'], $dir['exclude_dirs'], true);
 			}
 
+			if (self::$copy_failed) {
+				return new \WP_Error('clone_upload_copy_failed', __('Could not copy all template upload files.', 'ultimate-multisite'));
+			}
 			return true;
 		}
 
@@ -103,24 +111,37 @@ if ( ! class_exists('MUCD_Files') ) {
 		 * @param  string $src source directory path.
 		 * @param  string $dst destination directory path.
 		 * @param  array  $exclude_dirs directories to ignore.
+		 * @param  bool   $is_source_root Whether this is the root source directory.
 		 */
-		public static function recurse_copy($src, $dst, $exclude_dirs = []): void {
+		public static function recurse_copy($src, $dst, $exclude_dirs = [], $is_source_root = false): void {
 			global $wp_filesystem;
 
 			if ( ! $wp_filesystem ) {
 				require_once ABSPATH . 'wp-admin/includes/file.php';
-				WP_Filesystem();
+				if ( ! WP_Filesystem() || ! $wp_filesystem) {
+					self::$copy_failed = true;
+					return;
+				}
 			}
 
 			$src = rtrim($src, '/');
 			$dst = rtrim($dst, '/');
+			if ($src === $dst) {
+				return;
+			}
 
 			if ( ! $wp_filesystem->is_dir($src) ) {
+				if ( ! $is_source_root || $wp_filesystem->exists($src)) {
+					self::$copy_failed = true;
+				}
 				return;
 			}
 
 			if ( ! $wp_filesystem->is_dir($dst) ) {
-				$wp_filesystem->mkdir($dst);
+				if ( ! $wp_filesystem->mkdir($dst)) {
+					self::$copy_failed = true;
+					return;
+				}
 			}
 
 			$files = $wp_filesystem->dirlist($src);
@@ -137,8 +158,8 @@ if ( ! class_exists('MUCD_Files') ) {
 					if ( ! in_array($file['name'], $exclude_dirs, true) ) {
 						self::recurse_copy($src_path, $dst_path, $exclude_dirs);
 					}
-				} else {
-					$wp_filesystem->copy($src_path, $dst_path);
+				} elseif ( ! $wp_filesystem->copy($src_path, $dst_path, true)) {
+					self::$copy_failed = true;
 				}
 			}
 		}

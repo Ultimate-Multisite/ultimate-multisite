@@ -350,13 +350,17 @@ class Signup_Field_Site_Url extends Base_Signup_Field {
 			'classes'         => wu_get_isset($attributes, 'element_classes', ''),
 			'html_attr'       => [
 				'autocomplete' => 'off',
+				'dir'          => 'ltr',
 				'v-on:input'   => 'site_url = $event.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "")',
 				'v-bind:value' => 'site_url',
 			],
 		];
 
 		if ($attributes['display_field_attachments']) {
-			$checkout_fields['site_url']['classes'] .= ' wu-input-grouped';
+			$checkout_fields['site_url']['classes']              .= ' wu-input-grouped';
+			$checkout_fields['site_url']['input_group_html_attr'] = [
+				'dir' => 'ltr',
+			];
 
 			$checkout_fields['site_url']['prefix'] = ' ';
 

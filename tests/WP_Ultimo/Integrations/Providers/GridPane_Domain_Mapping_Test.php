@@ -249,6 +249,53 @@ class GridPane_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->assertNotEmpty($actions);
 	}
 
+	public function test_schedule_retry_reports_scheduler_failure(): void {
+
+		$fail_schedule = static fn() => 0;
+		$method        = new \ReflectionMethod($this->module, 'schedule_retry');
+		add_filter('pre_as_schedule_single_action', $fail_schedule);
+
+		try {
+			$this->assertFalse($method->invoke($this->module, 'wu_gridpane_retry_add_domain', 'failed-queue.example.com', 1, 60));
+		} finally {
+			remove_filter('pre_as_schedule_single_action', $fail_schedule);
+		}
+	}
+
+	public static function slot_wait_operations(): array {
+
+		return [
+			'add'    => ['on_add_domain'],
+			'remove' => ['on_remove_domain'],
+		];
+	}
+
+	/**
+	 * @dataProvider slot_wait_operations
+	 */
+	public function test_failed_slot_wait_schedule_never_writes_early(string $operation): void {
+
+		update_network_option(null, 'wu_gridpane_next_write_slot', time() + 120);
+		$this->integration->expects($this->never())->method('send_gridpane_api_request');
+		$this->integration->expects($this->never())->method('fetch_all');
+		$this->integration->expects($this->never())->method('get_site_configuration');
+
+		$attempted     = false;
+		$fail_schedule = static function () use (&$attempted) {
+			$attempted = true;
+
+			return 0;
+		};
+		add_filter('pre_as_schedule_single_action', $fail_schedule);
+
+		try {
+			$this->module->$operation('failed-queue.example.com', 1);
+			$this->assertTrue($attempted);
+		} finally {
+			remove_filter('pre_as_schedule_single_action', $fail_schedule);
+		}
+	}
+
 	public function test_test_connection_delegates_to_integration(): void {
 
 		$this->integration->expects($this->once())
