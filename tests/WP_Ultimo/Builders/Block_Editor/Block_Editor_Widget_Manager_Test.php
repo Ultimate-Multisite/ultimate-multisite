@@ -93,6 +93,9 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 
 	/**
 	 * Test is_block_preview returns true in REST edit context.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
 	 */
 	public function test_is_block_preview_returns_true_in_rest_edit_context(): void {
 

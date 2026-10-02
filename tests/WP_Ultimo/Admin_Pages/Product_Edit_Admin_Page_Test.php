@@ -662,15 +662,19 @@ class Product_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test product_after_delete_actions reassigns memberships when product found.
+	 * Test product_after_delete_actions only assigns supported plan types.
+	 *
+	 * @dataProvider reassignment_product_types
 	 */
-	public function test_product_after_delete_actions_reassigns_when_product_found(): void {
+	public function test_product_after_delete_actions_reassigns_when_product_found($type, $should_reassign, $register_plan_type): void {
+		global $wpdb;
+
 		$new_product = wu_create_product(
 			[
 				'name'          => 'Replacement Product',
 				'slug'          => 'replacement-product-' . uniqid(),
 				'amount'        => 10,
-				'type'          => 'plan',
+				'type'          => $type,
 				'active'        => true,
 				'recurring'     => true,
 				'duration'      => 1,
@@ -704,10 +708,39 @@ class Product_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_REQUEST['re_assignment_product_id'] = $new_product->get_id();
 		$_POST['re_assignment_product_id']    = $new_product->get_id();
 
-		// Should not throw.
-		$this->page->product_after_delete_actions($old_product);
+		$customer = wu_create_customer(['user_id' => self::factory()->user->create()]);
+		$this->assertNotWPError($customer);
+		$membership = wu_create_membership([
+			'customer_id' => $customer->get_id(),
+			'plan_id'     => $old_product->get_id(),
+		]);
+		$this->assertNotWPError($membership);
 
-		$this->assertTrue(true);
+		$plan_types_filter = static function ($types) use ($type) {
+			$types[] = $type;
+			return $types;
+		};
+		if ($register_plan_type) {
+			add_filter('wu_plan_product_types', $plan_types_filter);
+		}
+		try {
+			$this->page->product_after_delete_actions($old_product);
+		} finally {
+			remove_filter('wu_plan_product_types', $plan_types_filter);
+		}
+
+		$assigned_plan_id = (int) $wpdb->get_var($wpdb->prepare("SELECT plan_id FROM {$wpdb->base_prefix}wu_memberships WHERE id = %d", $membership->get_id()));
+		$this->assertSame($should_reassign ? $new_product->get_id() : $old_product->get_id(), $assigned_plan_id);
+	}
+
+	public static function reassignment_product_types(): array {
+		return [
+			'plan'                  => ['plan', true, false],
+			'demo'                  => ['demo', true, false],
+			'package'               => ['package', false, false],
+			'service'               => ['service', false, false],
+			'addon-registered type' => ['service', true, true],
+		];
 	}
 
 	// -------------------------------------------------------------------------

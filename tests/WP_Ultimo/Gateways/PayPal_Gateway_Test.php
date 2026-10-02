@@ -950,7 +950,9 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 		$line_item = $this->createMock(\WP_Ultimo\Checkout\Line_Item::class);
 		$line_item->method('get_title')->willReturn('Plan A');
 		$line_item->method('get_description')->willReturn('Description');
-		$line_item->method('get_total')->willReturn(10.00);
+		$line_item->method('is_recurring')->willReturn(false);
+		$line_item->method('get_discount_total')->willReturn(2.00);
+		$line_item->method('get_total')->willReturn(8.00);
 		$line_item->method('get_subtotal')->willReturn(10.00);
 		$line_item->method('get_tax_total')->willReturn(0.00);
 		$line_item->method('get_quantity')->willReturn(1);
@@ -1018,6 +1020,9 @@ class PayPal_Gateway_Test extends WP_UnitTestCase {
 		$this->assertNotNull($captured_args);
 		// Discount line item should be at index 1
 		$this->assertArrayHasKey('L_PAYMENTREQUEST_0_NAME1', $captured_args['body']);
+		$this->assertSame(-2.00, $captured_args['body']['L_PAYMENTREQUEST_0_AMT1']);
+		$this->assertSame(8.00, $captured_args['body']['PAYMENTREQUEST_0_ITEMAMT']);
+		$this->assertSame(8.00, $captured_args['body']['PAYMENTREQUEST_0_AMT']);
 	}
 
 	/**

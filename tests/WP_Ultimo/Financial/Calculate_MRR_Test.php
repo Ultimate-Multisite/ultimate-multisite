@@ -14,6 +14,12 @@ class WU_Calculate_MRR_Test extends \WP_UnitTestCase {
 	protected function setUp(): void {
 		parent::setUp();
 
+		global $wpdb;
+		// Aggregate assertions require an empty fixture, including the first test.
+		$wpdb->query("DELETE FROM {$wpdb->base_prefix}wu_memberships");
+		$wpdb->query("DELETE FROM {$wpdb->base_prefix}wu_products");
+		$wpdb->query("DELETE FROM {$wpdb->base_prefix}wu_customers");
+
 		$this->faker = new Faker();
 	}
 

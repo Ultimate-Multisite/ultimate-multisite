@@ -35,11 +35,12 @@ class Customer_User_Role_Limits_Test extends \WP_UnitTestCase {
 		self::$test_site = wu_create_site(
 			[
 				'title'       => 'Test Site',
-				'domain'      => 'test-site5.example.com',
+				'domain'      => 'role-limit-fixture-' . wp_rand() . '.example.com',
 				'template_id' => 1,
 				'type'        => Site_Type::CUSTOMER_OWNED,
 			]
 		);
+		$this->assertNotWPError(self::$test_site);
 		// Remove any pre-existing site limitations
 		$blog_id = get_current_blog_id();
 		delete_metadata('blog', $blog_id, 'wu_limitations');
@@ -49,12 +50,15 @@ class Customer_User_Role_Limits_Test extends \WP_UnitTestCase {
 	/**
 	 * Clean up after tests.
 	 */
-	public static function tear_down_after_class() {
-		parent::tear_down_after_class();
-
-		if (self::$test_site) {
+	protected function tearDown(): void {
+		while (ms_is_switched()) {
+			restore_current_blog();
+		}
+		if (self::$test_site instanceof Site) {
 			self::$test_site->delete();
 		}
+		self::$test_site = null;
+		parent::tearDown();
 	}
 
 	public function test_filter_editable_roles_returns_original_on_frontend_for_visitors(): void {

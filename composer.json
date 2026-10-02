@@ -238,6 +238,9 @@
             ],
             "mpdf/psr-http-message-shim": [
                 "patches/mpdf-psr-http-message-shim-php8-compat.patch"
+            ],
+            "rakit/validation": [
+                "patches/rakit-validation-php84-compat.patch"
             ]
         },
         "installer-paths": {

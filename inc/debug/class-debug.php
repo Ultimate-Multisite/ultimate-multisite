@@ -704,6 +704,11 @@ class Debug {
 			if ( ! empty($ids)) {
 				$ids = array_filter($ids);
 
+				// Invalid IDs must not produce IN () or broaden into a full-table delete.
+				if (empty($ids)) {
+					return;
+				}
+
 				$id_placeholders = implode(', ', array_fill(0, count($ids), '%d'));
 
 				if (version_compare(get_bloginfo('version'), '6.2', '>=')) {

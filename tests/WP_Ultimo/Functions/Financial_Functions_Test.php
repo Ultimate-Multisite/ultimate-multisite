@@ -14,6 +14,14 @@ use WP_UnitTestCase;
  */
 class Financial_Functions_Test extends WP_UnitTestCase {
 
+	public function setUp(): void {
+		parent::setUp();
+		global $wpdb;
+		// These tests explicitly exercise the empty aggregate dataset.
+		$wpdb->query("DELETE FROM {$wpdb->base_prefix}wu_memberships");
+		$wpdb->query("DELETE FROM {$wpdb->base_prefix}wu_payments");
+	}
+
 	/**
 	 * Test wu_convert_duration_unit_to_month with day.
 	 */
