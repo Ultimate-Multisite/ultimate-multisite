@@ -252,6 +252,9 @@ No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
 
+= Unreleased =
+- Security: Hardened checkout account ownership checks and automatic login. Thanks to WPScan (Erwan LR) for responsible disclosure.
+
 = 2.16.1 =
 Version [2.16.1] - Released on 2026-09-11
 - Fix: Site templates now retain readable serialized settings and refresh cloned-site roles reliably.
