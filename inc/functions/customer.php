@@ -118,15 +118,19 @@ function wu_get_current_customer() {
  *
  * @since 2.0.0
  *
- * @param array $customer_data Customer attributes.
+ * @param array    $customer_data Customer attributes. Set require_new_user to reject existing accounts.
+ * @param int|null $created_user_id Receives the ID only when a WordPress user is created by this call.
  * @return \WP_Error|\WP_Ultimo\Models\Customer
  */
-function wu_create_customer($customer_data) {
+function wu_create_customer($customer_data, &$created_user_id = null) {
+
+	$created_user_id = 0;
 
 	$customer_data = wp_parse_args(
 		$customer_data,
 		[
 			'user_id'            => false,
+			'require_new_user'   => false,
 			'email'              => false,
 			'username'           => false,
 			'password'           => false,
@@ -162,6 +166,10 @@ function wu_create_customer($customer_data) {
 		$user = get_user_by('ID', $customer_data['user_id']);
 	}
 
+	if ($user && $customer_data['require_new_user']) {
+		return new \WP_Error('email_exists', __('The email address you entered is already in use. Please log in to continue checkout with this account.', 'ultimate-multisite'));
+	}
+
 	if ( ! $user) {
 		$sanitized_username = '';
 		if (! empty($customer_data['username'])) {
@@ -191,6 +199,8 @@ function wu_create_customer($customer_data) {
 		if (false === $user_id) {
 			return new \WP_Error('user', __('We were not able to create a new user with the provided username and email address combination.', 'ultimate-multisite'), $customer_data);
 		}
+
+		$created_user_id = (int) $user_id;
 	} else {
 		$user_id = $user->ID;
 	}

@@ -1178,7 +1178,8 @@ class Checkout {
 		 * Check if we have
 		 * a customer for the current user.
 		 */
-		$customer = wu_get_current_customer();
+		$this->created_user_id = 0;
+		$customer              = wu_get_current_customer();
 
 		/*
 		 * Get the form slug to save with the customer.
@@ -1196,8 +1197,7 @@ class Checkout {
 		if (empty($customer)) {
 			$this->created_user_id = 0;
 
-			$username         = $this->request_or_session('username');
-			$existing_wp_user = false;
+			$username = $this->request_or_session('username');
 
 			/*
 			 * Handles auto-generation based on the email address.
@@ -1246,7 +1246,8 @@ class Checkout {
 			 */
 			$customer_data = [
 				'username'           => $username,
-				'email'              => $this->request_or_session('email_address'),
+				'email'              => sanitize_email((string) $this->request_or_session('email_address')),
+				'require_new_user'   => true,
 				'password'           => $password_for_user,
 				'email_verification' => $this->get_customer_email_verification_status(),
 				'signup_form'        => $form_slug,
@@ -1255,15 +1256,15 @@ class Checkout {
 
 			/*
 			 * If the user is logged in,
-			 * we use the existing email address to create the customer.
+			 * link only to the authenticated user ID, never a submitted email.
 			 */
 			if ($this->is_existing_user()) {
 				$customer_data = [
-					'email'              => wp_get_current_user()->user_email,
+					'user_id'            => get_current_user_id(),
 					'email_verification' => 'verified',
 				];
 			} else {
-				$existing_wp_user = isset($customer_data['email']) ? get_user_by('email', $customer_data['email']) : false;
+				$existing_wp_user = get_user_by('email', $customer_data['email']);
 
 				if ($existing_wp_user) {
 					/*
@@ -1279,7 +1280,8 @@ class Checkout {
 			/*
 			 * Tries to create it.
 			 */
-			$customer = wu_create_customer($customer_data);
+			$created_user_id = 0;
+			$customer        = wu_create_customer($customer_data, $created_user_id);
 
 			/*
 			 * Something failed, bail.
@@ -1288,8 +1290,8 @@ class Checkout {
 				return $customer;
 			}
 
-			if (empty($existing_wp_user) && ! $this->is_existing_user()) {
-				$this->created_user_id = (int) $customer->get_user_id();
+			if ($created_user_id && ! $this->is_existing_user() && (int) $customer->get_user_id() === $created_user_id) {
+				$this->created_user_id = $created_user_id;
 			}
 
 			/*
@@ -1309,7 +1311,7 @@ class Checkout {
 			if ($auto_generate_password && $generated_password && ! is_wp_error($customer)) {
 				$new_user_id = $customer->get_user_id();
 
-				if ($new_user_id) {
+				if ($this->created_user_id && (int) $new_user_id === $this->created_user_id) {
 					wp_set_password($generated_password, $new_user_id);
 				}
 			}
