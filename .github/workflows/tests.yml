@@ -40,7 +40,12 @@ jobs:
     name: PHP ${{ matrix.php-version }}
     needs: php-lint
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.php-version == '8.5' }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      XDEBUG_MODE: 'off'
     strategy:
       fail-fast: false
       matrix:
@@ -75,12 +80,7 @@ jobs:
 
       - name: Install PHP Extensions
         run: |
-          install-php-extensions mysqli gd bcmath || echo "Extensions may already be installed."
-
-      - name: Install Xdebug for Coverage
-        if: matrix.php-version == '8.3'
-        run: |
-          install-php-extensions xdebug || echo "Xdebug may already be installed."
+          install-php-extensions mysqli gd bcmath
 
       - name: Self-update Composer
         run: |
@@ -95,11 +95,13 @@ jobs:
           for i in {1..30}; do
             if mysqladmin ping -h mysql --silent; then
               echo "MySQL is up"
-              break
+              exit 0
             fi
             echo "Waiting for MySQL..."
             sleep 2
           done
+          echo "::error::MySQL did not become ready within 60 seconds."
+          exit 1
 
       - name: Prepare WordPress Tests
         run: |
@@ -108,30 +110,24 @@ jobs:
           ln -s "$GITHUB_WORKSPACE" /tmp/wordpress/wp-content/plugins/ultimate-multisite
 
       - name: Run PHPUnit Tests
-        if: matrix.php-version != '8.3'
         run: |
-          # The full suite exceeds the container memory limit when run in one PHP process.
-          # Restart PHPUnit between small batches so every test file still runs.
-          find tests -name '*_Test.php' -type f -print0 \
-            | xargs -0 -r -n 50 vendor/bin/phpunit
+          # Use the configured suite, not multiple positional file arguments.
+          # Keep PHPUnit's exit status intact and disable coverage on every PHP version.
+          php -d memory_limit=2G vendor/bin/phpunit \
+            --no-coverage --list-tests-xml phpunit-inventory.xml
+          php -d memory_limit=2G vendor/bin/phpunit \
+            --no-coverage --do-not-cache-result --log-junit phpunit-results.xml
+          php scripts/verify-phpunit-results.php phpunit-inventory.xml phpunit-results.xml
 
-      - name: Run PHPUnit Tests with Coverage
-        if: matrix.php-version == '8.3'
-        run: |
-          php -d zend_extension=xdebug.so -d xdebug.mode=coverage \
-            vendor/bin/phpunit --coverage-clover=coverage.xml --coverage-text \
-            | tee coverage-summary.txt
-
-      - name: Upload coverage to Codecov
-        if: matrix.php-version == '8.3'
-        uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
+      - name: Upload PHPUnit results
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          file: ./coverage.xml
-          flags: unittests
-          name: php-${{ matrix.php-version }}
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          name: phpunit-results-php-${{ matrix.php-version }}
+          path: |
+            phpunit-inventory.xml
+            phpunit-results.xml
+          retention-days: 14
 
   wp-performance:
     name: WP Performance Metrics

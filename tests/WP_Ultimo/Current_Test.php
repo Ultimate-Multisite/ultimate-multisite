@@ -16,6 +16,7 @@ class Current_Test extends \WP_UnitTestCase {
 	 * @var Current
 	 */
 	protected $current;
+	private $request_globals;
 
 	/**
 	 * Set up test environment.
@@ -23,7 +24,19 @@ class Current_Test extends \WP_UnitTestCase {
 	public function setUp(): void {
 		parent::setUp();
 
+		// phpcs:ignore WordPress.Security.NonceVerification -- Preserve synthetic request state for test isolation.
+		$this->request_globals = [$_GET, $_POST, $_REQUEST];
+		$_GET                  = [];
+		$_POST                 = [];
+		$_REQUEST              = [];
+		set_current_screen('front');
+
 		$this->current = Current::get_instance();
+	}
+
+	public function tearDown(): void {
+		[$_GET, $_POST, $_REQUEST] = $this->request_globals;
+		parent::tearDown();
 	}
 
 	/** Checkout preselection must not turn a static front page into the blog index. */

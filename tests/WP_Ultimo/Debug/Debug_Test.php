@@ -528,14 +528,10 @@ class Debug_Test extends \WP_UnitTestCase {
 
 		$table = "{$wpdb->base_prefix}wu_events";
 
-		// IDs with null/empty values — array_filter should remove them
-		// If all IDs are filtered out, it becomes an empty array and should not throw
-		try {
-			$ref->invoke($instance, $table, [null, '', 0], 'ID');
-			$this->assertTrue(true);
-		} catch (\Exception $e) {
-			$this->assertStringContainsString('Error', $e->getMessage());
-		}
+		// Filtering every requested ID must not query or delete anything.
+		$queries = $wpdb->num_queries;
+		$ref->invoke($instance, $table, [null, '', 0], 'ID');
+		$this->assertSame($queries, $wpdb->num_queries);
 	}
 
 	/**
@@ -543,6 +539,8 @@ class Debug_Test extends \WP_UnitTestCase {
 	 */
 	public function test_reset_table_throws_on_query_failure() {
 
+		global $wpdb;
+
 		$instance = $this->get_instance();
 
 		$ref = new \ReflectionMethod($instance, 'reset_table');
@@ -554,7 +552,12 @@ class Debug_Test extends \WP_UnitTestCase {
 		// Use a non-existent table to trigger a DB error (query returns false)
 		$this->expectException(\Exception::class);
 
-		$ref->invoke($instance, 'nonexistent_table_xyz_abc_123', [], 'ID');
+		$previous = $wpdb->suppress_errors(true);
+		try {
+			$ref->invoke($instance, 'nonexistent_table_xyz_abc_123', [], 'ID');
+		} finally {
+			$wpdb->suppress_errors($previous);
+		}
 	}
 
 	/**
@@ -562,6 +565,8 @@ class Debug_Test extends \WP_UnitTestCase {
 	 */
 	public function test_reset_table_throws_on_query_failure_with_ids() {
 
+		global $wpdb;
+
 		$instance = $this->get_instance();
 
 		$ref = new \ReflectionMethod($instance, 'reset_table');
@@ -573,7 +578,12 @@ class Debug_Test extends \WP_UnitTestCase {
 		// Use a non-existent table to trigger a DB error (query returns false)
 		$this->expectException(\Exception::class);
 
-		$ref->invoke($instance, 'nonexistent_table_xyz_abc_123', [1, 2, 3], 'ID');
+		$previous = $wpdb->suppress_errors(true);
+		try {
+			$ref->invoke($instance, 'nonexistent_table_xyz_abc_123', [1, 2, 3], 'ID');
+		} finally {
+			$wpdb->suppress_errors($previous);
+		}
 	}
 
 	// -------------------------------------------------------------------------

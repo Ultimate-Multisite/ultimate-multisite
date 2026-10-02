@@ -1,0 +1,47 @@
+diff --git a/src/Attribute.php b/src/Attribute.php
+--- a/src/Attribute.php
++++ b/src/Attribute.php
+@@ -211,7 +211,7 @@ class Attribute
+      * @param string|null $key
+      * @return mixed
+      */
+-    public function getValue(string $key = null)
++    public function getValue(?string $key = null)
+     {
+         if ($key && $this->isArrayAttribute()) {
+             $key = $this->resolveSiblingKey($key);
+diff --git a/src/Helper.php b/src/Helper.php
+--- a/src/Helper.php
++++ b/src/Helper.php
+@@ -219,7 +219,7 @@ class Helper
+      * @param  string|null  $lastSeparator
+      * @return string
+      */
+-    public static function join(array $pieces, string $separator, string $lastSeparator = null): string
++    public static function join(array $pieces, string $separator, ?string $lastSeparator = null): string
+     {
+         if (is_null($lastSeparator)) {
+             $lastSeparator = $separator;
+@@ -245,7 +245,7 @@ class Helper
+      * @param  string|null  $suffix
+      * @return array
+      */
+-    public static function wraps(array $strings, string $prefix, string $suffix = null): array
++    public static function wraps(array $strings, string $prefix, ?string $suffix = null): array
+     {
+         if (is_null($suffix)) {
+             $suffix = $prefix;
+diff --git a/src/Rules/Lowercase.php b/src/Rules/Lowercase.php
+--- a/src/Rules/Lowercase.php
++++ b/src/Rules/Lowercase.php
+@@ -18,6 +18,10 @@ class Lowercase extends Rule
+      */
+     public function check($value): bool
+     {
++        if (!is_string($value)) {
++            return false;
++        }
++
+         return mb_strtolower($value, mb_detect_encoding($value)) === $value;
+     }
+ }

@@ -316,9 +316,8 @@ class Tracker implements \WP_Ultimo\Interfaces\Singleton {
 		// Note: Direct queries without caching are intentional for telemetry counts.
 		// Table prefix comes from $wpdb->base_prefix which is safe.
 
-		$sites_count = (int) $wpdb->get_var(
-			"SELECT COUNT(*) FROM {$table_prefix}wu_sites"
-		);
+		// Sites live in WordPress's blogs table, not a wu_sites table.
+		$sites_count = (int) get_sites(['count' => true]);
 
 		$customers_count = (int) $wpdb->get_var(
 			"SELECT COUNT(*) FROM {$table_prefix}wu_customers"
