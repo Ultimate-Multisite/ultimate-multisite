@@ -42,10 +42,16 @@ class SSO_Test extends \WP_UnitTestCase {
 	}
 
 	public function test_with_sso_returns_same_url_when_default_setting_is_disabled(): void {
-		$url      = 'https://example.com/path?foo=bar';
-		$with_sso = SSO::with_sso($url);
+		$previous = wu_get_setting('enable_sso', false);
+		wu_save_setting('enable_sso', false);
+		try {
+			$url      = 'https://example.com/path?foo=bar';
+			$with_sso = SSO::with_sso($url);
 
-		$this->assertSame($url, $with_sso, 'URL should be unchanged when the default SSO setting is disabled');
+			$this->assertSame($url, $with_sso, 'URL should be unchanged when the default SSO setting is disabled');
+		} finally {
+			wu_save_setting('enable_sso', $previous);
+		}
 	}
 
 	public function test_encode_decode_roundtrip_uses_hashids(): void {
