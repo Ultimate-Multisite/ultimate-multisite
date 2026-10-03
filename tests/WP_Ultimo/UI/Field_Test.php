@@ -50,6 +50,8 @@ class Field_Test extends WP_UnitTestCase {
 		$this->assertEquals('dashicons-wu-cog', $atts['icon']);
 		$this->assertFalse($atts['sortable']);
 		$this->assertEquals(1, $atts['columns']);
+		$this->assertSame([], $atts['input_group_html_attr']);
+		$this->assertSame([], $field->input_group_html_attr);
 	}
 
 	/**
@@ -250,6 +252,24 @@ class Field_Test extends WP_UnitTestCase {
 		]);
 
 		$this->assertSame('ltr', $field->input_group_html_attr['dir']);
+	}
+
+	/**
+	 * Prefixed checkout fields must render without optional input group attributes.
+	 */
+	public function test_checkout_text_field_without_input_group_html_attr(): void {
+		$field = new Field('network_url', [
+			'prefix' => 'https://',
+			'suffix' => '.example.org',
+			'value'  => 'demo',
+		]);
+
+		$html = wu_get_template_contents('checkout/fields/field-text', ['field' => $field]);
+
+		$this->assertStringContainsString('id="field-network_url"', $html);
+		$this->assertStringContainsString('https://', $html);
+		$this->assertStringContainsString('.example.org', $html);
+		$this->assertStringContainsString('value="demo"', $html);
 	}
 
 	/**
