@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 8.2
 Tested up to: 7.1
-Stable tag: 2.16.1
+Stable tag: 2.17.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -252,8 +252,17 @@ No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
 
-= Unreleased =
+= 2.17.0 =
+Version [2.17.0] - Released on 2026-10-02
+- New: GridPane domain mapping now supports the current bearer-token API, site and server discovery, and optional DNS integration settings.
 - Security: Hardened checkout account ownership checks and automatic login. Thanks to WPScan (Erwan LR) for responsible disclosure.
+- Fix: Checkout validation now displays field names and character limits instead of untranslated placeholders, including confirmation-field errors.
+- Fix: Repeat signup now honors the multiple-memberships setting, while restored no-card trials retain their timing and collect applicable setup fees.
+- Fix: Site cloning handles plugin-owned initialization and duplicate tables more reliably, reports genuine copy failures, and prevents duplicate pending-site publication.
+- Fix: Cross-domain payment links authenticate safely, and checkout preserves static front-page routing and right-to-left site-address entry.
+- Fix: Product deletion reassigns memberships only to supported plans, debug resets safely handle empty IDs, and usage statistics count the correct sites.
+- Improved: Setup errors, modal failures, media-quota guidance, and hosting integration instructions provide clearer feedback.
+- Improved: PHP 8.4 validation compatibility and full-suite CI verification improve release reliability without coverage overhead.
 
 = 2.16.1 =
 Version [2.16.1] - Released on 2026-09-11
