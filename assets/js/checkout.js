@@ -694,6 +694,8 @@
 
 					const allRules = (typeof wu_checkout !== 'undefined' && wu_checkout.validation_rules) ? wu_checkout.validation_rules : {};
 					const i18n = (typeof wu_checkout !== 'undefined' && wu_checkout.i18n) ? wu_checkout.i18n : {};
+					// Templates are already translated by PHP; support numbered printf arguments.
+					const formatMessage = wp.i18n.sprintf;
 					const errors = [];
 
 					/*
@@ -822,7 +824,7 @@
 									if (fieldVal.trim() === '') {
 
 										// translators: %s is the field label.
-										addError(field, (i18n.field_required || '%s is required.').replace('%s', label(field)));
+										addError(field, formatMessage(i18n.field_required || '%s is required.', label(field)));
 
 									}
 
@@ -835,7 +837,7 @@
 									// Required when the referenced field is absent/empty.
 									if (val(param).trim() === '' && fieldVal.trim() === '') {
 
-										addError(field, (i18n.field_required || '%s is required.').replace('%s', label(field)));
+										addError(field, formatMessage(i18n.field_required || '%s is required.', label(field)));
 
 									}
 
@@ -848,7 +850,7 @@
 									// Required when the referenced field is present/non-empty.
 									if (val(param).trim() !== '' && fieldVal.trim() === '') {
 
-										addError(field, (i18n.field_required || '%s is required.').replace('%s', label(field)));
+										addError(field, formatMessage(i18n.field_required || '%s is required.', label(field)));
 
 									}
 
@@ -860,7 +862,7 @@
 
 									if (fieldVal.trim() !== '' && ! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fieldVal)) {
 
-										addError(field, (i18n.field_invalid_email || '%s must be a valid email address.').replace('%s', label(field)));
+										addError(field, formatMessage(i18n.field_invalid_email || '%s must be a valid email address.', label(field)));
 
 									}
 
@@ -874,7 +876,7 @@
 
 									if (! isNaN(minLen) && fieldVal.length > 0 && fieldVal.length < minLen) {
 
-										addError(field, (i18n.field_min_length || '%s must be at least %d characters.').replace('%s', label(field)).replace('%d', minLen));
+										addError(field, formatMessage(i18n.field_min_length || '%s must be at least %d characters.', label(field), minLen));
 
 									}
 
@@ -888,7 +890,7 @@
 
 									if (! isNaN(maxLen) && fieldVal.length > maxLen) {
 
-										addError(field, (i18n.field_max_length || '%s must not exceed %d characters.').replace('%s', label(field)).replace('%d', maxLen));
+										addError(field, formatMessage(i18n.field_max_length || '%s must not exceed %d characters.', label(field), maxLen));
 
 									}
 
@@ -900,7 +902,7 @@
 
 									if (fieldVal.trim() !== '' && ! /^[a-zA-Z0-9_-]+$/.test(fieldVal)) {
 
-										addError(field, (i18n.field_alpha_dash || '%s may only contain letters, numbers, dashes, and underscores.').replace('%s', label(field)));
+										addError(field, formatMessage(i18n.field_alpha_dash || '%s may only contain letters, numbers, dashes, and underscores.', label(field)));
 
 									}
 
@@ -912,7 +914,7 @@
 
 									if (fieldVal.trim() !== '' && fieldVal !== fieldVal.toLowerCase()) {
 
-										addError(field, (i18n.field_lowercase || '%s must be lowercase.').replace('%s', label(field)));
+										addError(field, formatMessage(i18n.field_lowercase || '%s must be lowercase.', label(field)));
 
 									}
 
@@ -928,7 +930,7 @@
 									// the check so the form can still be submitted.
 									if ((field in values) && fieldVal !== val(param)) {
 
-										addError(field, (i18n.field_same || '%s must match %s.').replace('%s', label(field)).replace('%s', label(param)));
+										addError(field, formatMessage(i18n.field_same || '%s must match %s.', label(field), label(param)));
 
 									}
 
@@ -940,7 +942,7 @@
 
 									if (fieldVal.trim() !== '' && ! /^\d+$/.test(fieldVal.trim())) {
 
-										addError(field, (i18n.field_integer || '%s must be a whole number.').replace('%s', label(field)));
+										addError(field, formatMessage(i18n.field_integer || '%s must be a whole number.', label(field)));
 
 									}
 
@@ -955,7 +957,7 @@
 
 									if (fieldVal.trim() !== '' && ! accepted.includes(fieldVal.toLowerCase())) {
 
-										addError(field, (i18n.field_accepted || '%s must be accepted.').replace('%s', label(field)));
+										addError(field, formatMessage(i18n.field_accepted || '%s must be accepted.', label(field)));
 
 									}
 

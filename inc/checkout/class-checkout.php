@@ -3422,7 +3422,7 @@ class Checkout {
 		// Enqueue password styles (includes dashicons as dependency).
 		wp_enqueue_style('wu-password');
 
-		$script_dependencies = ['jquery-core', 'wu-vue', 'moment', 'wu-block-ui', 'wu-functions', 'password-strength-meter', 'wu-password-strength', 'underscore', 'wp-polyfill', 'wp-hooks', 'wu-cookie-helpers', 'wu-password-toggle'];
+		$script_dependencies = ['jquery-core', 'wu-vue', 'moment', 'wu-block-ui', 'wu-functions', 'password-strength-meter', 'wu-password-strength', 'underscore', 'wp-polyfill', 'wp-hooks', 'wp-i18n', 'wu-cookie-helpers', 'wu-password-toggle'];
 
 		$passwordless_auth = \WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance();
 
