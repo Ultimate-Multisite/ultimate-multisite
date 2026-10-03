@@ -1514,13 +1514,13 @@ class Domain_Manager extends Base_Manager {
 		$new_integration = $registry->get($integration_id);
 
 		if ($new_integration) {
-			if ( ! $new_integration->is_setup()) {
+			if ( ! $new_integration->is_ready_for_connection_test()) {
 				wp_send_json_error(
 					[
 						'message' => sprintf(
-							// translators: %s is the name of the missing constant
-							__('The necessary constants were not found on your wp-config.php file: %s', 'ultimate-multisite'),
-							implode(', ', $new_integration->get_missing_constants())
+							// translators: %s is the name of the missing credential constant.
+							__('The required integration credentials were not found: %s', 'ultimate-multisite'),
+							implode(', ', $new_integration->get_missing_connection_test_constants())
 						),
 					]
 				);

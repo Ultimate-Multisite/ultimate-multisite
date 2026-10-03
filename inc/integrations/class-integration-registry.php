@@ -139,6 +139,7 @@ class Integration_Registry {
 		$this->register(new Providers\OCI_Email\OCI_Email_Integration());
 		$this->register(new Providers\CyberPanel\CyberPanel_Integration());
 		$this->register(new Providers\Hostinger\Hostinger_Integration());
+		$this->register(new Providers\BigScoots\BigScoots_Integration());
 	}
 
 	/**
@@ -192,6 +193,7 @@ class Integration_Registry {
 		$this->add_capability('oracle-oci', new Providers\OCI_Email\OCI_Email_Transactional_Email());
 		$this->add_capability('cyberpanel', new Providers\CyberPanel\CyberPanel_Domain_Mapping());
 		$this->add_capability('hostinger', new Providers\Hostinger\Hostinger_Domain_Mapping());
+		$this->add_capability('bigscoots', new Providers\BigScoots\BigScoots_Domain_Mapping());
 	}
 
 	/**
