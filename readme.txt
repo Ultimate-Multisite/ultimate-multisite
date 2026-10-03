@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 8.2
 Tested up to: 7.1
-Stable tag: 2.17.0
+Stable tag: 2.17.1
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -251,6 +251,10 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+
+= 2.17.1 =
+Version [2.17.1] - Released on 2026-10-03
+- Fix: Checkout forms with prefixed text fields, including Multinetwork network signup forms, no longer fail with a critical error when optional input-group attributes are omitted.
 
 = 2.17.0 =
 Version [2.17.0] - Released on 2026-10-02
