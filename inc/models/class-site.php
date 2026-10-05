@@ -2376,21 +2376,30 @@ class Site extends Base_Model implements Limitable, Notable {
 
 			$customer_id_query = '';
 
-			if ($customer_id) {
+			if (array_key_exists('customer_id', $query_args)) {
+				if ($customer_id <= 0) {
+					return [];
+				}
+
 				$memberships = wu_get_memberships(
 					[
 						'fields'      => ['id'],
 						'customer_id' => $customer_id,
+						'number'      => 0,
 					]
 				);
+
+				if (empty($memberships)) {
+					return [];
+				}
 
 				$memberships_str = '';
 
 				foreach ($memberships as $membership) {
-					$memberships_str = ! empty($memberships_str) ? $memberships_str . ', ' . $membership->id : $membership->id;
+					$memberships_str = ! empty($memberships_str) ? $memberships_str . ', ' . absint($membership->id) : absint($membership->id);
 				}
 
-				$customer_id_query = ! empty($memberships_str) ? "AND wu_membership_id IN ($memberships_str)" : '';
+				$customer_id_query = "AND wu_membership_id IN ($memberships_str)";
 			}
 
 			$sql = "SELECT meta_value FROM {$table_name} WHERE meta_key = 'pending_site' $customer_id_query ORDER BY meta_id DESC"; // phpcs:ignore
