@@ -83,18 +83,18 @@ if ( ! defined('ABSPATH') ) {
 
 	<hr class="wp-header-end">
 
-	<div class="wu-flex wu-items-center wu-justify-between wu-mb-6 wu-p-4 wu-bg-gray-50 wu-border wu-border-gray-200 wu-rounded-lg">
+	<div class="wu-flex wu-flex-wrap wu-items-center wu-justify-between wu-gap-4 wu-mb-6 wu-p-4 wu-bg-gray-50 wu-border wu-border-gray-200 wu-rounded-lg">
 		<div class="wu-flex wu-items-center wu-space-x-4">
 			<span class="wu-text-sm wu-text-gray-600">
 				<span class="wu-font-semibold" v-text="count" v-cloak>0</span> <?php esc_html_e('add-ons', 'ultimate-multisite'); ?>
 			</span>
 		</div>
 		
-		<div class="wu-flex wu-items-center wu-space-x-2" id="addons-menu">
+		<div class="wu-flex wu-flex-wrap wu-items-center wu-gap-2" id="addons-menu">
 			<?php foreach ($sections as $section_name => $section) : ?>
 				<a 
 					href="<?php echo esc_url($page->get_section_link($section_name)); ?>"
-					class="wu-px-4 wu-py-2 wu-text-sm wu-mx-4 wu-border wu-transition-colors wu-no-underline"
+					class="wu-m-0 wu-px-4 wu-py-2 wu-text-sm wu-border wu-transition-colors wu-no-underline"
 					:class="category === '<?php echo esc_attr($section_name); ?>' ? 'wu-bg-gray-100 wu-text-gray-900 wu-border-blue-600 wu-border-solid' : 'wu-bg-white wu-text-gray-700 wu-border-gray-300 hover:wu-bg-gray-50'"
 					@click.prevent="set_category('<?php echo esc_attr($section_name); ?>')"
 					v-show="'<?php echo esc_attr($section_name); ?>' === 'all' || available_categories.some(cat => cat.slug === '<?php echo esc_attr($section_name); ?>')"
