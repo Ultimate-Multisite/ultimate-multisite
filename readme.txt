@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 8.2
 Tested up to: 7.1
-Stable tag: 2.17.1
+Stable tag: 2.17.2
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -251,6 +251,13 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+
+= 2.17.2 =
+Version [2.17.2] - Released on 2026-10-06
+- Fix: Prevent unauthorized local file access through checkout field template rendering. Thanks to Artur12555 and hanzzly for reporting the vulnerability.
+- Fix: Site publishing now returns the correct error details when a pending site cannot be published.
+- Fix: Add-ons search and category navigation stay within the viewport on mobile screens.
+- Improved: Added a security support and private vulnerability reporting policy.
 
 = 2.17.1 =
 Version [2.17.1] - Released on 2026-10-03
