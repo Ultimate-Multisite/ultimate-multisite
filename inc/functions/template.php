@@ -32,9 +32,14 @@ function wu_get_template($view, $args = [], $default_view = false) {
 
 	$template_path = wu_path("views/$view.php");
 
-	// Make passed variables available
+	// Make passed variables available without overwriting the include path or view arguments.
 	if (is_array($args)) {
-		extract($args); // phpcs:ignore
+		extract($args, EXTR_SKIP); // phpcs:ignore WordPress.PHP.DontExtract.extract_extract -- Templates require named variables; existing control variables must not be overwritten.
+
+		// Preserve the nested $args data used by responsive table templates, without extracting it.
+		if (array_key_exists('args', $args)) {
+			$args = $args['args'];
+		}
 	}
 
 	/**
