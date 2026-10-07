@@ -48,7 +48,7 @@
 
 							try {
 
-								history.pushState({}, null, '?' + 'page=wp-ultimo-view-logs&log_file=' + app.log);
+								history.pushState({}, null, '?' + 'page=wp-ultimo-view-logs&log_file=' + encodeURIComponent(app.log));
 
 							} catch (err) {
 

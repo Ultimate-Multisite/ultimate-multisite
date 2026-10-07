@@ -50,7 +50,7 @@ class Helper_Test extends \WP_UnitTestCase {
 
 		$fired = false;
 
-		add_filter('wu_is_development_mode', function ($is_dev, $site_url) use (&$fired) {
+		add_filter('wu_is_development_mode', function ($is_dev) use (&$fired) {
 			$fired = true;
 			return $is_dev;
 		}, 10, 2);
@@ -105,10 +105,25 @@ class Helper_Test extends \WP_UnitTestCase {
 	 */
 	public function test_has_valid_ssl_certificate_invalid() {
 
-		// Use a domain that definitely doesn't have SSL
-		$result = Helper::has_valid_ssl_certificate('invalid-domain-for-testing-12345.test');
+		$entry    = null;
+		$listener = static function ($handle, $message, $level) use (&$entry) {
+			if ('domain-ssl-checks' === $handle) {
+				$entry = [$message, $level];
+			}
+		};
+		add_action('wu_log_add', $listener, 10, 3);
 
-		$this->assertFalse($result);
+		try {
+			$result = Helper::has_valid_ssl_certificate('invalid-domain-for-testing-12345.test');
+			$this->assertFalse($result);
+			$this->assertNotNull($entry);
+			$this->assertStringContainsString('Certificate Invalid for invalid-domain-for-testing-12345.test:', $entry[0]);
+			$this->assertNotSame('', trim(substr($entry[0], strpos($entry[0], ':') + 1)));
+			$this->assertSame(\Psr\Log\LogLevel::ERROR, $entry[1]);
+		} finally {
+			remove_action('wu_log_add', $listener, 10);
+			delete_site_option('wu_recent_error_log_entry');
+		}
 	}
 
 	/**
