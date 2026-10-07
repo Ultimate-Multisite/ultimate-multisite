@@ -162,26 +162,12 @@ class Current_Site_Element extends Base_Element {
 			'value'   => 1,
 		];
 
-		$pages = get_pages(
-			[
-				'exclude' => [get_the_ID()], // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
-			]
-		);
-
-		$pages = $pages ?: [];
-
-		$pages_list = [0 => __('Current Page', 'ultimate-multisite')];
-
-		foreach ($pages as $page) {
-			$pages_list[ $page->ID ] = $page->post_title;
-		}
-
 		$fields['breadcrumbs_my_sites_page'] = [
 			'type'    => 'select',
 			'title'   => __('My Sites Page', 'ultimate-multisite'),
 			'value'   => 0,
 			'desc'    => __('The page with the customer sites list.', 'ultimate-multisite'),
-			'options' => $pages_list,
+			'options' => fn() => wu_get_pages_as_options(__('Current Page', 'ultimate-multisite')),
 		];
 
 		$fields['display_description'] = [
