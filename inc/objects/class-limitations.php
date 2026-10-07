@@ -191,7 +191,7 @@ class Limitations implements \JsonSerializable {
 	public function has_limitations() {
 
 		foreach ($this->raw_module_data as $module) {
-			if ($module['enabled']) {
+			if (! empty($module['enabled'])) {
 				return true;
 			}
 		}
