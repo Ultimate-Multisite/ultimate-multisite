@@ -173,8 +173,11 @@ class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
 			'Precondition: a 10-minute-old publishing flag must be stale.'
 		);
 
+		$previous_user = get_current_user_id();
+		wp_set_current_user($this->customer->get_user_id());
 		$_REQUEST['membership_hash'] = $membership->get_hash();
 		$_GET['membership_hash']     = $membership->get_hash();
+		$_REQUEST['_ajax_nonce']     = wp_create_nonce('wu_check_pending_site_created:' . $membership->get_hash());
 
 		$response = $this->capture_ajax_json_response(
 			function () {
@@ -183,7 +186,8 @@ class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
 		);
 		$payload  = $response['decoded'];
 
-		unset($_REQUEST['membership_hash'], $_GET['membership_hash']);
+		unset($_REQUEST['membership_hash'], $_GET['membership_hash'], $_REQUEST['_ajax_nonce']);
+		wp_set_current_user($previous_user);
 
 		$this->assertSame(
 			'stopped',
@@ -214,8 +218,11 @@ class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
 			'Precondition: a just-started publishing flag must NOT be stale.'
 		);
 
+		$previous_user = get_current_user_id();
+		wp_set_current_user($this->customer->get_user_id());
 		$_REQUEST['membership_hash'] = $membership->get_hash();
 		$_GET['membership_hash']     = $membership->get_hash();
+		$_REQUEST['_ajax_nonce']     = wp_create_nonce('wu_check_pending_site_created:' . $membership->get_hash());
 
 		$response = $this->capture_ajax_json_response(
 			function () {
@@ -224,7 +231,8 @@ class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
 		);
 		$payload  = $response['decoded'];
 
-		unset($_REQUEST['membership_hash'], $_GET['membership_hash']);
+		unset($_REQUEST['membership_hash'], $_GET['membership_hash'], $_REQUEST['_ajax_nonce']);
+		wp_set_current_user($previous_user);
 
 		$this->assertSame(
 			'running',

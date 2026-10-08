@@ -19,9 +19,9 @@
 						body: new URLSearchParams({ action: "wu_resend_verification_email", _ajax_nonce: wu_thank_you.resend_verification_email_nonce })
 					});
 					const response = await request.json();
-					element.textContent = response.success ? wu_thank_you.i18n.email_sent : wu_thank_you.i18n.request_failed;
+					element.textContent = response.success ? wu_thank_you.i18n.email_sent : (wu_thank_you.i18n.request_failed || original);
 				} catch {
-					element.textContent = wu_thank_you.i18n.request_failed;
+					element.textContent = wu_thank_you.i18n.request_failed || original;
 				} finally {
 					element.removeAttribute("aria-busy");
 					setTimeout(() => {
