@@ -10,7 +10,7 @@ if (! defined('WP_CLI') || ! WP_CLI || ! in_array(wp_get_environment_type(), ['l
 	throw new RuntimeException('Run only through WP-CLI in an isolated development environment.');
 }
 
-global $wpdb, $post;
+global $wpdb, $post, $wp_version;
 
 $check = static function ($condition, $message) {
 	if (! $condition) {
@@ -82,7 +82,62 @@ try {
 			}
 			$options = call_user_func($element->fields()[ $field ]['options']);
 			$check($expected === $options, 'Titles, ordering, hierarchy, status or exclusion changed.');
+
+			// Exercise the older-version branch on this core without large queries.
+			$saved_version = $wp_version;
+			try {
+				$wp_version = '6.2';
+				$check($expected === call_user_func($element->fields()[ $field ]['options']), 'Core fallback changed choices.');
+			} finally {
+				$wp_version = $saved_version;
+			}
 		}
+	}
+
+	// A nested core call during the optimized query must retain full post content.
+	$nested_checked = false;
+	$nested_query   = static function ($fields, $query) use ($ids, $check, &$nested_checked) {
+		if ($query->get('wu_page_options_query') && ! $nested_checked) {
+			$nested_checked = true;
+			$nested = get_pages(['include' => [$ids[0]]]);
+			$check('Content must remain available through the normal post cache.' === $nested[0]->post_content, 'Projection leaked into a nested core query.');
+		}
+		return $fields;
+	};
+	add_filter('posts_fields', $nested_query, 20, 2);
+	try {
+		call_user_func($elements[0][0]->fields()[ $elements[0][1] ]['options']);
+		$check($nested_checked, 'Nested query isolation was not exercised.');
+	} finally {
+		remove_filter('posts_fields', $nested_query, 20);
+	}
+
+	// Both temporary hooks must be cleaned up when core/filter execution throws.
+	$snapshot = static function () {
+		$counts = [];
+		foreach (['get_pages_query_args', 'posts_fields'] as $hook) {
+			$counts[ $hook ] = array_map('count', $GLOBALS['wp_filter'][ $hook ]->callbacks ?? []);
+		}
+		return $counts;
+	};
+	$throw_query = static function ($args, $page_args) {
+		if (isset($page_args['wu_page_options_query'])) {
+			throw new RuntimeException('Intentional picker exception');
+		}
+		return $args;
+	};
+	add_filter('get_pages_query_args', $throw_query, 20, 2);
+	try {
+		$before_hooks = $snapshot();
+		$threw        = false;
+		try {
+			call_user_func($elements[0][0]->fields()[ $elements[0][1] ]['options']);
+		} catch (RuntimeException $error) {
+			$threw = 'Intentional picker exception' === $error->getMessage();
+		}
+		$check($threw && $before_hooks === $snapshot(), 'Temporary hooks leaked after an exception.');
+	} finally {
+		remove_filter('get_pages_query_args', $throw_query, 20);
 	}
 	remove_filter('get_pages_query_args', $restrict, 10);
 	remove_filter('get_pages', $transform);
@@ -124,6 +179,9 @@ try {
 		[
 			'fields_and_attributes_queries' => 0,
 			'legacy_options_match'          => true,
+			'core_fallback_branch_match'    => true,
+			'nested_query_isolated'         => true,
+			'exception_hooks_cleaned'       => true,
 			'editor_choices'                => count($options),
 			'editor_queries'                => count($requests),
 			'editor_memory_delta_bytes'     => memory_get_usage(true) - $before,

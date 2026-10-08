@@ -697,76 +697,52 @@ abstract class Base_Element {
 	/**
 	 * Builds page choices only when an editor or settings form needs them.
 	 *
-	 * Query just the dropdown data, without loading content or priming full post
-	 * objects in the cache. Keep WordPress query filters and hierarchical ordering.
+	 * Let core handle defaults, hierarchy and filters. On WordPress 6.3+, select
+	 * only dropdown metadata without caching partial posts. Older core versions
+	 * use normal get_pages() retrieval, still deferred until options are needed.
 	 *
 	 * @param string $default_label Label for the zero/default option.
 	 * @return array
 	 */
 	protected function get_page_options($default_label) {
 
-		global $wpdb;
+		global $wpdb, $wp_version;
 
-		$page_args = [
-			'child_of'     => 0,
-			'sort_order'   => 'ASC',
-			'sort_column'  => 'post_title',
-			'hierarchical' => 1,
-			'exclude'      => [get_the_ID()],
-			'include'      => [],
-			'meta_key'     => '',
-			'meta_value'   => '',
-			'authors'      => '',
-			'parent'       => -1,
-			'exclude_tree' => [],
-			'number'       => '',
-			'offset'       => 0,
-			'post_type'    => 'page',
-			'post_status'  => 'publish',
-		];
+		$args     = ['exclude' => [get_the_ID()]]; // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
+		$marker   = new \stdClass();
+		$optimize = version_compare($wp_version, '6.3', '>=');
 
-		$query_args = apply_filters(
-			'get_pages_query_args',
-			[
-				'post_type'              => 'page',
-				'post_status'            => ['publish'],
-				'posts_per_page'         => -1,
-				'orderby'                => ['post_title' => 'ASC'],
-				'order'                  => 'ASC',
-				'post__not_in'           => wp_parse_id_list($page_args['exclude']),
-				'meta_key'               => '',
-				'meta_value'             => '',
-				'offset'                 => 0,
-				'no_found_rows'          => true,
-				'update_post_meta_cache' => false,
-				'update_post_term_cache' => false,
-				'ignore_sticky_posts'    => true,
-			],
-			$page_args
-		);
+		$prepare_query = static function ($query_args, $page_args) use ($marker) {
+			if (($page_args['wu_page_options_query'] ?? null) === $marker) {
+				$query_args['wu_page_options_query'] = $marker;
+				// Never store projected rows as full posts.
+				$query_args['cache_results'] = false;
+			}
+			return $query_args;
+		};
 
-		// Never store projected rows as full posts, including with query customizations.
-		$query_args['cache_results'] = false;
-
-		$query = new \WP_Query();
-
-		$select_fields = static function ($fields, $page_query) use ($query, $wpdb) {
-			// Retain page identity for query filters that inspect the returned objects.
-			return $page_query === $query
+		$select_fields = static function ($fields, $query) use ($marker, $wpdb) {
+			return $query->get('wu_page_options_query') === $marker
 				? "{$wpdb->posts}.ID, {$wpdb->posts}.post_title, {$wpdb->posts}.post_parent, {$wpdb->posts}.post_type, {$wpdb->posts}.post_status"
 				: $fields;
 		};
 
-		add_filter('posts_fields', $select_fields, 10, 2);
+		if ($optimize) {
+			$args['wu_page_options_query'] = $marker;
+			add_filter('get_pages_query_args', $prepare_query, PHP_INT_MAX, 2);
+			add_filter('posts_fields', $select_fields, 10, 2);
+		}
 
 		try {
-			$pages = $query->query($query_args);
+			$pages = get_pages($args);
 		} finally {
-			remove_filter('posts_fields', $select_fields, 10);
+			if ($optimize) {
+				remove_filter('get_pages_query_args', $prepare_query, PHP_INT_MAX);
+				remove_filter('posts_fields', $select_fields, 10);
+			}
 		}
 
 		$options = [0 => $default_label];
-		$pages   = apply_filters('get_pages', get_page_children(0, $pages), $page_args);
 
 		foreach ($pages ?: [] as $page) {
 			$options[ $page->ID ] = $page->post_title;
