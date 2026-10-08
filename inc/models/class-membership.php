@@ -346,6 +346,14 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 	protected $compiled_product_list = [];
 
 	/**
+	 * Whether construction snapshots products for later save-time change detection.
+	 * Read-only statistics models can opt out without changing product getters.
+	 *
+	 * @var bool
+	 */
+	protected $compile_product_snapshot = true;
+
+	/**
 	 * Keep original gateway info.
 	 *
 	 * If some gateway info change for some reason,
@@ -382,7 +390,7 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			'gateway_subscription_id' => $this->get_gateway_subscription_id(),
 		];
 
-		if (did_action('plugins_loaded')) {
+		if ($this->compile_product_snapshot && did_action('plugins_loaded')) {
 			$this->compiled_product_list = $this->get_all_products();
 		}
 	}
