@@ -695,6 +695,87 @@ abstract class Base_Element {
 	}
 
 	/**
+	 * Builds page choices only when an editor or settings form needs them.
+	 *
+	 * Query just the dropdown data, without loading content or priming full post
+	 * objects in the cache. Keep WordPress query filters and hierarchical ordering.
+	 *
+	 * @param string $default_label Label for the zero/default option.
+	 * @return array
+	 */
+	protected function get_page_options($default_label) {
+
+		global $wpdb;
+
+		$page_args = [
+			'child_of'     => 0,
+			'sort_order'   => 'ASC',
+			'sort_column'  => 'post_title',
+			'hierarchical' => 1,
+			'exclude'      => [get_the_ID()],
+			'include'      => [],
+			'meta_key'     => '',
+			'meta_value'   => '',
+			'authors'      => '',
+			'parent'       => -1,
+			'exclude_tree' => [],
+			'number'       => '',
+			'offset'       => 0,
+			'post_type'    => 'page',
+			'post_status'  => 'publish',
+		];
+
+		$query_args = apply_filters(
+			'get_pages_query_args',
+			[
+				'post_type'              => 'page',
+				'post_status'            => ['publish'],
+				'posts_per_page'         => -1,
+				'orderby'                => ['post_title' => 'ASC'],
+				'order'                  => 'ASC',
+				'post__not_in'           => wp_parse_id_list($page_args['exclude']),
+				'meta_key'               => '',
+				'meta_value'             => '',
+				'offset'                 => 0,
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+				'ignore_sticky_posts'    => true,
+			],
+			$page_args
+		);
+
+		// Never store projected rows as full posts, including with query customizations.
+		$query_args['cache_results'] = false;
+
+		$query = new \WP_Query();
+
+		$select_fields = static function ($fields, $page_query) use ($query, $wpdb) {
+			// Retain page identity for query filters that inspect the returned objects.
+			return $page_query === $query
+				? "{$wpdb->posts}.ID, {$wpdb->posts}.post_title, {$wpdb->posts}.post_parent, {$wpdb->posts}.post_type, {$wpdb->posts}.post_status"
+				: $fields;
+		};
+
+		add_filter('posts_fields', $select_fields, 10, 2);
+
+		try {
+			$pages = $query->query($query_args);
+		} finally {
+			remove_filter('posts_fields', $select_fields, 10);
+		}
+
+		$options = [0 => $default_label];
+		$pages   = apply_filters('get_pages', get_page_children(0, $pages), $page_args);
+
+		foreach ($pages ?: [] as $page) {
+			$options[ $page->ID ] = $page->post_title;
+		}
+
+		return $options;
+	}
+
+	/**
 	 * Adds the modal to copy the shortcode for this particular element.
 	 *
 	 * @since 2.0.0
