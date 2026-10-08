@@ -5,10 +5,9 @@
  *  BUG 4 — Pending site stuck / infinite provisioning overlay.
  *          A site whose `is_publishing` flag was left `true` by a killed
  *          PHP process (OOM / timeout / server restart) blocked every retry,
- *          so the front-end overlay polled forever. The fix treats a
- *          publishing flag older than the timeout as *stale* so the AJAX
- *          poller (`Membership_Manager::check_pending_site_created()`)
- *          resets it and answers `stopped`, unblocking re-publishing.
+ *          so the front-end overlay polled forever. The background publisher
+ *          treats a publishing flag older than the timeout as *stale* and
+ *          restarts the failed attempt; the AJAX poller remains read-only.
  *
  *          @see https://github.com/Ultimate-Multisite/ultimate-multisite/pull/1267
  *
@@ -149,21 +148,19 @@ class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
 	}
 
 	// =========================================================================
-	// BUG 4 — stale publishing flag unblocks the overlay
-	// Exercises: Membership_Manager::check_pending_site_created()
-	// which wires Site::is_publishing_stale()
+	// BUG 4 — stale publishing flags recover asynchronously
 	// =========================================================================
 
 	/**
-	 * A publishing flag older than the 300s timeout is STALE: the poller must
-	 * reset is_publishing and answer 'stopped' so the overlay stops looping.
+	 * A status request must be read-only, including when the pending site's
+	 * publishing flag is stale.
 	 *
 	 * Real case: provisioning overlay spinning forever after the PHP worker
 	 * that was creating the subsite was killed mid-flight.
 	 *
 	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/pull/1267
 	 */
-	public function test_stale_publishing_flag_is_reset_and_returns_stopped(): void {
+	public function test_status_request_preserves_stale_publishing_flag(): void {
 
 		$membership = $this->create_membership_with_publishing_pending_site(time() - 600);
 
@@ -192,24 +189,38 @@ class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
 		$this->assertSame(
 			'stopped',
 			$payload['publish_status'] ?? null,
-			'A stale publishing flag must yield publish_status=stopped.'
+			'The status request must preserve the payment-pending response.'
 		);
 
-		// The flag must have been actually reset in storage so a retry can run.
 		$refreshed = wu_get_membership($membership->get_id());
-		$this->assertFalse(
+		$this->assertTrue(
 			(bool) $refreshed->get_pending_site()->is_publishing(),
-			'check_pending_site_created() must reset the stale is_publishing flag.'
+			'check_pending_site_created() must not alter the stale publishing flag.'
 		);
 	}
 
 	/**
-	 * A FRESH publishing flag (just started) is NOT stale: the poller must
-	 * leave it alone and answer 'running' so the overlay keeps waiting.
+	 * The asynchronous publisher resets a stale flag before retrying the site.
+	 */
+	public function test_async_publisher_recovers_stale_publishing_flag(): void {
+
+		$membership = $this->create_membership_with_publishing_pending_site(time() - 600);
+
+		$this->membership_manager->async_publish_pending_site($membership->get_id());
+
+		$refreshed = wu_get_membership($membership->get_id());
+		$this->assertFalse(
+			(bool) $refreshed->get_pending_site(),
+			'The asynchronous publisher must retry and finish a stale pending site.'
+		);
+	}
+
+	/**
+	 * A fresh publishing flag remains untouched by a read-only status request.
 	 *
 	 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/pull/1267
 	 */
-	public function test_fresh_publishing_flag_returns_running_and_is_preserved(): void {
+	public function test_status_request_preserves_fresh_publishing_flag(): void {
 
 		$membership = $this->create_membership_with_publishing_pending_site(time());
 
@@ -235,9 +246,9 @@ class Regression_Pending_Site_And_Subdomain_Test extends WP_UnitTestCase {
 		wp_set_current_user($previous_user);
 
 		$this->assertSame(
-			'running',
+			'stopped',
 			$payload['publish_status'] ?? null,
-			'A fresh publishing flag must yield publish_status=running.'
+			'A fresh publishing flag must preserve the payment-pending response.'
 		);
 
 		$refreshed = wu_get_membership($membership->get_id());
