@@ -274,6 +274,18 @@ class Checkout_Element extends Base_Element {
 	public function display($atts) {
 
 		$this->pre_loaded_attributes = wp_parse_args($atts, $this->defaults());
+		if ($this->is_thank_you_page()) {
+			if (apply_filters('wu_checkout_skip_output', false, $this->pre_loaded_attributes, null, $this)) {
+				return;
+			}
+			$form = wu_get_checkout_form_by_slug($this->pre_loaded_attributes['slug']);
+			if ($form) {
+				$thank_you = Thank_You_Element::get_instance();
+				$thank_you->setup();
+				$thank_you->display(array_merge($form->get_meta('wu_thank_you_settings', []), ['checkout_form' => $form]));
+			}
+			return;
+		}
 
 		parent::display($atts);
 	}
@@ -323,6 +335,14 @@ class Checkout_Element extends Base_Element {
 	 * @return void
 	 */
 	public function enqueue_element_scripts() {
+		if ($this->is_thank_you_page()) {
+			$thank_you = Thank_You_Element::get_instance();
+			$thank_you->setup();
+			if ($thank_you->should_display()) {
+				do_action("wu_{$thank_you->id}_scripts", null, $thank_you);
+			}
+			return;
+		}
 
 		global $post;
 

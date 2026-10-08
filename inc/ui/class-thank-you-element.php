@@ -122,7 +122,7 @@ class Thank_You_Element extends Base_Element {
 		$has_pending_site = $this->membership ? (bool) $this->membership->get_pending_site() : false;
 		$is_publishing    = $has_pending_site ? $this->membership->get_pending_site()->is_publishing() : false;
 
-		wp_register_script('wu-thank-you', wu_get_asset('thank-you.js', 'js'), [], wu_get_version(), true);
+		wp_register_script('wu-thank-you', wu_get_asset('thank-you.js', 'js'), ['wu-vue'], wu_get_version(), true);
 
 		wp_localize_script(
 			'wu-thank-you',
@@ -135,10 +135,23 @@ class Thank_You_Element extends Base_Element {
 				'wp_cron_url'                     => site_url('wp-cron.php?doing_wp_cron'),
 				'resend_verification_email_nonce' => wp_create_nonce('wu_resend_verification_email_nonce'),
 				'membership_hash'                 => $this->membership ? $this->membership->get_hash() : false,
+				'payment_hash'                    => $this->payment ? $this->payment->get_hash() : false,
+				'status_nonce'                    => $this->membership ? wp_create_nonce('wu_check_pending_site_created:' . $this->membership->get_hash()) : false,
+				'login_url'                       => wp_login_url(wu_get_current_url()),
 				'i18n'                            => [
 					'resending_verification_email' => __('Resending verification email...', 'ultimate-multisite'),
 					'email_sent'                   => __('Verification email sent!', 'ultimate-multisite'),
 					'request_failed'               => __('Request failed. Please try again.', 'ultimate-multisite'),
+					'pending'                      => __('Your site is being prepared.', 'ultimate-multisite'),
+					'cloning'                      => __('Preparing your site content and storage.', 'ultimate-multisite'),
+					'ready'                        => __('Your site is ready.', 'ultimate-multisite'),
+					'failed'                       => __('Site setup could not finish. Your order is saved. Check again later or contact support; do not submit another order.', 'ultimate-multisite'),
+					'waiting'                      => __('Setup is taking longer than expected, or the connection was interrupted. Check your saved order again.', 'ultimate-multisite'),
+					'forbidden'                    => __('Your sign-in has expired or changed. Sign in to check this order.', 'ultimate-multisite'),
+					'payment_pending'              => __('Waiting for payment confirmation. Your order is saved.', 'ultimate-multisite'),
+					'verification_pending'         => __('Please verify your email address to continue site setup.', 'ultimate-multisite'),
+					'admin_panel'                  => __('Admin Panel', 'ultimate-multisite'),
+					'visit'                        => __('Visit', 'ultimate-multisite'),
 				],
 			]
 		);
@@ -358,6 +371,10 @@ class Thank_You_Element extends Base_Element {
 		}
 
 		$this->customer = $this->membership->get_customer();
+		nocache_headers();
+		if ( ! headers_sent()) {
+			header('Cache-Control: private, no-store, max-age=0');
+		}
 
 		add_filter('document_title_parts', [$this, 'replace_page_title']);
 

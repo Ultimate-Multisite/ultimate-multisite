@@ -146,7 +146,10 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 	 */
 	private function call_check_pending_site_created(Membership $membership): array {
 
+		$previous_user = get_current_user_id();
+		wp_set_current_user($this->customer->get_user_id());
 		$_REQUEST['membership_hash'] = $membership->get_hash();
+		$_REQUEST['_ajax_nonce']     = wp_create_nonce('wu_check_pending_site_created:' . $membership->get_hash());
 
 		$response = $this->capture_ajax_json_response(function () {
 			$manager = $this->get_manager_instance();
@@ -154,6 +157,8 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		});
 
 		unset($_REQUEST['membership_hash']);
+		unset($_REQUEST['_ajax_nonce']);
+		wp_set_current_user($previous_user);
 
 		return $response['decoded'];
 	}
@@ -304,9 +309,9 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$response = $this->call_check_pending_site_created($membership);
 
 		$this->assertSame(
-			'completed',
+			'stopped',
 			$response['publish_status'] ?? null,
-			'poll handler should report completed after clearing a stale pending_site cache entry'
+			'cleared pending metadata without an attached site must not report readiness'
 		);
 	}
 

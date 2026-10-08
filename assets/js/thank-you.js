@@ -1,256 +1,186 @@
 /* global wu_thank_you */
-/* eslint-disable no-console */
 (() => {
 	"use strict";
-	const TransitionText = (element, has_icon = false) => {
-		return {
-			classes: [],
-			has_icon: false,
-			original_value: element.innerHTML,
-			get_icon() {
-				return this.has_icon ? '<span class="wu-spin wu-inline-block wu-mr-2"><span class="dashicons-wu-loader"></span></span>' : "";
-			},
-			clear_classes() {
-				element.classList.remove(...this.classes);
-			},
-			add_classes(classes) {
-				this.classes = classes;
-				element.classList.add(...classes);
-			},
-			text(text, classes, toggle_icon = false) {
-				this.clear_classes();
-				if (toggle_icon) {
-					this.has_icon = ! this.has_icon;
-				}
-				element.animate([
-					{
-						opacity: "1"
-					},
-					{
-						opacity: "0.75"
-					}
-				], {
-					duration: 300,
-					iterations: 1
-				});
-				setTimeout(() => {
-					this.add_classes(classes ?? []);
-					element.innerHTML = this.get_icon() + text;
-					element.style.opacity = "0.75";
-				}, 300);
-				return this;
-			},
-			done(timeout = 5e3) {
-				setTimeout(() => {
-					element.animate([
-						{
-							opacity: "0.75"
-						},
-						{
-							opacity: "1"
-						}
-					], {
-						duration: 300,
-						iterations: 1
-					});
-					setTimeout(() => {
-						this.clear_classes();
-						element.innerHTML = this.original_value;
-						element.style.opacity = "1";
-					}, 300);
-				}, timeout);
-				return this;
-			}
-		};
-	};
 	document.addEventListener("DOMContentLoaded", () => {
-		document.querySelectorAll(".wu-resend-verification-email").forEach((element) => element.addEventListener("click", async (event) => {
-			event.preventDefault();
-			const transitional_text = TransitionText(element, true).text(wu_thank_you.i18n.resending_verification_email, [ "wu-text-gray-400" ]);
-			try {
-				const request = await fetch(
-					wu_thank_you.ajaxurl,
-					{
-						method: "POST",
-						headers: {
-							"Content-Type": "application/x-www-form-urlencoded",
-						},
-						body: new URLSearchParams({
-							action: "wu_resend_verification_email",
-							_ajax_nonce: wu_thank_you.resend_verification_email_nonce
-						}),
-					}
-				);
-				const response = await request.json();
-				if (response.success) {
-					transitional_text.text(wu_thank_you.i18n.email_sent, [ "wu-text-green-700" ], true).done();
-				} else {
-					transitional_text.text(response?.data?.[ 0 ]?.message || wu_thank_you.i18n.request_failed, [ "wu-text-red-600" ], true).done();
+		document.querySelectorAll(".wu-resend-verification-email").forEach((element) => {
+			element.addEventListener("click", async (event) => {
+				event.preventDefault();
+				if (element.getAttribute("aria-busy") === "true") {
+					return;
 				}
-			} catch (e) {
-				console.error("Resend verification email failed:", e);
-				transitional_text.text(wu_thank_you.i18n.request_failed, [ "wu-text-red-600" ], true).done();
-			}
-		}));
-		if (! document.getElementById("wu-sites")) {
+				const original = element.textContent;
+				element.setAttribute("aria-busy", "true");
+				element.textContent = wu_thank_you.i18n.resending_verification_email;
+				try {
+					const request = await fetch(wu_thank_you.ajaxurl, {
+						method: "POST",
+						credentials: "same-origin",
+						headers: { "Content-Type": "application/x-www-form-urlencoded" },
+						body: new URLSearchParams({ action: "wu_resend_verification_email", _ajax_nonce: wu_thank_you.resend_verification_email_nonce })
+					});
+					const response = await request.json();
+					element.textContent = response.success ? wu_thank_you.i18n.email_sent : wu_thank_you.i18n.request_failed;
+				} catch {
+					element.textContent = wu_thank_you.i18n.request_failed;
+				} finally {
+					element.removeAttribute("aria-busy");
+					setTimeout(() => {
+						element.textContent = original;
+					}, 5000);
+				}
+			});
+		});
+		const root = document.getElementById("wu-sites");
+		if (! root || ! wu_thank_you.membership_hash || ! wu_thank_you.status_nonce) {
 			return;
 		}
-		const has_pending_site = [ true, 1, "1", "true" ].includes(wu_thank_you.has_pending_site);
+		const status = root.querySelector("[data-wu-provisioning-status]");
+		const retry = root.querySelector("[data-wu-provisioning-retry]");
+		const login = root.querySelector("[data-wu-provisioning-login]");
+		const cards = root.querySelector("[data-wu-site-cards]");
+		if (! status || ! retry || ! login || ! cards) {
+			return;
+		}
+		// Keep the existing integration API, but do not mount Vue over server cards.
 		const { Vue, defineComponent } = window.wu_vue;
 		window.wu_sites = new Vue(defineComponent({
-			el: "#wu-sites",
 			data() {
-				return {
-					creating: wu_thank_you.creating,
-					has_pending_site,
-					next_queue: parseInt(wu_thank_you.next_queue, 10) + 5,
-					random: 0,
-					progress_in_seconds: 0,
-					stopped_count: 0,
-					running_count: 0,
-					site_ready: false,
-					clone_failed: false,
-					// True when the URL already carries a _t= cache-bust param added by a
-					// prior completion redirect.  Used to prevent any second full-page
-					// navigation and break the infinite-reload loop that occurred when the
-					// "stopped" branch fired window.location.reload() on every page load
-					// after site creation had already finished.
-					is_post_redirect: new URLSearchParams(window.location.search).has("_t"),
-					// One-time guard for the Case 1 "stopped" reload.  Multiple
-					// check_site_created() callbacks can be queued before the first reload
-					// fires (async polling overlap), so we set this flag before calling
-					// window.location.reload() and bail out of subsequent calls.
-					_reload_done: false
-				};
-			},
-			computed: {
-				progress() {
-					return Math.round(this.progress_in_seconds / this.next_queue * 100);
-				}
-			},
-			mounted() {
-				/*
-        * Kick wp-cron immediately to start the async site creation ASAP.
-        *
-        * Always start polling regardless of has_pending_site. The page may
-        * load before the pending site is created (during Stripe webhook
-        * delay). Without polling, the user stares at "Creating" forever
-        * even after the site is ready.
-        *
-        * @since 2.4.13
-        */
-				fetch(wu_thank_you.wp_cron_url);
-				this.check_site_created();
-			},
-			methods: {
-				async check_site_created() {
-					if (this.clone_failed) {
-						return;
-					}
-
-					const url = new URL(wu_thank_you.ajaxurl);
-					url.searchParams.set("action", "wu_check_pending_site_created");
-					url.searchParams.set("membership_hash", wu_thank_you.membership_hash);
-					let response;
-					try {
-						response = await fetch(url).then((request) => request.json());
-					} catch (e) {
-						// Network error or non-JSON response -- retry in 3s without stopping.
-						this.stopped_count++;
-						setTimeout(this.check_site_created, 3000);
-						return;
-					}
-					if (response.publish_status === "completed") {
-						this.creating = false;
-						this.site_ready = true;
-						// Cache-bust redirect when this page rendered a pending site and the
-						// poller later observes completion, or when we watched the site transition
-						// through "running" during THIS page load. Both guards are required:
-						//  • has_pending_site === true → PHP rendered the pending badge, so the
-						//    page needs a fresh server render to show Ready/Admin/Visit links.
-						//  • running_count > 0 → the page observed active publishing and should
-						//    refresh after completion even if the initial render was ambiguous.
-						//  • is_post_redirect === true → we already navigated once; a second
-						//    redirect would start an infinite loop (completed page → redirect →
-						//    completed again → redirect …).
-						if ((this.has_pending_site || this.running_count > 0) && ! this.is_post_redirect) {
-							setTimeout(() => {
-								const sep = window.location.href.indexOf("?") > -1 ? "&" : "?";
-								window.location.href = window.location.href.split("#")[ 0 ] + sep + "_t=" + Date.now();
-							}, 1500);
-						}
-					} else if (response.publish_status === "running") {
-						this.creating = true;
-						this.stopped_count = 0;
-						this.running_count++;
-						// Kick cron every 3 polls to keep Action Scheduler active during site creation.
-						if (this.running_count % 3 === 0) {
-							fetch(wu_thank_you.wp_cron_url);
-						}
-						if (this.running_count > 60) {
-							fetch(wu_thank_you.wp_cron_url);
-							if (! this.is_post_redirect) {
-								// Use the _t cache-bust redirect (not location.reload) so the next
-								// page load sets is_post_redirect = true, preventing a second redirect
-								// if creation is still running on that page.
-								setTimeout(() => {
-									const sep = window.location.href.indexOf("?") > -1 ? "&" : "?";
-									window.location.href = window.location.href.split("#")[ 0 ] + sep + "_t=" + Date.now();
-								}, 3e3);
-							} else {
-								// Already did one redirect this cycle; slow-poll instead of looping.
-								setTimeout(this.check_site_created, 5000);
-							}
-						} else {
-							// Adaptive polling: 1.5s for first 30s, then 3s
-							const wait = this.running_count < 20 ? 1500 : 3000;
-							setTimeout(this.check_site_created, wait);
-						}
-					} else if (response.publish_status === "failed") {
-						this.creating = false;
-						this.clone_failed = true;
-					} else {
-						// status === "stopped": async job not started yet OR site already created.
-						//
-						// NEVER call window.location.reload() unconditionally here — doing so
-						// causes an infinite refresh loop: a finished site always returns "stopped"
-						// (the job is no longer running), so every page load would cycle through
-						// 3 stopped polls → reload → 3 stopped polls → reload endlessly.
-						//
-						// Intent-aware strategy:
-						//  1. running_count > 0  → we watched creation run this session but it
-						//     stopped unexpectedly; do one location.reload() for fresh server state.
-						//     The reloaded page will have running_count = 0, so this branch can
-						//     only fire once before falling through to case 2 or 3.
-						//  2. has_pending_site === false and wu_thank_you.creating === false
-						//     (PHP already reports site done) →
-						//     mark ready and stop polling; no navigation needed.
-						//  3. has_pending_site === true but never saw "running" (webhook delay,
-						//     interrupted loopback, or job not started yet) → keep slow-polling;
-						//     do NOT mark the PHP-rendered pending badge as ready client-side.
-						this.creating = false;
-						this.stopped_count++;
-						if (this.stopped_count >= 3) {
-							if (this.running_count > 0 && ! this._reload_done) {
-								// Case 1: was running this session, now stopped — one-time reload.
-								// _reload_done guards against multiple queued callbacks all firing
-								// reload before the first navigation clears the page.
-								this._reload_done = true;
-								window.location.reload();
-							} else if (! this.has_pending_site && ! wu_thank_you.creating) {
-								// Case 2: PHP already reported creation complete — mark ready.
-								this.site_ready = true;
-							} else {
-								// Case 3: still waiting for job to start — keep slow-polling.
-								fetch(wu_thank_you.wp_cron_url);
-								setTimeout(this.check_site_created, 3e3);
-							}
-						} else {
-							setTimeout(this.check_site_created, 3e3);
-						}
-					}
-				}
+				return { creating: true, site_ready: false, clone_failed: false };
 			}
 		}));
+		let controller, timer, started,
+			attempts = 0,
+			failures = 0,
+			paused = false,
+			navigating = false;
+		const show = (state, stopped = false) => {
+			const message = wu_thank_you.i18n[ state ] || wu_thank_you.i18n.pending;
+			if (status.textContent !== message) {
+				status.textContent = message;
+			}
+			window.wu_sites.creating = ! stopped && (state === "pending" || state === "cloning");
+			cards.setAttribute("aria-busy", window.wu_sites.creating ? "true" : "false");
+			root.querySelectorAll("[data-wu-provisioning-pending]").forEach((element) => {
+				element.hidden = ! window.wu_sites.creating;
+			});
+			retry.hidden = ! stopped || state === "forbidden" || state === "ready";
+			login.hidden = state !== "forbidden";
+		};
+		const renderSites = (sites) => {
+			const fragment = document.createDocumentFragment();
+			for (const site of sites) {
+				const card = document.createElement("div");
+				card.className = "wu-bg-gray-100 wu-p-4 wu-rounded wu-mb-2 wu-break-all";
+				const heading = document.createElement("h5");
+				heading.textContent = site.title;
+				card.appendChild(heading);
+				for (const [ key, label ] of [ [ "admin_url", "admin_panel" ], [ "visit_url", "visit" ] ]) {
+					const url = new URL(site[ key ], location.href);
+					if (! [ "http:", "https:" ].includes(url.protocol)) {
+						throw new Error("Invalid site link");
+					}
+					const link = document.createElement("a");
+					link.href = url.href;
+					link.textContent = wu_thank_you.i18n[ label ];
+					link.className = "wu-inline-block wu-p-3 wu-mr-4";
+					card.appendChild(link);
+				}
+				fragment.appendChild(card);
+			}
+			cards.replaceChildren(fragment);
+		};
+		const poll = async () => {
+			if (controller || paused || navigating) {
+				return;
+			}
+			if (Date.now() - started >= 180000 || failures >= 5) {
+				show("waiting", true);
+				return;
+			}
+			controller = new AbortController();
+			const active = controller;
+			let timeout;
+			try {
+				timeout = setTimeout(() => active.abort(), 10000);
+				const response = await fetch(wu_thank_you.ajaxurl, {
+					method: "POST", credentials: "same-origin", cache: "no-store", signal: active.signal,
+					headers: { "Content-Type": "application/x-www-form-urlencoded" },
+					body: new URLSearchParams({
+						action: "wu_check_pending_site_created", membership_hash: wu_thank_you.membership_hash,
+						payment_hash: wu_thank_you.payment_hash || "", _ajax_nonce: wu_thank_you.status_nonce
+					})
+				});
+				if ([ 400, 401, 403 ].includes(response.status)) {
+					show("forbidden", true);
+					return;
+				}
+				if (! response.ok) {
+					throw new Error("Status unavailable");
+				}
+				const data = await response.json();
+				const state = data.state || ({ completed: "ready", running: "cloning", stopped: "pending", failed: "failed" })[ data.publish_status ];
+				if (! [ "pending", "cloning", "ready", "failed", "payment_pending", "verification_pending" ].includes(state)) {
+					throw new Error("Invalid status");
+				}
+				if (state === "ready" && Array.isArray(data.sites)) {
+					renderSites(data.sites);
+				}
+				failures = 0;
+				window.wu_sites.creating = state === "pending" || state === "cloning";
+				window.wu_sites.clone_failed = state === "failed";
+				window.wu_sites.site_ready = state === "ready";
+				show(state, state === "ready" || state === "failed");
+				root.dispatchEvent(new CustomEvent("wu:checkout-provisioning-status", { bubbles: true, detail: data }));
+				if (state === "failed") {
+					return;
+				}
+				if (state === "ready") {
+					if (data.redirect_url) {
+						const url = new URL(data.redirect_url);
+						if (! [ "http:", "https:" ].includes(url.protocol)) {
+							throw new Error("Invalid handoff");
+						}
+						navigating = true;
+						window.location.replace(url.href);
+					}
+					return;
+				}
+			} catch {
+				failures++;
+			} finally {
+				clearTimeout(timeout);
+				controller = null;
+			}
+			if (paused) {
+				return;
+			}
+			attempts++;
+			timer = setTimeout(poll, Math.min(5000, 1500 + (attempts * 250) + (failures * 500)));
+		};
+		const start = () => {
+			if (controller || navigating) {
+				return;
+			}
+			clearTimeout(timer);
+			started = Date.now(); attempts = 0; failures = 0;
+			show("pending");
+			poll();
+		};
+		retry.addEventListener("click", start);
+		window.addEventListener("pagehide", () => {
+			paused = true;
+			clearTimeout(timer);
+			if (controller) {
+				controller.abort();
+			}
+		});
+		window.addEventListener("pageshow", (event) => {
+			if (event.persisted) {
+				paused = false;
+				navigating = false;
+				start();
+			}
+		});
+		start();
 	});
-})()
+})();
