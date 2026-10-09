@@ -128,8 +128,9 @@ class Membership_Manager extends Base_Manager {
 		add_action('wp_ajax_nopriv_wu_publish_pending_site', [$this, 'publish_pending_site']);
 
 		// Run before add-on status handlers so hashes cannot bypass ownership checks.
-		add_action('wp_ajax_wu_check_pending_site_created', [$this, 'authorize_pending_site_status'], 0);
+		add_action('wp_ajax_wu_check_pending_site_created', [$this, 'authorize_legacy_pending_site_status'], 0);
 		add_action('wp_ajax_wu_check_pending_site_created', [$this, 'check_pending_site_created']);
+		add_action('wp_ajax_wu_checkout_provisioning_status', [$this, 'check_checkout_provisioning_status']);
 
 		add_action('wu_async_publish_pending_site', [$this, 'async_publish_pending_site'], 10);
 
@@ -315,13 +316,14 @@ class Membership_Manager extends Base_Manager {
 	 * Resolves an owner- and nonce-bound status request.
 	 *
 	 * @since 2.17.3
+	 * @param bool $require_nonce Whether the caller uses the enhanced contract.
 	 * @return \WP_Ultimo\Models\Membership|\WP_Error
 	 */
-	public function get_authorized_status_membership() {
+	public function get_authorized_status_membership($require_nonce = true) {
 		$hash  = wu_request('membership_hash');
 		$nonce = wu_request('_ajax_nonce');
-		if ( ! is_user_logged_in() || ! is_string($hash) || ! is_string($nonce)
-			|| ! wp_verify_nonce($nonce, 'wu_check_pending_site_created:' . $hash)) {
+		if ( ! is_user_logged_in() || ! is_string($hash)
+			|| ($require_nonce && (! is_string($nonce) || ! wp_verify_nonce($nonce, 'wu_check_pending_site_created:' . $hash)))) {
 			return new \WP_Error('checkout_access_denied');
 		}
 		$membership = wu_get_membership_by_hash($hash);
@@ -330,7 +332,7 @@ class Membership_Manager extends Base_Manager {
 			return new \WP_Error('checkout_access_denied');
 		}
 		$payment_hash = wu_request('payment_hash');
-		if ($payment_hash) {
+		if ($require_nonce && $payment_hash) {
 			$payment = is_string($payment_hash) ? wu_get_payment_by_hash($payment_hash) : false;
 			if ( ! $payment || (int) $payment->get_membership_id() !== (int) $membership->get_id()
 				|| (int) $payment->get_customer_id() !== (int) $membership->get_customer_id()) {
@@ -346,13 +348,65 @@ class Membership_Manager extends Base_Manager {
 	 * @since 2.0.11
 	 * @return void
 	 */
-	public function check_pending_site_created() {
+	public function check_checkout_provisioning_status() {
 		$this->authorize_pending_site_status();
 		$membership = $this->get_authorized_status_membership();
 		$hash       = wu_request('payment_hash');
 		$payment    = $hash && is_string($hash) ? wu_get_payment_by_hash($hash) : false;
 		wp_cache_delete($membership->get_id(), 'wu_membership_meta');
 		wp_send_json($this->get_provisioning_status($membership, $payment));
+	}
+
+	/**
+	 * Protects the legacy read endpoint without requiring a new caller argument.
+	 *
+	 * @since 2.17.3
+	 * @return void
+	 */
+	public function authorize_legacy_pending_site_status() {
+		nocache_headers();
+		if ( ! headers_sent()) {
+			header('Cache-Control: private, no-store, max-age=0');
+		}
+		if (is_wp_error($this->get_authorized_status_membership(false))) {
+			wp_send_json_error(['code' => 'checkout_access_denied'], 403);
+		}
+	}
+
+	/**
+	 * Preserves the existing action, hash-only arguments and response shape.
+	 *
+	 * @since 2.0.11
+	 * @return void
+	 */
+	public function check_pending_site_created() {
+		$this->authorize_legacy_pending_site_status();
+		$membership = $this->get_authorized_status_membership(false);
+		wp_cache_delete($membership->get_id(), 'wu_membership_meta');
+		wp_send_json(['publish_status' => $this->get_legacy_publication_status($membership)]);
+	}
+
+	/**
+	 * Retains legacy status semantics; enhanced readiness uses the separate API.
+	 *
+	 * @since 2.17.3
+	 * @param object $membership Authorized membership.
+	 * @return string
+	 */
+	public function get_legacy_publication_status($membership) {
+		$pending_site = $membership->get_pending_site();
+		if ($pending_site) {
+			return $pending_site->is_publishing() && ! $pending_site->is_publishing_stale() ? 'running' : 'stopped';
+		}
+		$sites  = $membership->get_sites();
+		$failed = false;
+		foreach ($sites as $site) {
+			if (\WP_Ultimo\Helpers\Site_Duplicator::is_site_ready($site->get_id())) {
+				return 'completed';
+			}
+			$failed = $failed || \WP_Ultimo\Helpers\Site_Duplicator::is_clone_failed($site->get_id());
+		}
+		return ! $sites ? 'completed' : ($failed ? 'failed' : 'running');
 	}
 
 	/**

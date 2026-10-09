@@ -309,9 +309,9 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$response = $this->call_check_pending_site_created($membership);
 
 		$this->assertSame(
-			'stopped',
+			'completed',
 			$response['publish_status'] ?? null,
-			'cleared pending metadata without an attached site must not report readiness'
+			'legacy callers retain completion semantics after stale pending metadata is cleared'
 		);
 	}
 

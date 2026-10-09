@@ -274,7 +274,7 @@ class Checkout_Element extends Base_Element {
 	public function display($atts) {
 
 		$this->pre_loaded_attributes = wp_parse_args($atts, $this->defaults());
-		if ($this->is_thank_you_page()) {
+		if ($this->is_thank_you_page() && Thank_You_Element::get_instance()->uses_provisioning_enhancement()) {
 			if (apply_filters('wu_checkout_skip_output', false, $this->pre_loaded_attributes, null, $this)) {
 				return;
 			}
@@ -335,7 +335,7 @@ class Checkout_Element extends Base_Element {
 	 * @return void
 	 */
 	public function enqueue_element_scripts() {
-		if ($this->is_thank_you_page()) {
+		if ($this->is_thank_you_page() && Thank_You_Element::get_instance()->uses_provisioning_enhancement()) {
 			$thank_you = Thank_You_Element::get_instance();
 			$thank_you->setup();
 			if ($thank_you->should_display()) {

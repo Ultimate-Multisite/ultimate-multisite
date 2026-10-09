@@ -2,9 +2,12 @@
 
 ## Checkout completion
 
-Keep one stable, owner-scoped thank-you screen while native background provisioning
+Preserve legacy thank-you markup, Vue bindings, scripts and add-on callbacks by
+default. Sites may explicitly opt into the additive provisioning enhancement;
+existing checkouts do not require add-on upgrades or new nonce arguments.
+In opt-in mode, keep one stable, owner-scoped screen while background provisioning
 continues. Update site readiness and links in place without document reloads or
-fabricated progress percentages. Core stays on the thank-you page by default;
+fabricated progress percentages. The enhanced screen stays on thank-you by default;
 integrations may supply a validated ready-site handoff. A polite live status,
 bounded waiting, keyboard-accessible recovery and sign-in guidance must remain
 usable on narrow viewports. Recovery checks the saved order, never repurchases it.

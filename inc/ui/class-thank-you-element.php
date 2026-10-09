@@ -122,7 +122,8 @@ class Thank_You_Element extends Base_Element {
 		$has_pending_site = $this->membership ? (bool) $this->membership->get_pending_site() : false;
 		$is_publishing    = $has_pending_site ? $this->membership->get_pending_site()->is_publishing() : false;
 
-		wp_register_script('wu-thank-you', wu_get_asset('thank-you.js', 'js'), ['wu-vue'], wu_get_version(), true);
+		$asset = $this->uses_provisioning_enhancement() ? 'checkout-provisioning.js' : 'thank-you.js';
+		wp_register_script('wu-thank-you', wu_get_asset($asset, 'js'), ['wu-vue'], wu_get_version(), true);
 
 		wp_localize_script(
 			'wu-thank-you',
@@ -157,6 +158,16 @@ class Thank_You_Element extends Base_Element {
 		);
 
 		wp_enqueue_script('wu-thank-you');
+	}
+
+	/**
+	 * Enables progressive enhancement only after the integrating site opts in.
+	 *
+	 * @since 2.17.3
+	 * @return bool
+	 */
+	public function uses_provisioning_enhancement() {
+		return (bool) apply_filters('wu_checkout_provisioning_enabled', false, $this->membership, $this->payment);
 	}
 
 	/**
@@ -468,6 +479,7 @@ class Thank_You_Element extends Base_Element {
 		 */
 		$atts['className'] = trim('wu-' . $this->id . ' ' . wu_get_isset($atts, 'className', ''));
 
+		$atts['provisioning_enabled'] = $this->uses_provisioning_enhancement();
 		wu_get_template('dashboard-widgets/thank-you', $atts);
 	}
 }

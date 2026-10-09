@@ -74,8 +74,9 @@ class Checkout_Provisioning_Test extends \WP_UnitTestCase {
 	}
 
 	public function test_guard_runs_before_addon_handlers(): void {
-		$this->assertSame(0, has_action('wp_ajax_wu_check_pending_site_created', [$this->manager, 'authorize_pending_site_status']));
+		$this->assertSame(0, has_action('wp_ajax_wu_check_pending_site_created', [$this->manager, 'authorize_legacy_pending_site_status']));
 		$this->assertFalse(has_action('wp_ajax_nopriv_wu_check_pending_site_created'));
+		$this->assertFalse(has_action('wp_ajax_nopriv_wu_checkout_provisioning_status'));
 	}
 
 	public function test_absent_sites_are_not_ready(): void {
@@ -204,7 +205,7 @@ class Checkout_Provisioning_Test extends \WP_UnitTestCase {
 	}
 
 	public function test_unauthorized_request_never_reaches_addon_status_handler(): void {
-		$_REQUEST['_ajax_nonce'] = 'expired';
+		wp_set_current_user(self::factory()->user->create(['role' => 'subscriber']));
 
 		$called   = false;
 		$callback = static function () use (&$called): void {
@@ -215,7 +216,7 @@ class Checkout_Provisioning_Test extends \WP_UnitTestCase {
 			do_action('wp_ajax_wu_check_pending_site_created');
 		});
 		remove_action('wp_ajax_wu_check_pending_site_created', $callback, 1);
-		$this->assertSame('forbidden', $response['decoded']['state']);
+		$this->assertFalse($response['decoded']['success']);
 		$this->assertFalse($called);
 	}
 
@@ -229,9 +230,41 @@ class Checkout_Provisioning_Test extends \WP_UnitTestCase {
 			return true;
 		};
 		add_filter('wu_checkout_skip_output', $callback);
+		add_filter('wu_checkout_provisioning_enabled', '__return_true');
 		$html = \WP_Ultimo\UI\Checkout_Element::get_instance()->get_content(['slug' => 'synthetic']);
 		remove_filter('wu_checkout_skip_output', $callback);
+		remove_filter('wu_checkout_provisioning_enabled', '__return_true');
 		$this->assertTrue($called);
 		$this->assertSame('', $html);
+	}
+
+	public function test_legacy_owner_needs_no_new_nonce_and_gets_original_shape(): void {
+		unset($_REQUEST['_ajax_nonce']);
+		$response = $this->capture_ajax_json_response(function (): void {
+			$this->manager->check_pending_site_created();
+		});
+		$this->assertSame(['publish_status' => 'completed'], $response['decoded']);
+		$this->assertWPError($this->manager->get_authorized_status_membership());
+	}
+
+	public function test_legacy_addon_can_short_circuit_without_new_response_fields(): void {
+		unset($_REQUEST['_ajax_nonce']);
+		$callback = static function (): void {
+			wp_send_json(['publish_status' => 'completed']);
+		};
+		add_action('wp_ajax_wu_check_pending_site_created', $callback, 1);
+		$response = $this->capture_ajax_json_response(static function (): void {
+			do_action('wp_ajax_wu_check_pending_site_created');
+		});
+		remove_action('wp_ajax_wu_check_pending_site_created', $callback, 1);
+		$this->assertSame(['publish_status' => 'completed'], $response['decoded']);
+	}
+
+	public function test_enhancement_requires_explicit_opt_in(): void {
+		$element = \WP_Ultimo\UI\Thank_You_Element::get_instance();
+		$this->assertFalse($element->uses_provisioning_enhancement());
+		add_filter('wu_checkout_provisioning_enabled', '__return_true');
+		$this->assertTrue($element->uses_provisioning_enhancement());
+		remove_filter('wu_checkout_provisioning_enabled', '__return_true');
 	}
 }
