@@ -708,9 +708,10 @@ abstract class Base_Element {
 
 		global $wpdb, $wp_version;
 
-		$args     = ['exclude' => [get_the_ID()]]; // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
-		$marker   = new \stdClass();
-		$optimize = version_compare($wp_version, '6.3', '>=');
+		$current_id = get_the_ID();
+		$args       = $current_id ? ['exclude' => [$current_id]] : []; // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
+		$marker     = new \stdClass();
+		$optimize   = version_compare($wp_version, '6.3', '>=');
 
 		$prepare_query = static function ($query_args, $page_args) use ($marker) {
 			if (($page_args['wu_page_options_query'] ?? null) === $marker) {
