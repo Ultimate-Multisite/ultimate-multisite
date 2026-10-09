@@ -186,7 +186,8 @@ class Scripts {
 		/*
 		 * Adds Input Masking
 		 */
-		$this->register_script('wu-money-mask', wu_get_asset('lib/v-money.js', 'js'), ['wu-vue']);
+		$this->register_script('wu-money-mask-library', wu_get_asset('lib/v-money.js', 'js'), ['wu-vue']);
+		$this->register_script('wu-money-mask', wu_get_asset('money-mask.js', 'js'), ['wu-money-mask-library']);
 		$this->register_script('wu-input-mask', wu_get_asset('lib/vue-the-mask.js', 'js'), ['wu-vue']);
 
 		/*
