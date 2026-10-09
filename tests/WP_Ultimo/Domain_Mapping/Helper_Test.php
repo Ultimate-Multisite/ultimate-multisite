@@ -105,8 +105,11 @@ class Helper_Test extends \WP_UnitTestCase {
 	 */
 	public function test_has_valid_ssl_certificate_invalid() {
 
-		$entry    = null;
-		$listener = static function ($handle, $message, $level) use (&$entry) {
+		$missing            = new \stdClass();
+		$previous_entry     = get_site_option('wu_recent_error_log_entry', $missing);
+		$has_previous_entry = $missing !== $previous_entry;
+		$entry              = null;
+		$listener           = static function ($handle, $message, $level) use (&$entry) {
 			if ('domain-ssl-checks' === $handle) {
 				$entry = [$message, $level];
 			}
@@ -122,7 +125,12 @@ class Helper_Test extends \WP_UnitTestCase {
 			$this->assertSame(\Psr\Log\LogLevel::ERROR, $entry[1]);
 		} finally {
 			remove_action('wu_log_add', $listener, 10);
-			delete_site_option('wu_recent_error_log_entry');
+
+			if ($has_previous_entry) {
+				update_site_option('wu_recent_error_log_entry', $previous_entry);
+			} else {
+				delete_site_option('wu_recent_error_log_entry');
+			}
 		}
 	}
 
