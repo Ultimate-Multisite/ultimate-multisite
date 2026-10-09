@@ -4373,6 +4373,92 @@ class Checkout_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
+	 * A paid recurring plan with a cardless trial must persist a zero initial
+	 * payment while keeping the membership's future recurring amount intact.
+	 */
+	public function test_maybe_create_payment_persists_zero_due_trial_amount(): void {
+
+		$customer = self::$customer;
+		$plan     = wu_create_product([
+			'name'                => 'Cardless trial payment test',
+			'slug'                => 'cardless-trial-payment-' . uniqid(),
+			'amount'              => 4.99,
+			'type'                => 'plan',
+			'pricing_type'        => 'paid',
+			'active'              => true,
+			'recurring'           => true,
+			'duration'            => 1,
+			'duration_unit'       => 'month',
+			'trial_duration'      => 90,
+			'trial_duration_unit' => 'day',
+		]);
+
+		$this->assertNotWPError($plan);
+		wp_set_current_user(0);
+		wu_save_setting('allow_trial_without_payment_method', true);
+
+		$cart = new Cart(['products' => [$plan->get_id()]]);
+		$this->assertTrue($cart->has_trial());
+		$this->assertFalse($cart->should_collect_payment());
+
+		$membership = wu_create_membership([
+			'customer_id'   => $customer->get_id(),
+			'plan_id'       => $plan->get_id(),
+			'status'        => Membership_Status::PENDING,
+			'recurring'     => true,
+			'amount'        => 4.99,
+			'duration'      => 1,
+			'duration_unit' => 'month',
+		]);
+
+		$this->assertNotWPError($membership);
+
+		$checkout   = Checkout::get_instance();
+		$reflection = new \ReflectionClass($checkout);
+		$method     = $reflection->getMethod('maybe_create_payment');
+		$order_prop = $this->get_order_prop($reflection);
+
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		$order_prop->setValue($checkout, $cart);
+		$reflection->getProperty('gateway_id')->setValue($checkout, 'free');
+		$reflection->getProperty('membership')->setValue($checkout, $membership);
+		$reflection->getProperty('customer')->setValue($checkout, $customer);
+		$reflection->getProperty('type')->setValue($checkout, 'new');
+
+		$payment = $method->invoke($checkout);
+
+		$this->assertNotWPError($payment);
+		$this->assertInstanceOf(Payment::class, $payment);
+		$this->assertSame(0.0, $payment->get_total());
+
+		global $wpdb;
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT subtotal, tax_total, refund_total, total FROM {$wpdb->prefix}wu_payments WHERE id = %d",
+				$payment->get_id()
+			),
+			ARRAY_A
+		);
+
+		$this->assertIsArray($row);
+		foreach (['subtotal', 'tax_total', 'refund_total', 'total'] as $column) {
+			$this->assertSame(0.0, (float) $row[ $column ], "Trial payment {$column} must persist as zero.");
+		}
+
+		$persisted_membership = wu_get_membership($membership->get_id());
+		$this->assertSame(4.99, $persisted_membership->get_amount());
+
+		$payment->delete();
+		$membership->delete();
+		$plan->delete();
+		$order_prop->setValue($checkout, null);
+		wu_save_setting('allow_trial_without_payment_method', false);
+	}
+
+	/**
 	 * Test maybe_create_payment creates new payment when cart has no payment.
 	 */
 	public function test_maybe_create_payment_creates_new(): void {

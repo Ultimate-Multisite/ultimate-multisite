@@ -1853,6 +1853,29 @@ class Checkout {
 		$payment_data['gateway']       = $this->gateway_id;
 
 		/*
+		 * A trial payment must represent only the amount due today. The cart
+		 * includes recurring line items so it can retain the future renewal quote,
+		 * but persisting those values on the initial payment records revenue that
+		 * has not been collected yet.
+		 */
+		if ($this->order->has_trial()) {
+			$payment_data['tax_total']    = 0;
+			$payment_data['subtotal']     = 0;
+			$payment_data['refund_total'] = 0;
+			$payment_data['total']        = 0;
+
+			foreach ($this->order->get_line_items() as $line_item) {
+				if ($line_item->is_recurring()) {
+					continue;
+				}
+
+				$payment_data['tax_total'] += $line_item->get_tax_total();
+				$payment_data['subtotal'] += $line_item->get_subtotal();
+				$payment_data['total'] += $line_item->get_total();
+			}
+		}
+
+		/*
 		 * If this is a free order and a downgrade we need
 		 * to handle the status here as the payment is not
 		 * passed to process_checkout method in this case.
@@ -1878,23 +1901,6 @@ class Checkout {
 				\Psr\Log\LogLevel::ERROR
 			);
 			return $payment;
-		}
-
-		/*
-		 * Then, if this is a trial,
-		 * we need to set the payment value to zero.
-		 */
-		if ($this->order->has_trial()) {
-			$payment->attributes(
-				[
-					'tax_total'    => 0,
-					'subtotal'     => 0,
-					'refund_total' => 0,
-					'total'        => 0,
-				]
-			);
-
-			$payment->save();
 		}
 
 		return $payment;
