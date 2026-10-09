@@ -2198,7 +2198,10 @@ class Base_Stripe_Gateway extends Base_Gateway {
 
 			if ($discount_code) {
 				if ($discount_code->should_apply_to_renewals() && $cart->get_cart_type() !== 'renewal') {
-					$amount = wu_get_discounted_price($amount, $discount_code->get_value(), $discount_code->get_type(), false);
+					// The line item holds the validated, currency-converted coupon rate.
+					// Reading the stored code here would apply a base-currency value
+					// directly to the converted recurring price.
+					$amount = max(0, wu_get_discounted_price($amount, $line_item->get_discount_rate(), $line_item->get_discount_type(), false));
 				}
 			}
 
