@@ -1870,9 +1870,20 @@ class Checkout {
 				}
 
 				$payment_data['tax_total'] += $line_item->get_tax_total();
-				$payment_data['subtotal'] += $line_item->get_subtotal();
+				if ( ! in_array($line_item->get_type(), ['discount', 'credit'], true)) {
+					$payment_data['subtotal'] += $line_item->get_subtotal();
+				}
 				$payment_data['total'] += $line_item->get_total();
 			}
+
+			$payment_data['tax_total'] = max(0, $payment_data['tax_total']);
+			$payment_data['subtotal']  = max(0, $payment_data['subtotal']);
+			$payment_data['total']     = max(0, $payment_data['total']);
+
+			/*
+			 * Keep the full line-item list. A retry must retain the selected plan
+			 * and its recurring price even though it is not payable today.
+			 */
 		}
 
 		/*
