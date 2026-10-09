@@ -1,6 +1,21 @@
 /* global wu_create_cookie, wu_sso_config, wu_read_cookie */
 (function(o) {
 
+	/* SSO redirects and URL cleanup belong to the top-level browsing context. */
+	try {
+
+		if (window.self !== window.top) {
+
+			return;
+
+		}
+
+	} catch {
+
+		return;
+
+	}
+
 	window.wu = window.wu || {};
 
 	window.wu.sso_denied = function() {

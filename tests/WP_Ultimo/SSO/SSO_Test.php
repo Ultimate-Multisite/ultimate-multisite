@@ -938,6 +938,28 @@ class SSO_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Verify sso.js exits embedded browsing contexts before initializing SSO.
+	 *
+	 * Gutenberg renders previews in about:srcdoc iframes where URL cleanup via
+	 * history.replaceState throws a SecurityError.
+	 */
+	public function test_sso_js_exits_before_initializing_inside_iframes(): void {
+		$source = file_get_contents(
+			dirname(__DIR__, 3) . '/assets/js/sso.js'
+		);
+
+		$guard_position = strpos($source, 'if (window.self !== window.top)');
+		$setup_position = strpos($source, 'window.wu = window.wu || {};');
+
+		$this->assertNotFalse($guard_position, 'sso.js must detect embedded browsing contexts');
+		$this->assertNotFalse($setup_position, 'sso.js must initialize its namespace');
+		$this->assertTrue(
+			$guard_position < $setup_position,
+			'sso.js must exit iframe contexts before initializing redirects or URL cleanup'
+		);
+	}
+
+	/**
 	 * Verify that the SSO JS does not redirect in incognito mode.
 	 * The incognito redirect caused an infinite loop:
 	 * redirect -> sso_verify=invalid -> redirect -> repeat.
