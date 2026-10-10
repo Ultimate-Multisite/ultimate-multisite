@@ -51,6 +51,7 @@ defined('ABSPATH') || exit;
  * @property string|false href
  * @property string|false raw
  * @property string|false money
+ * @property bool allow_blank Preserve explicit blank values in money inputs.
  * @property string|false stacked If the field is inside a restricted container
  * @property int columns
  * @property string classes
@@ -146,6 +147,7 @@ class Field implements \JsonSerializable {
 				'href'                  => false,
 				'raw'                   => false,
 				'money'                 => false,
+				'allow_blank'           => false,
 				'stacked'               => false, // If the field is inside a restricted container
 				'columns'               => 1,
 				'classes'               => '',
@@ -472,9 +474,13 @@ class Field implements \JsonSerializable {
 	 * @since 2.0.0
 	 *
 	 * @param int|float|string $value Value of the settings being represented by this field.
-	 * @return int|float
+	 * @return int|float|string
 	 */
 	protected function validate_number_field($value) {
+		if ('' === $value && $this->money && $this->allow_blank) {
+			return '';
+		}
+
 		/*
 		 * An empty string means the field was submitted without a value
 		 * (e.g. the browser sends an empty <input type="number">).
@@ -545,7 +551,8 @@ class Field implements \JsonSerializable {
 		 * Adds money formatting and masking
 		 */
 		if (false !== $this->money) {
-			$attributes['v-bind'] = 'money_settings';
+			$attributes['v-bind']       = 'money_settings';
+			$attributes[':allow_blank'] = $this->allow_blank ? 'true' : 'false';
 		}
 
 		wu_print_html_attributes($attributes);

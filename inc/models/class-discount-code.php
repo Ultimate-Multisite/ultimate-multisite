@@ -715,7 +715,13 @@ class Discount_Code extends Base_Model {
 		$description = [];
 
 		if ($this->get_value() > 0) {
-			$value = wu_format_currency($this->get_value());
+			/**
+			 * Filter fixed coupon values for display without modifying stored data.
+			 *
+			 * @param float         $value Coupon amount in the base currency.
+			 * @param Discount_Code $code  Coupon being described.
+			 */
+			$value = wu_format_currency(apply_filters('wu_discount_code_display_value', $this->get_value(), $this));
 
 			if ($this->get_type() === 'percentage') {
 				$value = $this->get_value() . '%';
@@ -729,7 +735,7 @@ class Discount_Code extends Base_Model {
 		}
 
 		if ($this->get_setup_fee_value() > 0) {
-			$setup_fee_value = wu_format_currency($this->get_setup_fee_value());
+			$setup_fee_value = wu_format_currency(apply_filters('wu_discount_code_display_value', $this->get_setup_fee_value(), $this));
 
 			if ($this->get_setup_fee_type() === 'percentage') {
 				$setup_fee_value = $this->get_setup_fee_value() . '%';
@@ -742,7 +748,8 @@ class Discount_Code extends Base_Model {
 			);
 		}
 
-		return implode(' ' . __('and', 'ultimate-multisite') . ' ', $description);
+		// Descriptions are plain text (including Vue interpolation), not HTML.
+		return html_entity_decode(implode(' ' . __('and', 'ultimate-multisite') . ' ', $description), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 	}
 
 	/**

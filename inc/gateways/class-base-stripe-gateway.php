@@ -2198,7 +2198,12 @@ class Base_Stripe_Gateway extends Base_Gateway {
 
 			if ($discount_code) {
 				if ($discount_code->should_apply_to_renewals() && $cart->get_cart_type() !== 'renewal') {
-					$amount = wu_get_discounted_price($amount, $discount_code->get_value(), $discount_code->get_type(), false);
+					// The line item holds the validated, currency-converted coupon rate.
+					// Reading the stored code here would apply a base-currency value
+					// directly to the converted recurring price.
+					// Match checkout's rounding of the discount before subtraction.
+					$discount_amount = wu_get_tax_amount($amount, $line_item->get_discount_rate(), $line_item->get_discount_type(), false);
+					$amount          = max(0, $amount - $discount_amount);
 				}
 			}
 
@@ -3584,7 +3589,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 			$args,
 			[
 				'name'           => '',
-				'price'          => 0.00,
+				'price'          => null,
 				'interval'       => 'month',
 				'interval_count' => 1,
 				'currency'       => strtolower((string) wu_get_setting('currency_symbol', 'USD')),
@@ -3592,8 +3597,9 @@ class Base_Stripe_Gateway extends Base_Gateway {
 			]
 		);
 
-		// Name and price are required.
-		if (empty($args['name']) || empty($args['price'])) {
+		// Name and a non-negative price are required. A zero-priced plan is valid
+		// when a renewal discount fully covers the recurring charge.
+		if (empty($args['name']) || ! is_numeric($args['price']) || 0 > $args['price']) {
 			return new \WP_Error('missing_name_price', __('Missing plan name or price.', 'ultimate-multisite'));
 		}
 

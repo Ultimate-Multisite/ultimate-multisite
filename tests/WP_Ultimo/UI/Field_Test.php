@@ -337,4 +337,54 @@ class Field_Test extends WP_UnitTestCase {
 		// Accessing title should fallback to name
 		$this->assertEquals('Field Name', $field->title);
 	}
+
+	/** Money fields must opt in to blank values. */
+	public function test_money_blank_mode_defaults_to_false(): void {
+		$field = new Field('price', ['money' => true]);
+
+		$this->assertFalse($field->allow_blank);
+		ob_start();
+		$field->print_html_attributes();
+		$html = ob_get_clean();
+		$this->assertStringContainsString(':allow_blank="false"', $html);
+	}
+
+	/** Optional money fields retain blank and explicit zero as distinct values. */
+	public function test_optional_number_money_field_preserves_blank_and_zero(): void {
+		$field = new Field('override', [
+			'type'          => 'number',
+			'money'         => true,
+			'allow_blank'   => true,
+			'default_value' => 99,
+		]);
+		$field->set_value('');
+		$this->assertSame('', $field->get_value());
+		$field->set_value(0);
+		$this->assertSame(0, $field->get_value());
+	}
+
+	/** Ordinary numeric money fields keep the established fallback behavior. */
+	public function test_normal_number_money_field_retains_blank_fallback(): void {
+		$field = new Field('price', [
+			'type'          => 'number',
+			'money'         => true,
+			'default_value' => 99,
+		]);
+		$field->set_value('');
+		$this->assertSame(99, $field->get_value());
+	}
+
+	/** The field definition opts the rendered money component into blank support. */
+	public function test_optional_money_field_renders_blank_binding(): void {
+		$field = new Field('override', [
+			'money'       => true,
+			'allow_blank' => true,
+		]);
+		ob_start();
+		$field->print_html_attributes();
+		$html = ob_get_clean();
+
+		$this->assertStringContainsString('v-bind="money_settings"', $html);
+		$this->assertStringContainsString(':allow_blank="true"', $html);
+	}
 }
