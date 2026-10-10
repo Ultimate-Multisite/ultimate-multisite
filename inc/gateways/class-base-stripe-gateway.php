@@ -3589,7 +3589,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 			$args,
 			[
 				'name'           => '',
-				'price'          => 0.00,
+				'price'          => null,
 				'interval'       => 'month',
 				'interval_count' => 1,
 				'currency'       => strtolower((string) wu_get_setting('currency_symbol', 'USD')),
@@ -3597,8 +3597,9 @@ class Base_Stripe_Gateway extends Base_Gateway {
 			]
 		);
 
-		// Name and price are required.
-		if (empty($args['name']) || empty($args['price'])) {
+		// Name and a non-negative price are required. A zero-priced plan is valid
+		// when a renewal discount fully covers the recurring charge.
+		if (empty($args['name']) || ! is_numeric($args['price']) || 0 > $args['price']) {
 			return new \WP_Error('missing_name_price', __('Missing plan name or price.', 'ultimate-multisite'));
 		}
 
