@@ -144,6 +144,24 @@ class Integration_Test extends WP_UnitTestCase {
 		$this->assertSame('', $this->integration->get_credential('UNKNOWN'));
 	}
 
+	public function test_update_credentials_preserves_unsupplied_values(): void {
+
+		$this->integration->save_credentials([
+			'CONST_A' => 'value_a',
+			'CONST_B' => 'value_b',
+		]);
+
+		$this->integration->update_credentials([
+			'CONST_C' => 'value_c',
+			'UNKNOWN' => 'ignored',
+		]);
+
+		$this->assertSame('value_a', $this->integration->get_credential('CONST_A'));
+		$this->assertSame('value_b', $this->integration->get_credential('CONST_B'));
+		$this->assertSame('value_c', $this->integration->get_credential('CONST_C'));
+		$this->assertSame('', $this->integration->get_credential('UNKNOWN'));
+	}
+
 	public function test_delete_credentials(): void {
 
 		$this->integration->save_credentials([
@@ -170,6 +188,20 @@ class Integration_Test extends WP_UnitTestCase {
 		]);
 
 		$this->assertTrue($this->integration->is_setup());
+	}
+
+	public function test_connection_test_readiness_defaults_to_setup_state(): void {
+
+		$this->assertFalse($this->integration->is_ready_for_connection_test());
+		$this->assertSame(['CONST_A', 'CONST_B'], $this->integration->get_missing_connection_test_constants());
+
+		$this->integration->save_credentials([
+			'CONST_A' => 'a',
+			'CONST_B' => 'b',
+		]);
+
+		$this->assertTrue($this->integration->is_ready_for_connection_test());
+		$this->assertSame([], $this->integration->get_missing_connection_test_constants());
 	}
 
 	public function test_is_setup_checks_stored_credential_presence_without_decrypting(): void {
