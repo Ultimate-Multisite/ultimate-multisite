@@ -181,6 +181,7 @@
             ".circleci",
             ".idea",
             "node_modules",
+            ".worktree-tests",
             ".gitignore",
             ".phpcs.xml.dist",
             ".phpunit.result.cache",
