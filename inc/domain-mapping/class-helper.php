@@ -26,7 +26,7 @@ class Helper {
 	 *
 	 * @var array
 	 */
-	static $providers = [
+	public static $providers = [
 		'https://ipv4.canihazip.com/s',
 		'https://ipv4.icanhazip.com/',
 		'https://api.ipify.org/',
@@ -146,6 +146,7 @@ class Helper {
 	 *
 	 * @param string $domain Domain name, e.g. google.com.
 	 * @return boolean
+	 * @throws \Exception Caught internally to log TLS connection failures.
 	 */
 	public static function has_valid_ssl_certificate($domain = '') {
 		$is_valid = false;
@@ -157,6 +158,9 @@ class Helper {
 
 		// Add 'https://' if not already present to use SSL context properly.
 		$domain = str_starts_with($domain, 'https://') ? $domain : 'https://' . $domain;
+		$host   = wp_parse_url($domain, PHP_URL_HOST);
+		$stream = false;
+		$reason = __('The server did not provide a readable SSL certificate.', 'ultimate-multisite');
 
 		try {
 			// Create SSL context to fetch the certificate.
@@ -168,19 +172,34 @@ class Helper {
 				]
 			);
 
-			// Open a stream to the domain over SSL.
-			$stream = @stream_socket_client(
-				'ssl://' . wp_parse_url($domain, PHP_URL_HOST) . ':443',
-				$errno,
-				$errstr,
-				10,
-				STREAM_CLIENT_CONNECT,
-				$context
+			// TLS failures often have an empty $errstr; capture the warning as well.
+			$warnings = [];
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler -- Capture TLS diagnostics, restoring the previous handler in finally.
+			set_error_handler(
+				static function ($severity, $message) use (&$warnings) {
+					$warnings[] = $message;
+					return true;
+				},
+				E_WARNING
 			);
+
+			try {
+				$stream = stream_socket_client(
+					'ssl://' . $host . ':443',
+					$errno,
+					$errstr,
+					10,
+					STREAM_CLIENT_CONNECT,
+					$context
+				);
+			} finally {
+				restore_error_handler();
+			}
 
 			// If stream could not be established, SSL is invalid.
 			if ( ! $stream) {
-				throw new \Exception($errstr);
+				$details = array_filter(array_merge([$errstr], $warnings));
+				throw new \Exception($details ? implode('; ', array_unique($details)) : __('The TLS connection or certificate verification failed without further details.', 'ultimate-multisite'));
 			}
 
 			// Retrieve the certificate and parse its details.
@@ -197,7 +216,7 @@ class Helper {
 
 					// Check if the certificate is currently valid.
 					if ($current_time >= $valid_from && $current_time <= $valid_to) {
-						$host = wp_parse_url($domain, PHP_URL_HOST);
+						$reason = __('The certificate does not match the requested domain.', 'ultimate-multisite');
 
 						// Check that the domain matches the certificate.
 						$common_name = $cert['subject']['CN'] ?? ''; // Common Name (CN)
@@ -220,18 +239,24 @@ class Helper {
 								}
 							}
 						}
+					} else {
+						$reason = $current_time < $valid_from ? __('The certificate is not yet valid.', 'ultimate-multisite') : __('The certificate has expired.', 'ultimate-multisite');
 					}
 				}
 			}
-
-			// Close the stream after processing.
-			fclose($stream); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		} catch (\Exception $e) {
-			// Log the error message.
+			$reason = $e->getMessage() ?: __('The TLS connection or certificate verification failed without further details.', 'ultimate-multisite');
+		} finally {
+			if (is_resource($stream)) {
+				fclose($stream); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+			}
+		}
+
+		if ( ! $is_valid) {
 			wu_log_add(
 				'domain-ssl-checks',
-				// translators: % error message
-				sprintf(__('Certificate Invalid: %s', 'ultimate-multisite'), $e->getMessage()),
+				/* translators: 1: Domain being checked, 2: failure reason. */
+				sprintf(__('Certificate Invalid for %1$s: %2$s', 'ultimate-multisite'), $host ?: $domain, $reason),
 				LogLevel::ERROR
 			);
 		}

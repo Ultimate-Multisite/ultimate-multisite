@@ -206,13 +206,14 @@ class Admin_Notices implements \WP_Ultimo\Interfaces\Singleton {
 		$message   = $error['message'] ?? __('No details available.', 'ultimate-multisite');
 		$timestamp = (int) ($error['timestamp'] ?? 0);
 		$level     = $error['level'] ?? '';
+		$log_file  = basename($error['file'] ?? $handle . '.log');
 
 		$dismissible_key = 'wu-recent-error-log-' . md5(wp_json_encode([$timestamp, $handle, $message, $level]));
 
 		$notice = sprintf(
 			/* translators: 1: Log handle, 2: error message. */
 			__('A recent Ultimate Multisite error was logged in %1$s: %2$s', 'ultimate-multisite'),
-			esc_html($handle . '.log'),
+			esc_html($log_file),
 			esc_html($message)
 		);
 
@@ -224,7 +225,7 @@ class Admin_Notices implements \WP_Ultimo\Interfaces\Singleton {
 			[
 				'view-logs' => [
 					'title' => __('View Logs', 'ultimate-multisite'),
-					'url'   => wu_network_admin_url('wp-ultimo-view-logs'),
+					'url'   => wu_network_admin_url('wp-ultimo-view-logs', ['log_file' => trailingslashit(Logger::get_logs_folder()) . $log_file]),
 				],
 			]
 		);
