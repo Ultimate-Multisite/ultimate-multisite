@@ -25,6 +25,8 @@ describe('Optional money values', () => {
 					<money name="stored_amount" :value="stored_amount" :allow_blank="true" v-bind="settings"></money>
 				</form>`
 			});
+			// Keep the component fixture above WordPress's fixed admin UI.
+			win.money_blank_test.$el.style.cssText = 'position:fixed;left:200px;top:50px;z-index:100000;display:grid;gap:8px;padding:16px;background:white';
 		});
 	});
 
