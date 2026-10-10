@@ -17,7 +17,7 @@ class Stripe_Settings_Test extends \WP_UnitTestCase {
 		$sections = \WP_Ultimo\Settings::get_instance()->get_sections();
 		$fields   = $sections['payment-gateways']['fields'];
 		$modes    = [
-			'test' => [1, '1', true],
+			'test' => 1,
 			'live' => [0, '0', false, ''],
 		];
 
@@ -34,7 +34,7 @@ class Stripe_Settings_Test extends \WP_UnitTestCase {
 					);
 
 					if ('stripe' === $gateway) {
-						$this->assertSame([1, '1', true], $field['require']['stripe_show_direct_keys']);
+						$this->assertSame(1, $field['require']['stripe_show_direct_keys']);
 					}
 				}
 			}
@@ -59,7 +59,7 @@ class Stripe_Settings_Test extends \WP_UnitTestCase {
 
 				foreach (['pk', 'sk'] as $key_type) {
 					$this->assertContains($value, $fields["{$gateway}_live_{$key_type}_key"]['require']["{$gateway}_sandbox_mode"]);
-					$this->assertNotContains($value, $fields["{$gateway}_test_{$key_type}_key"]['require']["{$gateway}_sandbox_mode"]);
+					$this->assertSame(1, $fields["{$gateway}_test_{$key_type}_key"]['require']["{$gateway}_sandbox_mode"]);
 				}
 			}
 		} finally {

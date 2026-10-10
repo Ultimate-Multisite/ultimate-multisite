@@ -90,8 +90,6 @@ class Stripe_Checkout_Gateway extends Base_Stripe_Gateway {
 
 		$pk_test_status = wu_get_setting('stripe_checkout_test_pk_key_status', '');
 
-		// Unchecked toggles can be saved as false or sanitized to an empty string.
-
 		wu_register_settings_field(
 			'payment-gateways',
 			'stripe_checkout_test_pk_key',
@@ -105,7 +103,7 @@ class Stripe_Checkout_Gateway extends Base_Stripe_Gateway {
 				'capability'  => 'manage_api_keys',
 				'require'     => [
 					'active_gateways'              => 'stripe-checkout',
-					'stripe_checkout_sandbox_mode' => [1, '1', true],
+					'stripe_checkout_sandbox_mode' => 1,
 				],
 			]
 		);
@@ -125,7 +123,7 @@ class Stripe_Checkout_Gateway extends Base_Stripe_Gateway {
 				'capability'  => 'manage_api_keys',
 				'require'     => [
 					'active_gateways'              => 'stripe-checkout',
-					'stripe_checkout_sandbox_mode' => [1, '1', true],
+					'stripe_checkout_sandbox_mode' => 1,
 				],
 			]
 		);

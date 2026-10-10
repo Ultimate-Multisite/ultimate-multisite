@@ -194,8 +194,6 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 
 		$pk_test_status = wu_get_setting('stripe_test_pk_key_status', '');
 
-		// Unchecked toggles can be saved as false or sanitized to an empty string.
-
 		wu_register_settings_field(
 			'payment-gateways',
 			'stripe_test_pk_key',
@@ -209,8 +207,8 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 				'capability'  => 'manage_api_keys',
 				'require'     => [
 					'active_gateways'         => 'stripe',
-					'stripe_sandbox_mode'     => [1, '1', true],
-					'stripe_show_direct_keys' => [1, '1', true],
+					'stripe_sandbox_mode'     => 1,
+					'stripe_show_direct_keys' => 1,
 				],
 			]
 		);
@@ -230,8 +228,8 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 				'capability'  => 'manage_api_keys',
 				'require'     => [
 					'active_gateways'         => 'stripe',
-					'stripe_sandbox_mode'     => [1, '1', true],
-					'stripe_show_direct_keys' => [1, '1', true],
+					'stripe_sandbox_mode'     => 1,
+					'stripe_show_direct_keys' => 1,
 				],
 			]
 		);
@@ -252,7 +250,7 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 				'require'     => [
 					'active_gateways'         => 'stripe',
 					'stripe_sandbox_mode'     => [0, '0', false, ''],
-					'stripe_show_direct_keys' => [1, '1', true],
+					'stripe_show_direct_keys' => 1,
 				],
 			]
 		);
@@ -273,7 +271,7 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 				'require'     => [
 					'active_gateways'         => 'stripe',
 					'stripe_sandbox_mode'     => [0, '0', false, ''],
-					'stripe_show_direct_keys' => [1, '1', true],
+					'stripe_show_direct_keys' => 1,
 				],
 			]
 		);
@@ -293,7 +291,7 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 				'wrapper_classes' => '',
 				'require'         => [
 					'active_gateways'         => 'stripe',
-					'stripe_show_direct_keys' => [1, '1', true],
+					'stripe_show_direct_keys' => 1,
 				],
 			]
 		);
