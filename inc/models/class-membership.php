@@ -714,7 +714,7 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 		if ($product) {
 			$products[] = [
 				'quantity' => 1,
-				'product'  => $this->get_plan(),
+				'product'  => $product,
 			];
 		}
 
