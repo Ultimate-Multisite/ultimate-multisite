@@ -2201,7 +2201,9 @@ class Base_Stripe_Gateway extends Base_Gateway {
 					// The line item holds the validated, currency-converted coupon rate.
 					// Reading the stored code here would apply a base-currency value
 					// directly to the converted recurring price.
-					$amount = max(0, wu_get_discounted_price($amount, $line_item->get_discount_rate(), $line_item->get_discount_type(), false));
+					// Match checkout's rounding of the discount before subtraction.
+					$discount_amount = wu_get_tax_amount($amount, $line_item->get_discount_rate(), $line_item->get_discount_type(), false);
+					$amount          = max(0, $amount - $discount_amount);
 				}
 			}
 

@@ -1968,6 +1968,45 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 	// maybe_create_plan — validation
 	// =========================================================================
 
+	/** Recurring prices round discounts before subtraction, just like checkout. */
+	public function test_recurring_discount_rounding_matches_checkout(): void {
+		foreach ([
+			'percentage' => 10,
+			'absolute'   => 0.015,
+		] as $type => $rate) {
+			$product = $this->createMock(\WP_Ultimo\Models\Product::class);
+			$product->method('is_recurring')->willReturn(true);
+			$product->method('get_amount')->willReturn(0.05);
+			$product->method('get_name')->willReturn('Rounding fixture');
+			$product->method('get_duration_unit')->willReturn('month');
+			$product->method('get_duration')->willReturn(1);
+
+			$item = $this->createMock(\WP_Ultimo\Checkout\Line_Item::class);
+			$item->method('get_product')->willReturn($product);
+			$item->method('get_discount_rate')->willReturn($rate);
+			$item->method('get_discount_type')->willReturn($type);
+			$item->method('is_taxable')->willReturn(false);
+
+			$coupon = $this->createMock(\WP_Ultimo\Models\Discount_Code::class);
+			$coupon->method('should_apply_to_renewals')->willReturn(true);
+			$cart = $this->createMock(\WP_Ultimo\Checkout\Cart::class);
+			$cart->method('get_all_products')->willReturn([$product]);
+			$cart->method('get_line_items')->willReturn([$item]);
+			$cart->method('get_discount_code')->willReturn($coupon);
+			$cart->method('get_cart_type')->willReturn('new');
+			$cart->method('get_currency')->willReturn('USD');
+
+			$expected = 'percentage' === $type ? 0.04 : 0.03;
+			$gateway  = $this->getMockBuilder(Stripe_Gateway::class)
+				->disableOriginalConstructor()->onlyMethods(['maybe_create_plan'])->getMock();
+			$gateway->expects($this->once())->method('maybe_create_plan')
+				->with($this->callback(static fn($args) => round($args['price'], 2) === $expected))
+				->willReturn('rounding_fixture');
+			$method = new \ReflectionMethod(Base_Stripe_Gateway::class, 'build_stripe_cart');
+			$this->assertSame(['rounding_fixture' => ['plan' => 'rounding_fixture']], $method->invoke($gateway, $cart));
+		}
+	}
+
 	/**
 	 * Test maybe_create_plan returns WP_Error when name is missing.
 	 */
