@@ -348,6 +348,37 @@ class Limitations_Test extends WP_UnitTestCase {
 				'modules_data' => [],
 				'expected'     => false,
 			],
+			'missing_enabled'     => [
+				'modules_data' => ['users' => ['limit' => 5]],
+				'expected'     => false,
+			],
+			'empty_module'        => [
+				'modules_data' => ['plugins' => []],
+				'expected'     => false,
+			],
+			'null_enabled'        => [
+				'modules_data' => ['users' => ['enabled' => null]],
+				'expected'     => false,
+			],
+			'disabled_module'     => [
+				'modules_data' => ['users' => ['enabled' => false]],
+				'expected'     => false,
+			],
+			'zero_enabled'        => [
+				'modules_data' => ['users' => ['enabled' => '0']],
+				'expected'     => false,
+			],
+			'legacy_truthy_flag'  => [
+				'modules_data' => ['users' => ['enabled' => 'yes']],
+				'expected'     => true,
+			],
+			'mixed_missing_flag'  => [
+				'modules_data' => [
+					'users'      => ['limit' => 5],
+					'disk_space' => ['enabled' => true],
+				],
+				'expected'     => true,
+			],
 			'enabled_limitations' => [
 				'modules_data' => [
 					'users' => [
@@ -382,9 +413,8 @@ class Limitations_Test extends WP_UnitTestCase {
 	 */
 	public function test_has_limitations(array $modules_data, bool $expected): void {
 		$limitations = new Limitations($modules_data);
-		$result      = $limitations->has_limitations();
 
-		$this->assertEquals($expected, $result);
+		$this->assertSame($expected, $limitations->has_limitations());
 	}
 
 	/**

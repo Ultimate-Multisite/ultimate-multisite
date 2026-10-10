@@ -127,7 +127,10 @@ class Membership_Manager extends Base_Manager {
 		add_action('wp_ajax_wu_publish_pending_site', [$this, 'publish_pending_site']);
 		add_action('wp_ajax_nopriv_wu_publish_pending_site', [$this, 'publish_pending_site']);
 
+		// Run before add-on status handlers so hashes cannot bypass ownership checks.
+		add_action('wp_ajax_wu_check_pending_site_created', [$this, 'authorize_legacy_pending_site_status'], 0);
 		add_action('wp_ajax_wu_check_pending_site_created', [$this, 'check_pending_site_created']);
+		add_action('wp_ajax_wu_checkout_provisioning_status', [$this, 'check_checkout_provisioning_status']);
 
 		add_action('wu_async_publish_pending_site', [$this, 'async_publish_pending_site'], 10);
 
@@ -273,6 +276,13 @@ class Membership_Manager extends Base_Manager {
 			return;
 		}
 
+		// Recovery belongs to the background publisher, never the status reader.
+		$pending_site = $membership->get_pending_site();
+		if ($pending_site && $pending_site->is_publishing_stale()) {
+			$pending_site->set_publishing(false);
+			$membership->update_pending_site($pending_site);
+		}
+
 		$status = $membership->publish_pending_site();
 
 		if (is_wp_error($status)) {
@@ -281,99 +291,232 @@ class Membership_Manager extends Base_Manager {
 	}
 
 	/**
-	 * Processes a delayed site publish action.
+	 * Authorizes status requests before any add-on can return private links.
 	 *
-	 * Checks whether the pending site has been created. If is_publishing
-	 * has been true for longer than 5 minutes, we assume the creation
-	 * process was killed (PHP timeout, OOM, server restart) and reset
-	 * the flag so the Action Scheduler retry can pick it up.
+	 * @since 2.17.3
+	 * @return void
+	 */
+	public function authorize_pending_site_status() {
+		nocache_headers();
+		if ( ! headers_sent()) {
+			header('Cache-Control: private, no-store, max-age=0');
+		}
+		if (is_wp_error($this->get_authorized_status_membership())) {
+			wp_send_json(
+				[
+					'state'          => 'forbidden',
+					'publish_status' => 'stopped',
+				],
+				403
+			);
+		}
+	}
+
+	/**
+	 * Resolves an owner- and nonce-bound status request.
+	 *
+	 * @since 2.17.3
+	 * @param bool $require_nonce Whether the caller uses the enhanced contract.
+	 * @return \WP_Ultimo\Models\Membership|\WP_Error
+	 */
+	public function get_authorized_status_membership($require_nonce = true) {
+		$hash  = wu_request('membership_hash');
+		$nonce = wu_request('_ajax_nonce');
+		if ( ! is_user_logged_in() || ! is_string($hash)
+			|| ($require_nonce && (! is_string($nonce) || ! wp_verify_nonce($nonce, 'wu_check_pending_site_created:' . $hash)))) {
+			return new \WP_Error('checkout_access_denied');
+		}
+		$membership = wu_get_membership_by_hash($hash);
+		$customer   = $membership ? $membership->get_customer() : false;
+		if ( ! $customer || ((int) $customer->get_user_id() !== get_current_user_id() && ! current_user_can('manage_network'))) {
+			return new \WP_Error('checkout_access_denied');
+		}
+		$payment_hash = wu_request('payment_hash');
+		if ($require_nonce && $payment_hash) {
+			$payment = is_string($payment_hash) ? wu_get_payment_by_hash($payment_hash) : false;
+			if ( ! $payment || (int) $payment->get_membership_id() !== (int) $membership->get_id()
+				|| (int) $payment->get_customer_id() !== (int) $membership->get_customer_id()) {
+				return new \WP_Error('checkout_access_denied');
+			}
+		}
+		return $membership;
+	}
+
+	/**
+	 * Returns current status without activating, publishing or retrying an order.
 	 *
 	 * @since 2.0.11
+	 * @return void
+	 */
+	public function check_checkout_provisioning_status() {
+		$this->authorize_pending_site_status();
+		$membership = $this->get_authorized_status_membership();
+		$hash       = wu_request('payment_hash');
+		$payment    = $hash && is_string($hash) ? wu_get_payment_by_hash($hash) : false;
+		wp_cache_delete($membership->get_id(), 'wu_membership_meta');
+		wp_send_json($this->get_provisioning_status($membership, $payment));
+	}
+
+	/**
+	 * Protects the legacy read endpoint without requiring a new caller argument.
+	 *
+	 * @since 2.17.3
+	 * @return void
+	 */
+	public function authorize_legacy_pending_site_status() {
+		nocache_headers();
+		if ( ! headers_sent()) {
+			header('Cache-Control: private, no-store, max-age=0');
+		}
+		if (is_wp_error($this->get_authorized_status_membership(false))) {
+			wp_send_json_error(['code' => 'checkout_access_denied'], 403);
+		}
+	}
+
+	/**
+	 * Preserves the existing action, hash-only arguments and response shape.
+	 *
+	 * @since 2.0.11
+	 * @return void
 	 */
 	public function check_pending_site_created() {
-
-		$membership_id = wu_request('membership_hash');
-
-		$membership = wu_get_membership_by_hash($membership_id);
-
-		if ( ! $membership) {
-			return new \WP_Error('error', __('An unexpected error happened.', 'ultimate-multisite'));
-		}
-
-		/*
-		 * The async publish loopback can run in a different long-lived PHP
-		 * worker than this polling request. Clear this worker's in-process
-		 * membership meta cache before reading pending_site so stale cached
-		 * data cannot keep the thank-you page stuck after creation completes.
-		 */
+		$this->authorize_legacy_pending_site_status();
+		$membership = $this->get_authorized_status_membership(false);
 		wp_cache_delete($membership->get_id(), 'wu_membership_meta');
+		wp_send_json(['publish_status' => $this->get_legacy_publication_status($membership)]);
+	}
 
+	/**
+	 * Retains legacy status semantics; enhanced readiness uses the separate API.
+	 *
+	 * @since 2.17.3
+	 * @param object $membership Authorized membership.
+	 * @return string
+	 */
+	public function get_legacy_publication_status($membership) {
 		$pending_site = $membership->get_pending_site();
-
-		if ( ! $pending_site) {
-			// Publishing can finish before a storage provider completes its clone sync.
-			$sites = $membership->get_sites();
-			if ( ! empty($sites)) {
-				$ready        = false;
-				$clone_failed = false;
-				foreach ($sites as $site) {
-					if (\WP_Ultimo\Helpers\Site_Duplicator::is_site_ready($site->get_id())) {
-						$ready = true;
-						break;
-					}
-					if (\WP_Ultimo\Helpers\Site_Duplicator::is_clone_failed($site->get_id())) {
-						$clone_failed = true;
-					}
-				}
-				if ( ! $ready) {
-					wp_send_json(['publish_status' => $clone_failed ? 'failed' : 'running']);
-					exit;
-				}
+		if ($pending_site) {
+			return $pending_site->is_publishing() && ! $pending_site->is_publishing_stale() ? 'running' : 'stopped';
+		}
+		$sites  = $membership->get_sites();
+		$failed = false;
+		foreach ($sites as $site) {
+			if (\WP_Ultimo\Helpers\Site_Duplicator::is_site_ready($site->get_id())) {
+				return 'completed';
 			}
-			wp_send_json(['publish_status' => 'completed']);
-
-			exit;
+			$failed = $failed || \WP_Ultimo\Helpers\Site_Duplicator::is_clone_failed($site->get_id());
 		}
+		return ! $sites ? 'completed' : ($failed ? 'failed' : 'running');
+	}
 
-		/*
-		 * Detect stale publishing state. When the PHP process that was
-		 * creating the site gets killed mid-execution, is_publishing
-		 * stays true forever — the AS retry sees the flag and bails
-		 * out, creating an infinite loop. Reset the flag after 5 min
-		 * so the next AS run or cron kick can retry site creation.
+	/**
+	 * Builds the generic readiness contract shared by the UI and integrations.
+	 *
+	 * @since 2.17.3
+	 * @param \WP_Ultimo\Models\Membership    $membership Owned membership.
+	 * @param \WP_Ultimo\Models\Payment|false $payment Optional checkout payment.
+	 * @return array
+	 */
+	public function get_provisioning_status($membership, $payment = false) {
+		$data = [
+			'state'          => 'pending',
+			'publish_status' => 'stopped',
+			'sites'          => [],
+			'redirect_url'   => '',
+		];
+		if (in_array($membership->get_status(), ['cancelled', 'expired'], true)
+			|| ($payment && in_array($payment->get_status(), ['failed', 'cancelled', 'refunded'], true))) {
+			$data['state']          = 'failed';
+			$data['publish_status'] = 'failed';
+			return $data;
+		}
+		if ( ! in_array($membership->get_status(), ['active', 'trialing'], true)
+			|| ($payment && 'completed' !== $payment->get_status()
+				&& ! ('trialing' === $membership->get_status() && (float) $payment->get_total() <= 0))) {
+			return array_merge($data, ['state' => 'payment_pending']);
+		}
+		$customer = $membership->get_customer();
+		if ($customer && 'pending' === $customer->get_email_verification()) {
+			return array_merge($data, ['state' => 'verification_pending']);
+		}
+		$pending_site = $membership->get_pending_site();
+		if ($pending_site) {
+			return array_merge($data, ['publish_status' => $pending_site->is_publishing() ? 'running' : 'stopped']);
+		}
+		/**
+		 * Supplies membership-bound sites for integrations with other site topologies.
 		 *
-		 * @since 2.5.3
+		 * @since 2.17.3
+		 * @param array $sites Published sites; integrations must preserve ownership.
+		 * @param object $membership Owned membership.
+		 * @param object|false $payment Checkout payment.
 		 */
-		if ($pending_site->is_publishing_stale()) {
-			$pending_site->set_publishing(false);
-
-			$membership->update_pending_site($pending_site);
-
-			wu_log_add(
-				self::LOG_FILE_NAME,
-				sprintf(
-					// translators: %d: membership ID.
-					__('Reset stale is_publishing flag for membership %d. The site creation process appears to have been killed before completing.', 'ultimate-multisite'),
-					$membership->get_id()
-				)
-			);
-
-			/*
-			 * Return 'stopped' so the frontend polling loop retries.
-			 * Do NOT also enqueue wu_async_publish_pending_site here —
-			 * that would create two competing retry sources (Action
-			 * Scheduler + frontend) and risk double site creation.
-			 * The existing AS scheduled action will pick up the reset
-			 * flag on its next run.
-			 */
-			wp_send_json(['publish_status' => 'stopped']);
-
-			exit;
+		$sites = apply_filters('wu_checkout_provisioning_sites', $membership->get_sites(false), $membership, $payment);
+		if ( ! is_array($sites) || ! $sites) {
+			return $data; // Missing pending metadata is not proof that a site exists.
 		}
+		foreach ($sites as $site) {
+			if ( ! $site instanceof \WP_Ultimo\Models\Site) {
+				return $data;
+			}
+			if (\WP_Ultimo\Helpers\Site_Duplicator::is_clone_failed($site->get_id())) {
+				$data['state']          = 'failed';
+				$data['publish_status'] = 'failed';
+				return $data;
+			}
+			if ( ! \WP_Ultimo\Helpers\Site_Duplicator::is_site_ready($site->get_id())) {
+				$data['state']          = 'cloning';
+				$data['publish_status'] = 'running';
+				return $data;
+			}
+		}
+		foreach ($sites as $site) {
+			$data['sites'][] = [
+				'id'        => (int) $site->get_id(),
+				'title'     => $site->get_title(),
+				'url'       => esc_url_raw($site->get_active_site_url()),
+				'admin_url' => esc_url_raw(get_admin_url($site->get_id())),
+				'visit_url' => esc_url_raw(wu_with_sso($site->get_active_site_url())),
+			];
+		}
+		$data['state']          = 'ready';
+		$data['publish_status'] = 'completed';
+		/**
+		 * Opts an integration into a final handoff; default core remains on thank-you.
+		 *
+		 * @since 2.17.3
+		 * @param string $url Empty by default; must use a ready site's HTTP(S) origin.
+		 * @param object $membership Owned membership.
+		 * @param object|false $payment Checkout payment.
+		 * @param array $sites Ready site models.
+		 */
+		$url                  = apply_filters('wu_checkout_ready_redirect_url', '', $membership, $payment, $sites);
+		$data['redirect_url'] = $this->validate_ready_redirect($url, $data['sites']);
+		return $data;
+	}
 
-		wp_send_json(['publish_status' => $pending_site->is_publishing() ? 'running' : 'stopped']);
-
-		exit;
+	/**
+	 * Rejects destinations outside the purchased site's origins.
+	 *
+	 * @since 2.17.3
+	 * @param mixed $url Integration destination.
+	 * @param array $sites Serialized ready sites.
+	 * @return string
+	 */
+	private function validate_ready_redirect($url, array $sites): string {
+		$parts = is_string($url) ? wp_parse_url($url) : false;
+		if ( ! $parts || ! in_array($parts['scheme'] ?? '', ['http', 'https'], true) || isset($parts['user']) || isset($parts['pass'])) {
+			return '';
+		}
+		foreach ($sites as $site) {
+			$origin = wp_parse_url($site['url']);
+			if ($origin && ($parts['scheme'] ?? '') === ($origin['scheme'] ?? '')
+				&& strtolower($parts['host'] ?? '') === strtolower($origin['host'] ?? '')
+				&& ($parts['port'] ?? null) === ($origin['port'] ?? null)) {
+				return esc_url_raw($url);
+			}
+		}
+		return '';
 	}
 
 	/**
