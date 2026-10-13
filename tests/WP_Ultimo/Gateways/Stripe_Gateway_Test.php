@@ -201,6 +201,7 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$recurring      = $args['recurring'] ?? true;
 		$trial          = $args['trial'] ?? false;
 		$amount         = $args['amount'] ?? 29.00;
+		$currency       = $args['currency'] ?? 'USD';
 		$payment_method = $args['payment_method'] ?? 'add-new';
 
 		$product = wu_create_product(
@@ -226,7 +227,7 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 				'status'          => Membership_Status::PENDING,
 				'recurring'       => $recurring,
 				'date_expiration' => gmdate('Y-m-d 23:59:59', strtotime('+30 days')),
-				'currency'        => 'USD',
+				'currency'        => $currency,
 			]
 		);
 
@@ -253,7 +254,7 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 				'country'       => 'US',
 				'state'         => 'NY',
 				'city'          => 'New York',
-				'currency'      => 'USD',
+				'currency'      => $currency,
 			]
 		);
 
@@ -444,6 +445,9 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 			->getMock();
 		$payment_intents_mock->expects($this->once())
 			->method('create')
+			->with($this->callback(function ($args) {
+				return 'eur' === $args['currency'] && 5000.0 === $args['amount'];
+			}))
 			->willReturn($payment_intent);
 		$payment_intents_mock->method('retrieve')->willReturn($payment_intent);
 
@@ -454,6 +458,7 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 			'recurring' => false,
 			'trial'     => false,
 			'amount'    => 50.00,
+			'currency'  => 'EUR',
 		]);
 
 		$result = $this->gateway->run_preflight();
@@ -564,6 +569,67 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 
 		$this->assertIsArray($result, 'run_preflight() must return an array when updating existing intent');
 		$this->assertArrayHasKey('stripe_client_secret', $result);
+
+		// Cleanup.
+		$context['payment']->delete();
+		$context['membership']->delete();
+		$context['product']->delete();
+	}
+
+	/**
+	 * Test run_preflight() replaces an incomplete intent when its currency changed.
+	 *
+	 * @return void
+	 */
+	public function test_run_preflight_replaces_existing_payment_intent_with_wrong_currency(): void {
+		$existing_intent = \Stripe\PaymentIntent::constructFrom([
+			'id'            => 'pi_existing_usd',
+			'object'        => 'payment_intent',
+			'status'        => 'requires_payment_method',
+			'currency'      => 'usd',
+			'client_secret' => 'pi_existing_usd_secret',
+		]);
+
+		$new_intent = \Stripe\PaymentIntent::constructFrom([
+			'id'            => 'pi_new_eur',
+			'object'        => 'payment_intent',
+			'status'        => 'requires_payment_method',
+			'currency'      => 'eur',
+			'client_secret' => 'pi_new_eur_secret',
+		]);
+
+		$payment_intents_mock = $this->getMockBuilder(\Stripe\Service\PaymentIntentService::class)
+			->disableOriginalConstructor()
+			->getMock();
+		$payment_intents_mock->expects($this->once())
+			->method('retrieve')
+			->with('pi_existing_usd')
+			->willReturn($existing_intent);
+		$payment_intents_mock->expects($this->never())
+			->method('update');
+		$payment_intents_mock->expects($this->once())
+			->method('create')
+			->with($this->callback(function ($args) {
+				return 'eur' === $args['currency'];
+			}))
+			->willReturn($new_intent);
+
+		$client = $this->build_stripe_client_mock(['paymentIntents' => $payment_intents_mock]);
+		$this->gateway->set_stripe_client($client);
+
+		$context = $this->build_checkout_context([
+			'recurring' => false,
+			'trial'     => false,
+			'amount'    => 50.00,
+			'currency'  => 'EUR',
+		]);
+		$context['payment']->update_meta('stripe_payment_intent_id', 'pi_existing_usd');
+
+		$result = $this->gateway->run_preflight();
+
+		$this->assertIsArray($result);
+		$this->assertSame('pi_new_eur_secret', $result['stripe_client_secret']);
+		$this->assertSame('pi_new_eur', $context['payment']->get_meta('stripe_payment_intent_id'));
 
 		// Cleanup.
 		$context['payment']->delete();
@@ -1015,7 +1081,7 @@ class Stripe_Gateway_Test extends \WP_UnitTestCase {
 	public function test_run_preflight_applies_payment_intent_args_filter(): void {
 		$captured_args = null;
 
-		add_filter('wu_stripe_create_payment_intent_args', function ($args, $gateway) use (&$captured_args) {
+		add_filter('wu_stripe_create_payment_intent_args', function ($args) use (&$captured_args) {
 			$captured_args = $args;
 			return $args;
 		}, 10, 2);
