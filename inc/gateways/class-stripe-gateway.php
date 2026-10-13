@@ -449,13 +449,22 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 			 * If we have a trial, we need to deal with that via a setup intent.
 			 */
 			if ($this->order->get_total() && $this->order->has_trial() === false) {
+				$order_currency = strtoupper((string) $this->order->get_currency());
+
+				if (1 !== preg_match('/^[A-Z]{3}$/D', $order_currency)) {
+					return new \WP_Error(
+						'wu_stripe_invalid_currency',
+						esc_html__('The checkout currency is invalid. Please refresh the page and try again.', 'ultimate-multisite')
+					);
+				}
+
 				$intent_args = wp_parse_args(
 					$intent_args,
 					[
-						'amount'              => $this->order->get_total() * wu_stripe_get_currency_multiplier(),
+						'amount'              => $this->order->get_total() * wu_stripe_get_currency_multiplier($order_currency),
 						'confirmation_method' => 'automatic',
 						'setup_future_usage'  => 'off_session',
-						'currency'            => strtolower((string) wu_get_setting('currency_symbol', 'USD')),
+						'currency'            => strtolower($order_currency),
 						'confirm'             => false,
 					]
 				);
@@ -469,7 +478,20 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 				 * @param Stripe_Gateway $stripe_gateway.
 				 * @return array
 				 */
-				$intent_args = apply_filters('wu_stripe_create_payment_intent_args', $intent_args, $this);
+				$intent_args             = apply_filters('wu_stripe_create_payment_intent_args', $intent_args, $this);
+				$intent_args['currency'] = strtolower($order_currency);
+				$intent_currency         = $intent_args['currency'];
+				$has_currency_mismatch   = ! empty($existing_intent)
+					&& 'payment_intent' === $existing_intent->object
+					&& ! empty($existing_intent->currency)
+					&& strtolower((string) $existing_intent->currency) !== $intent_currency;
+
+				// Stripe does not allow a PaymentIntent currency to be changed. A retry
+				// after switching currencies must create a fresh intent instead of
+				// reusing the incomplete intent from the previous checkout attempt.
+				if ($has_currency_mismatch) {
+					$existing_intent = false;
+				}
 
 				if ( ! empty($existing_intent) && 'payment_intent' === $existing_intent->object) {
 					$idempotency_args           = $intent_args;
