@@ -112,22 +112,13 @@ class Customers_Site_List_Table extends Site_List_Table {
 	}
 
 	/**
-	 * Overrides the parent method to add pending sites.
+	 * Returns only pending sites associated with the object being edited.
 	 *
 	 * @since 2.0.0
 	 *
-	 * @param integer $per_page Number of items to display per page.
-	 * @param integer $page_number Current page.
-	 * @param boolean $count If we should count records or return the actual records.
-	 * @return array
+	 * @return \WP_Ultimo\Models\Site[]
 	 */
-	public function get_items($per_page = 5, $page_number = 1, $count = false) {
-
-		$sites = parent::get_items($per_page, $page_number, $count);
-
-		if ($count) {
-			return $sites;
-		}
+	protected function get_pending_sites() {
 
 		$pending_sites = [];
 
@@ -136,7 +127,7 @@ class Customers_Site_List_Table extends Site_List_Table {
 		$id = wu_request('id');
 
 		if ( ! $id) {
-			return $sites;
+			return [];
 		}
 
 		switch ($page) {
@@ -146,7 +137,7 @@ class Customers_Site_List_Table extends Site_List_Table {
 				break;
 			case 'wp-ultimo-edit-customer':
 				$customer      = wu_get_customer($id);
-				$pending_sites = $customer ? $customer->get_pending_sites() : [];
+				$pending_sites = $customer ? \WP_Ultimo\Models\Site::get_all_by_type('pending', ['customer_id' => $customer->get_id()]) : [];
 				break;
 		}
 
@@ -155,6 +146,6 @@ class Customers_Site_List_Table extends Site_List_Table {
 			$site->set_blog_id('--');
 		}
 
-		return array_merge($pending_sites, $sites);
+		return $pending_sites;
 	}
 }

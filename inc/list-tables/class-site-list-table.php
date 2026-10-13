@@ -53,6 +53,16 @@ class Site_List_Table extends Base_List_Table {
 	}
 
 	/**
+	 * Returns pending sites for this table's context before counting/pagination.
+	 *
+	 * @return \WP_Ultimo\Models\Site[]
+	 */
+	protected function get_pending_sites() {
+
+		return \WP_Ultimo\Models\Site::get_all_by_type('pending');
+	}
+
+	/**
 	 * Overrides the parent method to add pending sites.
 	 *
 	 * In the "All Sites" view (type=all or no type parameter) pending sites are
@@ -72,9 +82,9 @@ class Site_List_Table extends Base_List_Table {
 		$type = wu_request('type');
 
 		if ('pending' === $type) {
-			$pending_sites = \WP_Ultimo\Models\Site::get_all_by_type('pending');
+			$pending_sites = $this->get_pending_sites();
 
-			return $count ? count($pending_sites) : $pending_sites;
+			return $count ? count($pending_sites) : array_slice($pending_sites, ($page_number - 1) * $per_page, $per_page);
 		}
 
 		/*
@@ -84,7 +94,7 @@ class Site_List_Table extends Base_List_Table {
 		$pending_sites = [];
 
 		if ( ! $type || 'all' === $type ) {
-			$pending_sites = \WP_Ultimo\Models\Site::get_all_by_type('pending');
+			$pending_sites = $this->get_pending_sites();
 		}
 
 		$pending_count = count($pending_sites);
