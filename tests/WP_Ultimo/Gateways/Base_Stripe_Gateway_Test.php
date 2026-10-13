@@ -1968,6 +1968,78 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 	// maybe_create_plan — validation
 	// =========================================================================
 
+	/** Recurring prices round discounts before subtraction, just like checkout. */
+	public function test_recurring_discount_rounding_matches_checkout(): void {
+		foreach ([
+			'percentage' => 10,
+			'absolute'   => 0.015,
+		] as $type => $rate) {
+			$product = $this->createMock(\WP_Ultimo\Models\Product::class);
+			$product->method('is_recurring')->willReturn(true);
+			$product->method('get_amount')->willReturn(0.05);
+			$product->method('get_name')->willReturn('Rounding fixture');
+			$product->method('get_duration_unit')->willReturn('month');
+			$product->method('get_duration')->willReturn(1);
+
+			$item = $this->createMock(\WP_Ultimo\Checkout\Line_Item::class);
+			$item->method('get_product')->willReturn($product);
+			$item->method('get_discount_rate')->willReturn($rate);
+			$item->method('get_discount_type')->willReturn($type);
+			$item->method('is_taxable')->willReturn(false);
+
+			$coupon = $this->createMock(\WP_Ultimo\Models\Discount_Code::class);
+			$coupon->method('should_apply_to_renewals')->willReturn(true);
+			$cart = $this->createMock(\WP_Ultimo\Checkout\Cart::class);
+			$cart->method('get_all_products')->willReturn([$product]);
+			$cart->method('get_line_items')->willReturn([$item]);
+			$cart->method('get_discount_code')->willReturn($coupon);
+			$cart->method('get_cart_type')->willReturn('new');
+			$cart->method('get_currency')->willReturn('USD');
+
+			$expected = 'percentage' === $type ? 0.04 : 0.03;
+			$gateway  = $this->getMockBuilder(Stripe_Gateway::class)
+				->disableOriginalConstructor()->onlyMethods(['maybe_create_plan'])->getMock();
+			$gateway->expects($this->once())->method('maybe_create_plan')
+				->with($this->callback(static fn($args) => round($args['price'], 2) === $expected))
+				->willReturn('rounding_fixture');
+			$method = new \ReflectionMethod(Base_Stripe_Gateway::class, 'build_stripe_cart');
+			$this->assertSame(['rounding_fixture' => ['plan' => 'rounding_fixture']], $method->invoke($gateway, $cart));
+		}
+	}
+
+	/** Fully discounted recurring items retain a free plan for the subscription. */
+	public function test_recurring_free_discount_creates_a_free_plan(): void {
+		$product = $this->createMock(\WP_Ultimo\Models\Product::class);
+		$product->method('is_recurring')->willReturn(true);
+		$product->method('get_amount')->willReturn(10.00);
+		$product->method('get_name')->willReturn('Free fixture');
+		$product->method('get_duration_unit')->willReturn('month');
+		$product->method('get_duration')->willReturn(1);
+
+		$item = $this->createMock(\WP_Ultimo\Checkout\Line_Item::class);
+		$item->method('get_product')->willReturn($product);
+		$item->method('get_discount_rate')->willReturn(100);
+		$item->method('get_discount_type')->willReturn('percentage');
+		$item->method('is_taxable')->willReturn(false);
+
+		$coupon = $this->createMock(\WP_Ultimo\Models\Discount_Code::class);
+		$coupon->method('should_apply_to_renewals')->willReturn(true);
+		$cart = $this->createMock(\WP_Ultimo\Checkout\Cart::class);
+		$cart->method('get_all_products')->willReturn([$product]);
+		$cart->method('get_line_items')->willReturn([$item]);
+		$cart->method('get_discount_code')->willReturn($coupon);
+		$cart->method('get_cart_type')->willReturn('new');
+		$cart->method('get_currency')->willReturn('USD');
+
+		$gateway = $this->getMockBuilder(Stripe_Gateway::class)
+			->disableOriginalConstructor()->onlyMethods(['maybe_create_plan'])->getMock();
+		$gateway->expects($this->once())->method('maybe_create_plan')
+			->with($this->callback(static fn($args) => 0 === $args['price']))
+			->willReturn('free_fixture');
+		$method = new \ReflectionMethod(Base_Stripe_Gateway::class, 'build_stripe_cart');
+		$this->assertSame(['free_fixture' => ['plan' => 'free_fixture']], $method->invoke($gateway, $cart));
+	}
+
 	/**
 	 * Test maybe_create_plan returns WP_Error when name is missing.
 	 */
@@ -1995,7 +2067,6 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$result = $this->gateway->maybe_create_plan(
 			[
 				'name'     => 'Test Plan',
-				'price'    => 0,
 				'currency' => 'usd',
 			]
 		);
@@ -2005,9 +2076,9 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test maybe_create_plan returns existing plan ID when plan exists.
+	 * Test maybe_create_plan returns existing free plan ID when plan exists.
 	 */
-	public function test_maybe_create_plan_returns_existing_plan_id(): void {
+	public function test_maybe_create_plan_returns_existing_free_plan_id(): void {
 		$plans_mock = $this->getMockBuilder(\Stripe\Service\PlanService::class)
 			->disableOriginalConstructor()
 			->getMock();
@@ -2031,7 +2102,7 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$result = $this->gateway->maybe_create_plan(
 			[
 				'name'           => 'Test Plan',
-				'price'          => 10.00,
+				'price'          => 0,
 				'interval'       => 'month',
 				'interval_count' => 1,
 				'currency'       => 'usd',

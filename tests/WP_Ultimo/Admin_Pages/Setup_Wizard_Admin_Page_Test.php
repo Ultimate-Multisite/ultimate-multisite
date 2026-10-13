@@ -479,10 +479,15 @@ class Setup_Wizard_Admin_Page_Test extends WP_UnitTestCase {
 
 		$this->page->register_scripts();
 
-		// Test v-money library.
+		// Test the upstream library and its blank-aware adapter dependency chain.
+		$this->assertTrue(wp_script_is('wu-money-mask-library', 'registered'));
+		$library_script = $wp_scripts->registered['wu-money-mask-library'];
+		$this->assertStringContainsString('v-money.min.js', $library_script->src);
+		$this->assertContains('wu-vue', $library_script->deps);
 		$this->assertTrue(wp_script_is('wu-money-mask', 'registered'));
 		$money_script = $wp_scripts->registered['wu-money-mask'];
-		$this->assertStringContainsString('v-money.min.js', $money_script->src);
+		$this->assertStringContainsString('money-mask.min.js', $money_script->src);
+		$this->assertContains('wu-money-mask-library', $money_script->deps);
 
 		// Test vue-the-mask library.
 		$this->assertTrue(wp_script_is('wu-input-mask', 'registered'));

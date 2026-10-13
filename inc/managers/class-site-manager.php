@@ -555,7 +555,7 @@ class Site_Manager extends Base_Manager {
 					$results = $membership->publish_pending_site();
 
 					if (is_wp_error($results)) {
-						wp_send_json_error($errors);
+						wp_send_json_error($results);
 					}
 				} else {
 					wp_send_json_error($errors);

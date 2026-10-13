@@ -178,7 +178,7 @@ class Signup_Fields_Manager extends Base_Manager {
 		$field_types = $this->get_instantiated_field_types();
 
 		foreach ($field_types as $field_type) {
-			$all_editor_fields = array_merge($all_editor_fields, $field_class->get_fields());
+			$all_editor_fields = array_merge($all_editor_fields, $field_type->get_fields());
 		}
 
 		return $all_editor_fields;

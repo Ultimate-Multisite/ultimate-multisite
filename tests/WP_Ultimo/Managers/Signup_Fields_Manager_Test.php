@@ -69,4 +69,16 @@ class Signup_Fields_Manager_Test extends \WP_UnitTestCase {
 
 		$this->assertIsArray($fields);
 	}
+
+	/**
+	 * Test get_all_editor_fields returns the fields from instantiated types.
+	 */
+	public function test_get_all_editor_fields_returns_array(): void {
+
+		$manager = $this->get_manager_instance();
+		$fields  = $manager->get_all_editor_fields();
+
+		$this->assertIsArray($fields);
+		$this->assertNotEmpty($fields);
+	}
 }

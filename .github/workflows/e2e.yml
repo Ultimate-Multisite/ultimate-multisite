@@ -294,6 +294,7 @@ jobs:
             "tests/e2e/cypress/integration/030-modal-form-error-handling.spec.js"
             "tests/e2e/cypress/integration/050-password-strength-enforcement.spec.js"
             "tests/e2e/cypress/integration/066-sso-bootstrap-race.spec.js"
+            "tests/e2e/cypress/integration/067-money-blank.spec.js"
           )
 
           TOTAL_FAILURES=0

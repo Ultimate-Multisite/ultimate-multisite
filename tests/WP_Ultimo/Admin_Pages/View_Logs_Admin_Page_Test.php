@@ -10,6 +10,8 @@ namespace WP_Ultimo\Admin_Pages;
 use WP_UnitTestCase;
 use WP_Ultimo\Logger;
 
+// phpcs:disable WordPress.WP.AlternativeFunctions -- Tests create and remove real filesystem fixtures to exercise path validation.
+
 /**
  * Test class for View_Logs_Admin_Page.
  *
@@ -216,7 +218,7 @@ class View_Logs_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * handle_view_logs() returns an array with the required keys when called
+	 * The log viewer returns an array with the required keys when called
 	 * outside of an AJAX context (wp_doing_ajax() returns false in tests).
 	 */
 	public function test_handle_view_logs_returns_array_with_required_keys(): void {
@@ -303,6 +305,8 @@ class View_Logs_Admin_Page_Test extends WP_UnitTestCase {
 		$logs_folder = Logger::get_logs_folder();
 		$tmp_file    = tempnam($logs_folder, 'wu-log-test-');
 		$this->assertNotFalse($tmp_file);
+		rename($tmp_file, $tmp_file . '.log');
+		$tmp_file .= '.log';
 
 		file_put_contents($tmp_file, 'test log content');
 
@@ -344,7 +348,7 @@ class View_Logs_Admin_Page_Test extends WP_UnitTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * handle_save() with action 'none' adds an error notice and returns early.
+	 * Saving with action 'none' adds an error notice and returns early.
 	 */
 	public function test_handle_save_with_no_action_adds_error_notice(): void {
 
@@ -358,18 +362,106 @@ class View_Logs_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * handle_save() with a non-existent file adds an error notice and returns early.
+	 * Saving with a non-existent file adds an error notice and returns early.
 	 */
 	public function test_handle_save_with_nonexistent_file_adds_error_notice(): void {
 
 		$_REQUEST['submit_button'] = 'download';
-		$_REQUEST['log_file']      = '/tmp/nonexistent-wu-log-file-xyz.log';
+		$_REQUEST['log_file']      = Logger::get_logs_folder() . '/nonexistent-wu-log-file-xyz.log';
 
 		$this->page->handle_save();
 
 		$this->assertTrue(true);
 
 		unset($_REQUEST['submit_button'], $_REQUEST['log_file']);
+	}
+
+	public function test_log_file_link_selects_exact_log(): void {
+
+		$file = tempnam(Logger::get_logs_folder(), 'notice-');
+		rename($file, $file . '.log');
+		$file .= '.log';
+		file_put_contents($file, 'selected log');
+		$_REQUEST['log_file'] = $file;
+
+		try {
+			$result = $this->page->handle_view_logs();
+			$this->assertSame(realpath($file), $result['file']);
+			$this->assertSame('selected log', $result['contents']);
+		} finally {
+			unlink($file);
+		}
+	}
+
+	/** @dataProvider unsafe_log_paths */
+	public function test_rejects_unsafe_log_paths($path): void {
+
+		$_REQUEST['log_file'] = str_replace('{logs}', Logger::get_logs_folder(), $path);
+		$this->expectException(\WPDieException::class);
+		$this->page->handle_view_logs();
+	}
+
+	public static function unsafe_log_paths(): array {
+
+		return [
+			'external'       => ['/etc/passwd'],
+			'traversal'      => ['{logs}/../../../wp-config.php'],
+			'prefix sibling' => ['{logs}-other/secret.log'],
+			'non-log'        => ['{logs}/index.html'],
+			'directory'      => ['{logs}'],
+			'wrapper'        => ['php://filter/resource=/etc/passwd'],
+		];
+	}
+
+	public function test_validator_rejects_malformed_paths(): void {
+
+		$method = new \ReflectionMethod($this->page, 'validate_log_file');
+		$this->expectException(\WPDieException::class);
+		$method->invoke($this->page, Logger::get_logs_folder() . "/test.log\0");
+	}
+
+	/** @dataProvider unsafe_log_actions */
+	public function test_save_rejects_external_log($action): void {
+
+		$_REQUEST['submit_button'] = $action;
+		$_REQUEST['log_file']      = '/etc/passwd';
+		$this->expectException(\WPDieException::class);
+		$this->page->handle_save();
+	}
+
+	public static function unsafe_log_actions(): array {
+
+		return [['download'], ['delete']];
+	}
+
+	public function test_symlink_escape_is_rejected_and_not_listed(): void {
+
+		$link = Logger::get_logs_folder() . '/escape-' . uniqid() . '.log';
+		symlink('/etc/passwd', $link);
+
+		try {
+			$result = $this->page->handle_view_logs();
+			$this->assertArrayNotHasKey($link, $result['logs_list']);
+			$_REQUEST['log_file'] = $link;
+			$this->expectException(\WPDieException::class);
+			$this->page->handle_view_logs();
+		} finally {
+			unlink($link);
+		}
+	}
+
+	public function test_view_and_save_require_network_permission(): void {
+
+		wp_set_current_user(self::factory()->user->create(['role' => 'subscriber']));
+		$this->expectException(\WPDieException::class);
+		$this->page->handle_view_logs();
+	}
+
+	public function test_save_requires_network_permission(): void {
+
+		wp_set_current_user(self::factory()->user->create(['role' => 'subscriber']));
+		$this->expectException(\WPDieException::class);
+		$this->page->handle_save();
 	}
 
 	// -------------------------------------------------------------------------

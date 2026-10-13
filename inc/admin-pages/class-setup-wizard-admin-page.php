@@ -977,7 +977,8 @@ class Setup_Wizard_Admin_Page extends Wizard_Admin_Page {
 			wp_add_inline_script('wu-setup-wizard-extra', 'document.addEventListener("DOMContentLoaded", () => wu_initialize_imagepicker());', 'after');
 
 			wp_register_script('wu-vue', wu_get_asset('lib/vue.js', 'js'), [], wu_get_version(), true);
-			wp_register_script('wu-money-mask', wu_get_asset('lib/v-money.js', 'js'), ['wu-vue'], wu_get_version(), true);
+			wp_register_script('wu-money-mask-library', wu_get_asset('lib/v-money.js', 'js'), ['wu-vue'], wu_get_version(), true);
+			wp_register_script('wu-money-mask', wu_get_asset('money-mask.js', 'js'), ['wu-money-mask-library'], wu_get_version(), true);
 			wp_register_script('wu-input-mask', wu_get_asset('lib/vue-the-mask.js', 'js'), ['wu-vue'], wu_get_version(), true);
 			wp_register_script('wu-vue-apps', wu_get_asset('vue-apps.js', 'js'), ['wu-functions', 'wu-vue', 'wu-money-mask', 'wu-input-mask', 'wp-hooks'], wu_get_version(), true);
 		}
