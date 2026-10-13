@@ -31,9 +31,22 @@ else
 	fail "PHP not in PATH — install PHP 7.4+ and ensure it is on PATH"
 fi
 
-# 2. Composer vendor directory
+# 2. Composer development dependencies
 if [ -f "vendor/autoload.php" ]; then
-	ok "composer install — vendor/autoload.php found"
+	missing_composer_tools=()
+
+	for composer_tool in vendor/bin/phpunit vendor/bin/phpcs vendor/bin/phpstan; do
+		if [ ! -x "${composer_tool}" ]; then
+			missing_composer_tools+=("${composer_tool}")
+		fi
+	done
+
+	if [ "${#missing_composer_tools[@]}" -eq 0 ]; then
+		ok "composer install — vendor/autoload.php and development tools found"
+	else
+		fail "composer development tools missing: ${missing_composer_tools[*]}"
+		info "Fix: composer install"
+	fi
 else
 	fail "composer install not run — vendor/autoload.php missing"
 	info "Fix: composer install"
