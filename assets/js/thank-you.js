@@ -110,6 +110,7 @@
 					running_count: 0,
 					site_ready: false,
 					clone_failed: false,
+					handoff_started: false,
 					// True when the URL already carries a _t= cache-bust param added by a
 					// prior completion redirect.  Used to prevent any second full-page
 					// navigation and break the infinite-reload loop that occurred when the
@@ -143,6 +144,55 @@
 				this.check_site_created();
 			},
 			methods: {
+				async start_checkout_handoff() {
+					const handoff = wu_thank_you.checkout_handoff || {};
+					const enabled = [ true, 1, "1", "true" ].includes(handoff.enabled);
+
+					if (! enabled || this.handoff_started || ! handoff.checkout_form_id || ! handoff.nonce) {
+						return false;
+					}
+
+					this.handoff_started = true;
+
+					try {
+						const request = await fetch(
+							wu_thank_you.ajaxurl,
+							{
+								method: "POST",
+								headers: {
+									"Content-Type": "application/x-www-form-urlencoded",
+								},
+								body: new URLSearchParams({
+									action: "wu_create_checkout_handoff",
+									_ajax_nonce: handoff.nonce,
+									checkout_form_id: handoff.checkout_form_id,
+									membership_hash: wu_thank_you.membership_hash,
+									payment_hash: wu_thank_you.payment_hash
+								}),
+							}
+						);
+						const response = await request.json();
+						const handoff_url = response?.success ? response?.data?.url : "";
+
+						if (! handoff_url) {
+							this.handoff_started = false;
+							return false;
+						}
+
+						window.location.assign(handoff_url);
+						return true;
+					} catch (e) {
+						console.error("Checkout handoff failed:", e);
+						this.handoff_started = false;
+						return false;
+					}
+				},
+				async handle_site_ready() {
+					this.creating = false;
+					this.site_ready = true;
+
+					return this.start_checkout_handoff();
+				},
 				async check_site_created() {
 					if (this.clone_failed) {
 						return;
@@ -161,8 +211,9 @@
 						return;
 					}
 					if (response.publish_status === "completed") {
-						this.creating = false;
-						this.site_ready = true;
+						if (await this.handle_site_ready()) {
+							return;
+						}
 						// Cache-bust redirect when this page rendered a pending site and the
 						// poller later observes completion, or when we watched the site transition
 						// through "running" during THIS page load. Both guards are required:
@@ -239,7 +290,7 @@
 								window.location.reload();
 							} else if (! this.has_pending_site && ! wu_thank_you.creating) {
 								// Case 2: PHP already reported creation complete — mark ready.
-								this.site_ready = true;
+								await this.handle_site_ready();
 							} else {
 								// Case 3: still waiting for job to start — keep slow-polling.
 								fetch(wu_thank_you.wp_cron_url);

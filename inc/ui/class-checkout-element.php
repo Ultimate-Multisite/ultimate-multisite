@@ -281,6 +281,7 @@ class Checkout_Element extends Base_Element {
 			$form = wu_get_checkout_form_by_slug($this->pre_loaded_attributes['slug']);
 			if ($form) {
 				$thank_you = Thank_You_Element::get_instance();
+				$thank_you->set_checkout_form($form);
 				$thank_you->setup();
 				$thank_you->display(array_merge($form->get_meta('wu_thank_you_settings', []), ['checkout_form' => $form]));
 			}
@@ -336,7 +337,12 @@ class Checkout_Element extends Base_Element {
 	 */
 	public function enqueue_element_scripts() {
 		if ($this->is_thank_you_page() && Thank_You_Element::get_instance()->uses_provisioning_enhancement()) {
-			$thank_you = Thank_You_Element::get_instance();
+			$thank_you             = Thank_You_Element::get_instance();
+			$pre_loaded_attributes = is_array($this->pre_loaded_attributes) ? $this->pre_loaded_attributes : [];
+			$atts                  = wp_parse_args($pre_loaded_attributes, $this->defaults());
+			$form                  = wu_get_checkout_form_by_slug($atts['slug']);
+
+			$thank_you->set_checkout_form($form);
 			$thank_you->setup();
 			if ($thank_you->should_display()) {
 				do_action("wu_{$thank_you->id}_scripts", null, $thank_you);
@@ -964,9 +970,12 @@ class Checkout_Element extends Base_Element {
 
 		$atts['checkout_form'] = $checkout_form;
 
-		\WP_Ultimo\UI\Thank_You_Element::get_instance()->register_scripts();
+		$thank_you = \WP_Ultimo\UI\Thank_You_Element::get_instance();
 
-		\WP_Ultimo\UI\Thank_You_Element::get_instance()->output($atts, $content);
+		$thank_you->set_checkout_form($checkout_form);
+		$thank_you->register_scripts();
+
+		$thank_you->output($atts, $content);
 	}
 
 	/**
