@@ -21,6 +21,65 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Invokes a protected checkout handoff method.
+	 *
+	 * @param string $method Method name.
+	 * @param mixed  ...$args Method arguments.
+	 * @return mixed
+	 */
+	private function invoke_checkout_handoff_method($method, ...$args) {
+
+		$reflection = new \ReflectionMethod($this->get_instance(), $method);
+
+		if (PHP_VERSION_ID < 80100) {
+			$reflection->setAccessible(true);
+		}
+
+		return $reflection->invoke($this->get_instance(), ...$args);
+	}
+
+	/**
+	 * Ensures the cache-independent nonce table exists before handoff tests.
+	 *
+	 * @return void
+	 */
+	private function ensure_checkout_handoff_table(): void {
+
+		$table = \WP_Ultimo\Loaders\Table_Loader::get_instance()->sso_nonce_table;
+
+		if ( ! $table->exists()) {
+			$table->install();
+		}
+	}
+
+	/**
+	 * Creates signed claims valid for the current blog and user.
+	 *
+	 * @param int $user_id User who can access the current site.
+	 * @param array $overrides Claim overrides.
+	 * @return array
+	 */
+	private function get_checkout_handoff_claims($user_id, array $overrides = []) {
+
+		$instance = $this->get_instance();
+
+		return array_merge(
+			[
+				'v'          => 1,
+				'sub'        => $user_id,
+				'blog_id'    => get_current_blog_id(),
+				'iat'        => time(),
+				'exp'        => time() + Magic_Link::CHECKOUT_HANDOFF_EXPIRATION,
+				'jti'        => $this->invoke_checkout_handoff_method('generate_token'),
+				'path'       => '/wp-admin/',
+				'user_agent' => $this->invoke_checkout_handoff_method('get_checkout_handoff_context_hash', $this->invoke_checkout_handoff_method('get_user_agent')),
+				'ip_address' => $this->invoke_checkout_handoff_method('get_checkout_handoff_context_hash', $this->invoke_checkout_handoff_method('get_client_ip')),
+			],
+			$overrides
+		);
+	}
+
+	/**
 	 * Create a payable payment owned by a new customer.
 	 *
 	 * @return array{customer: \WP_Ultimo\Models\Customer, payment: \WP_Ultimo\Models\Payment, user_id: int}
@@ -98,6 +157,8 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 		$this->assertSame('wu_magic_token', Magic_Link::TOKEN_QUERY_ARG);
 		$this->assertSame('wu_magic_link_', Magic_Link::TRANSIENT_PREFIX);
 		$this->assertSame(600, Magic_Link::TOKEN_EXPIRATION);
+		$this->assertSame('wu_checkout_handoff', Magic_Link::CHECKOUT_HANDOFF_QUERY_ARG);
+		$this->assertSame(120, Magic_Link::CHECKOUT_HANDOFF_EXPIRATION);
 	}
 
 	/**
@@ -110,6 +171,8 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 		$instance->init();
 
 		$this->assertNotFalse(has_action('init', [$instance, 'handle_magic_link']));
+		$this->assertNotFalse(has_action('init', [$instance, 'handle_checkout_handoff']));
+		$this->assertNotFalse(has_action('wu_daily', [$instance, 'clean_expired_checkout_handoff_nonces']));
 		$this->assertNotFalse(has_filter('removable_query_args', [$instance, 'add_removable_query_args']));
 	}
 
@@ -123,6 +186,83 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 		$args = $instance->add_removable_query_args([]);
 
 		$this->assertContains(Magic_Link::TOKEN_QUERY_ARG, $args);
+		$this->assertContains(Magic_Link::CHECKOUT_HANDOFF_QUERY_ARG, $args);
+	}
+
+	/**
+	 * Test checkout handoffs are signed, database-backed and single-use.
+	 */
+	public function test_checkout_handoff_token_verifies_and_consumes_once() {
+
+		$this->ensure_checkout_handoff_table();
+
+		$user_id = self::factory()->user->create();
+		add_user_to_blog(get_current_blog_id(), $user_id, 'subscriber');
+
+		$_SERVER['HTTP_USER_AGENT'] = 'Ultimate-Multisite-Handoff-Test';
+		$_SERVER['REMOTE_ADDR']     = '192.0.2.10';
+
+		try {
+			$claims = $this->get_checkout_handoff_claims($user_id, ['path' => '/welcome/']);
+			$token  = $this->invoke_checkout_handoff_method('encode_checkout_handoff_token', $claims);
+
+			$this->assertIsString($token);
+			$this->assertSame($claims['jti'], $this->invoke_checkout_handoff_method('verify_checkout_handoff_token', $token)['jti']);
+			$this->assertTrue($this->invoke_checkout_handoff_method('store_checkout_handoff_nonce', $claims['jti'], get_current_blog_id(), $claims['exp']));
+			$this->assertTrue($this->invoke_checkout_handoff_method('consume_checkout_handoff_nonce', $claims['jti'], get_current_blog_id()));
+			$this->assertFalse($this->invoke_checkout_handoff_method('consume_checkout_handoff_nonce', $claims['jti'], get_current_blog_id()));
+		} finally {
+			unset($_SERVER['HTTP_USER_AGENT'], $_SERVER['REMOTE_ADDR']);
+		}
+	}
+
+	/**
+	 * Test checkout handoff URLs respect the magic-link setting.
+	 */
+	public function test_generate_checkout_handoff_url_returns_false_when_magic_links_are_disabled() {
+
+		$user_id = self::factory()->user->create();
+		add_user_to_blog(get_current_blog_id(), $user_id, 'subscriber');
+
+		remove_filter('wu_magic_links_enabled', '__return_true');
+		add_filter('wu_magic_links_enabled', '__return_false');
+
+		try {
+			$this->assertFalse($this->get_instance()->generate_checkout_handoff_url($user_id, get_current_blog_id()));
+		} finally {
+			remove_filter('wu_magic_links_enabled', '__return_false');
+			add_filter('wu_magic_links_enabled', '__return_true');
+		}
+	}
+
+	/**
+	 * Test checkout handoffs reject expired and retargeted signed tokens.
+	 */
+	public function test_checkout_handoff_token_rejects_expired_or_retargeted_claims() {
+
+		$user_id = self::factory()->user->create();
+		add_user_to_blog(get_current_blog_id(), $user_id, 'subscriber');
+
+		$expired_claims = $this->get_checkout_handoff_claims(
+			$user_id,
+			[
+				'iat' => time() - 121,
+				'exp' => time() - 1,
+			]
+		);
+		$expired_token  = $this->invoke_checkout_handoff_method('encode_checkout_handoff_token', $expired_claims);
+
+		$this->assertFalse($this->invoke_checkout_handoff_method('verify_checkout_handoff_token', $expired_token));
+
+		$retargeted_claims = $this->get_checkout_handoff_claims(
+			$user_id,
+			[
+				'blog_id' => get_current_blog_id() + 999,
+			]
+		);
+		$retargeted_token  = $this->invoke_checkout_handoff_method('encode_checkout_handoff_token', $retargeted_claims);
+
+		$this->assertFalse($this->invoke_checkout_handoff_method('verify_checkout_handoff_token', $retargeted_token));
 	}
 
 	/**

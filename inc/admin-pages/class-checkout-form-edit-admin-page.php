@@ -1409,6 +1409,25 @@ class Checkout_Form_Edit_Admin_Page extends Edit_Admin_Page {
 			'lang'  => 'htmlmixed',
 		];
 
+		$new_fields['after_checkout_action'] = [
+			'type'    => 'select',
+			'title'   => __('After Checkout', 'ultimate-multisite'),
+			'desc'    => __('Choose whether customers remain on this page or are sent to their newly created site after it is ready.', 'ultimate-multisite'),
+			'value'   => $this->get_object()->get_after_checkout_action(),
+			'options' => [
+				'thank_you'        => __('Show the thank you page', 'ultimate-multisite'),
+				'redirect_to_site' => __('Redirect to the new site', 'ultimate-multisite'),
+			],
+		];
+
+		$new_fields['after_checkout_landing_path'] = [
+			'type'        => 'text',
+			'title'       => __('New Site Landing Path', 'ultimate-multisite'),
+			'desc'        => __('Use a local path on the new site, such as /wp-admin/. External URLs are not allowed.', 'ultimate-multisite'),
+			'value'       => $this->get_object()->get_after_checkout_landing_path(),
+			'placeholder' => '/wp-admin/',
+		];
+
 		return $new_fields;
 	}
 
