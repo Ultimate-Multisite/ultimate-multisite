@@ -5,7 +5,11 @@
  * @since 2.0.0
  */
 defined('ABSPATH') || exit;
+$enhanced = ! empty($provisioning_enabled);
 ?>
+<?php if ($enhanced) : ?>
+<style>#wu-sites [hidden]{display:none!important}#wu-sites [data-wu-site-cards]>div{box-sizing:border-box;max-width:100%}</style>
+<?php endif; ?>
 <div id="wu-thank-you-element" class="wu-styling <?php echo esc_attr($className); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase ?>">
 
 	<div class="<?php echo esc_attr(wu_env_picker('', 'wu-widget-inset')); ?>">
@@ -243,6 +247,12 @@ defined('ABSPATH') || exit;
 		<?php do_action('wu_thank_you_site_block', $payment, $membership, $customer); ?>
 
 		<div id="wu-sites">
+			<?php if ($enhanced) : ?>
+			<p data-wu-provisioning-status role="status" aria-live="polite" aria-atomic="true"><?php esc_html_e('Your site is being prepared.', 'ultimate-multisite'); ?></p>
+			<button type="button" data-wu-provisioning-retry hidden class="wu-p-3 wu-rounded wu-bg-gray-100"><?php esc_html_e('Check again', 'ultimate-multisite'); ?></button>
+			<a data-wu-provisioning-login hidden href="<?php echo esc_url(wp_login_url(wu_get_current_url())); ?>"><?php esc_html_e('Sign in to continue', 'ultimate-multisite'); ?></a>
+			<div data-wu-site-cards>
+			<?php endif; ?>
 
 			<?php if ($membership->get_sites()) : ?>
 
@@ -266,15 +276,16 @@ defined('ABSPATH') || exit;
 
 					<?php echo esc_html(ucfirst($site->get_title())); ?>
 
-					<?php if ($site->get_type() === 'pending') : ?>
+					<?php if ('pending' === $site->get_type() || ($enhanced && ! \WP_Ultimo\Helpers\Site_Duplicator::is_site_ready($site->get_id()))) : ?>
 
 						<span class="wu-align-middle wu-inline-block wu-rounded wu-px-2 wu-py-1 wu-uppercase wu-text-xs wu-font-bold <?php echo esc_attr($site->get_type_class()); ?>">
 						<?php echo esc_html($site->get_type_label()); ?>
 						</span>
-
+						<?php if ( ! $enhanced) : ?>
 						<span v-cloak v-if="creating && false" class="wu-align-middle wu-inline-block wu-rounded wu-px-2 wu-py-1 wu-uppercase wu-text-xs wu-font-bold wu-text-gray-700 wu-bg-gray-300">
 						{{ progress }}%
 						</span>
+						<?php endif; ?>
 
 					<?php else : ?>
 
@@ -300,16 +311,20 @@ defined('ABSPATH') || exit;
 
 				<div class="wu-flex-shrink-0 sm:wu-ml-4">
 
-					<?php if ($site->get_type() === 'pending') : ?>
+					<?php if ('pending' === $site->get_type() || ($enhanced && ! \WP_Ultimo\Helpers\Site_Duplicator::is_site_ready($site->get_id()))) : ?>
 
+						<?php if ( ! $enhanced) : ?>
 					<div v-cloak v-if="clone_failed" class="wu-block sm:wu-inline-block wu-text-red-600">
-						<?php esc_html_e('Site creation failed.', 'ultimate-multisite'); ?>
+							<?php esc_html_e('Site creation failed.', 'ultimate-multisite'); ?>
 					</div>
 					<a v-else-if="!creating" href="<?php echo esc_attr(wu_get_current_url()); ?>" class="wu-block sm:wu-inline-block wu-no-underline">
 						<span class="dashicons-wu-cycle wu-align-middle wu-mr-1"></span>
-						<?php esc_html_e('Check Status', 'ultimate-multisite'); ?>
+							<?php esc_html_e('Check Status', 'ultimate-multisite'); ?>
 					</a>
 					<div v-else class="wu-block sm:wu-inline-block wu-no-underline">
+					<?php else : ?>
+					<div data-wu-provisioning-pending class="wu-block sm:wu-inline-block wu-no-underline">
+					<?php endif; ?>
 						<span class="dashicons-wu-loader wu-align-middle wu-mr-1 wu-spin" style="display: inline-block;"></span>
 						<?php esc_html_e('Creating', 'ultimate-multisite'); ?>
 					</div>
@@ -344,6 +359,10 @@ defined('ABSPATH') || exit;
 
 			<?php endif; ?>
 
+			<?php if ($enhanced) : ?>
+			</div>
+			<noscript><a href="<?php echo esc_url(wu_get_current_url()); ?>"><?php esc_html_e('Check setup status', 'ultimate-multisite'); ?></a></noscript>
+			<?php endif; ?>
 		</div>
 
 		</div>

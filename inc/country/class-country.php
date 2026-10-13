@@ -22,6 +22,18 @@ defined('ABSPATH') || exit;
 abstract class Country {
 
 	/**
+	 * Initializes a country instance.
+	 *
+	 * Country subclasses use the Singleton trait, which delegates to this
+	 * method after their own initialization. The base country has no setup.
+	 *
+	 * @since 2.17.3
+	 * @return void
+	 */
+	public function init() {
+	}
+
+	/**
 	 * General country attributes.
 	 *
 	 * This might be useful, might be not.

@@ -106,7 +106,17 @@ style="background-image:url(<?php echo esc_url($addon->images[0]['thumbnail']); 
 
 	<div id="plugin-information-footer" style="height: auto !important;">
 
-		<?php if (! $addon->prices['price'] > 0) : ?>
+		<?php
+		/**
+		 * Filters whether the premium add-on notice should be displayed.
+		 *
+		 * @since 2.18.0
+		 * @param bool   $show_premium_notice Whether to display the notice.
+		 * @param object $addon               Current add-on catalog entry.
+		 */
+		$show_premium_notice = apply_filters('wu_addon_show_premium_notice', ! $addon->prices['price'] > 0, $addon);
+		?>
+		<?php if ($show_premium_notice) : ?>
 
 		<span class="wu-text-green-800 wu-inline-block wu-py-1">
 

@@ -8,6 +8,8 @@
 
 namespace WP_Ultimo\Tests;
 
+use WP_Ultimo\Installers\Core_Installer;
+use WP_Ultimo\Loaders\Table_Loader;
 use WP_Ultimo\Requirements;
 
 /**
@@ -200,6 +202,41 @@ class Requirements_Test extends \WP_UnitTestCase {
 		$result = Requirements::run_setup();
 
 		$this->assertTrue($result);
+	}
+
+	/**
+	 * Test run_setup restores every missing custom table.
+	 */
+	public function test_run_setup_restores_incomplete_custom_tables(): void {
+
+		$original_table_loader = Table_Loader::get_instance();
+		$original_installer    = Core_Installer::get_instance();
+
+		$table_loader = $this->getMockBuilder(Table_Loader::class)
+			->disableOriginalConstructor()
+			->onlyMethods(['is_installed'])
+			->getMock();
+		$installer    = $this->getMockBuilder(Core_Installer::class)
+			->disableOriginalConstructor()
+			->onlyMethods(['_install_database_tables'])
+			->getMock();
+
+		$table_loader->expects($this->exactly(2))
+			->method('is_installed')
+			->willReturnOnConsecutiveCalls(false, true);
+		$installer->expects($this->once())
+			->method('_install_database_tables');
+
+		Table_Loader::$instance   = $table_loader;
+		Core_Installer::$instance = $installer;
+
+		try {
+			$this->assertTrue(Requirements::run_setup());
+			$this->assertTrue(Requirements::run_setup());
+		} finally {
+			Table_Loader::$instance   = $original_table_loader;
+			Core_Installer::$instance = $original_installer;
+		}
 	}
 
 	/**

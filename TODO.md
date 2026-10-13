@@ -60,7 +60,7 @@ Format: `- [ ] tNNN Description @owner #tag ~estimate risk:level logged:date`
 <!--TOON:backlog[0]{id,desc,owner,tags,est,risk,logged,status}:
 -->
 
-- [ ] t534 fix(membership): skip AS fallback enqueue when loopback publish returned 2xx (duplicate publish race) #bug ref:GH#1305
+- [x] t534 fix(membership): skip AS fallback enqueue when loopback publish returned 2xx (duplicate publish race) #bug ref:GH#1305 pr:#1355 completed:2026-10-11
 
 ## In Progress
 

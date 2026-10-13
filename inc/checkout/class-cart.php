@@ -2919,6 +2919,18 @@ class Cart implements \JsonSerializable {
 			);
 		}
 
+		/**
+		 * Filter the coupon rate before discounts and taxes are calculated.
+		 *
+		 * Currency addons can convert absolute amounts without changing the
+		 * persisted coupon. Percentage rates must remain percentages.
+		 *
+		 * @param float     $rate      Discount rate in the store's base currency.
+		 * @param Line_Item $line_item Item receiving the validated coupon.
+		 * @param Cart      $cart      Cart providing the target currency.
+		 */
+		$line_item->set_discount_rate(apply_filters('wu_cart_discount_rate', $line_item->get_discount_rate(), $line_item, $this));
+
 		$line_item->recalculate_totals();
 
 		return $line_item;
@@ -3107,6 +3119,7 @@ class Cart implements \JsonSerializable {
 			'errors'                 => $errors,
 			'url'                    => $this->get_cart_url(),
 			'type'                   => $this->get_cart_type(),
+			'currency'               => $this->get_currency(),
 			'valid'                  => $this->is_valid(),
 			'is_free'                => $this->is_free(),
 			'should_collect_payment' => $this->should_collect_payment(),
