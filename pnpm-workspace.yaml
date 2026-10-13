@@ -6,6 +6,8 @@ allowBuilds:
 
 overrides:
   '@babel/core': 7.29.6
+  '@simple-git/argv-parser': 2.0.1
   js-yaml: 4.3.1
   postcss: 8.5.23
+  simple-git: 4.0.1
   uuid: 11.1.1
