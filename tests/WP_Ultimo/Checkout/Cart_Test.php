@@ -189,7 +189,7 @@ class Cart_Test extends WP_UnitTestCase {
 		$this->assertContainsOnlyInstancesOf(Line_Item::class, $line_items);
 		$this->assertCount(2, $line_items);
 		foreach ($line_items as $line_item) {
-			$this->assertTrue(in_array($line_item->get_type(), ['product', 'credit']));
+			$this->assertTrue(in_array($line_item->get_type(), ['product', 'credit'], true));
 			if ( 'credit' === $line_item->get_type() ) {
 				$this->assertEquals(-50.0, $line_item->get_total());
 			}
@@ -1565,6 +1565,7 @@ class Cart_Test extends WP_UnitTestCase {
 		$this->assertIsObject($result);
 		$this->assertObjectHasProperty('errors', $result);
 		$this->assertObjectHasProperty('type', $result);
+		$this->assertObjectHasProperty('currency', $result);
 		$this->assertObjectHasProperty('valid', $result);
 		$this->assertObjectHasProperty('is_free', $result);
 		$this->assertObjectHasProperty('should_collect_payment', $result);
