@@ -11,6 +11,45 @@ let paymentElement;
 let elements;
 let currentElementsMode = null;
 let currentElementsAmount = null;
+let currentElementsCurrency = null;
+
+/**
+ * Get a localized Stripe message with a cache-safe fallback.
+ *
+ * @param {string} key Message key.
+ * @param {string} fallback Fallback message.
+ * @return {string} Localized message.
+ */
+const getStripeMessage = function (key, fallback) {
+
+	return wu_stripe.i18n && wu_stripe.i18n[key]
+		? wu_stripe.i18n[key]
+		: fallback;
+};
+
+/**
+ * Surface a recoverable Stripe error and keep checkout from submitting natively.
+ *
+ * @param {Object} checkout Checkout form instance.
+ * @param {Object} error Stripe error object.
+ * @param {string} fallback Fallback error message.
+ */
+const showStripeError = function (checkout, error, fallback) {
+
+	const stripeError = error && error.message
+		? error
+		: {
+			code: 'stripe_confirmation_error',
+			message: fallback,
+		};
+
+	checkout.prevent_submission = true;
+	checkout.set_prevent_submission(true);
+	checkout.checkout_successful = false;
+	checkout.is_submitting = false;
+	checkout.unblock();
+	checkout.errors.push(stripeError);
+};
 
 /**
  * Check if the current checkout should collect Stripe details.
@@ -62,6 +101,7 @@ const resetStripeElements = function () {
 	elements = null;
 	currentElementsMode = null;
 	currentElementsAmount = null;
+	currentElementsCurrency = null;
 };
 
 /**
@@ -75,14 +115,22 @@ const confirmStripeIntent = function (checkout, results, useElements) {
 
 	// Check if we received a client_secret from the server
 	if (!results.gateway.data.stripe_client_secret) {
-		checkout.set_prevent_submission(false);
+		showStripeError(
+			checkout,
+			null,
+			getStripeMessage('confirmation_error', 'We could not confirm your payment. Please check your payment details and try again.')
+		);
 		return;
 	}
 
 	const clientSecret = results.gateway.data.stripe_client_secret;
 	const intentType = results.gateway.data.stripe_intent_type;
 
-	checkout.set_prevent_submission(false);
+	// Keep form_success() from natively submitting while Stripe confirmation is
+	// in flight. This must be synchronous because set_prevent_submission() waits
+	// for Vue's next tick.
+	checkout.prevent_submission = true;
+	checkout.set_prevent_submission(true);
 
 	// Determine the confirmation method based on intent type
 	const confirmMethod = intentType === 'payment_intent'
@@ -115,13 +163,23 @@ const confirmStripeIntent = function (checkout, results, useElements) {
 	_stripe[confirmMethod](confirmParams).then(function (result) {
 
 		if (result.error) {
-			wu_checkout_form.unblock();
-			wu_checkout_form.errors.push(result.error);
+			showStripeError(
+				checkout,
+				result.error,
+				getStripeMessage('confirmation_error', 'We could not confirm your payment. Please check your payment details and try again.')
+			);
 		} else {
 			// Payment succeeded - resubmit form to complete checkout
-			wu_checkout_form.resubmit();
+			checkout.resubmit();
 		}
 
+	}).catch(function (error) {
+
+		showStripeError(
+			checkout,
+			error,
+			getStripeMessage('confirmation_error', 'We could not confirm your payment. Please check your payment details and try again.')
+		);
 	});
 };
 
@@ -163,6 +221,10 @@ const stripeElements = function (publicKey) {
 							}
 						})
 					);
+				} else {
+					promises.push(Promise.reject(new Error(
+						getStripeMessage('initialization_error', 'The secure payment form could not be loaded. Please refresh the page and try again.')
+					)));
 				}
 			}
 
@@ -225,7 +287,8 @@ const stripeElements = function (publicKey) {
 		const paymentEl = document.getElementById('payment-element');
 
 		if (!paymentEl) {
-			form.set_prevent_submission(false);
+			form.prevent_submission = true;
+			form.set_prevent_submission(true);
 			return;
 		}
 
@@ -234,6 +297,9 @@ const stripeElements = function (publicKey) {
 		const orderTotal = form.order ? form.order.totals.total : 0;
 		const hasImmediateCharge = orderTotal > 0 && ! form.order.has_trial;
 		const requiredMode = hasImmediateCharge ? 'payment' : 'setup';
+		const requiredCurrency = form.order && form.order.currency
+			? form.order.currency.toLowerCase()
+			: wu_stripe.currency || 'usd';
 
 		// Convert amount to cents for Stripe (integer)
 		const amountInCents = hasImmediateCharge ? Math.round(orderTotal * 100) : null;
@@ -242,6 +308,7 @@ const stripeElements = function (publicKey) {
 		const needsReinit = !elements ||
 			!paymentElement ||
 			currentElementsMode !== requiredMode ||
+			currentElementsCurrency !== requiredCurrency ||
 			(hasImmediateCharge && currentElementsAmount !== amountInCents);
 
 		if (!needsReinit) {
@@ -264,7 +331,7 @@ const stripeElements = function (publicKey) {
 		try {
 			// Build elements options based on mode
 			const elementsOptions = {
-				currency: wu_stripe.currency || 'usd',
+				currency: requiredCurrency,
 				appearance: {
 					theme: 'stripe',
 				},
@@ -286,6 +353,7 @@ const stripeElements = function (publicKey) {
 			// Store current mode and amount for comparison
 			currentElementsMode = requiredMode;
 			currentElementsAmount = amountInCents;
+			currentElementsCurrency = requiredCurrency;
 
 			// Create and mount Payment Element
 			paymentElement = elements.create('payment', {
@@ -315,9 +383,14 @@ const stripeElements = function (publicKey) {
 			form.set_prevent_submission(shouldCollectStripePayment(form));
 
 		} catch (error) {
-			// Log error but don't break the form
+			// Keep checkout fail-closed: submitting without an initialized Payment
+			// Element creates an incomplete intent without confirming payment.
 			console.error('Stripe Payment Element initialization error:', error);
-			form.set_prevent_submission(false);
+			showStripeError(
+				form,
+				error,
+				getStripeMessage('initialization_error', 'The secure payment form could not be loaded. Please refresh the page and try again.')
+			);
 		}
 	});
 };

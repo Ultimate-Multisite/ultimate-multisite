@@ -298,7 +298,17 @@ class Addons_Admin_Page extends Wizard_Admin_Page {
 			$addons_list = get_site_transient($transient_key);
 
 			if (is_array($addons_list) && ! empty($addons_list)) {
-				$this->addons = $addons_list;
+				/**
+				 * Filters the add-ons available in the catalog.
+				 *
+				 * Providers can use this to decorate catalog entries with local
+				 * availability or entitlement information.
+				 *
+				 * @since 2.18.0
+				 * @param array             $addons Add-on catalog entries.
+				 * @param Addons_Admin_Page $page   Current add-ons page instance.
+				 */
+				$this->addons = apply_filters('wu_addons_list', $addons_list, $this);
 
 				return $this->addons;
 			}
@@ -323,7 +333,8 @@ class Addons_Admin_Page extends Wizard_Admin_Page {
 			$item['installed'] = isset($installed_plugins[ "{$item['sku']}/{$item['sku']}.php" ]);
 		}
 
-		$this->addons = $data;
+		/** This filter is documented above for cached catalog entries. */
+		$this->addons = apply_filters('wu_addons_list', $data, $this);
 
 		set_transient($transient_key, $this->addons, 2 * DAY_IN_SECONDS);
 
