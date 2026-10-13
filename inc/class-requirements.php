@@ -100,16 +100,8 @@ class Requirements {
 	 */
 	public static function run_setup() {
 
-		global $wpdb;
-
 		if (self::is_unit_test()) {
-			// phpcs:disable
-
-			$tables = wu_array_flatten($wpdb->get_results(sprintf('SHOW TABLES FROM %s;', DB_NAME), ARRAY_N));
-
-			// phpcs:enable
-
-			if (! in_array("{$wpdb->prefix}wu_domain_mappings", $tables, true)) {
+			if (! Table_Loader::get_instance()->is_installed()) {
 				Core_Installer::get_instance()->_install_database_tables();
 			}
 
