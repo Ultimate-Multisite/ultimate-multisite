@@ -52,7 +52,7 @@ class Logger_Recent_Error_Test extends \WP_UnitTestCase {
 	 */
 	public function test_add_error_updates_recent_error_marker(): void {
 
-		$handle = 'test_recent_error_' . uniqid();
+		$handle = 'test_recent_error_example.test_' . uniqid();
 
 		Logger::add($handle, 'Most recent error message', LogLevel::ERROR);
 
@@ -60,6 +60,7 @@ class Logger_Recent_Error_Test extends \WP_UnitTestCase {
 
 		$this->assertIsArray($entry);
 		$this->assertSame(sanitize_key($handle), $entry['handle']);
+		$this->assertSame($handle . '.log', $entry['file']);
 		$this->assertSame('Most recent error message', $entry['message']);
 		$this->assertSame(LogLevel::ERROR, $entry['level']);
 
