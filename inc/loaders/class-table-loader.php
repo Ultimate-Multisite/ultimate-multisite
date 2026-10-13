@@ -210,6 +210,14 @@ class Table_Loader {
 	public $email_otp_attempt_table;
 
 	/**
+	 * The cache-independent SSO Nonces Table.
+	 *
+	 * @since 2.17.4
+	 * @var \WP_Ultimo\Database\SSO_Nonces\SSO_Nonces_Table
+	 */
+	public $sso_nonce_table;
+
+	/**
 	 * Loads the table objects for our custom tables.
 	 *
 	 * @since 2.0.0
@@ -286,6 +294,7 @@ class Table_Loader {
 		$this->passkey_credential_table = new \WP_Ultimo\Database\Passkey_Credentials\Passkey_Credentials_Table();
 		$this->webauthn_challenge_table = new \WP_Ultimo\Database\WebAuthn_Challenges\WebAuthn_Challenges_Table();
 		$this->email_otp_attempt_table  = new \WP_Ultimo\Database\Email_OTP_Attempts\Email_OTP_Attempts_Table();
+		$this->sso_nonce_table          = new \WP_Ultimo\Database\SSO_Nonces\SSO_Nonces_Table();
 	}
 
 	/**
