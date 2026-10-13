@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Provision tests only for an initial checkout in a new linked worktree.
+set -euo pipefail
+
+if [[ "${3:-}" != "1" || "${1:-}" != "0000000000000000000000000000000000000000" ]]; then
+	exit 0
+fi
+if [[ -n "${CI:-}" || ! -f .git || ! -f bin/setup-worktree-tests.php ]]; then
+	exit 0
+fi
+if ! command -v php >/dev/null 2>&1; then
+	printf '%s\n' 'Worktree test setup requires PHP. Run php bin/setup-worktree-tests.php after installing it.' >&2
+	exit 0
+fi
+if ! php bin/setup-worktree-tests.php; then
+	# Preserve the new worktree and its ownership registration; tests fail closed.
+	printf '%s\n' 'Worktree created, but tests are NOT READY. Fix prerequisites and rerun php bin/setup-worktree-tests.php before testing.' >&2
+fi

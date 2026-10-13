@@ -8,6 +8,19 @@
 $_tests_dir = getenv('WP_TESTS_DIR');
 require 'vendor/yoast/phpunit-polyfills/phpunitpolyfills-autoload.php';
 
+// Local linked worktrees must never reinstall the shared test database.
+// CI jobs already have isolated databases; explicit custom configs remain supported.
+require_once dirname(__DIR__) . '/bin/class-worktree-test-environment.php';
+if ( ! getenv('CI') && ! defined('WP_TESTS_CONFIG_FILE_PATH') && \WP_Ultimo\Tests\Worktree_Test_Environment::is_worktree(dirname(__DIR__))) {
+	try {
+		$worktree_tests = new \WP_Ultimo\Tests\Worktree_Test_Environment(dirname(__DIR__));
+		$worktree_tests->bootstrap();
+	} catch (\Throwable $error) {
+		fwrite(STDERR, 'Local worktree tests cannot start: ' . $error->getMessage() . PHP_EOL); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- CLI startup diagnostic.
+		exit(1);
+	}
+}
+
 // WordPress ms-functions.php accesses $_SERVER['REMOTE_ADDR'] without isset() check.
 // PHP 8.5 treats undefined array key access as an error in strict mode.
 // Set a default value to prevent "Undefined array key" errors during blog creation.
