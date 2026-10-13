@@ -152,6 +152,7 @@ class Logger extends AbstractLogger {
 			self::RECENT_ERROR_OPTION,
 			[
 				'handle'    => sanitize_key($handle),
+				'file'      => basename($handle . '.log'),
 				'message'   => substr($message, 0, 300),
 				'level'     => $log_level,
 				'timestamp' => time(),

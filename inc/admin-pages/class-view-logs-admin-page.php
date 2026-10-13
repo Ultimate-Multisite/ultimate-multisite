@@ -166,51 +166,26 @@ class View_Logs_Admin_Page extends Edit_Admin_Page {
 			]
 		);
 
-		$logs_list = array_combine(array_values($logs_list), array_map(fn($file) => str_replace($logs_folder, '', (string) $file), $logs_list));
+		$logs_list = array_filter($logs_list ?: [], fn($file) => false !== $this->resolve_log_file($file));
+		$logs_list = array_combine(array_map([$this, 'resolve_log_file'], array_values($logs_list)), array_map(fn($file) => str_replace($logs_folder, '', (string) $file), $logs_list));
 
 		if (empty($logs_list)) {
 			$logs_list[''] = __('No log files found', 'ultimate-multisite');
 		}
 
-		$file = wu_request('file');
+		$file = wu_request('file', wu_request('log_file', false));
 
 		$file_name = '';
 
 		$contents = '';
 
-		/*
-		 * Security check: confine the requested file to the logs folder.
-		 *
-		 * realpath() resolves any '..' traversal so a crafted path cannot
-		 * escape the logs directory (the previous substring check accepted
-		 * any path that merely *contained* the logs folder, e.g.
-		 * "<logs>/../../../wp-config.php"). The resolved path must also be a
-		 * real file located under the resolved logs folder.
-		 */
-		if ($file) {
-			$real_file   = realpath((string) $file);
-			$real_folder = realpath($logs_folder);
-
-			if (false === $real_folder) {
-				wp_die(esc_html__('You can only view Ultimate Multisite log files.', 'ultimate-multisite'), 403);
-			}
-
-			if (false === $real_file) {
-				$real_file = trailingslashit(realpath(dirname((string) $file)) ?: '') . basename((string) $file);
-			}
-
-			if ( ! str_starts_with($real_file, trailingslashit($real_folder))) {
-				wp_die(esc_html__('You can only view Ultimate Multisite log files.', 'ultimate-multisite'), 403);
-			}
-
-			$file = $real_file;
-		}
-
 		if ( ! $file && ! empty($logs_list)) {
 			$file = ! $file && ! empty($logs_list) ? current(array_keys($logs_list)) : false;
 		}
 
-		$file_name = str_replace(Logger::get_logs_folder(), '', (string) $file);
+		$file = $this->validate_log_file($file);
+
+		$file_name = $file ? ltrim(substr($file, strlen((string) realpath($logs_folder))), '/\\') : '';
 
 		$default_content = wu_request('return_ascii', 'yes') === 'yes' ? wu_get_template_contents('events/ascii-badge') : __('No log entries found.', 'ultimate-multisite');
 
@@ -228,6 +203,59 @@ class View_Logs_Admin_Page extends Edit_Admin_Page {
 		} else {
 			return $response;
 		}
+	}
+
+	/**
+	 * Resolves an existing regular log file inside the logs directory.
+	 *
+	 * @param mixed $file Requested path.
+	 * @return string|false Canonical path, or false for an invalid or missing file.
+	 */
+	private function resolve_log_file($file) {
+
+		if ( ! is_string($file) || '' === $file || str_contains($file, "\0")) {
+			return false;
+		}
+
+		$folder = realpath(Logger::get_logs_folder());
+		$path   = realpath($file);
+
+		if (false === $folder || false === $path || ! str_starts_with($path, trailingslashit($folder)) || ! is_file($path) || 'log' !== pathinfo($path, PATHINFO_EXTENSION)) {
+			return false;
+		}
+
+		return $path;
+	}
+
+	/**
+	 * Rejects unsafe paths; missing logs inside the folder show an empty result.
+	 *
+	 * @param mixed $file Requested path.
+	 * @return string|false Verified path, or false when no log exists.
+	 */
+	private function validate_log_file($file) {
+
+		if (false === $file || '' === $file) {
+			return false;
+		}
+
+		$path = $this->resolve_log_file($file);
+
+		if (false !== $path) {
+			return $path;
+		}
+
+		// A removed log is harmless, but never allow a dangling symlink or an external path.
+		if (is_string($file) && ! str_contains($file, "\0") && ! file_exists($file) && ! is_link($file) && 'log' === pathinfo($file, PATHINFO_EXTENSION)) {
+			$folder = realpath(Logger::get_logs_folder());
+			$parent = realpath(dirname($file));
+
+			if (false !== $folder && false !== $parent && ($parent === $folder || str_starts_with($parent, trailingslashit($folder)))) {
+				return false;
+			}
+		}
+
+		wp_die(esc_html__('You can only view Ultimate Multisite log files.', 'ultimate-multisite'), 403);
 	}
 
 	/**
@@ -251,7 +279,7 @@ class View_Logs_Admin_Page extends Edit_Admin_Page {
 						'type'        => 'select',
 						'title'       => __('Select Log File', 'ultimate-multisite'),
 						'placeholder' => __('Select Log File', 'ultimate-multisite'),
-						'value'       => wu_request('file'),
+						'value'       => $info['file'],
 						'tooltip'     => '',
 						'options'     => $info['logs_list'],
 					],
@@ -275,8 +303,8 @@ class View_Logs_Admin_Page extends Edit_Admin_Page {
 						'title'         => __('Last Modified at', 'ultimate-multisite'),
 						'type'          => 'text-edit',
 						'date'          => true,
-						'value'         => date_i18n('Y-m-d H:i:s', filemtime($info['file'])),
-						'display_value' => date_i18n('Y-m-d H:i:s', filemtime($info['file'])),
+						'value'         => $info['file'] ? date_i18n('Y-m-d H:i:s', filemtime($info['file'])) : '',
+						'display_value' => $info['file'] ? date_i18n('Y-m-d H:i:s', filemtime($info['file'])) : '',
 					],
 				],
 			]
@@ -360,6 +388,10 @@ class View_Logs_Admin_Page extends Edit_Admin_Page {
 	 */
 	public function handle_save(): void {
 
+		if ( ! current_user_can('manage_network')) {
+			wp_die(esc_html__('You do not have permission to access this resource.', 'ultimate-multisite'), 403);
+		}
+
 		$action = wu_request('submit_button', 'none');
 
 		if ('none' === $action) {
@@ -368,16 +400,16 @@ class View_Logs_Admin_Page extends Edit_Admin_Page {
 			return;
 		}
 
-		$file = wu_request('log_file', false);
+		$file = $this->validate_log_file(wu_request('log_file', false));
 
-		if ( ! file_exists($file)) {
+		if ( ! $file) {
 			WP_Ultimo()->notices->add(__('File not found', 'ultimate-multisite'), 'error', 'network-admin');
 
 			return;
 		}
 
 		if ('download' === $action) {
-			$file_name = str_replace(Logger::get_logs_folder(), '', (string) $file);
+			$file_name = sanitize_file_name(basename($file));
 
 			header('Content-Type: application/octet-stream');
 			header("Content-Disposition: attachment; filename=$file_name");
