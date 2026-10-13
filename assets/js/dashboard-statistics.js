@@ -9,7 +9,7 @@
 
 	} // end if;
 
-	const mrr_graph = new Vue({
+	new Vue({
 		el: '#wp-ultimo-mrr-growth',
 		components: {
 			apexchart: window.VueApexCharts,

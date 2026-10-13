@@ -11,7 +11,7 @@
  * Icons use wp.primitives (SVG/Path) when available — the same approach WordPress
  * core uses in @wordpress/core-commands. There is no global wp.icons package.
  *
- * @param wp
+ * @param {Object} wp WordPress JavaScript APIs.
  * @package
  * @since 2.1.0
  */
@@ -221,7 +221,7 @@
 						clearTimeout(timeoutRef.current);
 					}
 				};
-			}, [ value ]);
+			}, [ value, setDebouncedValue ]);
 			return debouncedValue;
 		};
 
@@ -297,7 +297,7 @@
 					setCommands([]);
 					setIsLoading(false);
 				});
-		}, [ debouncedSearch ]);
+		}, [ debouncedSearch, setCommands, setIsLoading ]);
 
 		return {
 			commands,

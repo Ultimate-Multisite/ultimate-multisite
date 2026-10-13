@@ -89,10 +89,7 @@ module.exports = {
 			},
 		},
 		{
-			files: [
-				'assets/js/command-palette.js',
-				'assets/js/wu-password-reset.js',
-			],
+			files: ['assets/js/wu-password-reset.js'],
 			rules: {
 				'jsdoc/require-param-type': 'off',
 			},
@@ -107,15 +104,7 @@ module.exports = {
 			},
 		},
 		{
-			files: ['assets/js/settings-loader.js'],
-			rules: {
-				'jsdoc/require-returns-check': 'off',
-				'jsdoc/require-returns-type': 'off',
-			},
-		},
-		{
 			files: [
-				'assets/js/coupon-code.js',
 				'assets/js/template-previewer.js',
 				'assets/js/visits-counter.js',
 				'assets/js/wubox.js',

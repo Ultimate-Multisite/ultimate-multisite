@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		value: wu_moment
 	});
 
-	var wuActivityStream = new Vue({
+	const wuActivityStream = new Vue({
 		el: '#activity-stream-content',
 		data: {
 			count: 0,
