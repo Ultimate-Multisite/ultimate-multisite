@@ -1,0 +1,22 @@
+diff --git a/lib/download-wp-phpunit.js b/lib/download-wp-phpunit.js
+index 3900fd9495343d8f2b17ef1386078ae254c454b6..8f98d718ca6cd1f098636816549e0e4d48bc0e54 100644
+--- a/lib/download-wp-phpunit.js
++++ b/lib/download-wp-phpunit.js
+@@ -2,7 +2,7 @@
+ /**
+  * External dependencies
+  */
+-const SimpleGit = require( 'simple-git' );
++const { simpleGit } = require( 'simple-git' );
+ const fs = require( 'fs' );
+ const path = require( 'path' );
+ 
+@@ -94,7 +94,7 @@ async function downloadTestSuite(
+ 	}
+ 
+ 	log( 'Cloning or getting the PHPUnit suite from GitHub.' );
+-	const git = SimpleGit( { progress: progressHandler } );
++	const git = simpleGit( { progress: progressHandler } );
+ 
+ 	const isRepo =
+ 		fs.existsSync( directory ) &&
