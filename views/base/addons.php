@@ -63,7 +63,20 @@ if ( ! defined('ABSPATH') ) {
 	</div>
 
 	<?php endif; ?>
-	<?php if ( $user ) : ?>
+	<?php
+	/**
+	 * Filters a custom status notice shown instead of the account connection notice.
+	 *
+	 * @since 2.18.0
+	 * @param string                              $notice Custom notice HTML. Empty uses the default connection notice.
+	 * @param \WP_Ultimo\Admin_Pages\Addons_Admin_Page $page   Current add-ons page instance.
+	 * @param array|false                         $user   Connected account data, or false when disconnected.
+	 */
+	$connection_notice = apply_filters('wu_addons_connection_notice', '', $page, $user);
+	?>
+	<?php if ( $connection_notice ) : ?>
+		<?php echo wp_kses_post($connection_notice); ?>
+	<?php elseif ( $user ) : ?>
 		<div class="notice wu-hidden wu-admin-notice wu-styling hover:wu-styling notice-success">
 			<?php // translators: %1$s: the current user display name, %2$s: their password. ?>
 			<p class="wu-py-2"><?php echo esc_html(sprintf(__('Connected to UltimateMultisite.com as %1$s (%2$s).', 'ultimate-multisite'), $user['display_name'], $user['user_email'])); ?> <a title="<?php esc_attr_e('Disconnect your site', 'ultimate-multisite'); ?>" href="<?php echo esc_attr($logout_url); ?>"><?php esc_html_e('Disconnect', 'ultimate-multisite'); ?></a></p>
@@ -205,7 +218,8 @@ if ( ! defined('ABSPATH') ) {
 					<div class="wu-flex wu-items-center wu-justify-between wu-space-x-3">
 						<div>
 								<span v-if="addon.prices.price <= 0" class="wu-inline-flex wu-items-center wu-px-2 wu-py-1 wu-text-xs wu-font-medium wu-text-green-800 wu-bg-green-100 wu-rounded">
-									<?php esc_html_e('Free', 'ultimate-multisite'); ?>
+									<span v-if="addon.price_html" v-html="addon.price_html"></span>
+									<span v-else><?php esc_html_e('Free', 'ultimate-multisite'); ?></span>
 								</span>
 								<span v-else class="wu-inline-flex wu-items-center wu-px-2 wu-py-1 wu-text-xs wu-font-medium wu-text-blue-800 wu-bg-blue-100 wu-rounded">
 									<span v-html="addon.price_html"></span>
