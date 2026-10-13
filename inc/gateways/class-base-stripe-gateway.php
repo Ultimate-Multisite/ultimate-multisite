@@ -3501,6 +3501,10 @@ class Base_Stripe_Gateway extends Base_Gateway {
 				'add_new_card'            => empty($saved_cards),
 				'payment_method'          => empty($saved_cards) ? 'add-new' : current(array_keys($saved_cards)),
 				'currency'                => strtolower((string) wu_get_setting('currency_symbol', 'USD')),
+				'i18n'                    => [
+					'confirmation_error'   => esc_html__('We could not confirm your payment. Please check your payment details and try again.', 'ultimate-multisite'),
+					'initialization_error' => esc_html__('The secure payment form could not be loaded. Please refresh the page and try again.', 'ultimate-multisite'),
+				],
 			]
 		);
 

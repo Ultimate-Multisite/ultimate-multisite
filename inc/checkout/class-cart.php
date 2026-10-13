@@ -3119,6 +3119,7 @@ class Cart implements \JsonSerializable {
 			'errors'                 => $errors,
 			'url'                    => $this->get_cart_url(),
 			'type'                   => $this->get_cart_type(),
+			'currency'               => $this->get_currency(),
 			'valid'                  => $this->is_valid(),
 			'is_free'                => $this->is_free(),
 			'should_collect_payment' => $this->should_collect_payment(),
