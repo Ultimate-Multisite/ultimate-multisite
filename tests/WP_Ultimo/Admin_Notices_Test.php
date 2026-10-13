@@ -321,6 +321,9 @@ class Admin_Notices_Test extends \WP_UnitTestCase {
 		$this->assertSame('error', $notice['type']);
 		$this->assertStringContainsString('integration-hostinger.log', $notice['message']);
 		$this->assertArrayHasKey('view-logs', $notice['actions']);
+		parse_str(wp_parse_url($notice['actions']['view-logs']['url'], PHP_URL_QUERY), $query);
+		$this->assertSame('wp-ultimo-view-logs', $query['page']);
+		$this->assertSame(trailingslashit(\WP_Ultimo\Logger::get_logs_folder()) . 'integration-hostinger.log', $query['log_file']);
 	}
 
 	/**
