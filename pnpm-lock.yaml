@@ -13,6 +13,9 @@ overrides:
   simple-git: 4.0.1
   uuid: 11.1.1
 
+patchedDependencies:
+  '@wordpress/env@10.28.0': 5fa0291f751beda35a6ccc8599806b330d3515b262e2065e1987042f7f95eac9
+
 importers:
 
   .:
@@ -29,7 +32,7 @@ importers:
         version: 9.39.2
       '@wordpress/env':
         specifier: ^10.27.0
-        version: 10.28.0(@types/node@24.3.0)(supports-color@8.1.1)
+        version: 10.28.0(patch_hash=5fa0291f751beda35a6ccc8599806b330d3515b262e2065e1987042f7f95eac9)(@types/node@24.3.0)(supports-color@8.1.1)
       '@wordpress/eslint-plugin':
         specifier: ^23.0.0
         version: 23.0.0(@babel/core@7.29.6(supports-color@8.1.1))(eslint@8.57.1(supports-color@8.1.1))(prettier@3.7.4)(supports-color@8.1.1)(typescript@5.9.3)
@@ -722,7 +725,7 @@ packages:
     resolution: {integrity: sha512-PCqQV3c4CoVm3kdPhyeZ07VmBRdH2EpMFA/pd9OASpOEC3aXNGoqPDAZ80D0cLpMBxnmk0+yNhGsEx31hq7Gtw==}
     engines: {node: '>=18'}
     peerDependencies:
-      postcss-selector-parser: ^7.0.0
+      postcss-selector-parser: 7.1.6
 
   '@cypress/request@3.0.9':
     resolution: {integrity: sha512-I3l7FdGRXluAS44/0NguwWlO83J18p0vlr2FYHrJkWdNYhgVoiYo61IXPqaOsL+vNxU1ZqMACzItGK3/KKDsdw==}
@@ -4598,7 +4601,7 @@ snapshots:
       '@csstools/css-parser-algorithms': 3.0.5(@csstools/css-tokenizer@3.0.4)
       '@csstools/css-tokenizer': 3.0.4
 
-  '@csstools/selector-specificity@5.0.0(postcss-selector-parser@7.1.3)':
+  '@csstools/selector-specificity@5.0.0(postcss-selector-parser@7.1.6)':
     dependencies:
       postcss-selector-parser: 7.1.6
 
@@ -5199,7 +5202,7 @@ snapshots:
 
   '@wordpress/browserslist-config@6.37.0': {}
 
-  '@wordpress/env@10.28.0(@types/node@24.3.0)(supports-color@8.1.1)':
+  '@wordpress/env@10.28.0(patch_hash=5fa0291f751beda35a6ccc8599806b330d3515b262e2065e1987042f7f95eac9)(@types/node@24.3.0)(supports-color@8.1.1)':
     dependencies:
       '@inquirer/prompts': 7.8.3(@types/node@24.3.0)
       chalk: 4.1.2
@@ -7654,7 +7657,7 @@ snapshots:
       '@csstools/css-syntax-patches-for-csstree': 1.0.22
       '@csstools/css-tokenizer': 3.0.4
       '@csstools/media-query-list-parser': 4.0.3(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)
-      '@csstools/selector-specificity': 5.0.0(postcss-selector-parser@7.1.3)
+      '@csstools/selector-specificity': 5.0.0(postcss-selector-parser@7.1.6)
       '@dual-bundle/import-meta-resolve': 4.2.1
       balanced-match: 2.0.0
       colord: 2.9.3
