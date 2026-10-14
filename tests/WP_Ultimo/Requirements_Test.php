@@ -209,31 +209,61 @@ class Requirements_Test extends \WP_UnitTestCase {
 	 */
 	public function test_run_setup_restores_incomplete_custom_tables(): void {
 
+		global $wpdb;
+
 		$original_table_loader = Table_Loader::get_instance();
 		$original_installer    = Core_Installer::get_instance();
-
-		$table_loader = $this->getMockBuilder(Table_Loader::class)
+		$source_table_name     = $original_table_loader->domain_table->table_name;
+		$table_name            = $source_table_name . '_requirements_test';
+		$installer_called      = false;
+		$table_loader          = $this->getMockBuilder(Table_Loader::class)
 			->disableOriginalConstructor()
 			->onlyMethods(['is_installed'])
 			->getMock();
-		$installer    = $this->getMockBuilder(Core_Installer::class)
+		$installer             = $this->getMockBuilder(Core_Installer::class)
 			->disableOriginalConstructor()
 			->onlyMethods(['_install_database_tables'])
 			->getMock();
+		$table_is_installed    = static function () use ($wpdb, $table_name): bool {
+			$suppress_errors = $wpdb->suppress_errors(true);
 
-		$table_loader->expects($this->exactly(2))
-			->method('is_installed')
-			->willReturnOnConsecutiveCalls(false, true);
+			try {
+				return null !== $wpdb->get_var("SELECT COUNT(*) FROM `{$table_name}`"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.NoCaching -- Tests the disposable fixture's actual database state.
+			} finally {
+				$wpdb->suppress_errors($suppress_errors);
+			}
+		};
+
+		$table_loader->method('is_installed')
+			->willReturnCallback($table_is_installed);
+
 		$installer->expects($this->once())
-			->method('_install_database_tables');
+			->method('_install_database_tables')
+			->willReturnCallback(
+				function () use (&$installer_called, $wpdb, $table_name): void {
+					$installer_called = true;
+					$result           = $wpdb->query("CREATE TABLE `{$table_name}` (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, PRIMARY KEY (id))"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Creates the disposable custom-table fixture.
+
+					$this->assertTrue($result, $wpdb->last_error);
+				}
+			);
 
 		Table_Loader::$instance   = $table_loader;
 		Core_Installer::$instance = $installer;
 
 		try {
+			$drop_result = $wpdb->query("DROP TABLE IF EXISTS `{$table_name}`"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Removes a disposable table created from the registered custom-table schema.
+
+			$this->assertNotFalse($drop_result, $wpdb->last_error);
+			$this->assertFalse($table_is_installed());
 			$this->assertTrue(Requirements::run_setup());
+			$this->assertTrue($installer_called);
+			$this->assertTrue($table_is_installed());
+
 			$this->assertTrue(Requirements::run_setup());
 		} finally {
+			$wpdb->query("DROP TABLE IF EXISTS `{$table_name}`"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Removes the disposable test fixture.
+
 			Table_Loader::$instance   = $original_table_loader;
 			Core_Installer::$instance = $original_installer;
 		}
