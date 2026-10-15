@@ -249,11 +249,12 @@ class Site_Duplicator {
 		 *
 		 * @since 2.4.0
 		 */
-		$identity_snapshot = [
+		$destination_identity_url = self::get_destination_identity_url($to_site_id);
+		$identity_snapshot        = [
 			'blogname'        => get_blog_option($to_site_id, 'blogname'),
 			'blogdescription' => get_blog_option($to_site_id, 'blogdescription'),
-			'home'            => get_blog_option($to_site_id, 'home'),
-			'siteurl'         => get_blog_option($to_site_id, 'siteurl'),
+			'home'            => $destination_identity_url,
+			'siteurl'         => $destination_identity_url,
 			'admin_email'     => get_blog_option($to_site_id, 'admin_email'),
 		];
 
