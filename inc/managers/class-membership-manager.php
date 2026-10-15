@@ -13,6 +13,7 @@ namespace WP_Ultimo\Managers;
 
 use Psr\Log\LogLevel;
 use WP_Ultimo\Database\Memberships\Membership_Status;
+use WP_Ultimo\Database\Payments\Payment_Status;
 
 // Exit if accessed directly
 defined('ABSPATH') || exit;
@@ -676,6 +677,10 @@ class Membership_Manager extends Base_Manager {
 	 * @return void
 	 */
 	public function maybe_publish_pending_site_after_checkout($_payment, $membership): void {
+
+		if ($_payment && (float) $_payment->get_total() > 0 && Payment_Status::COMPLETED !== $_payment->get_status()) {
+			return;
+		}
 
 		if ( ! $this->can_publish_pending_site($membership)) {
 			return;
