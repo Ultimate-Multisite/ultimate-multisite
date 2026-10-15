@@ -385,6 +385,26 @@ class Site_Duplicator {
 	 * @param int   $to_site_id        Target site blog ID.
 	 * @param array $identity_snapshot Snapshot of identity option values keyed by option name.
 	 */
+	/**
+	 * Derive a destination URL from immutable site metadata rather than copied options.
+	 *
+	 * 'param int $to_site_id Destination blog ID.
+	 * 'return string Destination home and site URL.
+	 */
+	private static function get_destination_identity_url($to_site_id) {
+		$destination_site = get_site($to_site_id);
+		$network_site_url = get_blog_option(get_main_site_id($destination_site->network_id), 'siteurl');
+		$scheme           = wp_parse_url((string) $network_site_url, PHP_URL_SCHEME);
+
+		if ( ! in_array($scheme, ['http', 'https'], true)) {
+			$scheme = is_ssl() ? 'https' : 'http';
+		}
+
+		return untrailingslashit(
+			set_url_scheme('http://' . $destination_site->domain . $destination_site->path, $scheme)
+		);
+	}
+
 	private static function restore_identity_options($to_site_id, $identity_snapshot) {
 
 		foreach ($identity_snapshot as $opt_key => $opt_val) {
