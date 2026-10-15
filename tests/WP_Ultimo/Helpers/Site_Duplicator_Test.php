@@ -301,6 +301,70 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A retry must restore destination URLs from its wp_blogs record even when
+	 * the failed attempt has copied the template home and siteurl options.
+	 */
+	public function test_retry_override_restores_destination_urls_after_failed_copy() {
+		$target_site_id = self::factory()->blog->create(
+			[
+				'domain' => 'retry-destination.example.com',
+				'path'   => '/',
+				'title'  => 'Retry Destination',
+			]
+		);
+		$target_wu_site = wu_create_site(
+			[
+				'blog_id'     => $target_site_id,
+				'customer_id' => $this->customer->get_id(),
+				'type'        => Site_Type::REGULAR,
+			]
+		);
+		$initialization_attempts = 0;
+		$fail_once               = static function ($result) use (&$initialization_attempts) {
+			if (0 === $initialization_attempts++) {
+				return new \WP_Error('controlled_clone_failure', 'Controlled clone failure.');
+			}
+
+			return $result;
+		};
+
+		add_filter('wu_initialize_cloned_site', $fail_once);
+		try {
+			$this->assertFalse(
+				Site_Duplicator::override_site($this->template_site_id, $target_site_id, ['copy_files' => false, 'keep_users' => false])
+			);
+			$this->assertSame(
+				get_blog_option($this->template_site_id, 'siteurl'),
+				get_blog_option($target_site_id, 'siteurl'),
+				'The failed attempt must reproduce the copied template URL before the retry.'
+			);
+			$this->assertNotFalse(
+				Site_Duplicator::override_site($this->template_site_id, $target_site_id, ['copy_files' => false, 'keep_users' => false])
+			);
+		} finally {
+			remove_filter('wu_initialize_cloned_site', $fail_once);
+		}
+
+		$destination_site = get_site($target_site_id);
+		$network_site_url = (string) get_blog_option(get_main_site_id($destination_site->network_id), 'siteurl');
+		$scheme           = wp_parse_url($network_site_url, PHP_URL_SCHEME);
+		if ( ! in_array($scheme, ['http', 'https'], true)) {
+			$scheme = is_ssl() ? 'https' : 'http';
+		}
+
+		$expected_url = untrailingslashit(
+			set_url_scheme('http://' . $destination_site->domain . $destination_site->path, $scheme)
+		);
+		$this->assertSame($expected_url, get_blog_option($target_site_id, 'home'));
+		$this->assertSame($expected_url, get_blog_option($target_site_id, 'siteurl'));
+
+		wpmu_delete_blog($target_site_id, true);
+		if ($target_wu_site && ! is_wp_error($target_wu_site)) {
+			$target_wu_site->delete();
+		}
+	}
+
+	/**
 	 * Test identity option restoration preserves intentionally blank values.
 	 */
 	public function test_restore_identity_options_preserves_blank_values() {
