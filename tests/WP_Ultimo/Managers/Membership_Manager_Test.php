@@ -226,6 +226,7 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$this->assertSame(0, has_action('wu_checkout_transaction_committed', [$manager, 'commit_checkout_transaction']));
 		$this->assertSame(0, has_action('wu_checkout_transaction_rolled_back', [$manager, 'rollback_checkout_transaction']));
 		$this->assertSame(20, has_action('wu_membership_post_save', [$manager, 'maybe_defer_pending_site_publication']));
+		$this->assertSame(20, has_action('wu_checkout_done', [$manager, 'maybe_publish_pending_site_after_checkout']));
 	}
 
 	/**
@@ -961,6 +962,124 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 		$manager->commit_checkout_transaction();
 
 		$this->assertTrue($published, 'Retried trial publication should start after commit even without a status change.');
+	}
+
+	/**
+	 * Checkout completion publishes an active membership without a status transition.
+	 */
+	public function test_checkout_done_publishes_active_pending_site_without_status_transition(): void {
+
+		$membership = $this->create_membership(['status' => Membership_Status::ACTIVE]);
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Completed Paid Checkout Site',
+				'path'  => '/completed-paid-checkout/',
+			]
+		);
+
+		$args = ['membership_id' => $membership->get_id()];
+		wu_unschedule_all_actions('wu_async_publish_pending_site', $args, 'membership');
+
+		add_filter('wu_publish_pending_site_use_loopback', '__return_false');
+
+		$this->get_manager_instance()->maybe_publish_pending_site_after_checkout(false, $membership);
+
+		$this->assertNotFalse(
+			wu_next_scheduled_action('wu_async_publish_pending_site', $args, 'membership'),
+			'Checkout completion should dispatch the active membership pending site even when no status transition occurred.'
+		);
+
+		remove_filter('wu_publish_pending_site_use_loopback', '__return_false');
+		wu_unschedule_all_actions('wu_async_publish_pending_site', $args, 'membership');
+	}
+
+	/**
+	 * Checkout completion does not dispatch when publication is already queued.
+	 */
+	public function test_checkout_done_skips_already_scheduled_pending_site_publication(): void {
+
+		$membership = $this->create_membership(['status' => Membership_Status::ACTIVE]);
+
+		$membership->create_pending_site(
+			[
+				'title' => 'Already Scheduled Checkout Site',
+				'path'  => '/already-scheduled-checkout/',
+			]
+		);
+
+		$args = ['membership_id' => $membership->get_id()];
+		wu_unschedule_all_actions('wu_async_publish_pending_site', $args, 'membership');
+		wu_schedule_single_action(time() + 120, 'wu_async_publish_pending_site', $args, 'membership');
+
+		$scheduled_at = wu_next_scheduled_action('wu_async_publish_pending_site', $args, 'membership');
+		$loopbacks    = 0;
+		$http_filter  = function ($preempt, $request, $url) use (&$loopbacks) {
+			unset($request);
+
+			if (false !== strpos($url, 'wu_publish_pending_site')) {
+				++$loopbacks;
+			}
+
+			return $preempt;
+		};
+
+		add_filter('pre_http_request', $http_filter, 10, 3);
+
+		$this->get_manager_instance()->maybe_publish_pending_site_after_checkout(false, $membership);
+
+		$this->assertSame(0, $loopbacks, 'An existing publish action should prevent a duplicate loopback dispatch.');
+		$this->assertSame(
+			$scheduled_at,
+			wu_next_scheduled_action('wu_async_publish_pending_site', $args, 'membership'),
+			'Checkout completion should preserve the existing publish action.'
+		);
+
+		remove_filter('pre_http_request', $http_filter, 10);
+		wu_unschedule_all_actions('wu_async_publish_pending_site', $args, 'membership');
+	}
+
+	/**
+	 * Checkout completion does not dispatch while pending-site publication is active.
+	 */
+	public function test_checkout_done_skips_pending_site_publication_in_progress(): void {
+
+		$membership = $this->create_membership(['status' => Membership_Status::ACTIVE]);
+
+		$pending_site = $membership->create_pending_site(
+			[
+				'title' => 'Publishing Checkout Site',
+				'path'  => '/publishing-checkout/',
+			]
+		);
+		$pending_site->set_publishing(true);
+		$membership->update_pending_site($pending_site);
+
+		$args = ['membership_id' => $membership->get_id()];
+		wu_unschedule_all_actions('wu_async_publish_pending_site', $args, 'membership');
+
+		$loopbacks   = 0;
+		$http_filter = function ($preempt, $request, $url) use (&$loopbacks) {
+			unset($request);
+
+			if (false !== strpos($url, 'wu_publish_pending_site')) {
+				++$loopbacks;
+			}
+
+			return $preempt;
+		};
+
+		add_filter('pre_http_request', $http_filter, 10, 3);
+
+		$this->get_manager_instance()->maybe_publish_pending_site_after_checkout(false, $membership);
+
+		$this->assertSame(0, $loopbacks, 'A pending site already publishing should not receive another loopback.');
+		$this->assertFalse(
+			wu_next_scheduled_action('wu_async_publish_pending_site', $args, 'membership'),
+			'A pending site already publishing should not receive another scheduled action.'
+		);
+
+		remove_filter('pre_http_request', $http_filter, 10);
 	}
 
 	/**

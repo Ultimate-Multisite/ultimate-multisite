@@ -103,6 +103,7 @@ class Membership_Manager extends Base_Manager {
 		add_action('wu_checkout_transaction_committed', [$this, 'commit_checkout_transaction'], 0, 0);
 		add_action('wu_checkout_transaction_rolled_back', [$this, 'rollback_checkout_transaction'], 0, 0);
 		add_action('wu_membership_post_save', [$this, 'maybe_defer_pending_site_publication'], 20, 2);
+		add_action('wu_checkout_done', [$this, 'maybe_publish_pending_site_after_checkout'], 20, 2);
 
 		/*
 		 * Deal with delayed/schedule swaps
@@ -656,6 +657,55 @@ class Membership_Manager extends Base_Manager {
 		$membership_id = $membership->get_id();
 
 		$this->deferred_pending_site_publications[ $membership_id ] = (int) $membership_id;
+	}
+
+	/**
+	 * Ensures a completed checkout dispatches any eligible pending site.
+	 *
+	 * Paid gateways finish in a separate request after the checkout transaction
+	 * that created the pending membership and site has committed. A gateway or
+	 * integration can save an already-active membership without emitting a status
+	 * transition, so use the checkout completion boundary as the final publication
+	 * invariant. Existing publishers are detected to avoid duplicate loopbacks or
+	 * Action Scheduler jobs.
+	 *
+	 * @since 2.17.3
+	 *
+	 * @param \WP_Ultimo\Models\Payment    $_payment  The completed checkout payment.
+	 * @param \WP_Ultimo\Models\Membership $membership The checkout membership.
+	 * @return void
+	 */
+	public function maybe_publish_pending_site_after_checkout($_payment, $membership): void {
+
+		if ( ! $this->can_publish_pending_site($membership)) {
+			return;
+		}
+
+		$pending_site = $membership->get_pending_site();
+
+		if ( ! $pending_site) {
+			return;
+		}
+
+		if ($pending_site->is_publishing() && ! $pending_site->is_publishing_stale()) {
+			return;
+		}
+
+		$args = ['membership_id' => $membership->get_id()];
+
+		if (false !== wu_next_scheduled_action('wu_async_publish_pending_site', $args, 'membership')) {
+			return;
+		}
+
+		try {
+			$membership->publish_pending_site_async();
+		} catch (\Throwable $e) {
+			/*
+			 * Payment has already completed. Log a failed dispatch without turning
+			 * the successful checkout response into a duplicate-payment retry.
+			 */
+			wu_maybe_log_error($e);
+		}
 	}
 
 	/**
