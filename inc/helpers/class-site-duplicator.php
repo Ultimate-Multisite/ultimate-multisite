@@ -244,8 +244,9 @@ class Site_Duplicator {
 		 * Snapshot identity options BEFORE process_duplication() runs.
 		 *
 		 * copy_data() will overwrite admin_email and blogdescription from
-		 * the template. blogname is already restored by process_duplication()
-		 * itself (line ~333); home/siteurl are included as a safety net.
+		 * the template. Derive home and siteurl from the destination site
+		 * record instead of its options: a failed first copy can already have
+		 * replaced those options with the template values.
 		 *
 		 * @since 2.4.0
 		 */
@@ -375,21 +376,10 @@ class Site_Duplicator {
 	}
 
 	/**
-	 * Restore site identity options after an override table copy.
-	 *
-	 * Blank values are valid identity settings, particularly an intentionally
-	 * empty blogdescription, so only missing option sentinels are skipped.
-	 *
-	 * @since 2.4.0
-	 *
-	 * @param int   $to_site_id        Target site blog ID.
-	 * @param array $identity_snapshot Snapshot of identity option values keyed by option name.
-	 */
-	/**
 	 * Derive a destination URL from immutable site metadata rather than copied options.
 	 *
-	 * 'param int $to_site_id Destination blog ID.
-	 * 'return string Destination home and site URL.
+	 * @param int $to_site_id Destination blog ID.
+	 * @return string Destination home and site URL.
 	 */
 	private static function get_destination_identity_url($to_site_id) {
 		$destination_site = get_site($to_site_id);
@@ -405,6 +395,17 @@ class Site_Duplicator {
 		);
 	}
 
+	/**
+	 * Restore site identity options after an override table copy.
+	 *
+	 * Blank values are valid identity settings, particularly an intentionally
+	 * empty blogdescription, so only missing option sentinels are skipped.
+	 *
+	 * @since 2.4.0
+	 *
+	 * @param int   $to_site_id        Target site blog ID.
+	 * @param array $identity_snapshot Snapshot of identity option values keyed by option name.
+	 */
 	private static function restore_identity_options($to_site_id, $identity_snapshot) {
 
 		foreach ($identity_snapshot as $opt_key => $opt_val) {
