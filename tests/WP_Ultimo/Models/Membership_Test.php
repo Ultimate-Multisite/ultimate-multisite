@@ -1415,6 +1415,21 @@ class Membership_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test renew keeps an equal gateway expiration idempotently.
+	 */
+	public function test_renew_keeps_equal_expiration(): void {
+		$expiration = '2030-05-15 23:59:59';
+
+		$this->membership->set_date_expiration($expiration);
+		$this->membership->set_skip_validation(true);
+
+		$result = $this->membership->renew(true, 'active', $expiration);
+
+		$this->assertTrue($result);
+		$this->assertSame($expiration, $this->membership->get_date_expiration());
+	}
+
+	/**
 	 * Test renew returns false when plan_id is empty.
 	 */
 	public function test_renew_no_plan(): void {
