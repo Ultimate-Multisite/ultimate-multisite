@@ -221,11 +221,15 @@ const stripeElements = function (publicKey) {
 							}
 						})
 					);
-				} else {
+				} else if (paymentEl || document.getElementById('wrapper-field-payment')) {
+					// This step collects payment but the Payment Element did not mount.
 					promises.push(Promise.reject(new Error(
 						getStripeMessage('initialization_error', 'The secure payment form could not be loaded. Please refresh the page and try again.')
 					)));
 				}
+				// Earlier steps of a multi-step form (plan, site, account) have no
+				// payment field: let them advance. Card details are validated on
+				// the step that renders the Payment Element.
 			}
 
 			return promises;
@@ -287,8 +291,12 @@ const stripeElements = function (publicKey) {
 		const paymentEl = document.getElementById('payment-element');
 
 		if (!paymentEl) {
-			form.prevent_submission = true;
-			form.set_prevent_submission(true);
+			// Only the step that renders the payment field waits for the Payment
+			// Element; earlier steps of a multi-step form must stay submittable.
+			const collectsPaymentHere = !!document.getElementById('wrapper-field-payment');
+
+			form.prevent_submission = collectsPaymentHere;
+			form.set_prevent_submission(collectsPaymentHere);
 			return;
 		}
 
