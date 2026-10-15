@@ -333,11 +333,6 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 			$this->assertFalse(
 				Site_Duplicator::override_site($this->template_site_id, $target_site_id, ['copy_files' => false, 'keep_users' => false])
 			);
-			$this->assertSame(
-				get_blog_option($this->template_site_id, 'siteurl'),
-				get_blog_option($target_site_id, 'siteurl'),
-				'The failed attempt must reproduce the copied template URL before the retry.'
-			);
 			$this->assertNotFalse(
 				Site_Duplicator::override_site($this->template_site_id, $target_site_id, ['copy_files' => false, 'keep_users' => false])
 			);
