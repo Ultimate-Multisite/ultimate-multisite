@@ -2724,15 +2724,17 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			 * Callers (e.g. payment gateway integrations) may pass an explicit
 			 * $expiration derived from a subscription's "next payment" date. If
 			 * that source date has not been advanced yet at the time renew() is
-			 * called, the passed expiration can be equal to or earlier than the
-			 * membership's current expiration. Accepting it verbatim "renews" the
+			 * called, the passed expiration can be earlier than the membership's
+			 * current expiration. Accepting it verbatim "renews" the
 			 * membership to an already-due date, so it expires immediately even
 			 * though a payment just succeeded.
 			 *
-			 * When the passed expiration does not move the current expiration
-			 * forward, fall back to the plan-derived expiration so a paid renewal
-			 * always extends access. Non-recurring/free memberships and explicit
-			 * future dates are left untouched.
+			 * When the passed expiration moves the current expiration backward,
+			 * fall back to the plan-derived expiration so a paid renewal always
+			 * extends access. An equal gateway expiration is idempotent: it can
+			 * represent the first invoice after checkout already set that date.
+			 * Non-recurring/free memberships and explicit future dates are left
+			 * untouched.
 			 *
 			 * @since 2.5.1
 			 */
@@ -2742,14 +2744,14 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 				$passed_ts  = strtotime($expiration);
 				$current_ts = strtotime($current_expiration);
 
-				if ($passed_ts && $current_ts && $passed_ts <= $current_ts) {
+				if ($passed_ts && $current_ts && $passed_ts < $current_ts) {
 					$fallback = $this->calculate_expiration(! $this->is_recurring());
 
 					if ($fallback && strtotime($fallback) > $current_ts) {
 						wu_log_add(
 							"membership-{$id}",
 							sprintf(
-								'Renewal received a non-advancing expiration (%s <= current %s) for membership #%d; using plan-derived expiration %s instead.',
+								'Renewal received an earlier expiration (%s < current %s) for membership #%d; using plan-derived expiration %s instead.',
 								$expiration,
 								$current_expiration,
 								$id,
