@@ -54,8 +54,8 @@ class Stripe_Gateway_Process_Checkout_Test extends \WP_UnitTestCase {
 		parent::set_up_before_class();
 		self::$customer = wu_create_customer(
 			[
-				'username' => 'testuser2',
-				'email'    => 'test2@example.com',
+				'username' => 'stripe-checkout-test',
+				'email'    => 'stripe-checkout@example.test',
 				'password' => 'password123',
 			]
 		);
