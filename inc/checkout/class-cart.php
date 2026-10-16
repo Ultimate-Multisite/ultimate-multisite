@@ -722,6 +722,20 @@ class Cart implements \JsonSerializable {
 				}
 			}
 
+			/*
+			 * An outstanding invoice is paid exactly as issued. Its line items
+			 * already carry the discount and tax computed at invoice time, in the
+			 * invoice currency; re-applying the coupon's current base-currency
+			 * value would change the amount due.
+			 */
+			if ($payment->is_payable()) {
+				$this->line_items[ $line_item->get_id() ] = $line_item;
+
+				krsort($this->line_items);
+
+				continue;
+			}
+
 			$this->add_line_item($line_item);
 		}
 

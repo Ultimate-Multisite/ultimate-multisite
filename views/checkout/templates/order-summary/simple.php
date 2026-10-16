@@ -75,7 +75,7 @@ defined('ABSPATH') || exit;
 			<?php // translators: %s: name of the subscription ?>
 			<?php printf(esc_html__('Subscription - %s', 'ultimate-multisite'), '{{ line_item.title }}'); ?>
 
-			<small v-if="line_item.type == 'product'" class="wu-ml-3 wu-text-xs">
+			<small v-if="line_item.type == 'product' && order.type !== 'retry'" class="wu-ml-3 wu-text-xs">
 
 				<a href="#" class="wu-no-underline" v-on:click.prevent="remove_product(line_item.product_id, line_item.product_slug)">
 
@@ -91,7 +91,7 @@ defined('ABSPATH') || exit;
 
 			{{ line_item.title }}
 
-			<small v-if="line_item.type == 'product'" class="">
+			<small v-if="line_item.type == 'product' && order.type !== 'retry'" class="">
 
 				<a href="#" class="wu-no-underline" v-on:click.prevent="remove_product(line_item.product_id, line_item.product_slug)">
 
@@ -259,7 +259,7 @@ defined('ABSPATH') || exit;
 		printf(esc_html__('Discount applied: %1$s - %2$s (%3$s) %4$s', 'ultimate-multisite'), '{{ order.discount_code.name }}', '{{ order.discount_code.code }}', '{{ order.discount_code.discount_description }}', '{{ wu_format_money(-order.totals.total_discounts) }}');
 		?>
 
-		<a class="wu-no-underline wu-ml-2" href="#" v-on:click.prevent="discount_code = ''; toggle_discount_code = false">
+		<a v-if="order.type !== 'retry'" class="wu-no-underline wu-ml-2" href="#" v-on:click.prevent="discount_code = ''; toggle_discount_code = false">
 
 			<?php esc_html_e('Remove', 'ultimate-multisite'); ?>
 
