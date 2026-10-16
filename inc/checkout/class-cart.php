@@ -753,13 +753,14 @@ class Cart implements \JsonSerializable {
 		/*
 		 * Check for payment status.
 		 *
-		 * We want to make sure we only allow for repayment of pending,
-		 * cancelled, or abandoned payments
+		 * Pending and failed invoices can be paid again. Settled and cancelled
+		 * payments retain the membership-change behavior handled above.
 		 */
 		$allowed_status = apply_filters(
 			'wu_cart_set_payment_allowed_status',
 			[
 				'pending',
+				'failed',
 			]
 		);
 
@@ -770,20 +771,9 @@ class Cart implements \JsonSerializable {
 		}
 
 		/*
-		 * If the membership is active or is
-		 * already in trial this can't be a
-		 * retry, so we skip the rest.
-		 */
-		if ($membership->is_active() || ($membership->get_status() === Membership_Status::TRIALING && ! $this->has_trial())) {
-			return false;
-		}
-
-		/*
-		 * We got here, that means
-		 * the intend behind this cart was to actually
-		 * recover a payment.
-		 *
-		 * That means we can safely set the cart type to retry.
+		 * An outstanding invoice is a retry even when its membership is active.
+		 * Falling through to a new cart can cancel that invoice and membership
+		 * as a conflicting checkout. Preserve the existing payment and its items.
 		 */
 		$this->cart_type = 'retry';
 
