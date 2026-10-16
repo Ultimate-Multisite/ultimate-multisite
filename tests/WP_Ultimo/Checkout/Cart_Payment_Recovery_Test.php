@@ -13,6 +13,19 @@ use WP_UnitTestCase;
 /** Regression coverage for payment retries on already-active memberships. */
 class Cart_Payment_Recovery_Test extends WP_UnitTestCase {
 
+	/** @var array Models requiring explicit cleanup outside WordPress core tables. */
+	private $fixtures = [];
+
+	/** @return void Remove addon-table fixtures even if an assertion fails. */
+	public function tear_down() {
+		foreach (array_reverse($this->fixtures) as $fixture) {
+			$fixture->delete();
+		}
+		$this->fixtures = [];
+		wp_set_current_user(0);
+		parent::tear_down();
+	}
+
 	/**
 	 * Payable invoices remain retries regardless of membership activation.
 	 *
@@ -25,6 +38,7 @@ class Cart_Payment_Recovery_Test extends WP_UnitTestCase {
 			'user_id' => self::factory()->user->create(),
 		]);
 		$this->assertNotWPError($customer);
+		$this->fixtures[] = $customer;
 		wp_set_current_user($customer->get_user_id());
 
 		$plan = wu_create_product([
@@ -37,6 +51,8 @@ class Cart_Payment_Recovery_Test extends WP_UnitTestCase {
 			'duration_unit' => 'month',
 		]);
 		$this->assertNotWPError($plan);
+		$this->fixtures[] = $plan;
+
 		$membership = wu_create_membership([
 			'customer_id'   => $customer->get_id(),
 			'plan_id'       => $plan->get_id(),
@@ -48,6 +64,8 @@ class Cart_Payment_Recovery_Test extends WP_UnitTestCase {
 			'auto_renew'    => false,
 		]);
 		$this->assertNotWPError($membership);
+		$this->fixtures[] = $membership;
+
 		$item    = new Line_Item([
 			'product'      => $plan,
 			'unit_price'   => 19.64,
@@ -65,6 +83,7 @@ class Cart_Payment_Recovery_Test extends WP_UnitTestCase {
 			'line_items'    => [$item],
 		]);
 		$this->assertNotWPError($payment);
+		$this->fixtures[] = $payment;
 
 		$cart = new Cart([
 			'payment_id' => $payment->get_id(),

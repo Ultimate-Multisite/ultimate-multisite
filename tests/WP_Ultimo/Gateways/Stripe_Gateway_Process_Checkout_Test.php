@@ -377,6 +377,21 @@ class Stripe_Gateway_Process_Checkout_Test extends \WP_UnitTestCase {
 			]
 		);
 
+		if ('retry' === $type) {
+			// Recover an unpaid invoice on an active membership without a subscription.
+			$membership->set_status(Membership_Status::ACTIVE);
+			$membership->set_auto_renew(false);
+			$membership->save();
+			$payment->set_line_items([new \WP_Ultimo\Checkout\Line_Item(['product' => $product])]);
+			$payment->save();
+			$cart = new \WP_Ultimo\Checkout\Cart([
+				'payment_id' => $payment->get_id(),
+				'auto_renew' => true,
+			]);
+			$this->assertSame('retry', $cart->get_cart_type());
+			$this->assertEmpty($membership->get_gateway_subscription_id());
+		}
+
 		$this->gateway->set_payment($payment);
 
 		// Process the checkout
@@ -421,11 +436,21 @@ class Stripe_Gateway_Process_Checkout_Test extends \WP_UnitTestCase {
 			// $this->assertTrue((bool) $membership->get_scheduled_swap());
 			// $scheduled_swap = $membership->get_scheduled_swap();
 			// $this->assertEquals($product->get_id(), $scheduled_swap->order->get_plan_id());
+			$this->assertNotEmpty($membership->get_gateway_subscription_id());
 		} elseif ('upgrade' === $type || 'addon' === $type) {
 			// For upgrades and addons, verify immediate swap
 			$this->assertEquals($product->get_id(), $membership->get_plan_id());
 			$this->assertEquals($expected_status, $membership->get_status());
 			$this->assertGreaterThan(new \DateTime('+20 days'), new \DateTime($membership->get_date_expiration()));
+		}
+
+		if ('retry' === $type) {
+			$reloaded = wu_get_membership($membership->get_id());
+			$this->assertSame('sub_123', $reloaded->get_gateway_subscription_id());
+			$this->assertTrue($reloaded->should_auto_renew());
+			$this->assertSame(Membership_Status::ACTIVE, $reloaded->get_status());
+			$this->assertSame((int) $membership->get_id(), (int) wu_get_payment($payment->get_id())->get_membership_id());
+			$this->assertGreaterThan(time(), strtotime($reloaded->get_date_expiration()));
 		}
 
 		// Cleanup
