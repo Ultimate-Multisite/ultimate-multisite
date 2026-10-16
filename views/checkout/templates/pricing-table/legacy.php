@@ -14,7 +14,6 @@
  */
 defined('ABSPATH') || exit;
 
-// Missing product context must reach the existing empty-state rendering below.
 $products = $products ?? [];
 
 $products_to_reduce = array_merge([false], $products);
