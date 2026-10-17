@@ -1,15 +1,12 @@
 {
     "version": 1,
     "totals": {
-        "errors": 1289,
-        "warnings": 590
+        "errors": 1130,
+        "warnings": 540
     },
     "files": {
         "encrypt-secrets.php": {
             "ERROR|Squiz.Commenting.FileComment.Missing": 1
-        },
-        "inc/admin-pages/class-multisite-setup-admin-page.php": {
-            "ERROR|WordPress.WP.I18n.TextDomainMismatch": 40
         },
         "inc/admin-pages/class-top-admin-nav-menu.php": {
             "WARNING|WordPress.WP.Capabilities.Unknown": 1
@@ -123,9 +120,6 @@
         "inc/functions/compatiblity.php": {
             "WARNING|WordPress.WP.DeprecatedFunctions.current_user_can_for_blogFound": 1
         },
-        "inc/functions/customer.php": {
-            "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound": 1
-        },
         "inc/functions/exporter.php": {
             "WARNING|WordPress.DB.DirectDatabaseQuery.DirectQuery": 1
         },
@@ -163,9 +157,6 @@
         "inc/list-tables/class-base-list-table.php": {
             "ERROR|WordPress.PHP.YodaConditions.NotYoda": 1
         },
-        "inc/list-tables/class-customers-membership-list-table.php": {
-            "ERROR|WordPress.PHP.YodaConditions.NotYoda": 1
-        },
         "inc/list-tables/class-membership-list-table-widget.php": {
             "ERROR|WordPress.PHP.YodaConditions.NotYoda": 1
         },
@@ -198,9 +189,6 @@
         },
         "inc/stuff.php": {
             "ERROR|Squiz.Commenting.FileComment.Missing": 1
-        },
-        "inc/ui/class-template-previewer.php": {
-            "WARNING|WordPress.Security.SafeRedirect.wp_redirect_wp_redirect": 1
         },
         "mu-plugins/email-smtp-dev/email-smtp-dev.php": {
             "ERROR|Squiz.Commenting.FileComment.WrongStyle": 1,
@@ -342,10 +330,6 @@
             "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 2,
             "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.fnFound": 1
         },
-        "tests/WP_Ultimo/Admin_Pages/Payment_Edit_Admin_Page_Test.php": {
-            "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedCatch": 1,
-            "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 1
-        },
         "tests/WP_Ultimo/Admin_Pages/Placeholders_Admin_Page_Test.php": {
             "ERROR|Generic.Commenting.DocComment.ShortNotCapital": 8
         },
@@ -395,12 +379,12 @@
         "tests/WP_Ultimo/Checkout/Cart_Coverage_Test.php": {
             "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.Found": 3
         },
-        "tests/WP_Ultimo/Checkout/Cart_Test.php": {
-            "WARNING|WordPress.PHP.StrictInArray.MissingTrueStrict": 1
-        },
         "tests/WP_Ultimo/Checkout/Checkout_Pages_Test.php": {
             "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 3,
             "WARNING|Universal.NamingConventions.NoReservedKeywordParameterNames.listFound": 1
+        },
+        "tests/WP_Ultimo/Checkout/Checkout_Test.php": {
+            "WARNING|Generic.Formatting.MultipleStatementAlignment.NotSameWarning": 4
         },
         "tests/WP_Ultimo/Checkout/Line_Item_Test.php": {
             "WARNING|WordPress.WP.AlternativeFunctions.json_encode_json_encode": 1
@@ -461,9 +445,6 @@
         "tests/WP_Ultimo/Gateways/Stripe_Gateway_Process_Checkout_Test.php": {
             "ERROR|Generic.CodeAnalysis.EmptyStatement.DetectedIf": 1
         },
-        "tests/WP_Ultimo/Gateways/Stripe_Gateway_Test.php": {
-            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1
-        },
         "tests/WP_Ultimo/Helpers/Credential_Store_Test.php": {
             "WARNING|WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode": 1
         },
@@ -498,10 +479,6 @@
         "tests/WP_Ultimo/Integrations/Host_Providers/Base_Host_Provider_Test.php": {
             "ERROR|Generic.Files.OneObjectStructurePerFile.MultipleFound": 3,
             "WARNING|Generic.CodeAnalysis.UselessOverridingMethod.Found": 1
-        },
-        "tests/WP_Ultimo/Integrations/Host_Providers/Cloudflare_Host_Provider_Test.php": {
-            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 102,
-            "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 50
         },
         "tests/WP_Ultimo/Integrations/Host_Providers/Hestia_Host_Provider_Test.php": {
             "WARNING|Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 6
@@ -640,6 +617,9 @@
             "WARNING|WordPress.WP.AlternativeFunctions.file_system_operations_rmdir": 1,
             "WARNING|WordPress.WP.AlternativeFunctions.unlink_unlink": 1
         },
+        "tests/WP_Ultimo/Sunrise_Test.php": {
+            "ERROR|Generic.Commenting.DocComment.LongNotCapital": 1
+        },
         "tests/WP_Ultimo/Tax/Dashboard_Taxes_Tab_Test.php": {
             "WARNING|Generic.CodeAnalysis.UselessOverridingMethod.Found": 1
         },
@@ -759,9 +739,6 @@
         "views/dashboard-widgets/current-site.php": {
             "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1
         },
-        "views/dashboard-widgets/invoices.php": {
-            "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1
-        },
         "views/dashboard-widgets/limits-and-quotas.php": {
             "ERROR|WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase": 1,
             "WARNING|Universal.Operators.StrictComparisons.LooseEqual": 1
@@ -829,12 +806,6 @@
         "views/settings/fields/field-wp_editor.php": {
             "ERROR|WordPress.Files.FileName.NotHyphenatedLowercase": 1,
             "WARNING|Squiz.PHP.CommentedOutCode.Found": 1
-        },
-        "views/wizards/multisite-setup/welcome.php": {
-            "ERROR|WordPress.WP.I18n.TextDomainMismatch": 13
-        },
-        "views/wizards/paypal-setup/instructions.php": {
-            "ERROR|WordPress.WP.I18n.MissingTranslatorsComment": 1
         },
         "views/wizards/setup/installation_steps.php": {
             "ERROR|WordPress.Files.FileName.NotHyphenatedLowercase": 1
