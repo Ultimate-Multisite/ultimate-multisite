@@ -143,12 +143,13 @@ class Email_Edit_Admin_Page extends Edit_Admin_Page {
 					'data-wu-app' => 'email_edit_save',
 					'data-state'  => wu_convert_to_state(
 						[
-							'slug'          => $this->edit ? $object->get_slug() : '',
-							'target'        => $this->edit ? $object->get_target() : 'admin',
-							'schedule'      => $this->edit ? $object->has_schedule() : false,
-							'schedule_type' => $this->edit ? $object->get_schedule_type() : 'days',
-							'days'          => $this->edit ? $object->get_send_days() : 1,
-							'hours'         => $this->edit ? $object->get_send_hours() : '12:00',
+							'slug'           => $this->edit ? $object->get_slug() : '',
+							'target'         => $this->edit ? $object->get_target() : 'admin',
+							'schedule'       => $this->edit ? $object->has_schedule() : false,
+							'schedule_type'  => $this->edit ? $object->get_schedule_type() : 'days',
+							'days'           => $this->edit ? $object->get_send_days() : 1,
+							'hours'          => $this->edit ? $object->get_send_hours() : '12:00',
+							'product_filter' => $this->edit ? $object->get_product_filter() : 'all',
 						]
 					),
 				],
@@ -266,7 +267,38 @@ class Email_Edit_Admin_Page extends Edit_Admin_Page {
 							],
 						],
 					],
-
+					'product_filter'     => [
+						'type'      => 'select',
+						'title'     => __('Products', 'ultimate-multisite'),
+						'desc'      => __('Limit this email to customers with certain products, for example to send a welcome series only to free trials. Delayed emails are checked again when they are due, so customers who changed plans in the meantime are skipped.', 'ultimate-multisite'),
+						'value'     => $this->edit ? $object->get_product_filter() : 'all',
+						'options'   => [
+							'all'     => __('Send for all products', 'ultimate-multisite'),
+							'include' => __('Only for the selected products', 'ultimate-multisite'),
+							'exclude' => __('For all products except the selected ones', 'ultimate-multisite'),
+						],
+						'html_attr' => [
+							'v-model' => 'product_filter',
+						],
+					],
+					'products'           => [
+						'type'              => 'model',
+						'title'             => __('Selected Products', 'ultimate-multisite'),
+						'placeholder'       => __('Search Products...', 'ultimate-multisite'),
+						'value'             => implode(',', $this->edit ? $object->get_products() : []),
+						'html_attr'         => [
+							'data-model'        => 'product',
+							'data-value-field'  => 'id',
+							'data-label-field'  => 'name',
+							'data-search-field' => 'name',
+							'data-max-items'    => 99,
+							'data-selected'     => wp_json_encode($this->get_selected_products()),
+						],
+						'wrapper_html_attr' => [
+							'v-show'  => "product_filter != 'all'",
+							'v-cloak' => 1,
+						],
+					],
 				],
 			]
 		);
@@ -357,6 +389,31 @@ class Email_Edit_Admin_Page extends Edit_Admin_Page {
 				],
 			]
 		);
+	}
+
+	/**
+	 * Returns the saved filter products in the format the product selector expects.
+	 *
+	 * @since 2.18.0
+	 * @return array
+	 */
+	protected function get_selected_products(): array {
+
+		if ( ! $this->edit) {
+			return [];
+		}
+
+		$selected = [];
+
+		foreach ($this->get_object()->get_products() as $product_id) {
+			$product = wu_get_product($product_id);
+
+			if ($product) {
+				$selected[] = $product->to_search_results();
+			}
+		}
+
+		return $selected;
 	}
 
 	/**
@@ -484,6 +541,8 @@ class Email_Edit_Admin_Page extends Edit_Admin_Page {
 		$_POST['send_copy_to_admin'] = wu_request('send_copy_to_admin');
 
 		$_POST['custom_sender'] = wu_request('custom_sender');
+
+		$_POST['products'] = wu_request('products', '');
 
 		return parent::handle_save();
 	}
