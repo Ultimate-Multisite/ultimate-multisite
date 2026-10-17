@@ -37,16 +37,26 @@ class WP_Config {
 		try {
 			$wp_config_transformer = new \WPConfigTransformer($config_path);
 			$is_raw_value          = is_bool($value) || is_int($value);
+			$options               = ['raw' => $is_raw_value];
+			$config_contents       = file_get_contents($config_path); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- This is a local configuration file, not a URL.
 
 			if (is_bool($value)) {
 				$value = $value ? 'true' : 'false';
+			}
+
+			if (false !== $config_contents && false === strpos($config_contents, "/* That's all, stop editing!")) {
+				$bootstrap_pattern = '/^[\t ]*(?:require_once|require)[\t ]*(?:\([\t ]*)?ABSPATH[\t ]*\.[\t ]*[\'\"]wp-settings\.php[\'\"][\t ]*(?:\))?[\t ]*;/m';
+
+				if (preg_match($bootstrap_pattern, $config_contents, $matches)) {
+					$options['anchor'] = $matches[0];
+				}
 			}
 
 			return $wp_config_transformer->update(
 				'constant',
 				$constant,
 				(string) $value,
-				['raw' => $is_raw_value]
+				$options
 			);
 		} catch (\Exception $exception) {
 			return new \WP_Error('wp-config-update-failed', $exception->getMessage());
