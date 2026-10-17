@@ -133,6 +133,7 @@ class Membership_Manager extends Base_Manager {
 		add_action('wp_ajax_wu_check_pending_site_created', [$this, 'authorize_legacy_pending_site_status'], 0);
 		add_action('wp_ajax_wu_check_pending_site_created', [$this, 'check_pending_site_created']);
 		add_action('wp_ajax_wu_checkout_provisioning_status', [$this, 'check_checkout_provisioning_status']);
+		add_action('wp_ajax_wu_create_checkout_handoff', [$this, 'create_checkout_handoff']);
 
 		add_action('wu_async_publish_pending_site', [$this, 'async_publish_pending_site'], 10);
 
@@ -357,6 +358,120 @@ class Membership_Manager extends Base_Manager {
 		$payment    = $hash && is_string($hash) ? wu_get_payment_by_hash($hash) : false;
 		wp_cache_delete($membership->get_id(), 'wu_membership_meta');
 		wp_send_json($this->get_provisioning_status($membership, $payment));
+	}
+
+	/**
+	 * Creates a signed, single-use handoff URL for a ready checkout site.
+	 *
+	 * @since 2.17.4
+	 * @return void
+	 */
+	public function create_checkout_handoff() {
+
+		nocache_headers();
+		if ( ! headers_sent()) {
+			header('Cache-Control: private, no-store, max-age=0');
+		}
+
+		$context = $this->get_checkout_handoff_context();
+
+		if (is_wp_error($context)) {
+			wp_send_json_error(['code' => $context->get_error_code()], 403);
+		}
+
+		$landing_path = apply_filters(
+			'wu_after_checkout_landing_path',
+			$context['checkout_form']->get_after_checkout_landing_path(),
+			$context['site'],
+			$context['membership'],
+			$context['checkout_form']
+		);
+
+		$url = \WP_Ultimo\SSO\Magic_Link::get_instance()->generate_checkout_handoff_url(
+			$context['customer']->get_user_id(),
+			$context['site']->get_id(),
+			$landing_path
+		);
+
+		if ( ! $url) {
+			wp_send_json_error(['code' => 'checkout_handoff_unavailable'], 409);
+		}
+
+		wp_send_json_success(['url' => esc_url_raw($url)]);
+	}
+
+	/**
+	 * Resolves the customer, payment and ready site allowed to receive a handoff.
+	 *
+	 * The checkout page's AJAX nonce binds the requested form, membership and
+	 * payment. Ownership is checked against both the membership and payment so a
+	 * visitor cannot use a valid checkout context to mint a link for another user.
+	 *
+	 * @since 2.17.4
+	 * @return array|\WP_Error
+	 */
+	public function get_checkout_handoff_context() {
+
+		$membership_hash  = wu_request('membership_hash');
+		$payment_hash     = wu_request('payment_hash');
+		$checkout_form_id = wu_request('checkout_form_id');
+		$nonce            = wu_request('_ajax_nonce');
+
+		if (
+			! is_user_logged_in()
+			|| ! is_string($membership_hash)
+			|| ! is_string($payment_hash)
+			|| ! is_scalar($checkout_form_id)
+			|| ! is_string($nonce)
+		) {
+			return new \WP_Error('checkout_access_denied');
+		}
+
+		$checkout_form_id = absint($checkout_form_id);
+
+		if (
+			! $checkout_form_id
+			|| ! wp_verify_nonce($nonce, 'wu_checkout_handoff:' . $checkout_form_id . ':' . $membership_hash . ':' . $payment_hash)
+		) {
+			return new \WP_Error('checkout_access_denied');
+		}
+
+		$membership    = wu_get_membership_by_hash($membership_hash);
+		$payment       = wu_get_payment_by_hash($payment_hash);
+		$checkout_form = wu_get_checkout_form($checkout_form_id);
+		$customer      = $membership ? $membership->get_customer() : false;
+		$payment_owner = $payment ? $payment->get_customer() : false;
+
+		if (
+			! $membership
+			|| ! $payment
+			|| ! $checkout_form
+			|| ! $customer
+			|| ! $payment_owner
+			|| 'redirect_to_site' !== $checkout_form->get_after_checkout_action()
+			|| (int) $customer->get_user_id() !== get_current_user_id()
+			|| (int) $payment_owner->get_user_id() !== get_current_user_id()
+			|| (int) $payment->get_membership_id() !== (int) $membership->get_id()
+			|| (int) $payment->get_customer_id() !== (int) $customer->get_id()
+		) {
+			return new \WP_Error('checkout_access_denied');
+		}
+
+		$status  = $this->get_provisioning_status($membership, $payment);
+		$site_id = absint($status['sites'][0]['id'] ?? 0);
+		$site    = 'ready' === $status['state'] && $site_id ? wu_get_site($site_id) : false;
+
+		if ( ! $site) {
+			return new \WP_Error('checkout_handoff_not_ready');
+		}
+
+		return [
+			'checkout_form' => $checkout_form,
+			'customer'      => $customer,
+			'membership'    => $membership,
+			'payment'       => $payment,
+			'site'          => $site,
+		];
 	}
 
 	/**

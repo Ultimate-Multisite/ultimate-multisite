@@ -268,6 +268,21 @@ class Membership_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test init registers the authenticated checkout handoff AJAX hook only.
+	 */
+	public function test_init_registers_authenticated_checkout_handoff_ajax_hook(): void {
+
+		$manager = $this->get_manager_instance();
+
+		$this->assertIsInt(
+			has_action('wp_ajax_wu_create_checkout_handoff', [$manager, 'create_checkout_handoff'])
+		);
+		$this->assertFalse(
+			has_action('wp_ajax_nopriv_wu_create_checkout_handoff', [$manager, 'create_checkout_handoff'])
+		);
+	}
+
+	/**
 	 * Test init registers the wu_async_publish_pending_site hook.
 	 */
 	public function test_init_registers_async_publish_pending_site_hook(): void {
