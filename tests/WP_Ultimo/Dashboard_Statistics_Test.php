@@ -98,6 +98,64 @@ class Dashboard_Statistics_Test extends WP_UnitTestCase {
 	// get_data_mrr_growth
 	// ------------------------------------------------------------------
 
+	/** Lightweight hydration keeps the canonical identifier and billing getters. */
+	public function test_statistics_membership_preserves_billing_semantics() {
+		foreach (['active', 'cancelled', 'expired', 'pending', 'on-hold'] as $status) {
+			foreach ([true, false] as $recurring) {
+				foreach ([0, -5, 29.99] as $amount) {
+					foreach (['day', 'week', 'month', 'year'] as $unit) {
+						$row    = (object) [
+							'id'                => 123,
+							'plan_id'           => 0,
+							'amount'            => $amount,
+							'recurring'         => $recurring,
+							'duration'          => 2,
+							'duration_unit'     => $unit,
+							'status'            => $status,
+							'date_created'      => '2026-01-15 10:00:00',
+							'date_cancellation' => '2026-02-15 10:00:00',
+						];
+						$normal = new \WP_Ultimo\Models\Membership($row);
+						$light  = new \WP_Ultimo\Models\Statistics\Membership($row);
+						$this->assertInstanceOf(\WP_Ultimo\Models\Membership::class, $light);
+						$this->assertSame('membership', $light->model);
+						foreach (['is_recurring', 'get_status', 'get_amount', 'get_normalized_amount', 'get_date_created', 'get_date_cancellation'] as $getter) {
+							$this->assertSame($normal->$getter(), $light->$getter());
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/** Only editable memberships snapshot products; explicit product reads still work. */
+	public function test_statistics_membership_skips_snapshot_and_rejects_persistence() {
+		$product = wu_create_product(
+			[
+				'name'          => 'Statistics Plan',
+				'slug'          => 'statistics-plan',
+				'type'          => 'plan',
+				'duration'      => 1,
+				'duration_unit' => 'month',
+			]
+		);
+		$this->assertNotWPError($product);
+		$row      = (object) [
+			'id'            => 123,
+			'plan_id'       => $product->get_id(),
+			'duration'      => 1,
+			'duration_unit' => 'month',
+		];
+		$normal   = new \WP_Ultimo\Models\Membership($row);
+		$light    = new \WP_Ultimo\Models\Statistics\Membership($row);
+		$snapshot = new \ReflectionProperty(\WP_Ultimo\Models\Membership::class, 'compiled_product_list');
+		$this->assertNotEmpty($snapshot->getValue($normal));
+		$this->assertSame([], $snapshot->getValue($light));
+		$this->assertEquals($normal->get_all_products(), $light->get_all_products());
+		$this->assertWPError($light->save());
+		$this->assertWPError($light->delete());
+	}
+
 	/**
 	 * Test get_data_mrr_growth returns all months.
 	 */
