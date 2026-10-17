@@ -143,7 +143,7 @@ class Stripe_Checkout_Gateway extends Base_Stripe_Gateway {
 				'capability'  => 'manage_api_keys',
 				'require'     => [
 					'active_gateways'              => 'stripe-checkout',
-					'stripe_checkout_sandbox_mode' => 0,
+					'stripe_checkout_sandbox_mode' => [0, '0', false, ''],
 				],
 			]
 		);
@@ -163,7 +163,7 @@ class Stripe_Checkout_Gateway extends Base_Stripe_Gateway {
 				'capability'  => 'manage_api_keys',
 				'require'     => [
 					'active_gateways'              => 'stripe-checkout',
-					'stripe_checkout_sandbox_mode' => 0,
+					'stripe_checkout_sandbox_mode' => [0, '0', false, ''],
 				],
 			]
 		);

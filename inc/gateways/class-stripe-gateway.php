@@ -249,7 +249,7 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 				'capability'  => 'manage_api_keys',
 				'require'     => [
 					'active_gateways'         => 'stripe',
-					'stripe_sandbox_mode'     => 0,
+					'stripe_sandbox_mode'     => [0, '0', false, ''],
 					'stripe_show_direct_keys' => 1,
 				],
 			]
@@ -270,7 +270,7 @@ class Stripe_Gateway extends Base_Stripe_Gateway {
 				'capability'  => 'manage_api_keys',
 				'require'     => [
 					'active_gateways'         => 'stripe',
-					'stripe_sandbox_mode'     => 0,
+					'stripe_sandbox_mode'     => [0, '0', false, ''],
 					'stripe_show_direct_keys' => 1,
 				],
 			]
