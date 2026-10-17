@@ -244,16 +244,18 @@ class Site_Duplicator {
 		 * Snapshot identity options BEFORE process_duplication() runs.
 		 *
 		 * copy_data() will overwrite admin_email and blogdescription from
-		 * the template. blogname is already restored by process_duplication()
-		 * itself (line ~333); home/siteurl are included as a safety net.
+		 * the template. Derive home and siteurl from the destination site
+		 * record instead of its options: a failed first copy can already have
+		 * replaced those options with the template values.
 		 *
 		 * @since 2.4.0
 		 */
-		$identity_snapshot = [
+		$destination_identity_url = self::get_destination_identity_url($to_site_id);
+		$identity_snapshot        = [
 			'blogname'        => get_blog_option($to_site_id, 'blogname'),
 			'blogdescription' => get_blog_option($to_site_id, 'blogdescription'),
-			'home'            => get_blog_option($to_site_id, 'home'),
-			'siteurl'         => get_blog_option($to_site_id, 'siteurl'),
+			'home'            => $destination_identity_url,
+			'siteurl'         => $destination_identity_url,
 			'admin_email'     => get_blog_option($to_site_id, 'admin_email'),
 		];
 
@@ -371,6 +373,26 @@ class Site_Duplicator {
 		if ( get_current_blog_id() !== $caller_blog_id ) {
 			switch_to_blog($caller_blog_id);
 		}
+	}
+
+	/**
+	 * Derive a destination URL from immutable site metadata rather than copied options.
+	 *
+	 * @param int $to_site_id Destination blog ID.
+	 * @return string Destination home and site URL.
+	 */
+	private static function get_destination_identity_url($to_site_id) {
+		$destination_site = get_site($to_site_id);
+		$network_site_url = get_blog_option(get_main_site_id($destination_site->network_id), 'siteurl');
+		$scheme           = wp_parse_url((string) $network_site_url, PHP_URL_SCHEME);
+
+		if ( ! in_array($scheme, ['http', 'https'], true)) {
+			$scheme = is_ssl() ? 'https' : 'http';
+		}
+
+		return untrailingslashit(
+			set_url_scheme('http://' . $destination_site->domain . $destination_site->path, $scheme)
+		);
 	}
 
 	/**
