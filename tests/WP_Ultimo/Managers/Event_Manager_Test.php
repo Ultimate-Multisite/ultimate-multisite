@@ -526,6 +526,76 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 		$this->assertArrayHasKey( 'site_updated', $events );
 	}
 
+	/**
+	 * GH#1961: core model dispatchers are attached after init, regardless of
+	 * whether register_all_events() ran before the managers registered models.
+	 */
+	public function test_core_model_dispatchers_attached_after_init(): void {
+
+		$manager = $this->get_manager_instance();
+
+		foreach ( ['customer', 'membership', 'payment'] as $model ) {
+			$this->assertNotFalse(
+				has_action( "wu_{$model}_post_save", [$manager, 'dispatch_base_model_event'] ),
+				"Dispatcher missing on wu_{$model}_post_save"
+			);
+		}
+	}
+
+	/**
+	 * GH#1961: models registered after register_all_events() still get their
+	 * event types and dispatcher.
+	 */
+	public function test_register_model_events_after_register_all_events(): void {
+
+		$manager = $this->get_manager_instance();
+		$manager->register_all_events();
+
+		Event_Manager::register_model_events( 'late_model', 'Late Model', ['created'] );
+
+		$this->assertArrayHasKey( 'late_model_created', $manager->get_events() );
+		$this->assertNotFalse( has_action( 'wu_late_model_post_save', [$manager, 'dispatch_base_model_event'] ) );
+
+		remove_action( 'wu_late_model_post_save', [$manager, 'dispatch_base_model_event'], 10 );
+	}
+
+	/**
+	 * GH#1961: creating a pending customer fires customer_created and sends
+	 * exactly one verification email with a stored key.
+	 */
+	public function test_pending_customer_creation_sends_single_verification_email(): void {
+
+		$created = 0;
+		$emails  = 0;
+
+		$on_created = function () use (&$created) {
+			++$created;
+		};
+		$on_email   = function () use (&$emails) {
+			++$emails;
+		};
+
+		add_action( 'wu_event_customer_created', $on_created );
+		add_action( 'wu_event_confirm_email_address', $on_email );
+
+		$customer = wu_create_customer(
+			[
+				'username'           => 'gh1961user',
+				'email'              => 'gh1961@example.com',
+				'password'           => 'password123',
+				'email_verification' => 'pending',
+			]
+		);
+
+		remove_action( 'wu_event_customer_created', $on_created );
+		remove_action( 'wu_event_confirm_email_address', $on_email );
+
+		$this->assertNotWPError( $customer );
+		$this->assertSame( 1, $created, 'customer_created event should fire once.' );
+		$this->assertSame( 1, $emails, 'Exactly one verification email should be sent.' );
+		$this->assertNotEmpty( $customer->get_verification_key() );
+	}
+
 	// -------------------------------------------------------------------------
 	// clean_old_events
 	// -------------------------------------------------------------------------

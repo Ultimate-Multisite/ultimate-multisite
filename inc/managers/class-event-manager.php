@@ -64,6 +64,14 @@ class Event_Manager extends Base_Manager {
 	protected $models_events = [];
 
 	/**
+	 * Whether register_all_events() has already registered the model event types.
+	 *
+	 * @since 2.17.3
+	 * @var bool
+	 */
+	protected $model_event_types_registered = false;
+
+	/**
 	 * Instantiate the necessary hooks.
 	 *
 	 * @since 2.0.0
@@ -551,31 +559,47 @@ class Event_Manager extends Base_Manager {
 			]
 		);
 
-		$models = $this->models_events;
-
-		foreach ($models as $model => $params) {
-			foreach ($params['types'] as $type) {
-				wu_register_event_type(
-					$model . '_' . $type,
-					[
-						// translators: %1$s is the model name, %2$s is the event type.
-						'name'            => sprintf(__('%1$s %2$s', 'ultimate-multisite'), $params['label'], ucfirst($type)),
-						// translators: %1$s is the model name, %2$s is the event type.
-						'desc'            => sprintf(__('This event is fired every time a %1$s is %2$s by Ultimate Multisite.', 'ultimate-multisite'), $params['label'], $type),
-						'deprecated_args' => [],
-						'payload'         => fn() => $this->get_model_payload($model),
-					]
-				);
-			}
-
-			add_action("wu_{$model}_post_save", [$this, 'dispatch_base_model_event'], 10, 3);
+		foreach ($this->models_events as $model => $params) {
+			$this->register_model_event_types($model, $params);
 		}
+
+		$this->model_event_types_registered = true;
 
 		do_action('wu_register_all_events');
 	}
 
 	/**
+	 * Registers the event types (name, description, payload) for a model.
+	 *
+	 * @since 2.17.3
+	 *
+	 * @param string $model  The model slug.
+	 * @param array  $params The model event params (label and types).
+	 * @return void
+	 */
+	protected function register_model_event_types(string $model, array $params): void {
+
+		foreach ($params['types'] as $type) {
+			wu_register_event_type(
+				$model . '_' . $type,
+				[
+					// translators: %1$s is the model name, %2$s is the event type.
+					'name'            => sprintf(__('%1$s %2$s', 'ultimate-multisite'), $params['label'], ucfirst($type)),
+					// translators: %1$s is the model name, %2$s is the event type.
+					'desc'            => sprintf(__('This event is fired every time a %1$s is %2$s by Ultimate Multisite.', 'ultimate-multisite'), $params['label'], $type),
+					'deprecated_args' => [],
+					'payload'         => fn() => $this->get_model_payload($model),
+				]
+			);
+		}
+	}
+
+	/**
 	 * Register models events
+	 *
+	 * The dispatcher is attached to the model's post_save hook immediately,
+	 * so model events fire regardless of whether this runs before or after
+	 * register_all_events() on the same `init` priority.
 	 *
 	 * @param string $slug slug of event.
 	 * @param string $label label of event.
@@ -590,6 +614,18 @@ class Event_Manager extends Base_Manager {
 			'label' => $label,
 			'types' => $event_types,
 		];
+
+		if ( ! has_action("wu_{$slug}_post_save", [$instance, 'dispatch_base_model_event'])) {
+			add_action("wu_{$slug}_post_save", [$instance, 'dispatch_base_model_event'], 10, 3);
+		}
+
+		/*
+		 * If the event types were already registered, register this
+		 * model's event types now so they show up in the events list.
+		 */
+		if ($instance->model_event_types_registered) {
+			$instance->register_model_event_types($slug, $instance->models_events[ $slug ]);
+		}
 	}
 
 	/**
@@ -651,15 +687,21 @@ class Event_Manager extends Base_Manager {
 		}
 
 		if (method_exists($obj, 'get_billing_address') || method_exists($obj, 'get_membership')) {
+			/*
+			 * Objects without a billing address of their own (e.g. payments)
+			 * borrow it from their membership, which may not exist.
+			 */
+			$billing_source = null;
+
 			if (null !== $model_object) {
-				$payload = method_exists($obj, 'get_billing_address')
-					? array_merge(
-						$payload,
-						$obj->get_billing_address()->to_array()
-					) : array_merge(
-						$payload,
-						$obj->get_membership()->get_billing_address()->to_array()
-					);
+				$billing_source = method_exists($obj, 'get_billing_address') ? $obj : $obj->get_membership();
+			}
+
+			if ($billing_source) {
+				$payload = array_merge(
+					$payload,
+					$billing_source->get_billing_address()->to_array()
+				);
 			} else {
 				$payload = array_merge(
 					$payload,
