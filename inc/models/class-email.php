@@ -92,6 +92,16 @@ class Email extends Post_Base_Model {
 	const META_LEGACY = 'wu_legacy';
 
 	/**
+	 * Meta key for the product filter mode.
+	 */
+	const META_PRODUCT_FILTER = 'wu_product_filter';
+
+	/**
+	 * Meta key for the filtered product IDs.
+	 */
+	const META_PRODUCTS = 'wu_products';
+
+	/**
 	 * Post model.
 	 *
 	 * @since 2.0.0
@@ -256,6 +266,22 @@ class Email extends Post_Base_Model {
 	protected $style;
 
 	/**
+	 * Which memberships this email applies to: all, include or exclude.
+	 *
+	 * @since 2.18.0
+	 * @var string|null
+	 */
+	protected $product_filter;
+
+	/**
+	 * Product IDs used by the product filter.
+	 *
+	 * @since 2.18.0
+	 * @var int[]|null
+	 */
+	protected $products;
+
+	/**
 	 * Set the validation rules for this particular model.
 	 *
 	 * To see how to setup rules, check the documentation of the
@@ -284,6 +310,8 @@ class Email extends Post_Base_Model {
 			'send_copy_to_admin'  => 'boolean|default:0',
 			'active'              => 'default:1',
 			'legacy'              => 'boolean|default:0',
+			'product_filter'      => 'in:all,include,exclude|default:all',
+			'products'            => 'default:',
 		];
 	}
 
@@ -875,6 +903,133 @@ class Email extends Post_Base_Model {
 	}
 
 	/**
+	 * Get which memberships this email applies to.
+	 *
+	 * @since 2.18.0
+	 * @return string One of 'all', 'include' or 'exclude'.
+	 */
+	public function get_product_filter() {
+
+		if (null === $this->product_filter) {
+			$this->product_filter = $this->get_meta(self::META_PRODUCT_FILTER, 'all');
+		}
+
+		return in_array($this->product_filter, ['all', 'include', 'exclude'], true) ? $this->product_filter : 'all';
+	}
+
+	/**
+	 * Set which memberships this email applies to.
+	 *
+	 * @since 2.18.0
+	 * @param string $product_filter Send for all products, only the selected products (include), or all except them (exclude).
+	 * @options all,include,exclude
+	 * @return void
+	 */
+	public function set_product_filter($product_filter): void {
+
+		$this->product_filter = in_array($product_filter, ['all', 'include', 'exclude'], true) ? $product_filter : 'all';
+
+		$this->meta[ self::META_PRODUCT_FILTER ] = $this->product_filter;
+	}
+
+	/**
+	 * Get the product IDs used by the product filter.
+	 *
+	 * @since 2.18.0
+	 * @return int[]
+	 */
+	public function get_products() {
+
+		if (null === $this->products) {
+			$this->products = $this->get_meta(self::META_PRODUCTS, []);
+		}
+
+		return array_values(array_filter(array_map('absint', (array) $this->products)));
+	}
+
+	/**
+	 * Set the product IDs used by the product filter.
+	 *
+	 * @since 2.18.0
+	 * @param int[]|string $products Product IDs, as an array or a comma-separated list.
+	 * @return void
+	 */
+	public function set_products($products): void {
+
+		if (is_string($products)) {
+			$products = explode(',', $products);
+		}
+
+		$this->products = array_values(array_unique(array_filter(array_map('absint', (array) $products))));
+
+		$this->meta[ self::META_PRODUCTS ] = $this->products;
+	}
+
+	/**
+	 * Checks whether this email applies to the membership referenced by an event payload.
+	 *
+	 * The membership is loaded fresh, so a scheduled email re-checked at send
+	 * time follows plan changes made after the event (e.g. a trial upgraded to
+	 * a paid plan stops receiving emails limited to the trial product).
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param array $payload The event payload.
+	 * @return bool
+	 */
+	public function applies_to_payload($payload = []) {
+
+		$filter = $this->get_product_filter();
+
+		$products = $this->get_products();
+
+		if ('all' === $filter || empty($products)) {
+			$applies = true;
+		} else {
+			$matches = (bool) array_intersect($products, self::get_payload_product_ids((array) $payload));
+
+			$applies = 'include' === $filter ? $matches : ! $matches;
+		}
+
+		/**
+		 * Filters whether a system email applies to an event payload.
+		 *
+		 * @since 2.18.0
+		 *
+		 * @param bool                     $applies Whether the email should be sent.
+		 * @param \WP_Ultimo\Models\Email $email   The system email.
+		 * @param array                    $payload The event payload.
+		 */
+		return (bool) apply_filters('wu_system_email_applies_to_payload', $applies, $this, $payload);
+	}
+
+	/**
+	 * Returns the current product IDs (plan and add-ons) of the payload's membership.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param array $payload The event payload.
+	 * @return int[]
+	 */
+	public static function get_payload_product_ids(array $payload): array {
+
+		$membership = false;
+
+		if (wu_get_isset($payload, 'membership_id')) {
+			$membership = wu_get_membership((int) $payload['membership_id']);
+		} elseif (wu_get_isset($payload, 'payment_id')) {
+			$payment    = wu_get_payment((int) $payload['payment_id']);
+			$membership = $payment ? $payment->get_membership() : false;
+		}
+
+		if ( ! $membership) {
+			return [];
+		}
+
+		return array_values(array_filter(array_merge([(int) $membership->get_plan_id()], $membership->get_addon_ids())));
+	}
+
+	/**
 	 * Transform the object into an assoc array.
 	 *
 	 * Overrides Base_Model::to_array() to ensure lazy-loaded meta properties
@@ -890,7 +1045,10 @@ class Email extends Post_Base_Model {
 		// getters return default values that can fail validation rules.
 		if ($this->get_id()) {
 			$this->get_event();
+			$this->get_target();
 			$this->has_schedule();
+			$this->get_product_filter();
+			$this->get_products();
 		}
 
 		return parent::to_array();

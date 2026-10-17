@@ -78,7 +78,7 @@ class Email_Manager extends Base_Manager {
 		/*
 		 * Registering a callback action to a schedule send.
 		 */
-		add_action('wu_send_schedule_system_email', [$this, 'send_schedule_system_email'], 10, 3);
+		add_action('wu_send_schedule_system_email', [$this, 'send_schedule_system_email'], 10, 2);
 
 		/*
 		 * Create a log when a mail send fails.
@@ -103,11 +103,6 @@ class Email_Manager extends Base_Manager {
 			]
 		);
 
-		$original_from = [
-			'name'  => wu_get_setting('from_name', ''),
-			'email' => wu_get_setting('from_email', ''),
-		];
-
 		if (empty($all_emails)) {
 			$every_email = wu_get_emails();
 			if (empty($every_email)) {
@@ -131,54 +126,113 @@ class Email_Manager extends Base_Manager {
 		 * Loop through all the emails registered.
 		 */
 		foreach ($all_emails as $email) {
-			if ($email->get_custom_sender()) {
-				$from = [
-					'name'  => $email->get_custom_sender_name(),
-					'email' => $email->get_custom_sender_email(),
-				];
-			} else {
-				$from = $original_from;
-			}
-
-			/*
-			 * Compiles the target list.
-			 */
-			$to = $email->get_target_list($payload);
-
-			if (empty($to)) {
-				wu_log_add('mailer', __('No targets found.', 'ultimate-multisite'));
-
-				return;
-			}
-
-			$args = [
-				'style'   => $email->get_style(),
-				'content' => $email->get_content(),
-				'subject' => get_network_option(null, 'site_name') . ' - ' . $email->get_title(),
-				'payload' => $payload,
-			];
-
-			/*
-			 * Add the invoice attachment, if need be.
-			 */
-			if (wu_get_isset($payload, 'payment_id') && wu_get_setting('attach_invoice_pdf', true) && (! isset($payload['payment_is_paid']) || $payload['payment_is_paid'])) {
-				$invoice_payment = wu_get_payment($payload['payment_id']);
-
-				if ($invoice_payment) {
-					$file_name = 'invoice-' . $invoice_payment->get_hash() . '.pdf';
-
-					$this->attach_invoice_pdf($invoice_payment, $file_name, $args['subject']);
-				}
+			if ( ! $email->is_active() || ! $email->applies_to_payload($payload)) {
+				continue;
 			}
 
 			$when_to_send = $email->get_when_to_send();
 
+			/*
+			 * Delayed emails are queued and re-evaluated when they are due,
+			 * so content edits, deactivation and plan changes made in the
+			 * meantime are respected.
+			 */
 			if ($when_to_send) {
-				$args['schedule'] = $when_to_send;
+				$this->schedule_system_email($email, $payload, $when_to_send);
+
+				continue;
 			}
 
-			Sender::send_mail($from, $to, $args);
+			$this->deliver_system_email($email, $payload);
 		}
+	}
+
+	/**
+	 * Queues a delayed system email.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param Email $email        The system email.
+	 * @param array $payload      The event payload.
+	 * @param int   $when_to_send Timestamp when the email is due.
+	 * @return int The scheduled action ID, or 0 on failure.
+	 */
+	public function schedule_system_email($email, $payload, $when_to_send) {
+
+		$action_id = (int) wu_schedule_single_action(
+			(int) $when_to_send,
+			'wu_send_schedule_system_email',
+			[
+				'email_id' => (int) $email->get_id(),
+				'payload'  => (array) $payload,
+			],
+			'wu_system_emails'
+		);
+
+		if ( ! $action_id) {
+			// translators: %s: email slug.
+			wu_log_add('mailer', sprintf(__('Could not schedule the system email %s.', 'ultimate-multisite'), $email->get_slug()), LogLevel::ERROR);
+		}
+
+		return $action_id;
+	}
+
+	/**
+	 * Sends a single system email now.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param Email $email   The system email.
+	 * @param array $payload The event payload.
+	 * @return bool Whether the mailer accepted the email.
+	 */
+	public function deliver_system_email($email, $payload): bool {
+
+		if ($email->get_custom_sender()) {
+			$from = [
+				'name'  => $email->get_custom_sender_name(),
+				'email' => $email->get_custom_sender_email(),
+			];
+		} else {
+			$from = [
+				'name'  => wu_get_setting('from_name', ''),
+				'email' => wu_get_setting('from_email', ''),
+			];
+		}
+
+		/*
+		 * Compiles the target list.
+		 */
+		$to = $email->get_target_list($payload);
+
+		if (empty($to)) {
+			// translators: %s: email slug.
+			wu_log_add('mailer', sprintf(__('No targets found for the system email %s.', 'ultimate-multisite'), $email->get_slug()));
+
+			return false;
+		}
+
+		$args = [
+			'style'   => $email->get_style(),
+			'content' => $email->get_content(),
+			'subject' => get_network_option(null, 'site_name') . ' - ' . $email->get_title(),
+			'payload' => $payload,
+		];
+
+		/*
+		 * Add the invoice attachment, if need be.
+		 */
+		if (wu_get_isset($payload, 'payment_id') && wu_get_setting('attach_invoice_pdf', true) && (! isset($payload['payment_is_paid']) || $payload['payment_is_paid'])) {
+			$invoice_payment = wu_get_payment($payload['payment_id']);
+
+			if ($invoice_payment) {
+				$file_name = 'invoice-' . $invoice_payment->get_hash() . '.pdf';
+
+				$this->attach_invoice_pdf($invoice_payment, $file_name, $args['subject']);
+			}
+		}
+
+		return (bool) Sender::send_mail($from, $to, $args);
 	}
 
 	/**
@@ -299,11 +353,13 @@ class Email_Manager extends Base_Manager {
 			'expiring_days',
 			[
 				'title'       => __('Days to Expire', 'ultimate-multisite'),
-				'desc'        => __('Select when we should send the notification email. If you select 3 days, for example, a notification email will be sent to every membership (or trial period) expiring in the next 3 days. Memberships are checked hourly.', 'ultimate-multisite'),
+				'desc'        => __('Select when the "Trial or Membership Expiring" event fires. If you select 3 days, for example, it fires once for every free trial, and every membership that does not renew automatically, ending in the next 3 days. Use 0 to fire when it ends. Memberships are checked hourly.', 'ultimate-multisite'),
 				'type'        => 'number',
+				'default'     => 3,
 				'placeholder' => __('e.g. 3', 'ultimate-multisite'),
 				'html_attr'   => [
 					'v-model' => 'expiring_days',
+					'min'     => 0,
 				],
 			]
 		);
@@ -535,6 +591,20 @@ class Email_Manager extends Base_Manager {
 		);
 
 		/*
+		 * Trial or Membership Expiring - Customer
+		 */
+		$this->register_default_system_email(
+			[
+				'event'              => 'membership_expiring',
+				'slug'               => 'membership_expiring_customer',
+				'target'             => 'customer',
+				'title'              => __('Your trial or membership is ending soon', 'ultimate-multisite'),
+				'content'            => wu_get_template_contents('emails/customer/membership-expiring'),
+				'send_copy_to_admin' => false,
+			]
+		);
+
+		/*
 		 * Demo Site Expiring - Customer
 		 */
 		$this->register_default_system_email(
@@ -631,18 +701,82 @@ class Email_Manager extends Base_Manager {
 	}
 
 	/**
-	 * Sends a schedule email.
+	 * Sends a delayed system email when it is due.
+	 *
+	 * The email is reloaded, so it uses its current content and is skipped if
+	 * it was deleted, deactivated, or no longer applies to the membership
+	 * (for example after the customer changed plans). Membership and customer
+	 * placeholders are refreshed with their current values.
 	 *
 	 * @since 2.0.0
+	 * @since 2.18.0 Receives the email ID and event payload.
 	 *
-	 * @param array  $to Email targets.
-	 * @param string $subject Email subject.
-	 * @param string $template Email content.
+	 * @param int   $email_id The system email ID.
+	 * @param array $payload  The payload captured when the event fired.
 	 * @return void
 	 */
-	public function send_schedule_system_email($to, $subject, $template): void {
+	public function send_schedule_system_email($email_id, $payload = []): void {
 
-		Sender::send_mail($to, $subject, $template);
+		$email   = wu_get_email((int) $email_id);
+		$payload = is_array($payload) ? $payload : [];
+
+		if ( ! $email || ! $email->is_active()) {
+			return;
+		}
+
+		$payload = $this->refresh_scheduled_payload($payload);
+
+		if (false === $payload || ! $email->applies_to_payload($payload)) {
+			return;
+		}
+
+		/**
+		 * Filters whether a delayed system email should still be sent.
+		 *
+		 * @since 2.18.0
+		 *
+		 * @param bool  $send    Whether to send the email.
+		 * @param Email $email   The system email.
+		 * @param array $payload The refreshed event payload.
+		 */
+		if ( ! apply_filters('wu_send_scheduled_system_email', true, $email, $payload)) {
+			return;
+		}
+
+		$this->deliver_system_email($email, $payload);
+	}
+
+	/**
+	 * Refreshes membership and customer placeholders of a delayed email payload.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param array $payload The payload captured when the event fired.
+	 * @return array|false The refreshed payload, or false if its membership or customer no longer exists.
+	 */
+	protected function refresh_scheduled_payload(array $payload) {
+
+		if (wu_get_isset($payload, 'membership_id')) {
+			$membership = wu_get_membership((int) $payload['membership_id']);
+
+			if ( ! $membership) {
+				return false;
+			}
+
+			$payload = array_merge($payload, wu_generate_event_payload('membership', $membership));
+		}
+
+		if (wu_get_isset($payload, 'customer_id')) {
+			$customer = wu_get_customer((int) $payload['customer_id']);
+
+			if ( ! $customer) {
+				return false;
+			}
+
+			$payload = array_merge($payload, wu_generate_event_payload('customer', $customer));
+		}
+
+		return $payload;
 	}
 
 	/**
