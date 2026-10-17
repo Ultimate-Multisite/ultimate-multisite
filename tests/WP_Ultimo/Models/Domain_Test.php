@@ -1137,4 +1137,60 @@ class Domain_Test extends WP_UnitTestCase {
 
 		$this->assertEquals('https://second.example.com/', $domain->get_url());
 	}
+
+	/**
+	 * Mappings stored by a secondary network route only while the site belongs to it.
+	 */
+	public function test_get_by_domain_falls_back_to_secondary_network_tables(): void {
+
+		global $wpdb;
+
+		$network_id = 7;
+		$table      = $wpdb->base_prefix . 'wu_' . $network_id . '_domain_mappings';
+
+		$wpdb->insert($wpdb->site, [
+			'id'     => $network_id,
+			'domain' => 'network-seven.example',
+			'path'   => '/',
+		]);
+		$wpdb->query("CREATE TABLE `{$table}` LIKE {$wpdb->base_prefix}wu_domain_mappings"); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		$moved_blog = self::factory()->blog->create(['domain' => 'moved.network-seven.example']);
+		$stale_blog = self::factory()->blog->create(['domain' => 'stale.example.org']);
+
+		$wpdb->update($wpdb->blogs, ['site_id' => $network_id], ['blog_id' => $moved_blog]);
+
+		$wpdb->insert($table, [
+			'blog_id'        => $moved_blog,
+			'domain'         => 'moved-mapped.example',
+			'active'         => 1,
+			'primary_domain' => 1,
+			'secure'         => 1,
+			'stage'          => 'done',
+		]);
+		$wpdb->insert($table, [
+			'blog_id'        => $stale_blog,
+			'domain'         => 'stale-mapped.example',
+			'active'         => 1,
+			'primary_domain' => 1,
+			'secure'         => 1,
+			'stage'          => 'done',
+		]);
+
+		$filter = fn() => [$network_id => $table];
+		add_filter('wu_domain_mapping_network_tables', $filter);
+
+		wp_cache_delete('domain:moved-mapped.example', 'domain_mappings');
+		wp_cache_delete('domain:stale-mapped.example', 'domain_mappings');
+
+		$found = Domain::get_by_domain(['moved-mapped.example', 'www.moved-mapped.example']);
+		$stale = Domain::get_by_domain('stale-mapped.example');
+
+		remove_filter('wu_domain_mapping_network_tables', $filter);
+		$wpdb->query("DROP TABLE IF EXISTS `{$table}`"); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		$this->assertInstanceOf(Domain::class, $found);
+		$this->assertSame($moved_blog, (int) $found->get_blog_id());
+		$this->assertNull($stale, 'A row whose site left the owning network must not route.');
+	}
 }
