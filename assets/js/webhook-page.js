@@ -1,4 +1,4 @@
-/* global Vue, ajaxurl, Swal, wu_event_payload_preview, ClipboardJS, wu_webhook_page, wu_ajax_error */
+/* global Vue, ajaxurl, Swal, ClipboardJS, wu_webhook_page, wu_ajax_error */
 (function ($) {
 
 	jQuery(document).ready(function () {
