@@ -544,6 +544,7 @@ class Event_Manager extends Base_Manager {
 						'expiring_is_membership' => false,
 						'expiring_will_renew'    => false,
 						'expiring_needs_action'  => true,
+						'expiring_end_date'      => gmdate('Y-m-d 23:59:59', strtotime('+3 days')),
 						'expiring_date'          => wp_date(get_option('date_format'), strtotime('+3 days')),
 						'expiring_days_left'     => 3,
 					]

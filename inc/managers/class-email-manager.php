@@ -57,6 +57,29 @@ class Email_Manager extends Base_Manager {
 	protected $registered_default_system_emails = [];
 
 	/**
+	 * Payload models that delayed emails store by ID and rebuild when due.
+	 *
+	 * @since 2.18.0
+	 * @var array<string, string> Model name => getter function.
+	 */
+	const SCHEDULED_PAYLOAD_MODELS = [
+		'membership' => 'wu_get_membership',
+		'customer'   => 'wu_get_customer',
+		'payment'    => 'wu_get_payment',
+		'site'       => 'wu_get_site',
+		'domain'     => 'wu_get_domain',
+		'product'    => 'wu_get_product',
+	];
+
+	/**
+	 * Largest JSON length Action Scheduler accepts for action arguments.
+	 *
+	 * @since 2.18.0
+	 * @var int
+	 */
+	const SCHEDULED_ARGS_MAX_LENGTH = 8000;
+
+	/**
 	 * Instantiate the necessary hooks.
 	 *
 	 * @since 2.0.0
@@ -159,15 +182,25 @@ class Email_Manager extends Base_Manager {
 	 */
 	public function schedule_system_email($email, $payload, $when_to_send) {
 
-		$action_id = (int) wu_schedule_single_action(
-			(int) $when_to_send,
-			'wu_send_schedule_system_email',
-			[
-				'email_id' => (int) $email->get_id(),
-				'payload'  => (array) $payload,
-			],
-			'wu_system_emails'
-		);
+		$args = [
+			'email_id' => (int) $email->get_id(),
+			'payload'  => $this->compact_scheduled_payload((array) $payload),
+		];
+
+		/*
+		 * Action Scheduler rejects arguments longer than 8000 JSON characters
+		 * and only logs the failure, so report it against this email.
+		 */
+		$size = strlen((string) wp_json_encode($args));
+
+		if ($size > self::SCHEDULED_ARGS_MAX_LENGTH) {
+			// translators: 1: email slug, 2: size in characters.
+			wu_log_add('mailer', sprintf(__('Could not schedule the system email %1$s: its event data is too large (%2$d characters).', 'ultimate-multisite'), $email->get_slug(), $size), LogLevel::ERROR);
+
+			return 0;
+		}
+
+		$action_id = (int) wu_schedule_single_action((int) $when_to_send, 'wu_send_schedule_system_email', $args, 'wu_system_emails');
 
 		if ( ! $action_id) {
 			// translators: %s: email slug.
@@ -175,6 +208,40 @@ class Email_Manager extends Base_Manager {
 		}
 
 		return $action_id;
+	}
+
+	/**
+	 * Replaces model fields in a payload with their IDs for storage.
+	 *
+	 * Fields of models that still exist are rebuilt by refresh_scheduled_payload()
+	 * when the email is due; event-specific fields are kept as captured.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param array $payload The event payload.
+	 * @return array
+	 */
+	protected function compact_scheduled_payload(array $payload): array {
+
+		foreach (self::SCHEDULED_PAYLOAD_MODELS as $model => $getter) {
+			$id_key = "{$model}_id";
+
+			if ( ! wu_get_isset($payload, $id_key)) {
+				continue;
+			}
+
+			$object = call_user_func($getter, $payload[ $id_key ]);
+
+			if ( ! $object) {
+				continue;
+			}
+
+			$model_keys = array_diff(array_keys(wu_generate_event_payload($model, $object)), [$id_key]);
+
+			$payload = array_diff_key($payload, array_flip($model_keys));
+		}
+
+		return $payload;
 	}
 
 	/**
@@ -716,15 +783,23 @@ class Email_Manager extends Base_Manager {
 	 * @return void
 	 */
 	public function send_schedule_system_email($email_id, $payload = []): void {
+		/*
+		 * Before 2.18.0 this hook was registered with (to, subject, template)
+		 * arguments. Never treat such a job's recipients as an email ID.
+		 */
+		if ( ! is_numeric($email_id) || ! is_array($payload)) {
+			wu_log_add('mailer', __('Skipped a scheduled system email queued in an unsupported format.', 'ultimate-multisite'), LogLevel::WARNING);
 
-		$email   = wu_get_email((int) $email_id);
-		$payload = is_array($payload) ? $payload : [];
+			return;
+		}
+
+		$email = wu_get_email((int) $email_id);
 
 		if ( ! $email || ! $email->is_active()) {
 			return;
 		}
 
-		$payload = $this->refresh_scheduled_payload($payload);
+		$payload = $this->refresh_scheduled_payload($payload, $email);
 
 		if (false === $payload || ! $email->applies_to_payload($payload)) {
 			return;
@@ -747,33 +822,47 @@ class Email_Manager extends Base_Manager {
 	}
 
 	/**
-	 * Refreshes membership and customer placeholders of a delayed email payload.
+	 * Rebuilds the model placeholders of a delayed email payload with current values.
 	 *
 	 * @since 2.18.0
 	 *
-	 * @param array $payload The payload captured when the event fired.
-	 * @return array|false The refreshed payload, or false if its membership or customer no longer exists.
+	 * @param array $payload The stored payload.
+	 * @param Email $email   The system email being sent.
+	 * @return array|false The refreshed payload, or false if a referenced record no
+	 *                     longer exists or a trial/membership term has changed.
 	 */
-	protected function refresh_scheduled_payload(array $payload) {
+	protected function refresh_scheduled_payload(array $payload, $email) {
 
-		if (wu_get_isset($payload, 'membership_id')) {
-			$membership = wu_get_membership((int) $payload['membership_id']);
+		foreach (self::SCHEDULED_PAYLOAD_MODELS as $model => $getter) {
+			$id_key = "{$model}_id";
 
-			if ( ! $membership) {
+			if ( ! wu_get_isset($payload, $id_key)) {
+				continue;
+			}
+
+			$object = call_user_func($getter, $payload[ $id_key ]);
+
+			if ( ! $object) {
 				return false;
 			}
 
-			$payload = array_merge($payload, wu_generate_event_payload('membership', $membership));
+			$payload = array_merge($payload, wu_generate_event_payload($model, $object));
 		}
 
-		if (wu_get_isset($payload, 'customer_id')) {
-			$customer = wu_get_customer((int) $payload['customer_id']);
+		/*
+		 * A delayed expiring email must describe the term it was triggered
+		 * for. Skip it after a renewal or upgrade; otherwise refresh the
+		 * remaining days.
+		 */
+		if ('membership_expiring' === $email->get_event() && wu_get_isset($payload, 'expiring_end_date')) {
+			$membership = wu_get_isset($payload, 'membership_id') ? wu_get_membership((int) $payload['membership_id']) : false;
+			$fields     = $membership ? \WP_Ultimo\Cron::get_instance()->get_expiring_fields($membership) : null;
 
-			if ( ! $customer) {
+			if (null === $fields || $fields['expiring_end_date'] !== $payload['expiring_end_date']) {
 				return false;
 			}
 
-			$payload = array_merge($payload, wu_generate_event_payload('customer', $customer));
+			$payload = array_merge($payload, $fields);
 		}
 
 		return $payload;

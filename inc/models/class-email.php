@@ -471,13 +471,13 @@ class Email extends Post_Base_Model {
 		}
 
 		if ($this->get_schedule_type() === 'hours') {
-			$send_time = explode(':', $this->get_send_hours());
+			$send_time = array_map('absint', explode(':', (string) $this->get_send_hours()) + ['0', '0']);
 
-			$when_to_send = strtotime('+' . $send_time[0] . ' hours ' . $send_time[1] . ' minutes');
+			$when_to_send = time() + $send_time[0] * HOUR_IN_SECONDS + $send_time[1] * MINUTE_IN_SECONDS;
 		}
 
 		if ($this->get_schedule_type() === 'days') {
-			$when_to_send = strtotime('+' . $this->get_send_days() . ' days');
+			$when_to_send = time() + absint($this->get_send_days()) * DAY_IN_SECONDS;
 		}
 
 		return $when_to_send;

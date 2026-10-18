@@ -146,6 +146,8 @@ class Email_Sequence_Test extends WP_UnitTestCase {
 			]
 		);
 
+		$this->assertNotWPError($customer, is_wp_error($customer) ? $customer->get_error_message() : '');
+
 		$plan = $this->create_plan();
 
 		$membership = wu_create_membership(
@@ -234,10 +236,42 @@ class Email_Sequence_Test extends WP_UnitTestCase {
 		$args = array_values($action->get_args());
 		$this->assertSame($email->get_id(), $args[0]);
 		$this->assertSame($membership->get_id(), (int) $args[1]['membership_id']);
+		$this->assertArrayNotHasKey('membership_status', $args[1], 'Model fields are stored by ID and rebuilt when due.');
+		$this->assertArrayNotHasKey('customer_user_email', $args[1]);
 
 		do_action_ref_array('wu_send_schedule_system_email', $args);
 
 		$this->assertCount(1, $this->mails);
+		$this->assertStringContainsString('Status: ' . $membership->get_status(), $this->mails[0]['message']);
+	}
+
+	/**
+	 * Oversized event data is reported instead of silently dropped by Action Scheduler.
+	 */
+	public function test_oversized_payload_is_not_scheduled(): void {
+
+		$email       = $this->create_email([
+			'schedule'  => true,
+			'send_days' => 1,
+		]);
+		[, $payload] = $this->create_membership();
+
+		$payload['huge'] = str_repeat('x', 9000);
+
+		$this->assertSame(0, Email_Manager::get_instance()->schedule_system_email($email, $payload, time() + DAY_IN_SECONDS));
+		$this->assertEmpty($this->pending());
+	}
+
+	/**
+	 * Jobs queued with the pre-2.18 (to, subject, template) arguments never send.
+	 */
+	public function test_legacy_scheduled_arguments_are_ignored(): void {
+
+		$this->create_email(['target' => 'admin']);
+
+		Email_Manager::get_instance()->send_schedule_system_email([['email' => 'old@example.com']], 'Old subject');
+
+		$this->assertCount(0, $this->mails);
 	}
 
 	/**
@@ -385,6 +419,108 @@ class Email_Sequence_Test extends WP_UnitTestCase {
 		remove_action('wu_event_membership_expiring', $capture);
 
 		$this->assertSame(0, $fired);
+	}
+
+	/**
+	 * With 0 days, a trial ending today is still reported as a trial.
+	 */
+	public function test_membership_expiring_zero_days_reports_trial_ending_today(): void {
+
+		[$membership] = $this->create_membership(
+			[
+				'status'         => 'trialing',
+				'date_trial_end' => gmdate('Y-m-d H:i:s', time() - HOUR_IN_SECONDS),
+			]
+		);
+
+		$zero    = fn() => 0;
+		$fired   = [];
+		$capture = function ($payload) use (&$fired) {
+			$fired[] = $payload;
+		};
+		add_filter('wu_membership_expiring_days', $zero);
+		add_action('wu_event_membership_expiring', $capture);
+
+		Cron::get_instance()->async_membership_expiring($membership->get_id());
+
+		remove_action('wu_event_membership_expiring', $capture);
+		remove_filter('wu_membership_expiring_days', $zero);
+
+		$this->assertCount(1, $fired);
+		$this->assertTrue($fired[0]['expiring_is_trial']);
+		$this->assertSame(0, $fired[0]['expiring_days_left']);
+	}
+
+	/**
+	 * A delayed expiring email is skipped when the trial was extended or renewed meanwhile.
+	 */
+	public function test_delayed_expiring_email_skipped_after_term_change(): void {
+
+		$trial_end    = gmdate('Y-m-d H:i:s', time() + 2 * DAY_IN_SECONDS);
+		[$membership] = $this->create_membership(
+			[
+				'status'         => 'trialing',
+				'date_trial_end' => $trial_end,
+			]
+		);
+
+		$email = $this->create_email(
+			[
+				'event'     => 'membership_expiring',
+				'schedule'  => true,
+				'send_days' => 1,
+			]
+		);
+
+		$payload = array_merge(
+			wu_generate_event_payload('membership', $membership),
+			wu_generate_event_payload('customer', $membership->get_customer()),
+			Cron::get_instance()->get_expiring_fields($membership)
+		);
+
+		Email_Manager::get_instance()->send_schedule_system_email($email->get_id(), $payload);
+		$this->assertCount(1, $this->mails, 'Same term: the email is sent.');
+
+		$membership->set_date_trial_end(gmdate('Y-m-d H:i:s', time() + 30 * DAY_IN_SECONDS));
+		$membership->save();
+
+		Email_Manager::get_instance()->send_schedule_system_email($email->get_id(), $payload);
+		$this->assertCount(1, $this->mails, 'Changed term: the stale email is skipped.');
+	}
+
+	/**
+	 * Checkout Completed is dispatched as a full event, so emails and webhooks can use it.
+	 */
+	public function test_checkout_completed_is_dispatched_with_model_fields(): void {
+
+		[$membership] = $this->create_membership();
+
+		$payment = wu_create_payment(
+			[
+				'customer_id'   => $membership->get_customer_id(),
+				'membership_id' => $membership->get_id(),
+				'currency'      => 'USD',
+				'subtotal'      => 0,
+				'total'         => 0,
+				'gateway'       => 'free',
+			]
+		);
+		$this->assertNotWPError($payment);
+
+		$fired   = [];
+		$capture = function ($payload) use (&$fired) {
+			$fired[] = $payload;
+		};
+		add_action('wu_event_checkout_completed', $capture);
+
+		\WP_Ultimo\Signup_Metrics::get_instance()->track_checkout_completed($payment, $membership, $membership->get_customer(), null, 'new', null);
+
+		remove_action('wu_event_checkout_completed', $capture);
+
+		$this->assertCount(1, $fired);
+		$this->assertSame($membership->get_id(), $fired[0]['membership_id']);
+		$this->assertSame($membership->get_customer()->get_email_address(), $fired[0]['customer_user_email']);
+		$this->assertSame('new', $fired[0]['cart_type']);
 	}
 
 	/**

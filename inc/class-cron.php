@@ -252,19 +252,55 @@ class Cron implements \WP_Ultimo\Interfaces\Singleton {
 	 * @param \WP_Ultimo\Models\Membership $membership The membership.
 	 * @return string MySQL date, or an empty string when it never ends.
 	 */
-	protected function get_expiring_date($membership): string {
-
-		if ($membership->is_trialing()) {
-			return (string) $membership->get_date_trial_end();
-		}
-
-		if ($membership->should_auto_renew() || $membership->is_lifetime()) {
+	public function get_expiring_date($membership): string {
+		/*
+		 * Use the status rather than is_trialing(): is_trialing() is false
+		 * for trials ending today, which is exactly when a 0-day notice fires.
+		 */
+		if (Membership_Status::TRIALING === $membership->get_status()) {
+			$date = (string) $membership->get_date_trial_end();
+		} elseif ($membership->should_auto_renew() || $membership->is_lifetime()) {
 			return '';
+		} else {
+			$date = (string) $membership->get_date_expiration();
 		}
 
-		$date = (string) $membership->get_date_expiration();
+		return ('' === $date || str_starts_with($date, '0000-00-00')) ? '' : $date;
+	}
 
-		return str_starts_with($date, '0000-00-00') ? '' : $date;
+	/**
+	 * Builds the expiring_* payload fields for a membership's current trial or term.
+	 *
+	 * Used both when the event fires and when a delayed email for it is due,
+	 * so both paths describe the same term.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param \WP_Ultimo\Models\Membership $membership The membership.
+	 * @return array|null The fields, or null when the membership does not end.
+	 */
+	public function get_expiring_fields($membership): ?array {
+
+		$end_date = $this->get_expiring_date($membership);
+		$end      = $end_date ? strtotime($end_date . ' UTC') : false;
+
+		if ( ! $end) {
+			return null;
+		}
+
+		$is_trial   = Membership_Status::TRIALING === $membership->get_status();
+		$will_renew = $is_trial && $membership->should_auto_renew();
+		$now        = wu_get_current_time('timestamp', true);
+
+		return [
+			'expiring_is_trial'      => $is_trial,
+			'expiring_is_membership' => ! $is_trial,
+			'expiring_will_renew'    => $will_renew,
+			'expiring_needs_action'  => ! $will_renew,
+			'expiring_end_date'      => $end_date,
+			'expiring_date'          => wp_date(get_option('date_format'), $end),
+			'expiring_days_left'     => max(0, (int) ceil(($end - $now) / DAY_IN_SECONDS)),
+		];
 	}
 
 	/**
@@ -283,15 +319,20 @@ class Cron implements \WP_Ultimo\Interfaces\Singleton {
 			return;
 		}
 
-		$end_date = $this->get_expiring_date($membership);
-		$end      = $end_date ? strtotime($end_date . ' UTC') : false;
-		$now      = wu_get_current_time('timestamp', true);
+		$fields = $this->get_expiring_fields($membership);
 
-		if ( ! $end || $end > $now + $this->get_expiring_days() * DAY_IN_SECONDS || $end < $now - DAY_IN_SECONDS) {
+		if (null === $fields) {
 			return;
 		}
 
-		if ($membership->get_meta(self::EXPIRING_NOTICE_META) === $end_date) {
+		$end = strtotime($fields['expiring_end_date'] . ' UTC');
+		$now = wu_get_current_time('timestamp', true);
+
+		if ($end > $now + $this->get_expiring_days() * DAY_IN_SECONDS || $end < $now - DAY_IN_SECONDS) {
+			return;
+		}
+
+		if ($membership->get_meta(self::EXPIRING_NOTICE_META) === $fields['expiring_end_date']) {
 			return;
 		}
 
@@ -302,22 +343,12 @@ class Cron implements \WP_Ultimo\Interfaces\Singleton {
 		}
 
 		// Record the notice first so a concurrent runner cannot fire it twice.
-		$membership->update_meta(self::EXPIRING_NOTICE_META, $end_date);
-
-		$is_trial   = $membership->is_trialing();
-		$will_renew = $is_trial && $membership->should_auto_renew();
+		$membership->update_meta(self::EXPIRING_NOTICE_META, $fields['expiring_end_date']);
 
 		$payload = array_merge(
 			wu_generate_event_payload('membership', $membership),
 			wu_generate_event_payload('customer', $customer),
-			[
-				'expiring_is_trial'      => $is_trial,
-				'expiring_is_membership' => ! $is_trial,
-				'expiring_will_renew'    => $will_renew,
-				'expiring_needs_action'  => ! $will_renew,
-				'expiring_date'          => wp_date(get_option('date_format'), $end),
-				'expiring_days_left'     => max(0, (int) ceil(($end - $now) / DAY_IN_SECONDS)),
-			]
+			$fields
 		);
 
 		wu_do_event('membership_expiring', $payload);
