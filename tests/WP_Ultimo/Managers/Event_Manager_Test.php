@@ -282,23 +282,27 @@ class Event_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * save_event via manager with missing initiator returns false (validation fails).
+	 * save_event via manager stores dispatched events as system-initiated.
 	 *
-	 * The save_event method does not set initiator, so validation always fails
-	 * unless the payload contains it. This documents the current behaviour.
+	 * Events fired with wu_do_event() carry no initiator in their payload;
+	 * they previously failed validation and were never stored.
 	 */
-	public function test_save_event_via_manager_returns_false_without_initiator(): void {
+	public function test_save_event_via_manager_sets_system_initiator(): void {
 
 		$manager = $this->get_manager_instance();
 
-		// save_event does not set initiator — validation requires it → false.
 		$result = $manager->save_event( 'manager-save', [
 			'object_id'   => 0,
 			'object_type' => 'network',
 			'type'        => Event::SEVERITY_INFO,
 		] );
 
-		$this->assertFalse( $result );
+		$this->assertTrue( $result );
+
+		$saved = wu_get_events( [ 'slug' => 'manager-save' ] );
+
+		$this->assertNotEmpty( $saved );
+		$this->assertSame( 'system', $saved[0]->get_initiator() );
 	}
 
 	/**

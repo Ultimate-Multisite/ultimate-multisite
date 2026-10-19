@@ -351,6 +351,7 @@ class Event_Manager extends Base_Manager {
 				'object_type'  => wu_get_isset($payload, 'object_type', ''),
 				'severity'     => wu_get_isset($payload, 'type', Event::SEVERITY_INFO),
 				'date_created' => wu_get_current_time('mysql', true),
+				'initiator'    => 'system',
 				'slug'         => strtolower($slug),
 				'payload'      => $payload,
 			]

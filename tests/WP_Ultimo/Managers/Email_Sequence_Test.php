@@ -521,6 +521,16 @@ class Email_Sequence_Test extends WP_UnitTestCase {
 		$this->assertSame($membership->get_id(), $fired[0]['membership_id']);
 		$this->assertSame($membership->get_customer()->get_email_address(), $fired[0]['customer_user_email']);
 		$this->assertSame('new', $fired[0]['cart_type']);
+
+		// Dispatched events must still be stored, e.g. for the signup funnel statistics.
+		$stored = wu_get_events(
+			[
+				'slug'      => 'checkout_completed',
+				'object_id' => $membership->get_id(),
+			]
+		);
+		$this->assertCount(1, $stored);
+		$this->assertSame('system', $stored[0]->get_initiator());
 	}
 
 	/**
