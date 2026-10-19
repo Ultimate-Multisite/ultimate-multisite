@@ -52,6 +52,15 @@ class Cron implements \WP_Ultimo\Interfaces\Singleton {
 		 */
 		add_action('init', [$this, 'schedule_membership_check']);
 
+		/*
+		 * Notify customers whose trial (or non-renewing membership)
+		 * reaches the "Days to Expire" window. Runs before the trial
+		 * check, which moves ended trials out of the trialing status.
+		 */
+		add_action('wu_membership_check', [$this, 'membership_expiring_check'], 5);
+
+		add_action('wu_async_membership_expiring', [$this, 'async_membership_expiring'], 10);
+
 		add_action('wu_membership_check', [$this, 'membership_renewal_check'], 10);
 
 		add_action('wu_membership_check', [$this, 'membership_trial_check'], 10);
@@ -156,6 +165,193 @@ class Cron implements \WP_Ultimo\Interfaces\Singleton {
 		if (wu_next_scheduled_action('wu_membership_check') === false) {
 			wu_schedule_recurring_action(time(), $interval, 'wu_membership_check', [], 'wu_cron');
 		}
+	}
+
+	/**
+	 * Meta key recording the end date a membership was already notified about.
+	 *
+	 * @since 2.18.0
+	 * @var string
+	 */
+	const EXPIRING_NOTICE_META = 'wu_expiring_notice_sent_for';
+
+	/**
+	 * Days before the end of a trial or membership to fire membership_expiring.
+	 *
+	 * @since 2.18.0
+	 * @return int
+	 */
+	public function get_expiring_days(): int {
+
+		$days = wu_get_setting('expiring_days', 3);
+
+		$days = ('' === $days || null === $days) ? 3 : absint($days);
+
+		/**
+		 * Filters how many days before the end of a trial or membership customers are notified.
+		 *
+		 * @since 2.18.0
+		 * @param int $days Days before the end. Zero notifies when it ends.
+		 */
+		return absint(apply_filters('wu_membership_expiring_days', $days));
+	}
+
+	/**
+	 * Finds trials and non-renewing memberships entering the expiring window.
+	 *
+	 * @since 2.18.0
+	 * @return void
+	 */
+	public function membership_expiring_check(): void {
+
+		$days = $this->get_expiring_days();
+
+		$window = [
+			'before'    => "+{$days} days",
+			'after'     => '-1 day',
+			'inclusive' => true,
+		];
+
+		$queries = [
+			[
+				'status__in' => [Membership_Status::TRIALING],
+				'date_query' => array_merge(['column' => 'date_trial_end'], $window),
+			],
+			[
+				'auto_renew'              => false,
+				'status__in'              => [Membership_Status::ACTIVE, Membership_Status::ON_HOLD],
+				'date_expiration__not_in' => [null, '0000-00-00 00:00:00'],
+				'date_query'              => array_merge(['column' => 'date_expiration'], $window),
+			],
+		];
+
+		foreach ($queries as $query) {
+			$query_params = apply_filters('wu_membership_expiring_check_query_params', $query, $days);
+
+			foreach (wu_get_memberships($query_params) as $membership) {
+				if ($this->get_expiring_date($membership) === $membership->get_meta(self::EXPIRING_NOTICE_META)) {
+					continue;
+				}
+
+				wu_enqueue_async_action(
+					'wu_async_membership_expiring',
+					[
+						'membership_id' => $membership->get_id(),
+					],
+					'wu_cron_check'
+				);
+			}
+		}
+	}
+
+	/**
+	 * Returns the date a membership's trial or term ends.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param \WP_Ultimo\Models\Membership $membership The membership.
+	 * @return string MySQL date, or an empty string when it never ends.
+	 */
+	public function get_expiring_date($membership): string {
+		/*
+		 * Use the status rather than is_trialing(): is_trialing() is false
+		 * for trials ending today, which is exactly when a 0-day notice fires.
+		 */
+		if (Membership_Status::TRIALING === $membership->get_status()) {
+			$date = (string) $membership->get_date_trial_end();
+		} elseif ($membership->should_auto_renew() || $membership->is_lifetime()) {
+			return '';
+		} else {
+			$date = (string) $membership->get_date_expiration();
+		}
+
+		return ('' === $date || str_starts_with($date, '0000-00-00')) ? '' : $date;
+	}
+
+	/**
+	 * Builds the expiring_* payload fields for a membership's current trial or term.
+	 *
+	 * Used both when the event fires and when a delayed email for it is due,
+	 * so both paths describe the same term.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param \WP_Ultimo\Models\Membership $membership The membership.
+	 * @return array|null The fields, or null when the membership does not end.
+	 */
+	public function get_expiring_fields($membership): ?array {
+
+		$end_date = $this->get_expiring_date($membership);
+		$end      = $end_date ? strtotime($end_date . ' UTC') : false;
+
+		if ( ! $end) {
+			return null;
+		}
+
+		$is_trial   = Membership_Status::TRIALING === $membership->get_status();
+		$will_renew = $is_trial && $membership->should_auto_renew();
+		$now        = wu_get_current_time('timestamp', true);
+
+		return [
+			'expiring_is_trial'      => $is_trial,
+			'expiring_is_membership' => ! $is_trial,
+			'expiring_will_renew'    => $will_renew,
+			'expiring_needs_action'  => ! $will_renew,
+			'expiring_end_date'      => $end_date,
+			'expiring_date'          => wp_date(get_option('date_format'), $end),
+			'expiring_days_left'     => max(0, (int) ceil(($end - $now) / DAY_IN_SECONDS)),
+		];
+	}
+
+	/**
+	 * Fires membership_expiring once per trial or membership term.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param int $membership_id The membership ID.
+	 * @return void
+	 */
+	public function async_membership_expiring($membership_id): void {
+
+		$membership = wu_get_membership($membership_id);
+
+		if ( ! $membership) {
+			return;
+		}
+
+		$fields = $this->get_expiring_fields($membership);
+
+		if (null === $fields) {
+			return;
+		}
+
+		$end = strtotime($fields['expiring_end_date'] . ' UTC');
+		$now = wu_get_current_time('timestamp', true);
+
+		if ($end > $now + $this->get_expiring_days() * DAY_IN_SECONDS || $end < $now - DAY_IN_SECONDS) {
+			return;
+		}
+
+		if ($membership->get_meta(self::EXPIRING_NOTICE_META) === $fields['expiring_end_date']) {
+			return;
+		}
+
+		$customer = $membership->get_customer();
+
+		if ( ! $customer) {
+			return;
+		}
+
+		// Record the notice first so a concurrent runner cannot fire it twice.
+		$membership->update_meta(self::EXPIRING_NOTICE_META, $fields['expiring_end_date']);
+
+		$payload = array_merge(
+			wu_generate_event_payload('membership', $membership),
+			wu_generate_event_payload('customer', $customer),
+			$fields
+		);
+
+		wu_do_event('membership_expiring', $payload);
 	}
 
 	/**

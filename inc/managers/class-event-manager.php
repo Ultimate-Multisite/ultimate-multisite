@@ -351,6 +351,7 @@ class Event_Manager extends Base_Manager {
 				'object_type'  => wu_get_isset($payload, 'object_type', ''),
 				'severity'     => wu_get_isset($payload, 'type', Event::SEVERITY_INFO),
 				'date_created' => wu_get_current_time('mysql', true),
+				'initiator'    => 'system',
 				'slug'         => strtolower($slug),
 				'payload'      => $payload,
 			]
@@ -523,6 +524,31 @@ class Event_Manager extends Base_Manager {
 				'payload'         => fn() => array_merge(
 					wu_generate_event_payload('membership'),
 					wu_generate_event_payload('customer')
+				),
+				'deprecated_args' => [],
+			]
+		);
+
+		/**
+		 * Trial or membership expiring.
+		 */
+		wu_register_event_type(
+			'membership_expiring',
+			[
+				'name'            => __('Trial or Membership Expiring', 'ultimate-multisite'),
+				'desc'            => __('Fired once when a free trial, or a membership that does not renew automatically, reaches the "Days to Expire" window set in Settings > Emails. With 0 days it fires when the trial or membership ends.', 'ultimate-multisite'),
+				'payload'         => fn() => array_merge(
+					wu_generate_event_payload('membership'),
+					wu_generate_event_payload('customer'),
+					[
+						'expiring_is_trial'      => true,
+						'expiring_is_membership' => false,
+						'expiring_will_renew'    => false,
+						'expiring_needs_action'  => true,
+						'expiring_end_date'      => gmdate('Y-m-d 23:59:59', strtotime('+3 days')),
+						'expiring_date'          => wp_date(get_option('date_format'), strtotime('+3 days')),
+						'expiring_days_left'     => 3,
+					]
 				),
 				'deprecated_args' => [],
 			]
