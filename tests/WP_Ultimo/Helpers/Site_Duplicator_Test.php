@@ -301,61 +301,171 @@ class Site_Duplicator_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A retry must restore destination URLs from its wp_blogs record even when
-	 * the failed attempt has copied the template home and siteurl options.
+	 * Preserve independent destination URLs on success and across failed copies.
+	 *
+	 * @dataProvider destination_url_cases
 	 */
-	public function test_retry_override_restores_destination_urls_after_failed_copy() {
-		$target_site_id = self::factory()->blog->create(
+	public function test_retry_override_restores_destination_urls_after_failed_copy($home, $siteurl, $failures, $legacy_options = []) {
+		$target_site_id   = self::factory()->blog->create(
 			[
 				'domain' => 'retry-destination.example.com',
 				'path'   => '/',
 				'title'  => 'Retry Destination',
 			]
 		);
-		$target_wu_site = wu_create_site(
+		$target_wu_site   = wu_create_site(
 			[
 				'blog_id'     => $target_site_id,
 				'customer_id' => $this->customer->get_id(),
 				'type'        => Site_Type::REGULAR,
 			]
 		);
+		$network_id       = get_main_site_id();
+		$network_site_url = get_blog_option($network_id, 'siteurl');
+		update_blog_option($network_id, 'siteurl', set_url_scheme($network_site_url, 'http'));
+		update_blog_option($target_site_id, 'home', $home);
+		update_blog_option($target_site_id, 'siteurl', $siteurl);
+		if ($legacy_options) {
+			update_site_meta($target_site_id, Site_Duplicator::CLONE_STATUS_META, 'failed');
+			update_site_meta($target_site_id, 'wu_template_id', $this->template_site_id);
+			foreach ($legacy_options as $option) {
+				update_blog_option($target_site_id, $option, get_blog_option($this->template_site_id, $option));
+			}
+		}
+		$expected_urls           = [
+			'home'    => $home,
+			'siteurl' => $siteurl,
+		];
 		$initialization_attempts = 0;
-		$fail_once               = static function ($result) use (&$initialization_attempts) {
-			if (0 === $initialization_attempts++) {
+		$template_site_id        = $this->template_site_id;
+		$fail_once               = static function ($result) use (&$initialization_attempts, $failures, $target_site_id, $template_site_id) {
+			if ($initialization_attempts++ < $failures) {
+				// Ensure retries cannot obtain the original identity from options.
+				foreach (['home', 'siteurl'] as $option) {
+					update_blog_option($target_site_id, $option, get_blog_option($template_site_id, $option));
+				}
 				return new \WP_Error('controlled_clone_failure', 'Controlled clone failure.');
 			}
 
 			return $result;
 		};
+		$errors                  = [];
+		$logger                  = static function ($handle, $message, $level) use (&$errors) {
+			if ('site-duplication' === $handle && LogLevel::ERROR === $level) {
+				$errors[] = is_wp_error($message) ? $message->get_error_message() : $message;
+			}
+		};
 
+		add_action('wu_log_add', $logger, 10, 3);
 		add_filter('wu_initialize_cloned_site', $fail_once);
 		try {
-			$this->assertFalse(
-				Site_Duplicator::override_site($this->template_site_id, $target_site_id, ['copy_files' => false, 'keep_users' => false])
-			);
+			for ($attempt = 0; $attempt < $failures; $attempt++) {
+				$this->assertFalse(
+					Site_Duplicator::override_site($this->template_site_id, $target_site_id, [
+						'copy_files' => false,
+						'keep_users' => false,
+						'user_id'    => $this->customer->get_user_id(),
+					])
+				);
+				$this->assertSame($expected_urls, get_site_meta($target_site_id, 'wu_clone_destination_urls', true));
+			}
+			wp_cache_flush();
 			$this->assertNotFalse(
-				Site_Duplicator::override_site($this->template_site_id, $target_site_id, ['copy_files' => false, 'keep_users' => false])
+				Site_Duplicator::override_site($this->template_site_id, $target_site_id, [
+					'copy_files' => false,
+					'keep_users' => false,
+					'user_id'    => $this->customer->get_user_id(),
+				]),
+				implode('\n', $errors)
 			);
+			$this->assertSame($home, get_blog_option($target_site_id, 'home'));
+			$this->assertSame($siteurl, get_blog_option($target_site_id, 'siteurl'));
+			$this->assertSame('', get_site_meta($target_site_id, 'wu_clone_destination_urls', true));
+
+			// A later independent override must capture new settings, not stale metadata.
+			update_blog_option($target_site_id, 'siteurl', $siteurl . '/new');
+			$this->assertNotFalse(
+				Site_Duplicator::override_site($this->template_site_id, $target_site_id, [
+					'copy_files' => false,
+					'keep_users' => false,
+					'user_id'    => $this->customer->get_user_id(),
+				])
+			);
+			$this->assertSame($siteurl . '/new', get_blog_option($target_site_id, 'siteurl'));
 		} finally {
+			remove_action('wu_log_add', $logger, 10);
 			remove_filter('wu_initialize_cloned_site', $fail_once);
+			update_blog_option($network_id, 'siteurl', $network_site_url);
+			wpmu_delete_blog($target_site_id, true);
+			if ($target_wu_site && ! is_wp_error($target_wu_site)) {
+				$target_wu_site->delete();
+			}
 		}
+	}
 
-		$destination_site = get_site($target_site_id);
-		$network_site_url = (string) get_blog_option(get_main_site_id($destination_site->network_id), 'siteurl');
-		$scheme           = wp_parse_url($network_site_url, PHP_URL_SCHEME);
-		if ( ! in_array($scheme, ['http', 'https'], true)) {
-			$scheme = is_ssl() ? 'https' : 'http';
-		}
+	/** Independent identity and legacy recovery cases on an HTTP network. */
+	public static function destination_url_cases() {
+		return [
+			'first attempt with distinct paths' => ['https://retry-destination.example.com/subdir', 'https://retry-destination.example.com/subdir/wp', 0],
+			'retry with distinct paths'         => ['https://retry-destination.example.com/subdir', 'https://retry-destination.example.com/subdir/wp', 1],
+			'repeated failures and mapped URL'  => ['http://mapped.example.com/public', 'https://retry-destination.example.com/wp', 2],
+			'legacy copied home only'           => ['https://retry-destination.example.com', 'https://retry-destination.example.com/wp', 0, ['home']],
+			'legacy copied siteurl only'        => ['https://retry-destination.example.com/public', 'https://retry-destination.example.com', 0, ['siteurl']],
+			'legacy both URLs copied'           => ['http://retry-destination.example.com', 'http://retry-destination.example.com', 0, ['home', 'siteurl']],
+		];
+	}
 
-		$expected_url = untrailingslashit(
-			set_url_scheme('http://' . $destination_site->domain . $destination_site->path, $scheme)
-		);
-		$this->assertSame($expected_url, get_blog_option($target_site_id, 'home'));
-		$this->assertSame($expected_url, get_blog_option($target_site_id, 'siteurl'));
-
-		wpmu_delete_blog($target_site_id, true);
-		if ($target_wu_site && ! is_wp_error($target_wu_site)) {
-			$target_wu_site->delete();
+	/** Newly created clones also need a durable snapshot for an override retry. */
+	public function test_failed_duplicate_retains_destination_urls_for_override_retry() {
+		$target_site_id = 0;
+		$original_urls  = [];
+		$capture_urls   = static function ($site_id) use (&$target_site_id, &$original_urls) {
+			$target_site_id = $site_id;
+			$original_urls  = [
+				'home'    => get_blog_option($site_id, 'home'),
+				'siteurl' => get_blog_option($site_id, 'siteurl'),
+			];
+		};
+		$fail_copy      = function ($result, $payload) {
+			foreach (['home', 'siteurl'] as $option) {
+				update_blog_option($payload['site_id'], $option, get_blog_option($this->template_site_id, $option));
+			}
+			return new \WP_Error('controlled_clone_failure', 'Controlled clone failure.');
+		};
+		add_action('wu_before_site_clone', $capture_urls);
+		add_filter('wu_initialize_cloned_site', $fail_copy, 10, 2);
+		try {
+			$result = Site_Duplicator::duplicate_site(
+				$this->template_site_id,
+				'New Retry Destination',
+				[
+					'domain'     => 'new-retry.example.com',
+					'copy_files' => false,
+					'keep_users' => false,
+					'user_id'    => $this->customer->get_user_id(),
+				]
+			);
+			$this->assertWPError($result);
+			$this->assertGreaterThan(0, $target_site_id);
+			$this->assertSame($original_urls, get_site_meta($target_site_id, 'wu_clone_destination_urls', true));
+			remove_action('wu_before_site_clone', $capture_urls);
+			remove_filter('wu_initialize_cloned_site', $fail_copy, 10);
+			$this->assertNotFalse(
+				Site_Duplicator::override_site($this->template_site_id, $target_site_id, [
+					'copy_files' => false,
+					'keep_users' => false,
+				])
+			);
+			foreach ($original_urls as $option => $url) {
+				$this->assertSame($url, get_blog_option($target_site_id, $option));
+			}
+			$this->assertSame('', get_site_meta($target_site_id, 'wu_clone_destination_urls', true));
+		} finally {
+			remove_action('wu_before_site_clone', $capture_urls);
+			remove_filter('wu_initialize_cloned_site', $fail_copy, 10);
+			if ($target_site_id) {
+				wpmu_delete_blog($target_site_id, true);
+			}
 		}
 	}
 

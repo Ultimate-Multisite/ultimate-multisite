@@ -50,6 +50,9 @@ class Site_Duplicator {
 	/** Seconds a clone may remain in copying before it is considered failed. */
 	private const CLONE_STATUS_TIMEOUT = 300;
 
+	/** Destination URLs retained outside the copied options table until success. */
+	private const CLONE_DESTINATION_URLS_META = 'wu_clone_destination_urls';
+
 	/**
 	 * Get the clone status and expire interrupted copying operations.
 	 *
@@ -244,18 +247,14 @@ class Site_Duplicator {
 		 * Snapshot identity options BEFORE process_duplication() runs.
 		 *
 		 * copy_data() will overwrite admin_email and blogdescription from
-		 * the template. Derive home and siteurl from the destination site
-		 * record instead of its options: a failed first copy can already have
-		 * replaced those options with the template values.
+		 * the template. URL identity is persisted separately by
+		 * process_duplication() so it survives failed copies and retries.
 		 *
 		 * @since 2.4.0
 		 */
-		$destination_identity_url = self::get_destination_identity_url($to_site_id);
-		$identity_snapshot        = [
+		$identity_snapshot = [
 			'blogname'        => get_blog_option($to_site_id, 'blogname'),
 			'blogdescription' => get_blog_option($to_site_id, 'blogdescription'),
-			'home'            => $destination_identity_url,
-			'siteurl'         => $destination_identity_url,
 			'admin_email'     => get_blog_option($to_site_id, 'admin_email'),
 		];
 
@@ -376,23 +375,80 @@ class Site_Duplicator {
 	}
 
 	/**
-	 * Derive a destination URL from immutable site metadata rather than copied options.
+	 * Retain each destination URL before copying, including its scheme and path.
+	 *
+	 * MUCD preserves destination-owned wu_clone_ metadata during copying. Never
+	 * replace a saved snapshot with options contaminated by a failed attempt.
 	 *
 	 * @param int $to_site_id Destination blog ID.
-	 * @return string Destination home and site URL.
+	 * @return array|\WP_Error Destination URLs or a persistence error.
 	 */
-	private static function get_destination_identity_url($to_site_id) {
-		$destination_site = get_site($to_site_id);
-		$network_site_url = get_blog_option(get_main_site_id($destination_site->network_id), 'siteurl');
-		$scheme           = wp_parse_url((string) $network_site_url, PHP_URL_SCHEME);
+	private static function snapshot_destination_urls($to_site_id) {
+		$urls = get_site_meta($to_site_id, self::CLONE_DESTINATION_URLS_META, true);
 
-		if ( ! in_array($scheme, ['http', 'https'], true)) {
-			$scheme = is_ssl() ? 'https' : 'http';
+		if (is_array($urls) && array_key_exists('home', $urls) && array_key_exists('siteurl', $urls)) {
+			return $urls;
 		}
 
-		return untrailingslashit(
-			set_url_scheme('http://' . $destination_site->domain . $destination_site->path, $scheme)
-		);
+		$urls = [
+			'home'    => get_blog_option($to_site_id, 'home'),
+			'siteurl' => get_blog_option($to_site_id, 'siteurl'),
+		];
+		$urls = self::recover_legacy_destination_urls($to_site_id, $urls);
+
+		$saved = update_site_meta($to_site_id, self::CLONE_DESTINATION_URLS_META, $urls);
+		if (is_wp_error($saved) || false === $saved) {
+			return new \WP_Error('site_clone_identity_snapshot_failed', __('Could not preserve the destination site URLs before copying.', 'ultimate-multisite'));
+		}
+
+		return $urls;
+	}
+
+	/**
+	 * Recover template URLs left by failures predating durable snapshots.
+	 *
+	 * Only options still matching the recorded failed template are reconstructed.
+	 * Lost custom paths/schemes cannot be recovered without an original snapshot.
+	 *
+	 * @param int   $to_site_id Destination blog ID.
+	 * @param array $urls       Current destination URL options.
+	 * @return array Destination URLs with known template contamination removed.
+	 */
+	private static function recover_legacy_destination_urls($to_site_id, $urls) {
+		$template_id = (int) get_site_meta($to_site_id, 'wu_template_id', true);
+		if ( ! self::is_clone_failed($to_site_id) || ! $template_id || $template_id === (int) $to_site_id || ! get_site($template_id)) {
+			return $urls;
+		}
+
+		$contaminated = [];
+		foreach ($urls as $option => $url) {
+			if (is_string($url) && '' !== $url && get_blog_option($template_id, $option) === $url) {
+				$contaminated[ $option ] = true;
+			}
+		}
+		if ( ! $contaminated) {
+			return $urls;
+		}
+
+		$site    = get_site($to_site_id);
+		$sources = [
+			isset($contaminated['siteurl']) ? '' : $urls['siteurl'],
+			isset($contaminated['home']) ? '' : $urls['home'],
+			get_blog_option(get_main_site_id($site->network_id), 'siteurl'),
+		];
+		$scheme  = is_ssl() ? 'https' : 'http';
+		foreach ($sources as $source) {
+			$candidate = wp_parse_url((string) $source, PHP_URL_SCHEME);
+			if (in_array($candidate, ['http', 'https'], true)) {
+				$scheme = $candidate;
+				break;
+			}
+		}
+		foreach (array_keys($contaminated) as $option) {
+			$urls[ $option ] = untrailingslashit(set_url_scheme('http://' . $site->domain . $site->path, $scheme));
+		}
+
+		return $urls;
 	}
 
 	/**
@@ -514,6 +570,11 @@ class Site_Duplicator {
 
 		if ( ! is_numeric($args->to_site_id)) {
 			return new \WP_Error('site_creation_failed', __('An attempt to create a new site failed.', 'ultimate-multisite'));
+		}
+
+		$destination_urls = self::snapshot_destination_urls($args->to_site_id);
+		if (is_wp_error($destination_urls)) {
+			return $destination_urls;
 		}
 
 		if ( ! is_super_admin($user_id) && ! get_user_option('primary_blog', $user_id)) {
@@ -762,9 +823,11 @@ class Site_Duplicator {
 				restore_current_blog();
 			}
 
+			self::restore_identity_options($args->to_site_id, $destination_urls);
 			self::set_clone_status($args->to_site_id, 'complete');
 			update_blog_status($args->to_site_id, 'archived', $archived);
 			delete_site_meta($args->to_site_id, 'wu_clone_previous_archived');
+			delete_site_meta($args->to_site_id, self::CLONE_DESTINATION_URLS_META);
 
 			self::profile_sovereign_provisioning_stage(
 			(int) $args->to_site_id,
