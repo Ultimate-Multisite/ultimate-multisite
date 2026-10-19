@@ -245,6 +245,33 @@ class Email_Manager extends Base_Manager {
 	}
 
 	/**
+	 * Builds a system email subject, optionally prefixed with the network name.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param Email $email   The system email.
+	 * @param array $payload The event payload.
+	 * @return string The subject before placeholders are replaced.
+	 */
+	public function get_system_email_subject($email, $payload = []): string {
+
+		$subject = $email->has_subject_prefix()
+			? get_network_option(null, 'site_name') . ' - ' . $email->get_title()
+			: $email->get_title();
+
+		/**
+		 * Filters the subject of a system email before placeholders are replaced.
+		 *
+		 * @since 2.18.0
+		 *
+		 * @param string $subject The subject, with the network name prefix if enabled.
+		 * @param Email  $email   The system email.
+		 * @param array  $payload The event payload.
+		 */
+		return (string) apply_filters('wu_system_email_subject', $subject, $email, (array) $payload);
+	}
+
+	/**
 	 * Sends a single system email now.
 	 *
 	 * @since 2.18.0
@@ -282,7 +309,7 @@ class Email_Manager extends Base_Manager {
 		$args = [
 			'style'   => $email->get_style(),
 			'content' => $email->get_content(),
-			'subject' => get_network_option(null, 'site_name') . ' - ' . $email->get_title(),
+			'subject' => $this->get_system_email_subject($email, $payload),
 			'payload' => $payload,
 		];
 
