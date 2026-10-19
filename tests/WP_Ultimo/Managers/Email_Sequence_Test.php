@@ -594,6 +594,36 @@ class Email_Sequence_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Subjects start with the network name by default, and each email can turn it off.
+	 */
+	public function test_subject_prefix_is_optional_per_email(): void {
+
+		$network     = get_network_option(null, 'site_name');
+		[, $payload] = $this->create_membership();
+
+		$prefixed = $this->create_email(['title' => 'Prefixed']);
+		$this->assertTrue($prefixed->has_subject_prefix(), 'Existing behaviour is kept by default.');
+
+		$plain = $this->create_email(['title' => 'Plain']);
+		$plain->set_subject_prefix(false);
+		$this->assertTrue($plain->save());
+		wp_cache_flush();
+		$plain = wu_get_email($plain->get_id());
+		$this->assertFalse($plain->has_subject_prefix());
+
+		Email_Manager::get_instance()->send_system_email(self::EVENT, $payload);
+
+		$subjects = wp_list_pluck($this->mails, 'subject');
+		$this->assertContains($network . ' - Prefixed', $subjects);
+		$this->assertContains('Plain', $subjects);
+
+		$filter = fn($subject) => 'Filtered ' . $subject;
+		add_filter('wu_system_email_subject', $filter);
+		$this->assertSame('Filtered Plain', Email_Manager::get_instance()->get_system_email_subject($plain, $payload));
+		remove_filter('wu_system_email_subject', $filter);
+	}
+
+	/**
 	 * The default expiring email is registered for the new event.
 	 */
 	public function test_default_expiring_email_is_registered(): void {
