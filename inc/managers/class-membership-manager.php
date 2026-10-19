@@ -357,7 +357,7 @@ class Membership_Manager extends Base_Manager {
 		$hash       = wu_request('payment_hash');
 		$payment    = $hash && is_string($hash) ? wu_get_payment_by_hash($hash) : false;
 		wp_cache_delete($membership->get_id(), 'wu_membership_meta');
-		wp_send_json($this->get_provisioning_status($membership, $payment));
+		wp_send_json($this->with_provisioning_progress($this->get_provisioning_status($membership, $payment), $membership));
 	}
 
 	/**
@@ -500,7 +500,32 @@ class Membership_Manager extends Base_Manager {
 		$this->authorize_legacy_pending_site_status();
 		$membership = $this->get_authorized_status_membership(false);
 		wp_cache_delete($membership->get_id(), 'wu_membership_meta');
-		wp_send_json(['publish_status' => $this->get_legacy_publication_status($membership)]);
+		wp_send_json($this->with_provisioning_progress(['publish_status' => $this->get_legacy_publication_status($membership)], $membership));
+	}
+
+	/**
+	 * Adds the step/ETA progress payload when the membership has one.
+	 *
+	 * Additive: clients that predate it ignore the extra key.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param array  $data       Status response.
+	 * @param object $membership Authorized membership.
+	 * @return array
+	 */
+	public function with_provisioning_progress(array $data, $membership) {
+
+		$progress = wu_get_provisioning_progress($membership);
+
+		if ($progress) {
+			// Only a published site is "Done"; a finished run waits at its last step.
+			$data['progress'] = 'completed' === ($data['publish_status'] ?? '')
+				? $progress
+				: \WP_Ultimo\Provisioning\Provisioning_Progress::awaiting_publication($progress);
+		}
+
+		return $data;
 	}
 
 	/**

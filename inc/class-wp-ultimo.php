@@ -352,6 +352,7 @@ final class WP_Ultimo {
 		require_once wu_path('inc/functions/debug.php');
 		require_once wu_path('inc/functions/reflection.php');
 		require_once wu_path('inc/functions/scheduler.php');
+		require_once wu_path('inc/functions/provisioning.php');
 		require_once wu_path('inc/functions/session.php');
 		require_once wu_path('inc/functions/documentation.php');
 

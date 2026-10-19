@@ -2202,6 +2202,7 @@ class Checkout {
 			'cancel'               => __('Cancel', 'ultimate-multisite'),
 			'email_exists'         => __('A customer with the same email address or username already exists.', 'ultimate-multisite'),
 			'provisioning_site'    => __('Provisioning your site — this can take up to 60 seconds.', 'ultimate-multisite'),
+			'processing'           => __('Processing — please wait', 'ultimate-multisite'),
 			'recording_responses'  => __('Recording Your Responses...', 'ultimate-multisite'),
 			// Client-side validation messages (%s = field label, %d = numeric limit).
 			/* translators: %s: field label */
@@ -2301,6 +2302,16 @@ class Checkout {
 			'auto_renew'         => true,
 			'products'           => array_unique($products),
 			'is_last_step'       => $this->is_last_step(),
+			/**
+			 * Whether the site is created after checkout returns (the thank-you page
+			 * then shows step-by-step progress) rather than during the submit request.
+			 *
+			 * @since 2.18.0
+			 *
+			 * @param bool     $async    True unless sites are forced to publish synchronously.
+			 * @param Checkout $checkout Checkout.
+			 */
+			'provisioning_async' => (bool) apply_filters('wu_checkout_async_provisioning', ! wu_get_setting('force_publish_sites_sync', false), $this),
 		];
 
 		/*
@@ -3313,6 +3324,11 @@ class Checkout {
 					],
 					$redirect_url
 				);
+
+				// Land on the thank-you block (and its progress bar), not the page header.
+				if (false === strpos($redirect_url, '#')) {
+					$redirect_url .= '#wu-thank-you-element';
+				}
 			}
 
 			wp_safe_redirect($redirect_url);
