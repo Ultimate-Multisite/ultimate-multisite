@@ -1456,9 +1456,20 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 		$domain->set_domain('deleted-domain.example.com');
 		$domain->set_blog_id($this->get_blog_id());
 
-		// Pass true as result - should enqueue async action
-		$this->domain_manager->handle_domain_deleted(true, $domain);
-		$this->assertTrue(true);
+		$args     = [
+			'domain'  => $domain->get_domain(),
+			'site_id' => $domain->get_site_id(),
+		];
+		$callback = static function () {};
+		add_action('wu_remove_domain', $callback);
+
+		try {
+			$this->domain_manager->handle_domain_deleted(true, $domain);
+			$this->assertNotFalse(wu_next_scheduled_action('wu_remove_domain', $args, 'domain'));
+		} finally {
+			remove_action('wu_remove_domain', $callback);
+			wu_unschedule_all_actions('wu_remove_domain', $args, 'domain');
+		}
 	}
 
 	/**
@@ -1469,9 +1480,131 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 		$domain->set_domain('failed-delete.example.com');
 		$domain->set_blog_id($this->get_blog_id());
 
-		// Pass false as result - should do nothing
-		$this->domain_manager->handle_domain_deleted(false, $domain);
-		$this->assertTrue(true);
+		$args           = [
+			'domain'  => $domain->get_domain(),
+			'site_id' => $domain->get_site_id(),
+		];
+		$removed_before = did_action('wu_domain_removed');
+		$callback       = static function () {};
+		add_action('wu_remove_domain', $callback);
+
+		try {
+			$this->domain_manager->handle_domain_deleted(false, $domain);
+			$this->assertFalse(wu_next_scheduled_action('wu_remove_domain', $args, 'domain'));
+			$this->assertSame($removed_before, did_action('wu_domain_removed'));
+		} finally {
+			remove_action('wu_remove_domain', $callback);
+			wu_unschedule_all_actions('wu_remove_domain', $args, 'domain');
+		}
+	}
+
+	/**
+	 * Real deletion hooks must preserve listener defaults and filter overrides.
+	 *
+	 * @dataProvider domain_removal_scheduling_provider
+	 */
+	public function test_domain_removal_scheduling(string $hook, bool $has_listener, ?bool $override, bool $expected_enqueued): void {
+		global $current_site;
+
+		$blog_id = $this->create_test_blog([
+			'domain' => 'removal-' . uniqid() . '.' . $current_site->domain,
+		]);
+		$site    = get_site($blog_id);
+
+		if ('wu_remove_domain' === $hook) {
+			$domain = wu_create_domain([
+				'blog_id' => $blog_id,
+				'domain'  => 'mapped-removal-' . $blog_id . '.example.com',
+				'stage'   => Domain_Stage::DONE,
+			]);
+			$this->assertNotWPError($domain);
+			$domain_id = $domain->get_id();
+			$args      = [
+				'domain'  => $domain->get_domain(),
+				'site_id' => $domain->get_site_id(),
+			];
+		} else {
+			$args = [
+				'subdomain' => $site->domain,
+				'site_id'   => $site->blog_id,
+			];
+		}
+
+		$prior_callbacks = $GLOBALS['wp_filter'][ $hook ] ?? null;
+		unset($GLOBALS['wp_filter'][ $hook ]);
+
+		$filter_calls   = [];
+		$removed_events = [];
+		$callback_args  = [];
+		$filter         = static function ($should_enqueue, $filtered_hook, $filtered_args) use ($override, &$filter_calls) {
+			$filter_calls[] = [$should_enqueue, $filtered_hook, $filtered_args];
+			return $override ?? $should_enqueue;
+		};
+		$removed        = static function ($domain_name, $site_id) use (&$removed_events) {
+			$removed_events[] = [$domain_name, $site_id];
+		};
+		$listener       = static function ($name, $site_id) use (&$callback_args) {
+			$callback_args[] = [$name, $site_id];
+		};
+
+		add_filter('wu_should_enqueue_domain_removal', $filter, 10, 3);
+		add_action('wu_domain_removed', $removed, 10, 2);
+
+		try {
+			if ($has_listener) {
+				add_action($hook, $listener, 0, 2);
+			}
+
+			$this->assertSame($has_listener, has_action($hook));
+
+			if ('wu_remove_domain' === $hook) {
+				$this->assertNotWPError($domain->delete());
+				$this->assertFalse(wu_get_domain($domain_id));
+				$this->assertSame([array_values($args)], $removed_events);
+			} else {
+				$this->assertNotWPError(wp_delete_site($blog_id));
+				$this->assertNull(get_site($blog_id));
+			}
+
+			$this->assertSame([[$has_listener, $hook, $args]], $filter_calls);
+
+			$actions = wu_get_scheduled_actions([
+				'hook'   => $hook,
+				'args'   => $args,
+				'group'  => 'domain',
+				'status' => \ActionScheduler_Store::STATUS_PENDING,
+			], 'ids');
+
+			$this->assertCount($expected_enqueued ? 1 : 0, $actions);
+
+			if ($expected_enqueued && $has_listener) {
+				wu_switch_blog_and_run(static function () use ($actions) {
+					\ActionScheduler::store()->fetch_action($actions[0])->execute();
+				});
+				$this->assertSame([array_values($args)], $callback_args);
+			}
+		} finally {
+			unset($GLOBALS['wp_filter'][ $hook ]);
+			if (null !== $prior_callbacks) {
+				$GLOBALS['wp_filter'][ $hook ] = $prior_callbacks;
+			}
+			remove_filter('wu_should_enqueue_domain_removal', $filter);
+			remove_action('wu_domain_removed', $removed);
+			wu_unschedule_all_actions($hook, $args, 'domain');
+		}
+	}
+
+	public static function domain_removal_scheduling_provider(): array {
+		return [
+			'domain without listener'     => ['wu_remove_domain', false, null, false],
+			'subdomain without listener'  => ['wu_remove_subdomain', false, null, false],
+			'domain with listener'        => ['wu_remove_domain', true, null, true],
+			'subdomain with listener'     => ['wu_remove_subdomain', true, null, true],
+			'domain late listener opt-in' => ['wu_remove_domain', false, true, true],
+			'subdomain late opt-in'       => ['wu_remove_subdomain', false, true, true],
+			'domain filter opt-out'       => ['wu_remove_domain', true, false, false],
+			'subdomain filter opt-out'    => ['wu_remove_subdomain', true, false, false],
+		];
 	}
 
 	// ----------------------------------------------------------------
@@ -1529,9 +1662,20 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 
 		$site = get_blog_details($blog_id);
 
-		// Should enqueue async action for subdomain removal
-		$this->domain_manager->handle_site_deleted($site);
-		$this->assertTrue(true);
+		$args     = [
+			'subdomain' => $site->domain,
+			'site_id'   => $site->blog_id,
+		];
+		$callback = static function () {};
+		add_action('wu_remove_subdomain', $callback);
+
+		try {
+			$this->domain_manager->handle_site_deleted($site);
+			$this->assertNotFalse(wu_next_scheduled_action('wu_remove_subdomain', $args, 'domain'));
+		} finally {
+			remove_action('wu_remove_subdomain', $callback);
+			wu_unschedule_all_actions('wu_remove_subdomain', $args, 'domain');
+		}
 	}
 
 	/**
