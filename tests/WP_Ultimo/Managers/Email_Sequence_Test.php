@@ -422,6 +422,66 @@ class Email_Sequence_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Non-renewing active and on-hold memberships are queued when they enter the expiring window.
+	 */
+	public function test_membership_expiring_selects_non_renewing_memberships(): void {
+
+		$days        = fn() => 3;
+		$memberships = [];
+
+		foreach (['active', 'on-hold'] as $status) {
+			[$membership] = $this->create_membership(
+				[
+					'status'          => $status,
+					'auto_renew'      => false,
+					'date_expiration' => gmdate('Y-m-d H:i:s', time() + 2 * DAY_IN_SECONDS),
+				]
+			);
+
+			$memberships[] = $membership;
+		}
+
+		$membership_ids = array_map(fn($membership) => $membership->get_id(), $memberships);
+		$restrict_query = function ($query) use ($membership_ids) {
+			$query['id__in'] = $membership_ids;
+
+			return $query;
+		};
+
+		add_filter('wu_membership_expiring_days', $days);
+		add_filter('wu_membership_expiring_check_query_params', $restrict_query, 10, 2);
+
+		try {
+			Cron::get_instance()->membership_expiring_check();
+
+			foreach ($memberships as $membership) {
+				$this->assertTrue(
+					wu_switch_blog_and_run(
+						fn() => as_has_scheduled_action(
+							'wu_async_membership_expiring',
+							['membership_id' => $membership->get_id()],
+							'wu_cron_check'
+						)
+					)
+				);
+			}
+		} finally {
+			remove_filter('wu_membership_expiring_days', $days);
+			remove_filter('wu_membership_expiring_check_query_params', $restrict_query, 10);
+
+			foreach ($memberships as $membership) {
+				wu_switch_blog_and_run(
+					fn() => as_unschedule_all_actions(
+						'wu_async_membership_expiring',
+						['membership_id' => $membership->get_id()],
+						'wu_cron_check'
+					)
+				);
+			}
+		}
+	}
+
+	/**
 	 * With 0 days, a trial ending today is still reported as a trial.
 	 */
 	public function test_membership_expiring_zero_days_reports_trial_ending_today(): void {
