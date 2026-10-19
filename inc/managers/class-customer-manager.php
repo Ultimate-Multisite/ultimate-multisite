@@ -48,6 +48,18 @@ class Customer_Manager extends Base_Manager {
 	protected $model_class = \WP_Ultimo\Models\Customer::class;
 
 	/**
+	 * Customer IDs that already received an automatic verification email in this request.
+	 *
+	 * Both the email_verification transition and the customer_created event
+	 * can fire for the same new customer. Sending twice generates two keys,
+	 * and only the last link would work.
+	 *
+	 * @since 2.17.3
+	 * @var array<int, bool>
+	 */
+	protected $verification_emails_sent = [];
+
+	/**
 	 * Instantiate the necessary hooks.
 	 *
 	 * @since 2.0.0
@@ -174,11 +186,7 @@ class Customer_Manager extends Base_Manager {
 			return;
 		}
 
-		$customer = wu_get_customer($customer_id);
-
-		if ($customer) {
-			$customer->send_verification_email();
-		}
+		$this->maybe_send_verification_email((int) $customer_id);
 	}
 
 
@@ -192,15 +200,36 @@ class Customer_Manager extends Base_Manager {
 	 */
 	public function customer_created_email_verification($payload): void {
 
-		if ('pending' !== $payload['customer_email_verification']) {
+		if ('pending' !== wu_get_isset($payload, 'customer_email_verification')) {
 			return;
 		}
 
-		$customer = wu_get_customer($payload['customer_id']);
+		$this->maybe_send_verification_email((int) wu_get_isset($payload, 'customer_id'));
+	}
 
-		if ($customer) {
-			$customer->send_verification_email();
+	/**
+	 * Sends the automatic verification email once per customer per request.
+	 *
+	 * @since 2.17.3
+	 *
+	 * @param int $customer_id Customer ID.
+	 * @return void
+	 */
+	protected function maybe_send_verification_email(int $customer_id): void {
+
+		if ( ! $customer_id || isset($this->verification_emails_sent[ $customer_id ])) {
+			return;
 		}
+
+		$customer = wu_get_customer($customer_id);
+
+		if ( ! $customer) {
+			return;
+		}
+
+		$this->verification_emails_sent[ $customer_id ] = true;
+
+		$customer->send_verification_email();
 	}
 
 	/**

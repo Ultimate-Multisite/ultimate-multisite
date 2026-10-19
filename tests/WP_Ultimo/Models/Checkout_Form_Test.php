@@ -141,6 +141,40 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test post-checkout action and local landing path settings.
+	 */
+	public function test_after_checkout_settings_functionality(): void {
+		$checkout_form = new Checkout_Form();
+
+		$this->assertSame('thank_you', $checkout_form->get_after_checkout_action());
+		$this->assertSame('/wp-admin/', $checkout_form->get_after_checkout_landing_path());
+
+		$checkout_form->set_after_checkout_action('redirect_to_site');
+		$checkout_form->set_after_checkout_landing_path('/welcome/?source=checkout');
+
+		$this->assertSame('redirect_to_site', $checkout_form->get_after_checkout_action());
+		$this->assertSame('/welcome/?source=checkout', $checkout_form->get_after_checkout_landing_path());
+		$this->assertSame('redirect_to_site', $checkout_form->meta[ Checkout_Form::META_AFTER_CHECKOUT_ACTION ]);
+		$this->assertSame('/welcome/?source=checkout', $checkout_form->meta[ Checkout_Form::META_AFTER_CHECKOUT_LANDING_PATH ]);
+
+		$checkout_form->set_after_checkout_action('not-supported');
+		$checkout_form->set_after_checkout_landing_path('https://attacker.example.test/');
+
+		$this->assertSame('thank_you', $checkout_form->get_after_checkout_action());
+		$this->assertSame('/wp-admin/', $checkout_form->get_after_checkout_landing_path());
+
+		// Any single URL component (not only full scheme+host sets) is rejected.
+		foreach (['/:8080', '/x:8080/admin'] as $path) {
+			$parts = wp_parse_url($path);
+			$checkout_form->set_after_checkout_landing_path($path);
+
+			if (is_array($parts) && array_intersect_key($parts, array_flip(['scheme', 'host', 'user', 'pass', 'port']))) {
+				$this->assertSame('/wp-admin/', $checkout_form->get_after_checkout_landing_path(), $path);
+			}
+		}
+	}
+
+	/**
 	 * Test shortcode generation.
 	 */
 	public function test_shortcode_generation(): void {
@@ -167,6 +201,8 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 		$this->assertArrayHasKey('allowed_countries', $rules);
 		$this->assertArrayHasKey('thank_you_page_id', $rules);
 		$this->assertArrayHasKey('conversion_snippets', $rules);
+		$this->assertArrayHasKey('after_checkout_action', $rules);
+		$this->assertArrayHasKey('after_checkout_landing_path', $rules);
 		$this->assertArrayHasKey('template', $rules);
 
 		// Check specific rule patterns
@@ -178,6 +214,7 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 		$this->assertStringContainsString('default:1', $rules['active']);
 		$this->assertStringContainsString('checkout_steps', $rules['settings']);
 		$this->assertStringContainsString('integer', $rules['thank_you_page_id']);
+		$this->assertStringContainsString('redirect_to_site', $rules['after_checkout_action']);
 		$this->assertStringContainsString('in:blank,single-step,multi-step', $rules['template']);
 	}
 
@@ -1925,6 +1962,30 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 	public function test_meta_constants(): void {
 		$this->assertEquals('wu_thank_you_page_id', Checkout_Form::META_THANK_YOU_PAGE_ID);
 		$this->assertEquals('wu_conversion_snippets', Checkout_Form::META_CONVERSION_SNIPPETS);
+		$this->assertEquals('wu_after_checkout_action', Checkout_Form::META_AFTER_CHECKOUT_ACTION);
+		$this->assertEquals('wu_after_checkout_landing_path', Checkout_Form::META_AFTER_CHECKOUT_LANDING_PATH);
+	}
+
+	/**
+	 * Test post-checkout settings persist with the checkout form.
+	 */
+	public function test_after_checkout_settings_persist_after_save(): void {
+		$form = wu_create_checkout_form([
+			'name' => 'Post Checkout Settings',
+			'slug' => 'post-checkout-settings-' . wp_generate_uuid4(),
+		]);
+
+		$this->assertNotWPError($form);
+
+		$form->set_after_checkout_action('redirect_to_site');
+		$form->set_after_checkout_landing_path('/onboarding/');
+
+		$this->assertTrue($form->save());
+
+		$fetched = wu_get_checkout_form($form->get_id());
+
+		$this->assertSame('redirect_to_site', $fetched->get_after_checkout_action());
+		$this->assertSame('/onboarding/', $fetched->get_after_checkout_landing_path());
 	}
 
 	/**
@@ -2291,7 +2352,7 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 	/**
 	 * Test that to_array() populates lazy-loaded meta properties (issue #469).
 	 *
-	 * thank_you_page_id and conversion_snippets are only loaded from meta when
+	 * The thank_you_page_id, conversion_snippets and checkout handoff settings are only loaded from meta when
 	 * their getter is first called. Without the to_array() override they remain null.
 	 */
 	public function test_to_array_includes_lazy_loaded_meta_properties(): void {
@@ -2300,6 +2361,8 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 		$form->set_slug('test-form');
 		$form->set_thank_you_page_id(42);
 		$form->set_conversion_snippets('<script>ga("send","event")</script>');
+		$form->set_after_checkout_action('redirect_to_site');
+		$form->set_after_checkout_landing_path('/onboarding/');
 
 		$array = $form->to_array();
 
@@ -2309,6 +2372,8 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 		$this->assertEquals(42, $array['thank_you_page_id'], 'thank_you_page_id must match the set value.');
 		$this->assertArrayHasKey('conversion_snippets', $array, 'to_array() must include conversion_snippets.');
 		$this->assertNotNull($array['conversion_snippets'], 'conversion_snippets must not be null in to_array() output.');
+		$this->assertSame('redirect_to_site', $array['after_checkout_action']);
+		$this->assertSame('/onboarding/', $array['after_checkout_landing_path']);
 	}
 
 	/**

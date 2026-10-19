@@ -1904,6 +1904,8 @@ class Site extends Base_Model implements Limitable, Notable {
 	 */
 	private function profile_sovereign_provisioning_stage($blog_id, string $stage, float $seconds, array $context = []): void {
 
+		\WP_Ultimo\Provisioning\Provisioning_Progress::observe_stage($stage);
+
 		if (class_exists('\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider')) {
 			\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider::profile_stage((int) $blog_id, $stage, $seconds, $context);
 		}

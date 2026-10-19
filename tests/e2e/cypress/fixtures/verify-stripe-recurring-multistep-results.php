@@ -68,6 +68,11 @@ if ($membership) {
 	$result['gateway_subscription_id'] = $membership->get_gateway_subscription_id();
 	$result['pending_site_exists']     = (bool) $membership->get_pending_site();
 
+	$progress                      = function_exists('wu_get_provisioning_progress') ? wu_get_provisioning_progress($membership) : null;
+	$result['progress_pipeline']   = $progress['pipeline'] ?? '';
+	$result['progress_state']      = $progress['state'] ?? '';
+	$result['progress_step_count'] = $progress['step_count'] ?? 0;
+
 	foreach ($customer->get_payments() as $candidate) {
 		if ($membership->get_id() === (int) $candidate->get_membership_id()) {
 			$result['payment_found']      = true;

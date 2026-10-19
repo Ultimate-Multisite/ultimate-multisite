@@ -14,6 +14,7 @@
  */
 defined('ABSPATH') || exit;
 
+$products = $products ?? [];
 
 $products_to_reduce = array_merge([false], $products);
 

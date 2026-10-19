@@ -57,6 +57,22 @@ class Magic_Link {
 	const CLAIM_EXPIRATION = 30;
 
 	/**
+	 * Query var used for signed checkout handoff tokens.
+	 *
+	 * @since 2.17.4
+	 * @var string
+	 */
+	const CHECKOUT_HANDOFF_QUERY_ARG = 'wu_checkout_handoff';
+
+	/**
+	 * Maximum lifetime for checkout handoff tokens, in seconds.
+	 *
+	 * @since 2.17.4
+	 * @var int
+	 */
+	const CHECKOUT_HANDOFF_EXPIRATION = 120;
+
+	/**
 	 * Initialize hooks.
 	 *
 	 * @since 2.0.0
@@ -64,7 +80,9 @@ class Magic_Link {
 	 */
 	public function init(): void {
 
+		add_action('init', array($this, 'handle_checkout_handoff'), 1);
 		add_action('init', array($this, 'handle_magic_link'), 5);
+		add_action('wu_daily', array($this, 'clean_expired_checkout_handoff_nonces'));
 
 		add_filter('removable_query_args', array($this, 'add_removable_query_args'));
 
@@ -82,6 +100,7 @@ class Magic_Link {
 	public function add_removable_query_args($args) {
 
 		$args[] = self::TOKEN_QUERY_ARG;
+		$args[] = self::CHECKOUT_HANDOFF_QUERY_ARG;
 
 		return $args;
 	}
@@ -216,6 +235,490 @@ class Magic_Link {
 		$magic_link = add_query_arg(self::TOKEN_QUERY_ARG, $token, $redirect_to);
 
 		return apply_filters('wu_magic_link_url', $magic_link, $user_id, $site_id, $redirect_to);
+	}
+
+	/**
+	 * Generates a cache-independent signed handoff URL for a newly provisioned site.
+	 *
+	 * The signed token is intentionally self-contained so it can be read on a mapped
+	 * domain with a host-scoped object cache. Its random ID is separately persisted in
+	 * the database and atomically consumed by the target site.
+	 *
+	 * @since 2.17.4
+	 *
+	 * @param int    $user_id      User to authenticate on the target site.
+	 * @param int    $site_id      Target site ID.
+	 * @param string $landing_path Local path to visit after authentication.
+	 * @return string|false The handoff URL or false when it cannot be created.
+	 */
+	public function generate_checkout_handoff_url($user_id, $site_id, $landing_path = '/wp-admin/') {
+
+		if ( ! $this->is_enabled() ) {
+			return false;
+		}
+
+		$user_id      = absint($user_id);
+		$site_id      = absint($site_id);
+		$landing_path = $this->sanitize_checkout_handoff_path($landing_path);
+
+		if ( ! $user_id || ! $site_id || ! $landing_path || ! $this->verify_user_site_access($user_id, $site_id) ) {
+			return false;
+		}
+
+		$site = wu_get_site($site_id);
+
+		if ( ! $site || ! $site->get_active_site_url() ) {
+			return false;
+		}
+
+		$issued_at = time();
+		$expires   = $issued_at + $this->get_checkout_handoff_lifetime();
+		$jti       = $this->generate_token();
+
+		$token = $this->encode_checkout_handoff_token(
+			[
+				'v'          => 1,
+				'sub'        => $user_id,
+				'blog_id'    => $site_id,
+				'iat'        => $issued_at,
+				'exp'        => $expires,
+				'jti'        => $jti,
+				'path'       => $landing_path,
+				'user_agent' => $this->get_checkout_handoff_context_hash($this->get_user_agent()),
+				'ip_address' => $this->get_checkout_handoff_context_hash($this->get_client_ip()),
+			]
+		);
+
+		if ( ! $token || ! $this->store_checkout_handoff_nonce($jti, $site_id, $expires) ) {
+			return false;
+		}
+
+		return add_query_arg(self::CHECKOUT_HANDOFF_QUERY_ARG, $token, $site->get_active_site_url());
+	}
+
+	/**
+	 * Authenticates and redirects a customer arriving through a checkout handoff.
+	 *
+	 * @since 2.17.4
+	 * @return void
+	 */
+	public function handle_checkout_handoff(): void {
+
+		$token = wu_request(self::CHECKOUT_HANDOFF_QUERY_ARG);
+
+		if ( ! is_string($token) || '' === $token) {
+			return;
+		}
+
+		$claims = $this->verify_checkout_handoff_token($token);
+
+		if ( ! $claims || ! $this->consume_checkout_handoff_nonce($claims['jti'], $claims['blog_id']) ) {
+			$this->handle_invalid_checkout_handoff();
+		}
+
+		$user_id = (int) $claims['sub'];
+
+		if (is_user_logged_in() && get_current_user_id() !== $user_id) {
+			wp_logout();
+		}
+
+		wp_set_auth_cookie($user_id, true);
+
+		/**
+		 * Fires after a user is logged in through a completed-checkout handoff.
+		 *
+		 * @since 2.17.4
+		 *
+		 * @param int $user_id The authenticated user ID.
+		 * @param int $site_id The target site ID.
+		 */
+		do_action('wu_checkout_handoff_login', $user_id, (int) $claims['blog_id']);
+
+		nocache_headers();
+		wp_safe_redirect($claims['path']);
+
+		exit;
+	}
+
+	/**
+	 * Removes expired single-use checkout handoff records.
+	 *
+	 * @since 2.17.4
+	 * @return void
+	 */
+	public function clean_expired_checkout_handoff_nonces() {
+
+		global $wpdb;
+
+		$table = $this->get_checkout_handoff_table_name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"DELETE FROM {$table} WHERE expires_at < %s",
+				current_time('mysql', true)
+			)
+		);
+	}
+
+	/**
+	 * Returns the checkout handoff token lifetime.
+	 *
+	 * @since 2.17.4
+	 * @return int
+	 */
+	protected function get_checkout_handoff_lifetime() {
+
+		/**
+		 * Filters the checkout handoff token lifetime.
+		 *
+		 * Values are capped at two minutes to keep a handoff link short-lived.
+		 *
+		 * @since 2.17.4
+		 *
+		 * @param int $lifetime Token lifetime in seconds.
+		 */
+		$lifetime = (int) apply_filters('wu_checkout_handoff_token_lifetime', self::CHECKOUT_HANDOFF_EXPIRATION);
+
+		return min(self::CHECKOUT_HANDOFF_EXPIRATION, max(1, $lifetime));
+	}
+
+	/**
+	 * Creates the signed representation of a checkout handoff payload.
+	 *
+	 * @since 2.17.4
+	 *
+	 * @param array $claims Signed token claims.
+	 * @return string|false
+	 */
+	protected function encode_checkout_handoff_token($claims) {
+
+		$encoded_claims = $this->base64url_encode(wp_json_encode($claims));
+
+		if ( ! $encoded_claims) {
+			return false;
+		}
+
+		$signature = hash_hmac('sha256', $encoded_claims, wp_salt('auth'));
+
+		return $encoded_claims . '.' . $signature;
+	}
+
+	/**
+	 * Verifies a signed checkout handoff token without consuming its nonce.
+	 *
+	 * @since 2.17.4
+	 *
+	 * @param string $token Signed token from the request.
+	 * @return array|false Validated claims or false.
+	 */
+	protected function verify_checkout_handoff_token($token) {
+
+		$parts = explode('.', $token);
+
+		if (2 !== count($parts) || ! preg_match('/^[a-f0-9]{64}$/D', $parts[1])) {
+			return false;
+		}
+
+		$expected_signature = hash_hmac('sha256', $parts[0], wp_salt('auth'));
+
+		if ( ! hash_equals($expected_signature, $parts[1])) {
+			return false;
+		}
+
+		$decoded_claims = $this->base64url_decode($parts[0]);
+		$claims         = $decoded_claims ? json_decode($decoded_claims, true) : null;
+
+		if ( ! is_array($claims) || 1 !== (int) ($claims['v'] ?? 0)) {
+			return false;
+		}
+
+		$user_id      = absint($claims['sub'] ?? 0);
+		$site_id      = absint($claims['blog_id'] ?? 0);
+		$issued_at    = absint($claims['iat'] ?? 0);
+		$expires      = absint($claims['exp'] ?? 0);
+		$jti          = $claims['jti'] ?? '';
+		$landing_path = $this->sanitize_checkout_handoff_path($claims['path'] ?? '');
+		$now          = time();
+
+		if ( ! $user_id || ! $site_id || ! is_string($jti) || ! preg_match('/^[a-f0-9]{64}$/D', $jti)
+			|| ! $landing_path || $issued_at > $now || $expires <= $now
+			|| $expires - $issued_at > self::CHECKOUT_HANDOFF_EXPIRATION
+			|| get_current_blog_id() !== $site_id || ! $this->verify_user_site_access($user_id, $site_id) ) {
+			return false;
+		}
+
+		if ( ! $this->verify_checkout_handoff_security_context($claims) ) {
+			return false;
+		}
+
+		$claims['sub']     = $user_id;
+		$claims['blog_id'] = $site_id;
+		$claims['jti']     = $jti;
+		$claims['path']    = $landing_path;
+
+		return $claims;
+	}
+
+	/**
+	 * Checks optional client context bound to a checkout handoff token.
+	 *
+	 * User-agent binding follows the existing magic-link filter. IP checks are
+	 * intentionally disabled by default because a mapped domain can route through
+	 * a different address family or mobile network.
+	 *
+	 * @since 2.17.4
+	 *
+	 * @param array $claims Token claims.
+	 * @return bool
+	 */
+	protected function verify_checkout_handoff_security_context($claims) {
+
+		$user_agent_hash = $claims['user_agent'] ?? '';
+		$ip_address_hash = $claims['ip_address'] ?? '';
+
+		if (apply_filters('wu_magic_link_enforce_user_agent', true)
+			&& (! is_string($user_agent_hash) || ! hash_equals($this->get_checkout_handoff_context_hash($this->get_user_agent()), $user_agent_hash))) {
+			return false;
+		}
+
+		/**
+		 * Filters whether checkout handoff tokens enforce the originating IP address.
+		 *
+		 * @since 2.17.4
+		 *
+		 * @param bool $enforce Whether to enforce the IP address match.
+		 */
+		$enforce_ip = (bool) apply_filters('wu_checkout_handoff_enforce_ip', false);
+
+		if ($enforce_ip && (! is_string($ip_address_hash) || ! hash_equals($this->get_checkout_handoff_context_hash($this->get_client_ip()), $ip_address_hash))) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Stores a handoff nonce without persisting the signed token itself.
+	 *
+	 * @since 2.17.4
+	 *
+	 * @param string $jti     Random token identifier.
+	 * @param int    $site_id Target site ID.
+	 * @param int    $expires Unix timestamp at which the token expires.
+	 * @return bool
+	 */
+	protected function store_checkout_handoff_nonce($jti, $site_id, $expires) {
+
+		global $wpdb;
+
+		if ( ! $this->ensure_checkout_handoff_table()) {
+			return false;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+		$inserted = $wpdb->insert(
+			$this->get_checkout_handoff_table_name(),
+			[
+				'jti_hash'     => $this->get_checkout_handoff_context_hash($jti),
+				'blog_id'      => absint($site_id),
+				'expires_at'   => gmdate('Y-m-d H:i:s', $expires),
+				'consumed_at'  => null,
+				'date_created' => current_time('mysql', true),
+			],
+			['%s', '%d', '%s', '%s', '%s']
+		);
+
+		return 1 === $inserted;
+	}
+
+	/**
+	 * Atomically marks a valid checkout handoff nonce as consumed.
+	 *
+	 * @since 2.17.4
+	 *
+	 * @param string $jti     Random token identifier.
+	 * @param int    $site_id Target site ID.
+	 * @return bool
+	 */
+	protected function consume_checkout_handoff_nonce($jti, $site_id) {
+
+		global $wpdb;
+
+		$table = $this->get_checkout_handoff_table_name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$result = $wpdb->query(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"UPDATE {$table} SET consumed_at = %s WHERE jti_hash = %s AND blog_id = %d AND consumed_at IS NULL AND expires_at >= %s",
+				current_time('mysql', true),
+				$this->get_checkout_handoff_context_hash($jti),
+				absint($site_id),
+				current_time('mysql', true)
+			)
+		);
+
+		return 1 === $result;
+	}
+
+	/**
+	 * Returns the fully qualified SSO nonce table name.
+	 *
+	 * @since 2.17.4
+	 * @return string
+	 */
+	protected function get_checkout_handoff_table_name() {
+
+		$table = $this->get_checkout_handoff_table();
+
+		if ($table && ! empty($table->table_name)) {
+			return $table->table_name;
+		}
+
+		global $wpdb;
+
+		return $wpdb->base_prefix . 'wu_sso_nonces';
+	}
+
+	/**
+	 * Returns the registered SSO nonce table object.
+	 *
+	 * @since 2.17.4
+	 * @return \WP_Ultimo\Database\SSO_Nonces\SSO_Nonces_Table|null
+	 */
+	protected function get_checkout_handoff_table() {
+
+		$tables = function_exists('WP_Ultimo') ? WP_Ultimo()->tables : null;
+
+		return $tables && isset($tables->sso_nonce_table) ? $tables->sso_nonce_table : null;
+	}
+
+	/**
+	 * Creates the SSO nonce table on installs upgraded from an earlier version.
+	 *
+	 * BerlinDB only creates missing tables on `admin_init` of the main site, so
+	 * a checkout on another site can need the table before any admin visit.
+	 *
+	 * @since 2.17.4
+	 * @return bool Whether the table is available.
+	 */
+	protected function ensure_checkout_handoff_table() {
+
+		$table = $this->get_checkout_handoff_table();
+
+		// Without the table object, fall back to the conventional name; the insert reports failure.
+		if ( ! $table || $table->exists()) {
+			return true;
+		}
+
+		$table->install();
+
+		global $wpdb;
+
+		$name = $this->get_checkout_handoff_table_name();
+
+		return $name === $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($name))); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	}
+
+	/**
+	 * Validates and normalizes a local handoff path.
+	 *
+	 * @since 2.17.4
+	 *
+	 * @param mixed $path Path requested after authentication.
+	 * @return string|false
+	 */
+	protected function sanitize_checkout_handoff_path($path) {
+
+		if ( ! is_string($path)) {
+			return false;
+		}
+
+		$path = trim($path);
+
+		if ('' === $path || '/' !== $path[0] || str_starts_with($path, '//') || str_starts_with($path, '/\\')) {
+			return false;
+		}
+
+		$parts = wp_parse_url($path);
+
+		if (false === $parts || array_intersect_key($parts, array_flip(['scheme', 'host', 'user', 'pass', 'port']))) {
+			return false;
+		}
+
+		$path = wp_sanitize_redirect($path);
+
+		if ('' === $path || '/' !== $path[0] || str_starts_with($path, '//') || str_starts_with($path, '/\\')) {
+			return false;
+		}
+
+		return $path;
+	}
+
+	/**
+	 * Creates a keyed hash for data included in a signed handoff token.
+	 *
+	 * @since 2.17.4
+	 *
+	 * @param string $value Value to hash.
+	 * @return string
+	 */
+	protected function get_checkout_handoff_context_hash($value) {
+
+		return hash_hmac('sha256', (string) $value, wp_salt('auth'));
+	}
+
+	/**
+	 * Encodes data for use in a URL-safe token segment.
+	 *
+	 * @since 2.17.4
+	 *
+	 * @param string $value Value to encode.
+	 * @return string
+	 */
+	protected function base64url_encode($value) {
+
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- URL-safe encoding for a signed token segment.
+		return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+	}
+
+	/**
+	 * Decodes a URL-safe token segment.
+	 *
+	 * @since 2.17.4
+	 *
+	 * @param string $value Value to decode.
+	 * @return string|false
+	 */
+	protected function base64url_decode($value) {
+
+		$padding = strlen($value) % 4;
+
+		if ($padding) {
+			$value .= str_repeat('=', 4 - $padding);
+		}
+
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- URL-safe decoding for a signed token segment.
+		return base64_decode(strtr($value, '-_', '+/'), true);
+	}
+
+	/**
+	 * Stops a request carrying an invalid checkout handoff token.
+	 *
+	 * @since 2.17.4
+	 * @return void
+	 */
+	protected function handle_invalid_checkout_handoff() {
+
+		wp_die(
+			esc_html__('This sign-in link is invalid or has expired.', 'ultimate-multisite'),
+			esc_html__('Sign-in link unavailable', 'ultimate-multisite'),
+			['response' => 403]
+		);
 	}
 
 	/**

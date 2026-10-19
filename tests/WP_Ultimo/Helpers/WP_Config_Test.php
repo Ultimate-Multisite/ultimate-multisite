@@ -73,6 +73,26 @@ class WP_Config_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test injecting a constant before WordPress bootstrap when the default comment is missing.
+	 */
+	public function test_inject_wp_config_constant_uses_bootstrap_fallback_anchor(): void {
+
+		$wp_config = $this->create_testable_wp_config(
+			"<?php\n\ndefine( 'WP_DEBUG', false );\n\nrequire_once ABSPATH . 'wp-settings.php';\n"
+		);
+
+		$this->assertTrue($wp_config->inject_wp_config_constant('WU_TEST_CONSTANT', true));
+
+		$contents           = file_get_contents($wp_config->get_wp_config_path());
+		$constant_position  = strpos($contents, 'WU_TEST_CONSTANT');
+		$bootstrap_position = strpos($contents, 'wp-settings.php');
+
+		$this->assertIsInt($constant_position);
+		$this->assertIsInt($bootstrap_position);
+		$this->assertLessThan($bootstrap_position, $constant_position);
+	}
+
+	/**
 	 * Test get_instance returns singleton.
 	 */
 	public function test_get_instance_returns_singleton(): void {

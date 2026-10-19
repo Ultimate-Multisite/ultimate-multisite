@@ -61,6 +61,26 @@ class Thank_You_Element extends Base_Element {
 	protected $customer;
 
 	/**
+	 * The checkout form which rendered this thank you page.
+	 *
+	 * @since 2.17.4
+	 * @var \WP_Ultimo\Models\Checkout_Form|null
+	 */
+	protected $checkout_form;
+
+	/**
+	 * Sets the checkout form before thank-you scripts are registered.
+	 *
+	 * @since 2.17.4
+	 * @param \WP_Ultimo\Models\Checkout_Form|false|null $checkout_form Checkout form context.
+	 * @return void
+	 */
+	public function set_checkout_form($checkout_form): void {
+
+		$this->checkout_form = $checkout_form instanceof \WP_Ultimo\Models\Checkout_Form ? $checkout_form : null;
+	}
+
+	/**
 	 * The icon of the UI element.
 	 * e.g. return fa fa-search
 	 *
@@ -121,9 +141,10 @@ class Thank_You_Element extends Base_Element {
 
 		$has_pending_site = $this->membership ? (bool) $this->membership->get_pending_site() : false;
 		$is_publishing    = $has_pending_site ? $this->membership->get_pending_site()->is_publishing() : false;
+		$checkout_handoff = $this->get_checkout_handoff_settings();
 
 		$asset = $this->uses_provisioning_enhancement() ? 'checkout-provisioning.js' : 'thank-you.js';
-		wp_register_script('wu-thank-you', wu_get_asset($asset, 'js'), ['wu-vue'], wu_get_version(), true);
+		wp_register_script('wu-thank-you', wu_get_asset($asset, 'js'), ['wu-vue', 'wu-provisioning-progress'], wu_get_version(), true);
 
 		wp_localize_script(
 			'wu-thank-you',
@@ -138,6 +159,7 @@ class Thank_You_Element extends Base_Element {
 				'membership_hash'                 => $this->membership ? $this->membership->get_hash() : false,
 				'payment_hash'                    => $this->payment ? $this->payment->get_hash() : false,
 				'status_nonce'                    => $this->membership ? wp_create_nonce('wu_check_pending_site_created:' . $this->membership->get_hash()) : false,
+				'checkout_handoff'                => $checkout_handoff,
 				'login_url'                       => wp_login_url(wu_get_current_url()),
 				'i18n'                            => [
 					'resending_verification_email' => __('Resending verification email...', 'ultimate-multisite'),
@@ -158,6 +180,40 @@ class Thank_You_Element extends Base_Element {
 		);
 
 		wp_enqueue_script('wu-thank-you');
+	}
+
+	/**
+	 * Builds the signed AJAX context for an opt-in post-checkout handoff.
+	 *
+	 * @since 2.17.4
+	 * @return array
+	 */
+	protected function get_checkout_handoff_settings() {
+
+		$settings = [
+			'enabled'          => false,
+			'checkout_form_id' => 0,
+			'nonce'            => false,
+		];
+
+		if ( ! $this->checkout_form instanceof \WP_Ultimo\Models\Checkout_Form || ! $this->membership || ! $this->payment
+			|| 'redirect_to_site' !== $this->checkout_form->get_after_checkout_action()) {
+			return $settings;
+		}
+
+		$checkout_form_id = $this->checkout_form->get_id();
+
+		if ( ! $checkout_form_id) {
+			return $settings;
+		}
+
+		$settings['enabled']          = true;
+		$settings['checkout_form_id'] = $checkout_form_id;
+		$settings['nonce']            = wp_create_nonce(
+			'wu_checkout_handoff:' . $checkout_form_id . ':' . $this->membership->get_hash() . ':' . $this->payment->get_hash()
+		);
+
+		return $settings;
 	}
 
 	/**
@@ -421,6 +477,10 @@ class Thank_You_Element extends Base_Element {
 	 * @return void
 	 */
 	public function output($atts, $content = null) {
+
+		if (isset($atts['checkout_form'])) {
+			$this->set_checkout_form($atts['checkout_form']);
+		}
 
 		$atts['payment'] = $this->payment;
 
