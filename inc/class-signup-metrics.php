@@ -154,27 +154,28 @@ class Signup_Metrics {
 
 		$plan = $order ? $order->get_plan() : null;
 
-		wu_create_event(
+		/*
+		 * Dispatch through wu_do_event() so system emails and webhooks
+		 * assigned to this event fire. Unlike payment_received, it does not
+		 * fire for renewal payments, so it suits signup email sequences.
+		 */
+		$payload = array_merge(
+			$payment ? wu_generate_event_payload('payment', $payment) : [],
+			$membership ? wu_generate_event_payload('membership', $membership) : [],
+			$customer ? wu_generate_event_payload('customer', $customer) : [],
 			[
-				'severity'    => Event::SEVERITY_SUCCESS,
-				'slug'        => 'checkout_completed',
+				'plan_id'     => $plan ? $plan->get_id() : 0,
+				'plan_slug'   => $plan ? $plan->get_slug() : '',
+				'cart_type'   => $order ? $order->get_cart_type() : $type,
+				'gateway'     => $payment ? $payment->get_gateway() : '',
+				'is_free'     => $order ? $order->is_free() : false,
 				'object_type' => 'membership',
 				'object_id'   => $membership ? $membership->get_id() : 0,
-				'initiator'   => 'system',
-				'payload'     => [
-					'customer_id'    => $customer ? $customer->get_id() : 0,
-					'membership_id'  => $membership ? $membership->get_id() : 0,
-					'payment_id'     => $payment ? $payment->get_id() : 0,
-					'payment_total'  => $payment ? $payment->get_total() : 0,
-					'payment_status' => $payment ? $payment->get_status() : '',
-					'plan_id'        => $plan ? $plan->get_id() : 0,
-					'plan_slug'      => $plan ? $plan->get_slug() : '',
-					'cart_type'      => $order ? $order->get_cart_type() : $type,
-					'gateway'        => $payment ? $payment->get_gateway() : '',
-					'is_free'        => $order ? $order->is_free() : false,
-				],
+				'type'        => Event::SEVERITY_SUCCESS,
 			]
 		);
+
+		wu_do_event('checkout_completed', $payload);
 	}
 
 	/**
@@ -268,12 +269,14 @@ class Signup_Metrics {
 			'checkout_completed',
 			[
 				'name'            => __('Checkout Completed', 'ultimate-multisite'),
-				'desc'            => __('Fired when a checkout is fully processed and the payment gateway returns success.', 'ultimate-multisite'),
+				'desc'            => __('Fired when a checkout (a new signup, upgrade or downgrade) is fully processed and the payment gateway returns success. Unlike Payment Received, it does not fire for renewal payments, so use it for signup email sequences.', 'ultimate-multisite'),
 				'payload'         => fn() => array_merge(
 					wu_generate_event_payload('payment'),
 					wu_generate_event_payload('membership'),
 					wu_generate_event_payload('customer'),
 					[
+						'plan_id'   => 1,
+						'plan_slug' => 'example-plan',
 						'cart_type' => 'new',
 						'gateway'   => 'free',
 						'is_free'   => true,
