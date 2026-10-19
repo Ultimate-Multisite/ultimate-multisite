@@ -10,7 +10,7 @@ $enhanced = ! empty($provisioning_enabled);
 <?php if ($enhanced) : ?>
 <style>#wu-sites [hidden]{display:none!important}#wu-sites [data-wu-site-cards]>div{box-sizing:border-box;max-width:100%}</style>
 <?php endif; ?>
-<div id="wu-thank-you-element" class="wu-styling <?php echo esc_attr($className); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase ?>">
+<div id="wu-thank-you-element" style="scroll-margin-top: 6rem;" class="wu-styling <?php echo esc_attr($className); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase ?>">
 
 	<div class="<?php echo esc_attr(wu_env_picker('', 'wu-widget-inset')); ?>">
 
@@ -251,6 +251,12 @@ $enhanced = ! empty($provisioning_enabled);
 			<p data-wu-provisioning-status role="status" aria-live="polite" aria-atomic="true"><?php esc_html_e('Your site is being prepared.', 'ultimate-multisite'); ?></p>
 			<button type="button" data-wu-provisioning-retry hidden class="wu-p-3 wu-rounded wu-bg-gray-100"><?php esc_html_e('Check again', 'ultimate-multisite'); ?></button>
 			<a data-wu-provisioning-login hidden href="<?php echo esc_url(wp_login_url(wu_get_current_url())); ?>"><?php esc_html_e('Sign in to continue', 'ultimate-multisite'); ?></a>
+			<?php endif; ?>
+
+			<?php // Filled by assets/js/provisioning-progress.js; v-pre keeps Vue from re-rendering it. ?>
+			<div data-wu-provisioning-progress v-pre hidden class="wu-bg-gray-100 wu-p-4 wu-rounded wu-mb-2"></div>
+
+			<?php if ($enhanced) : ?>
 			<div data-wu-site-cards>
 			<?php endif; ?>
 

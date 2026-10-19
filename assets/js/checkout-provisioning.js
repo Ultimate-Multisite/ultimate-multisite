@@ -1,7 +1,19 @@
 /* global wu_thank_you */
 (() => {
 	"use strict";
+
+	/*
+	 * After checkout, land on the thank-you block (and its progress bar) rather
+	 * than the top of the page. Gateway returns may not carry the fragment.
+	 */
+	const reveal_thank_you = () => {
+		const element = document.getElementById("wu-thank-you-element");
+		if (element && new URLSearchParams(window.location.search).get("status") === "done" && window.location.hash !== "#wu-thank-you-element") {
+			element.scrollIntoView({ block: "start" });
+		}
+	};
 	document.addEventListener("DOMContentLoaded", () => {
+		reveal_thank_you();
 		document.querySelectorAll(".wu-resend-verification-email").forEach((element) => {
 			element.addEventListener("click", async (event) => {
 				event.preventDefault();
@@ -49,6 +61,7 @@
 			}
 		}));
 		let controller, timer, started,
+			limit = 180000,
 			attempts = 0,
 			failures = 0,
 			paused = false,
@@ -120,11 +133,29 @@
 
 			return data?.success && typeof data?.data?.url === "string" ? data.data.url : "";
 		};
+		let progressBar = null;
+		const renderProgress = (data, state) => {
+			// Additive: servers without the progress payload keep the status text only.
+			if (! window.wu_provisioning_progress || (! data.progress && ! progressBar)) {
+				return;
+			}
+			progressBar = progressBar || window.wu_provisioning_progress.mount(root.querySelector("[data-wu-provisioning-progress]"));
+			if (! progressBar) {
+				return;
+			}
+			if (state === "failed") {
+				progressBar.fail();
+			} else if (data.progress) {
+				// Keep polling while a slower host is still within its own estimate.
+				limit = Math.max(180000, (Date.now() - started) + (((Number(data.progress.eta) || 0) + 120) * 1000));
+				progressBar.update(data.progress, state === "ready");
+			}
+		};
 		const poll = async () => {
 			if (controller || paused || navigating) {
 				return;
 			}
-			if (Date.now() - started >= 180000 || failures >= 5) {
+			if (Date.now() - started >= limit || failures >= 5) {
 				show("waiting", true);
 				return;
 			}
@@ -153,6 +184,7 @@
 				if (! [ "pending", "cloning", "ready", "failed", "payment_pending", "verification_pending" ].includes(state)) {
 					throw new Error("Invalid status");
 				}
+				renderProgress(data, state);
 				if (state === "ready" && Array.isArray(data.sites)) {
 					renderSites(data.sites);
 				}
@@ -205,7 +237,7 @@
 				return;
 			}
 			clearTimeout(timer);
-			started = Date.now(); attempts = 0; failures = 0;
+			started = Date.now(); attempts = 0; failures = 0; limit = 180000;
 			show("pending");
 			poll();
 		};

@@ -144,7 +144,7 @@ class Thank_You_Element extends Base_Element {
 		$checkout_handoff = $this->get_checkout_handoff_settings();
 
 		$asset = $this->uses_provisioning_enhancement() ? 'checkout-provisioning.js' : 'thank-you.js';
-		wp_register_script('wu-thank-you', wu_get_asset($asset, 'js'), ['wu-vue'], wu_get_version(), true);
+		wp_register_script('wu-thank-you', wu_get_asset($asset, 'js'), ['wu-vue', 'wu-provisioning-progress'], wu_get_version(), true);
 
 		wp_localize_script(
 			'wu-thank-you',
