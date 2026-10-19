@@ -113,6 +113,44 @@ class Scripts {
 		$this->register_script('wu-vue', wu_get_asset('lib/vue.js', 'js'));
 
 		/*
+		 * Customer-facing provisioning progress bar, shared with add-ons.
+		 */
+		$this->register_script('wu-provisioning-progress', wu_get_asset('provisioning-progress.js', 'js'));
+
+		wp_localize_script(
+			'wu-provisioning-progress',
+			'wu_provisioning_progress_i18n',
+			[
+				'label'       => __('Setup progress', 'ultimate-multisite'),
+				// translators: 1: current step number, 2: number of steps, 3: step name.
+				'step'        => __('Step %1$s of %2$s: %3$s', 'ultimate-multisite'),
+				// translators: %s: minutes.
+				'minutes'     => __('About %s min left', 'ultimate-multisite'),
+				// translators: %s: seconds.
+				'seconds'     => __('About %s sec left', 'ultimate-multisite'),
+				'almost'      => __('Almost done', 'ultimate-multisite'),
+				'done'        => __('Done', 'ultimate-multisite'),
+				// translators: %s: number of setups ahead in the queue.
+				'queue'       => __('Waiting in queue (%s ahead)', 'ultimate-multisite'),
+				// translators: %s: step name.
+				'retrying'    => __('Retrying: %s', 'ultimate-multisite'),
+				'slow'        => __('This is taking a little longer than usual.', 'ultimate-multisite'),
+				'failed'      => __('Setup could not finish. Your order is saved.', 'ultimate-multisite'),
+				'support'     => __('Contact support', 'ultimate-multisite'),
+				/**
+				 * Filters the support link shown when provisioning fails.
+				 *
+				 * @since 2.18.0
+				 *
+				 * @param string $url Support URL; empty hides the link.
+				 */
+				'support_url' => esc_url_raw((string) apply_filters('wu_provisioning_support_url', '')),
+				// translators: 1: current step number, 2: number of steps, 3: step name.
+				'announce'    => __('Step %1$s of %2$s: %3$s', 'ultimate-multisite'),
+			]
+		);
+
+		/*
 		 * Adds Sweet Alert
 		 */
 		$this->register_script('wu-sweet-alert', wu_get_asset('lib/sweetalert2.all.js', 'js'));

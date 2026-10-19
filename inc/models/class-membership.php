@@ -2116,6 +2116,9 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 	 * @return void
 	 */
 	public function publish_pending_site_async(): void {
+
+		$this->start_pending_site_progress();
+
 		/*
 		 * If the force sync setting is on, fallback to the sync version.
 		 */
@@ -2394,9 +2397,12 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			$pending_site->set_template_id($template_id);
 		}
 
+		$this->start_pending_site_progress($pending_site);
+		wu_provisioning_progress_step($this, 'creating');
+
 		try {
 			$profile_stage = microtime(true);
-			$saved         = $pending_site->save();
+			$saved         = wu_with_provisioning_progress($this, fn() => $pending_site->save());
 
 			if ( ! is_wp_error($saved) && is_numeric($saved) && class_exists('\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider')) {
 				\Ultimate_Multisite_Multi_Tenancy\Providers\Local_Provider::profile_stage(
@@ -2420,6 +2426,8 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 
 			$this->update_pending_site($pending_site);
 
+			wu_provisioning_progress_step($this, 'creating', ['retrying' => true]);
+
 			return new \WP_Error('pending_site_publish_failed', $e->getMessage());
 		}
 
@@ -2431,6 +2439,8 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 				 * even with is_publishing value as true.
 				 */
 				$this->delete_pending_site();
+
+				wu_provisioning_progress_complete($this);
 
 				return true;
 			}
@@ -2445,6 +2455,8 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			$pending_site->set_publishing(false);
 
 			$this->update_pending_site($pending_site);
+
+			wu_provisioning_progress_step($this, 'creating', ['retrying' => true]);
 
 			return $saved;
 		}
@@ -2483,7 +2495,36 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			);
 		}
 
+		wu_provisioning_progress_complete($this);
+
 		return true;
+	}
+
+	/**
+	 * Starts the customer-facing "site" progress run for the pending site.
+	 *
+	 * Safe to call repeatedly: a run already in progress is kept.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param Site|false|null $pending_site Pending site, read from meta when omitted.
+	 * @return void
+	 */
+	protected function start_pending_site_progress($pending_site = null) {
+
+		$pending_site = $pending_site ?: $this->get_pending_site();
+
+		if ( ! $pending_site instanceof Site) {
+			return;
+		}
+
+		$template_id = (int) $pending_site->get_template_id();
+
+		wu_provisioning_progress_start(
+			$this,
+			'site',
+			['template' => $template_id ? (string) $template_id : 'blank']
+		);
 	}
 
 	/**

@@ -142,6 +142,9 @@ describe("Stripe Recurring Multi-step Pending Site", () => {
 			expect(data.site_created).to.equal(true);
 			expect(data.site_path).to.equal(`/${ siteData.path }/`);
 			expect(data.site_type).to.equal("customer_owned");
+			expect(data.progress_pipeline).to.equal("site");
+			expect(data.progress_state).to.equal("completed");
+			expect(data.progress_step_count).to.equal(6);
 		});
 	});
 });

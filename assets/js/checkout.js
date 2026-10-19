@@ -1178,7 +1178,46 @@
 					this.create_order();
 
 				},
-				block(message) {
+				block(message, options = {}) {
+
+					if (options.processing) {
+						/*
+						 * Submit: blur the form under a grey overlay and keep the message
+						 * centred in the viewport (the form can be taller than the screen).
+						 */
+						document.documentElement.style.cursor = 'wait';
+
+						jQuery(this.$el).wu_block({
+							message,
+							centerX: false,
+							centerY: false,
+							overlayCSS: {
+								backgroundColor: 'rgba(55, 65, 81, 0.55)',
+								opacity: 1,
+								backdropFilter: 'blur(4px)',
+								WebkitBackdropFilter: 'blur(4px)',
+								cursor: 'wait',
+							},
+							css: {
+								position: 'fixed',
+								top: '50%',
+								left: '50%',
+								transform: 'translate(-50%, -50%)',
+								width: 'min(90vw, 640px)',
+								padding: '32px 24px',
+								margin: 0,
+								textAlign: 'center',
+								color: '#fff',
+								border: 'none',
+								borderRadius: '12px',
+								backgroundColor: 'rgba(17, 24, 39, 0.85)',
+								boxShadow: '0 10px 40px rgba(0, 0, 0, 0.35)',
+								cursor: 'wait',
+							},
+						});
+
+						return;
+					}
 
 					/*
             * Get the first bg color from a parent.
@@ -1217,6 +1256,8 @@
 
 				},
 				unblock() {
+
+					document.documentElement.style.cursor = '';
 
 					jQuery(this.$el).wu_unblock();
 
@@ -1792,19 +1833,30 @@
 					// Disable all submit buttons to prevent double-clicks
 					jQuery(this).find('button[type="submit"]').prop('disabled', true);
 
-					// Show loading message with status text
-					const loadingText = wu_checkout.is_last_step
-						? (wu_checkout.i18n.provisioning_site || 'Provisioning your site — this can take up to 60 seconds.')
-						: (wu_checkout.i18n.recording_responses || 'Recording Your Responses...');
+					/*
+					 * With async provisioning the site is created after this request
+					 * and the thank-you page shows its progress, so the submit only
+					 * needs to say it is processing.
+					 */
+					let loadingText = wu_checkout.i18n.recording_responses || 'Recording Your Responses...';
 
-					const loadingMessage = '<div style="text-align: center;">' +
-					'<div class="spinner is-active wu-float-none" style="float: none !important; margin-bottom: 12px;"></div>' +
-					'<div style="font-size: 14px; line-height: 1.5;">' +
-					loadingText +
-					'</div>' +
-					'</div>';
+					if (wu_checkout.is_last_step) {
+						loadingText = wu_checkout.provisioning_async
+							? (wu_checkout.i18n.processing || 'Processing — please wait')
+							: (wu_checkout.i18n.provisioning_site || 'Provisioning your site — this can take up to 60 seconds.');
+					}
 
-					that.block(loadingMessage);
+					// Self-contained spinner: the admin .spinner styles are not loaded on the front end.
+					const loadingMessage = jQuery('<div role="status" aria-live="assertive" style="text-align: center;">' +
+					'<style>@keyframes wu-checkout-processing-spin { to { transform: rotate(360deg); } }</style>' +
+					'<div aria-hidden="true" style="width: 48px; height: 48px; margin: 0 auto 18px; border: 4px solid rgba(255, 255, 255, 0.25); border-top-color: #fff; border-radius: 50%; animation: wu-checkout-processing-spin 0.9s linear infinite;"></div>' +
+					'<div class="wu-checkout-processing-text" style="font-size: 28px; font-weight: 600; line-height: 1.3;"></div>' +
+					'</div>');
+
+					// Text node: translations are not HTML.
+					loadingMessage.find('.wu-checkout-processing-text').text(loadingText);
+
+					that.block(loadingMessage, { processing: true });
 
 					try {
 
