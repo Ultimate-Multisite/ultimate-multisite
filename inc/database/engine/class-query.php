@@ -73,6 +73,8 @@ class Query extends \BerlinDB\Database\Query {
 	 */
 	public function __construct($query = []) {
 
+		$base_prefix = $this->prefix;
+
 		$this->update_prefix_with_network_id();
 
 		$cache_group = $this->apply_prefix($this->cache_group, '-');
@@ -84,6 +86,59 @@ class Query extends \BerlinDB\Database\Query {
 		}
 
 		parent::__construct($query);
+
+		if ($base_prefix !== $this->prefix) {
+			$this->bridge_network_transition_hooks($base_prefix);
+		}
+	}
+
+	/**
+	 * Keep track of the transition hooks we've bridged.
+	 *
+	 * @since 2.17.3
+	 * @var array<string, bool>
+	 */
+	protected static $bridged_transition_hooks = [];
+
+	/**
+	 * Re-fires network-prefixed transition hooks under their canonical names.
+	 *
+	 * On non-main networks the table prefix becomes e.g. `wu_2`, so BerlinDB
+	 * fires `wu_2_transition_customer_email_verification` instead of
+	 * `wu_transition_customer_email_verification`. All listeners use the
+	 * canonical name, so without this bridge every transition side effect
+	 * (email verification, membership/payment status changes, domain changes)
+	 * is silently skipped on secondary networks.
+	 *
+	 * @since 2.17.3
+	 *
+	 * @param string $base_prefix The prefix before the network ID was appended.
+	 * @return void
+	 */
+	protected function bridge_network_transition_hooks(string $base_prefix): void {
+
+		$columns = $this->get_columns(['transition' => true], 'and', 'name');
+
+		foreach ($columns as $column) {
+			$suffix         = "transition_{$this->item_name}_{$column}";
+			$network_hook   = $this->apply_prefix($suffix);
+			$canonical_hook = $base_prefix ? "{$base_prefix}_{$suffix}" : $suffix;
+
+			if (isset(self::$bridged_transition_hooks[ $network_hook ])) {
+				continue;
+			}
+
+			self::$bridged_transition_hooks[ $network_hook ] = true;
+
+			add_action(
+				$network_hook,
+				function ($old_value, $new_value, $item_id) use ($canonical_hook) {
+					do_action($canonical_hook, $old_value, $new_value, $item_id); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores
+				},
+				10,
+				3
+			);
+		}
 	}
 
 	/**
