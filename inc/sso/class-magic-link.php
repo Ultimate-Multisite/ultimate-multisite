@@ -514,6 +514,10 @@ class Magic_Link {
 
 		global $wpdb;
 
+		if ( ! $this->ensure_checkout_handoff_table()) {
+			return false;
+		}
+
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 		$inserted = $wpdb->insert(
 			$this->get_checkout_handoff_table_name(),
@@ -569,9 +573,55 @@ class Magic_Link {
 	 */
 	protected function get_checkout_handoff_table_name() {
 
+		$table = $this->get_checkout_handoff_table();
+
+		if ($table && ! empty($table->table_name)) {
+			return $table->table_name;
+		}
+
 		global $wpdb;
 
 		return $wpdb->base_prefix . 'wu_sso_nonces';
+	}
+
+	/**
+	 * Returns the registered SSO nonce table object.
+	 *
+	 * @since 2.17.4
+	 * @return \WP_Ultimo\Database\SSO_Nonces\SSO_Nonces_Table|null
+	 */
+	protected function get_checkout_handoff_table() {
+
+		$tables = function_exists('WP_Ultimo') ? WP_Ultimo()->tables : null;
+
+		return $tables && isset($tables->sso_nonce_table) ? $tables->sso_nonce_table : null;
+	}
+
+	/**
+	 * Creates the SSO nonce table on installs upgraded from an earlier version.
+	 *
+	 * BerlinDB only creates missing tables on `admin_init` of the main site, so
+	 * a checkout on another site can need the table before any admin visit.
+	 *
+	 * @since 2.17.4
+	 * @return bool Whether the table is available.
+	 */
+	protected function ensure_checkout_handoff_table() {
+
+		$table = $this->get_checkout_handoff_table();
+
+		// Without the table object, fall back to the conventional name; the insert reports failure.
+		if ( ! $table || $table->exists()) {
+			return true;
+		}
+
+		$table->install();
+
+		global $wpdb;
+
+		$name = $this->get_checkout_handoff_table_name();
+
+		return $name === $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($name))); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	}
 
 	/**
@@ -596,7 +646,7 @@ class Magic_Link {
 
 		$parts = wp_parse_url($path);
 
-		if (false === $parts || isset($parts['scheme'], $parts['host']) || isset($parts['user'], $parts['pass'], $parts['port'])) {
+		if (false === $parts || array_intersect_key($parts, array_flip(['scheme', 'host', 'user', 'pass', 'port']))) {
 			return false;
 		}
 

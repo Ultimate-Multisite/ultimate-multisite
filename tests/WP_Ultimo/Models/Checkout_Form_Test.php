@@ -162,6 +162,16 @@ class Checkout_Form_Test extends WP_UnitTestCase {
 
 		$this->assertSame('thank_you', $checkout_form->get_after_checkout_action());
 		$this->assertSame('/wp-admin/', $checkout_form->get_after_checkout_landing_path());
+
+		// Any single URL component (not only full scheme+host sets) is rejected.
+		foreach (['/:8080', '/x:8080/admin'] as $path) {
+			$parts = wp_parse_url($path);
+			$checkout_form->set_after_checkout_landing_path($path);
+
+			if (is_array($parts) && array_intersect_key($parts, array_flip(['scheme', 'host', 'user', 'pass', 'port']))) {
+				$this->assertSame('/wp-admin/', $checkout_form->get_after_checkout_landing_path(), $path);
+			}
+		}
 	}
 
 	/**

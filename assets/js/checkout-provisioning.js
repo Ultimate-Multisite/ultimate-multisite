@@ -169,9 +169,12 @@
 					let redirect_url = data.redirect_url;
 
 					if (isCheckoutHandoffEnabled()) {
-						redirect_url = await requestCheckoutHandoff();
-						if (! redirect_url) {
-							throw new Error("Checkout handoff unavailable");
+						// A failed handoff must not undo the ready state: keep the site
+						// cards and the integration redirect (if any) instead of retrying.
+						try {
+							redirect_url = (await requestCheckoutHandoff()) || data.redirect_url;
+						} catch {
+							redirect_url = data.redirect_url;
 						}
 					}
 

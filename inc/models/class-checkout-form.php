@@ -1405,7 +1405,7 @@ class Checkout_Form extends Base_Model {
 
 		$parts = wp_parse_url($path);
 
-		if (false === $parts || isset($parts['scheme'], $parts['host']) || isset($parts['user'], $parts['pass'], $parts['port'])) {
+		if (false === $parts || array_intersect_key($parts, array_flip(['scheme', 'host', 'user', 'pass', 'port']))) {
 			return '/wp-admin/';
 		}
 

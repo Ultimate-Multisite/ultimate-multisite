@@ -928,4 +928,43 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 		$this->assertStringContainsString(Magic_Link::TOKEN_QUERY_ARG, $result);
 		$this->assertStringContainsString('example.com', $result);
 	}
+	/**
+	 * Upgraded installs without the nonce table get it on the first handoff.
+	 */
+	public function test_checkout_handoff_installs_missing_nonce_table() {
+
+		$this->ensure_checkout_handoff_table();
+
+		$loader   = \WP_Ultimo\Loaders\Table_Loader::get_instance();
+		$original = $loader->sso_nonce_table;
+		// The table class is final; a stub exposing the same surface reports it missing.
+		$missing = new class($original->table_name) {
+			public $installed = 0;
+
+			public $table_name;
+
+			public function __construct($table_name) {
+				$this->table_name = $table_name;
+			}
+
+			public function exists(): bool {
+				return 0 < $this->installed;
+			}
+
+			public function install() {
+				++$this->installed;
+			}
+		};
+
+		$loader->sso_nonce_table = $missing;
+
+		try {
+			$stored = $this->invoke_checkout_handoff_method('store_checkout_handoff_nonce', str_repeat('a', 64), get_current_blog_id(), time() + 60);
+		} finally {
+			$loader->sso_nonce_table = $original;
+		}
+
+		$this->assertSame(1, $missing->installed);
+		$this->assertTrue($stored);
+	}
 }
