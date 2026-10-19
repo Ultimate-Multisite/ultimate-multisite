@@ -268,7 +268,7 @@ class Email_List_Admin_Page extends List_Admin_Page {
 		$args = [
 			'style'   => $email->get_style(),
 			'content' => $email->get_content(),
-			'subject' => get_network_option(null, 'site_name') . ' - ' . $email->get_title(),
+			'subject' => \WP_Ultimo\Managers\Email_Manager::get_instance()->get_system_email_subject($email, $payload),
 			'payload' => $payload,
 		];
 
