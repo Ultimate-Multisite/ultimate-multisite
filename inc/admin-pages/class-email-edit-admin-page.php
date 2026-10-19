@@ -329,12 +329,12 @@ class Email_Edit_Admin_Page extends Edit_Admin_Page {
 					'general' => [
 						'title'  => __('General', 'ultimate-multisite'),
 						'icon'   => 'dashicons-wu-lock',
-						'desc'   => __('Rules and limitations to the applicability of this discount code.', 'ultimate-multisite'),
+						'desc'   => __('Formatting options for this email.', 'ultimate-multisite'),
 						'state'  => [
 							'sender' => $this->edit ? $object->get_custom_sender() : 0,
 						],
 						'fields' => [
-							'style' => [
+							'style'          => [
 								'type'        => 'select',
 								'title'       => __('Email Style', 'ultimate-multisite'),
 								'desc'        => __('Choose if email body will be sent using the HTML template or in plain text.', 'ultimate-multisite'),
@@ -345,6 +345,13 @@ class Email_Edit_Admin_Page extends Edit_Admin_Page {
 									'plain'   => __('Plain Emails', 'ultimate-multisite'),
 								],
 								'value'       => $this->edit ? $object->get_style() : 'html',
+							],
+							'subject_prefix' => [
+								'type'  => 'toggle',
+								'title' => __('Start the Subject with the Network Name?', 'ultimate-multisite'),
+								// translators: %s: the network name.
+								'desc'  => sprintf(__('Sends the subject as "%s - Subject". Turn this off when the email speaks for a different brand, such as a subsite with its own name.', 'ultimate-multisite'), esc_html((string) get_network_option(null, 'site_name'))),
+								'value' => $this->edit ? $object->has_subject_prefix() : true,
 							],
 						],
 					],
@@ -543,6 +550,9 @@ class Email_Edit_Admin_Page extends Edit_Admin_Page {
 		$_POST['custom_sender'] = wu_request('custom_sender');
 
 		$_POST['products'] = wu_request('products', '');
+
+		// Unchecked toggles post nothing; store an explicit 0 so the default (on) doesn't return.
+		$_POST['subject_prefix'] = wu_request('subject_prefix') ? 1 : 0;
 
 		return parent::handle_save();
 	}

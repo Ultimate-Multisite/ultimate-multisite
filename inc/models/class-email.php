@@ -102,6 +102,11 @@ class Email extends Post_Base_Model {
 	const META_PRODUCTS = 'wu_products';
 
 	/**
+	 * Meta key for whether the subject starts with the network name.
+	 */
+	const META_SUBJECT_PREFIX = 'wu_subject_prefix';
+
+	/**
 	 * Post model.
 	 *
 	 * @since 2.0.0
@@ -282,6 +287,14 @@ class Email extends Post_Base_Model {
 	protected $products;
 
 	/**
+	 * Whether the subject starts with the network name.
+	 *
+	 * @since 2.18.0
+	 * @var bool|int|string|null
+	 */
+	protected $subject_prefix;
+
+	/**
 	 * Set the validation rules for this particular model.
 	 *
 	 * To see how to setup rules, check the documentation of the
@@ -312,6 +325,7 @@ class Email extends Post_Base_Model {
 			'legacy'              => 'boolean|default:0',
 			'product_filter'      => 'in:all,include,exclude|default:all',
 			'products'            => 'default:',
+			'subject_prefix'      => 'boolean|default:1',
 		];
 	}
 
@@ -903,6 +917,37 @@ class Email extends Post_Base_Model {
 	}
 
 	/**
+	 * Whether the subject starts with the network name ("Network - Subject").
+	 *
+	 * Defaults to true, so existing emails keep their current subjects.
+	 *
+	 * @since 2.18.0
+	 * @return bool
+	 */
+	public function has_subject_prefix() {
+
+		if (null === $this->subject_prefix) {
+			$this->subject_prefix = $this->get_meta(self::META_SUBJECT_PREFIX, true);
+		}
+
+		return (bool) $this->subject_prefix;
+	}
+
+	/**
+	 * Set whether the subject starts with the network name.
+	 *
+	 * @since 2.18.0
+	 * @param bool $subject_prefix Prefix the subject with the network name.
+	 * @return void
+	 */
+	public function set_subject_prefix($subject_prefix): void {
+
+		$this->subject_prefix = $subject_prefix ? 1 : 0;
+
+		$this->meta[ self::META_SUBJECT_PREFIX ] = $this->subject_prefix;
+	}
+
+	/**
 	 * Get which memberships this email applies to.
 	 *
 	 * @since 2.18.0
@@ -1049,6 +1094,7 @@ class Email extends Post_Base_Model {
 			$this->has_schedule();
 			$this->get_product_filter();
 			$this->get_products();
+			$this->has_subject_prefix();
 		}
 
 		return parent::to_array();
