@@ -89,6 +89,37 @@
 			}
 			cards.replaceChildren(fragment);
 		};
+		const isCheckoutHandoffEnabled = () => {
+			const handoff = wu_thank_you.checkout_handoff || {};
+
+			return [ true, 1, "1", "true" ].includes(handoff.enabled) && handoff.checkout_form_id && handoff.nonce;
+		};
+		const requestCheckoutHandoff = async () => {
+			const handoff = wu_thank_you.checkout_handoff || {};
+
+			if (! isCheckoutHandoffEnabled()) {
+				return "";
+			}
+
+			const response = await fetch(wu_thank_you.ajaxurl, {
+				method: "POST", credentials: "same-origin", cache: "no-store",
+				headers: { "Content-Type": "application/x-www-form-urlencoded" },
+				body: new URLSearchParams({
+					action: "wu_create_checkout_handoff",
+					_ajax_nonce: handoff.nonce,
+					checkout_form_id: handoff.checkout_form_id,
+					membership_hash: wu_thank_you.membership_hash,
+					payment_hash: wu_thank_you.payment_hash
+				})
+			});
+			if (! response.ok) {
+				return "";
+			}
+
+			const data = await response.json();
+
+			return data?.success && typeof data?.data?.url === "string" ? data.data.url : "";
+		};
 		const poll = async () => {
 			if (controller || paused || navigating) {
 				return;
@@ -135,8 +166,20 @@
 					return;
 				}
 				if (state === "ready") {
-					if (data.redirect_url) {
-						const url = new URL(data.redirect_url);
+					let redirect_url = data.redirect_url;
+
+					if (isCheckoutHandoffEnabled()) {
+						// A failed handoff must not undo the ready state: keep the site
+						// cards and the integration redirect (if any) instead of retrying.
+						try {
+							redirect_url = (await requestCheckoutHandoff()) || data.redirect_url;
+						} catch {
+							redirect_url = data.redirect_url;
+						}
+					}
+
+					if (redirect_url) {
+						const url = new URL(redirect_url, location.href);
 						if (! [ "http:", "https:" ].includes(url.protocol)) {
 							throw new Error("Invalid handoff");
 						}

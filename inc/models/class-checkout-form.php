@@ -33,6 +33,20 @@ class Checkout_Form extends Base_Model {
 	const META_CONVERSION_SNIPPETS = 'wu_conversion_snippets';
 
 	/**
+	 * Meta key for the configured action after a checkout completes.
+	 *
+	 * @since 2.17.4
+	 */
+	const META_AFTER_CHECKOUT_ACTION = 'wu_after_checkout_action';
+
+	/**
+	 * Meta key for the local path used by a checkout handoff.
+	 *
+	 * @since 2.17.4
+	 */
+	const META_AFTER_CHECKOUT_LANDING_PATH = 'wu_after_checkout_landing_path';
+
+	/**
 	 * @var array<string, int>|array<string, string>
 	 */
 	public $meta;
@@ -102,6 +116,22 @@ class Checkout_Form extends Base_Model {
 	protected $conversion_snippets;
 
 	/**
+	 * Action to perform after checkout completes.
+	 *
+	 * @since 2.17.4
+	 * @var string|null
+	 */
+	protected $after_checkout_action;
+
+	/**
+	 * Local landing path used after a checkout handoff.
+	 *
+	 * @since 2.17.4
+	 * @var string|null
+	 */
+	protected $after_checkout_landing_path;
+
+	/**
 	 * Set a template to use.
 	 *
 	 * @since 2.0.0
@@ -140,15 +170,17 @@ class Checkout_Form extends Base_Model {
 		$id = $this->get_id();
 
 		return [
-			'name'                => 'required',
-			'slug'                => "required|unique:\WP_Ultimo\Models\Checkout_Form,slug,{$id}|min:3",
-			'active'              => 'required|default:1',
-			'custom_css'          => 'default:',
-			'settings'            => 'checkout_steps',
-			'allowed_countries'   => 'default:',
-			'thank_you_page_id'   => 'integer',
-			'conversion_snippets' => 'nullable|default:',
-			'template'            => 'in:blank,single-step,multi-step,simple',
+			'name'                        => 'required',
+			'slug'                        => "required|unique:\WP_Ultimo\Models\Checkout_Form,slug,{$id}|min:3",
+			'active'                      => 'required|default:1',
+			'custom_css'                  => 'default:',
+			'settings'                    => 'checkout_steps',
+			'allowed_countries'           => 'default:',
+			'thank_you_page_id'           => 'integer',
+			'conversion_snippets'         => 'nullable|default:',
+			'after_checkout_action'       => 'in:thank_you,redirect_to_site|default:thank_you',
+			'after_checkout_landing_path' => 'nullable|default:/wp-admin/',
+			'template'                    => 'in:blank,single-step,multi-step,simple',
 		];
 	}
 
@@ -1283,6 +1315,110 @@ class Checkout_Form extends Base_Model {
 	}
 
 	/**
+	 * Gets the configured action after checkout.
+	 *
+	 * @since 2.17.4
+	 * @return string
+	 */
+	public function get_after_checkout_action() {
+
+		if (null === $this->after_checkout_action) {
+			$this->after_checkout_action = $this->get_meta(self::META_AFTER_CHECKOUT_ACTION, 'thank_you');
+		}
+
+		return in_array($this->after_checkout_action, ['thank_you', 'redirect_to_site'], true)
+			? $this->after_checkout_action
+			: 'thank_you';
+	}
+
+	/**
+	 * Sets the action performed after checkout.
+	 *
+	 * @since 2.17.4
+	 * @param string $after_checkout_action Action to perform after checkout.
+	 * @return void
+	 */
+	public function set_after_checkout_action($after_checkout_action): void {
+
+		$after_checkout_action = sanitize_key((string) $after_checkout_action);
+
+		if ( ! in_array($after_checkout_action, ['thank_you', 'redirect_to_site'], true)) {
+			$after_checkout_action = 'thank_you';
+		}
+
+		$this->meta[ self::META_AFTER_CHECKOUT_ACTION ] = $after_checkout_action;
+
+		$this->after_checkout_action = $after_checkout_action;
+	}
+
+	/**
+	 * Gets the local landing path used after a checkout handoff.
+	 *
+	 * @since 2.17.4
+	 * @return string
+	 */
+	public function get_after_checkout_landing_path() {
+
+		if (null === $this->after_checkout_landing_path) {
+			$this->after_checkout_landing_path = $this->sanitize_after_checkout_landing_path(
+				$this->get_meta(self::META_AFTER_CHECKOUT_LANDING_PATH, '/wp-admin/')
+			);
+		}
+
+		return $this->after_checkout_landing_path;
+	}
+
+	/**
+	 * Sets the local landing path used after a checkout handoff.
+	 *
+	 * @since 2.17.4
+	 * @param string $after_checkout_landing_path Local path after authentication.
+	 * @return void
+	 */
+	public function set_after_checkout_landing_path($after_checkout_landing_path): void {
+
+		$after_checkout_landing_path = $this->sanitize_after_checkout_landing_path($after_checkout_landing_path);
+
+		$this->meta[ self::META_AFTER_CHECKOUT_LANDING_PATH ] = $after_checkout_landing_path;
+
+		$this->after_checkout_landing_path = $after_checkout_landing_path;
+	}
+
+	/**
+	 * Keeps landing paths local to the destination site.
+	 *
+	 * @since 2.17.4
+	 * @param mixed $path Requested landing path.
+	 * @return string
+	 */
+	protected function sanitize_after_checkout_landing_path($path) {
+
+		if ( ! is_string($path)) {
+			return '/wp-admin/';
+		}
+
+		$path = trim($path);
+
+		if ('' === $path || '/' !== $path[0] || str_starts_with($path, '//') || str_starts_with($path, '/\\')) {
+			return '/wp-admin/';
+		}
+
+		$parts = wp_parse_url($path);
+
+		if (false === $parts || array_intersect_key($parts, array_flip(['scheme', 'host', 'user', 'pass', 'port']))) {
+			return '/wp-admin/';
+		}
+
+		$path = wp_sanitize_redirect($path);
+
+		if ('' === $path || '/' !== $path[0] || str_starts_with($path, '//') || str_starts_with($path, '/\\')) {
+			return '/wp-admin/';
+		}
+
+		return $path;
+	}
+
+	/**
 	 * Save (create or update) the model on the database.
 	 *
 	 * Overrides the save method to set the template.
@@ -1822,6 +1958,8 @@ class Checkout_Form extends Base_Model {
 		if ($this->get_id()) {
 			$this->get_thank_you_page_id();
 			$this->get_conversion_snippets();
+			$this->get_after_checkout_action();
+			$this->get_after_checkout_landing_path();
 		}
 
 		return parent::to_array();

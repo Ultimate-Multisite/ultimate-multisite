@@ -949,6 +949,24 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Get thank_you_page_fields includes the checkout handoff settings.
+	 */
+	public function test_get_thank_you_page_fields_includes_after_checkout_handoff_settings(): void {
+		$_REQUEST['id']     = $this->checkout_form->get_id();
+		$this->page->object = $this->checkout_form;
+
+		$fields = $this->page->get_thank_you_page_fields();
+
+		$this->assertArrayHasKey('after_checkout_action', $fields);
+		$this->assertEquals('select', $fields['after_checkout_action']['type']);
+		$this->assertEquals('thank_you', $fields['after_checkout_action']['value']);
+		$this->assertArrayHasKey('redirect_to_site', $fields['after_checkout_action']['options']);
+		$this->assertArrayHasKey('after_checkout_landing_path', $fields);
+		$this->assertEquals('text', $fields['after_checkout_landing_path']['type']);
+		$this->assertEquals('/wp-admin/', $fields['after_checkout_landing_path']['value']);
+	}
+
+	/**
 	 * get_thank_you_page_fields does not include header-type fields.
 	 */
 	public function test_get_thank_you_page_fields_excludes_header_fields(): void {
@@ -965,16 +983,21 @@ class Checkout_Form_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * get_thank_you_page_fields uses meta[wu_thank_you_settings][...] key format.
+	 * Get thank_you_page_fields uses the expected nested and direct key formats.
 	 */
-	public function test_get_thank_you_page_fields_uses_correct_key_format(): void {
+	public function test_get_thank_you_page_fields_uses_correct_key_formats(): void {
 		$_REQUEST['id']     = $this->checkout_form->get_id();
 		$this->page->object = $this->checkout_form;
 
 		$fields = $this->page->get_thank_you_page_fields();
+		$direct_fields = [
+			'conversion_snippets',
+			'after_checkout_action',
+			'after_checkout_landing_path',
+		];
 
 		foreach (array_keys($fields) as $key) {
-			if ($key !== 'conversion_snippets') {
+			if ( ! in_array($key, $direct_fields, true)) {
 				$this->assertStringStartsWith('meta[wu_thank_you_settings]', $key);
 			}
 		}
