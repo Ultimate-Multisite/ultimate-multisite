@@ -330,7 +330,7 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 	protected $network_id;
 
 	/**
-	 * Keep original list of products.
+	 * Keep original list of products, compiled lazily during change detection.
 	 *
 	 * If the products are changed for some reason,
 	 * we need to run additional code to handle updates
@@ -341,9 +341,9 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 	 * sub-site belonging to that membership.
 	 *
 	 * @since 2.0.10
-	 * @var array
+	 * @var array|null Null until the original products have been resolved.
 	 */
-	protected $compiled_product_list = [];
+	protected $compiled_product_list;
 
 	/**
 	 * Keep original gateway info.
@@ -381,10 +381,6 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 			'gateway_customer_id'     => $this->get_gateway_customer_id(),
 			'gateway_subscription_id' => $this->get_gateway_subscription_id(),
 		];
-
-		if (did_action('plugins_loaded')) {
-			$this->compiled_product_list = $this->get_all_products();
-		}
 	}
 
 	/**
@@ -3074,6 +3070,28 @@ class Membership extends Base_Model implements Limitable, Billable, Notable {
 	 * @return boolean
 	 */
 	protected function has_product_changes() {
+
+		if (null === $this->compiled_product_list) {
+			if ( ! did_action('plugins_loaded')) {
+				return false;
+			}
+
+			$original = $this->_get_original();
+
+			$this->compiled_product_list = [];
+
+			if ($original) {
+				// Resolve the original products, not the already-mutated membership.
+				// Cloning avoids construction and preserves overridden product getters.
+				$original_membership = clone $this;
+
+				foreach (['plan_id', 'addon_products', 'duration', 'duration_unit'] as $key) {
+					$original_membership->$key = $original[ $key ];
+				}
+
+				$this->compiled_product_list = $original_membership->get_all_products();
+			}
+		}
 
 		if (empty($this->compiled_product_list)) {
 			return false;
