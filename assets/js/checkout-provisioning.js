@@ -146,8 +146,8 @@
 			if (state === "failed") {
 				progressBar.fail();
 			} else if (data.progress) {
-				// Keep polling while a slower host is still within its own estimate.
-				limit = Math.max(180000, (Date.now() - started) + (((Number(data.progress.eta) || 0) + 120) * 1000));
+				// Extend for slower hosts, but never past the absolute ceiling.
+				limit = Math.min(900000, Math.max(limit, (Date.now() - started) + (((Number(data.progress.eta) || 0) + 120) * 1000)));
 				progressBar.update(data.progress, state === "ready");
 			}
 		};
