@@ -149,6 +149,7 @@ class OCI_Email_Transactional_Email_Test extends WP_UnitTestCase {
 		$result = $this->module->get_domain_dns_records('example.com');
 
 		$this->assertTrue($result['success']);
+		$this->assertContains('dkim-value', array_column($result['dns_records'], 'value'));
 	}
 
 	public function test_get_domain_dns_records_creates_dkim_at_dkims_endpoint(): void {
