@@ -1499,11 +1499,11 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Real deletion hooks only enqueue removal jobs when a listener is registered.
+	 * Real deletion hooks must preserve listener defaults and filter overrides.
 	 *
 	 * @dataProvider domain_removal_scheduling_provider
 	 */
-	public function test_domain_removal_scheduling(string $hook, bool $has_listener): void {
+	public function test_domain_removal_scheduling(string $hook, bool $has_listener, ?bool $override, bool $expected_enqueued): void {
 		global $current_site;
 
 		$blog_id = $this->create_test_blog([
@@ -1533,8 +1533,13 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 		$prior_callbacks = $GLOBALS['wp_filter'][ $hook ] ?? null;
 		unset($GLOBALS['wp_filter'][ $hook ]);
 
+		$filter_calls   = [];
 		$removed_events = [];
 		$callback_args  = [];
+		$filter         = static function ($should_enqueue, $filtered_hook, $filtered_args) use ($override, &$filter_calls) {
+			$filter_calls[] = [$should_enqueue, $filtered_hook, $filtered_args];
+			return $override ?? $should_enqueue;
+		};
 		$removed        = static function ($domain_name, $site_id) use (&$removed_events) {
 			$removed_events[] = [$domain_name, $site_id];
 		};
@@ -1542,6 +1547,7 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 			$callback_args[] = [$name, $site_id];
 		};
 
+		add_filter('wu_should_enqueue_domain_removal', $filter, 10, 3);
 		add_action('wu_domain_removed', $removed, 10, 2);
 
 		try {
@@ -1560,6 +1566,8 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 				$this->assertNull(get_site($blog_id));
 			}
 
+			$this->assertSame([[$has_listener, $hook, $args]], $filter_calls);
+
 			$actions = wu_get_scheduled_actions([
 				'hook'   => $hook,
 				'args'   => $args,
@@ -1567,9 +1575,9 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 				'status' => \ActionScheduler_Store::STATUS_PENDING,
 			], 'ids');
 
-			$this->assertCount($has_listener ? 1 : 0, $actions);
+			$this->assertCount($expected_enqueued ? 1 : 0, $actions);
 
-			if ($has_listener) {
+			if ($expected_enqueued && $has_listener) {
 				wu_switch_blog_and_run(static function () use ($actions) {
 					\ActionScheduler::store()->fetch_action($actions[0])->execute();
 				});
@@ -1581,16 +1589,21 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 				$GLOBALS['wp_filter'][ $hook ] = $prior_callbacks;
 			}
 			remove_action('wu_domain_removed', $removed);
+			remove_filter('wu_should_enqueue_domain_removal', $filter);
 			wu_unschedule_all_actions($hook, $args, 'domain');
 		}
 	}
 
 	public static function domain_removal_scheduling_provider(): array {
 		return [
-			'domain without listener'    => ['wu_remove_domain', false],
-			'subdomain without listener' => ['wu_remove_subdomain', false],
-			'domain with listener'       => ['wu_remove_domain', true],
-			'subdomain with listener'    => ['wu_remove_subdomain', true],
+			'domain without listener'     => ['wu_remove_domain', false, null, false],
+			'subdomain without listener'  => ['wu_remove_subdomain', false, null, false],
+			'domain with listener'        => ['wu_remove_domain', true, null, true],
+			'subdomain with listener'     => ['wu_remove_subdomain', true, null, true],
+			'domain late listener opt-in' => ['wu_remove_domain', false, true, true],
+			'subdomain late opt-in'       => ['wu_remove_subdomain', false, true, true],
+			'domain filter opt-out'       => ['wu_remove_domain', true, false, false],
+			'subdomain filter opt-out'    => ['wu_remove_subdomain', true, false, false],
 		];
 	}
 
