@@ -136,4 +136,50 @@ class Table_Test extends WP_UnitTestCase {
 		$this->assertSame($wpdb->base_prefix . 'wu_customermeta', $wpdb->wu_customermeta);
 		$this->assertSame($wpdb->base_prefix . 'wu_customermeta', $table->table_name);
 	}
+
+	/**
+	 * Model meta round-trips on a secondary network: the meta type keeps the
+	 * shared wu_customer_id column while using that network's table.
+	 */
+	public function test_secondary_network_model_meta_round_trips(): void {
+		global $wpdb;
+
+		$canonical = $wpdb->wu_customermeta ?? null;
+		$main      = static fn() => get_current_network_id() + 1000;
+
+		add_filter('get_main_network_id', $main);
+
+		try {
+			$table = new \WP_Ultimo\Database\Customers\Customers_Meta_Table();
+
+			if ( ! $table->exists()) {
+				$table->install();
+			}
+
+			$customer = new \WP_Ultimo\Models\Customer();
+			$id       = new \ReflectionProperty($customer, 'id');
+			$id->setAccessible(true);
+			$id->setValue($customer, 4242);
+
+			$facts = [
+				'chapter' => [
+					'name'  => 'QA',
+					'state' => 'Idaho',
+				],
+			];
+
+			$this->assertNotFalse($customer->update_meta('tgc_qa_facts', $facts));
+			wp_cache_delete(4242, 'wu_customer_meta');
+			$this->assertSame($facts, $customer->get_meta('tgc_qa_facts'));
+			$this->assertSame(
+				1,
+				(int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$table->table_name} WHERE wu_customer_id = %d", 4242)) // phpcs:ignore WordPress.DB
+			);
+
+			$customer->delete_meta('tgc_qa_facts');
+		} finally {
+			remove_filter('get_main_network_id', $main);
+			$wpdb->wu_customermeta = $canonical;
+		}
+	}
 }

@@ -686,10 +686,24 @@ abstract class Base_Model implements \JsonSerializable {
 	private function get_meta_type_name() {
 
 		$query_class = new $this->query_class();
+		$prefix      = (string) $query_class->prefix;
+
+		/*
+		 * Secondary networks suffix the table prefix with the network ID
+		 * (wu_99), but the meta tables keep the shared schema, whose object
+		 * column is wu_{item}_id. The meta API must therefore use the
+		 * unsuffixed type; Table::register_network_meta_table() points it at
+		 * this network's table.
+		 */
+		$network_id = get_current_network_id();
+
+		if ('' !== $prefix && get_main_network_id() !== $network_id) {
+			$prefix = (string) preg_replace('/_' . $network_id . '$/', '', $prefix);
+		}
 
 		// Maybe apply table prefix
-		$table = ! empty($query_class->prefix)
-		? "{$query_class->prefix}_{$query_class->item_name}"
+		$table = '' !== $prefix
+		? "{$prefix}_{$query_class->item_name}"
 		: $query_class->item_name;
 
 		// Return table if exists, or false if not
