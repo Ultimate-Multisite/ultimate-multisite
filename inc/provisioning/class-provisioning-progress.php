@@ -272,17 +272,23 @@ class Provisioning_Progress {
 		}
 
 		$existing = self::get($id);
+		$template = isset($args['template']) ? substr(preg_replace('/[^a-z0-9_.:-]/i', '', (string) $args['template']), 0, 64) : '';
 
 		if ($existing && empty($args['restart']) && 'running' === $existing['state'] && $existing['pipeline'] === $pipeline
 			&& microtime(true) - (float) $existing['started'] < self::STALE_AFTER) {
+			$existing_template = $existing['template'] ?? '';
+
+			if ('' !== $template && $existing_template !== $template) {
+				$existing['template'] = $template;
+				self::save($id, $existing);
+			}
+
 			return $existing;
 		}
 
 		$steps = array_keys($definition['steps']);
 		$step  = isset($args['step']) && in_array($args['step'], $steps, true) ? $args['step'] : $steps[0];
 		$at    = self::timestamp($args['at'] ?? null);
-
-		$template = isset($args['template']) ? substr(preg_replace('/[^a-z0-9_.:-]/i', '', (string) $args['template']), 0, 64) : '';
 
 		$record = [
 			'schema'      => 1,
