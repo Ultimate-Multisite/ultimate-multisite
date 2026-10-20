@@ -108,5 +108,71 @@ abstract class Table extends \BerlinDB\Database\Table {
 		}
 
 		$wpdb->{$base . '_' . $this->name} = $this->table_name;
+
+		$this->maybe_upgrade_network_meta_column();
+	}
+
+	/**
+	 * Align legacy secondary-network meta columns with the shared meta type.
+	 *
+	 * Fresh schemas already use wu_{entity}_id. Repair existing wu_N_{entity}_id
+	 * columns before model meta access, without enabling unrelated table upgrades
+	 * on secondary networks. CHANGE preserves the rows and the existing indexes.
+	 *
+	 * @since 2.18.0
+	 * @return void
+	 */
+	private function maybe_upgrade_network_meta_column(): void {
+
+		$entity = substr((string) $this->name, 0, -4);
+		$column = 'wu_' . $entity . '_id';
+		$legacy = $this->prefix . '_' . $entity . '_id';
+
+		// Only migrate our network-global meta schemas, never WordPress core tables.
+		if (true !== $this->global || ! str_contains((string) $this->schema, $column . ' bigint(20)')) {
+			return;
+		}
+
+		$network_id  = get_current_network_id();
+		$version_key = $this->prefixed_name . '_meta_column_version';
+
+		if ('2.18.0' === get_network_option($network_id, $version_key)) {
+			return;
+		}
+
+		// A missing table must not be marked as migrated or queried for columns.
+		if (! parent::exists()) {
+			return;
+		}
+
+		$columns = $this->columns();
+
+		if (false === $columns) {
+			return;
+		}
+
+		$columns = wp_list_pluck($columns, 'Field');
+
+		if (in_array($legacy, $columns, true)) {
+			// Do not overwrite an ambiguous, partially migrated column.
+			if (in_array($column, $columns, true)) {
+				return;
+			}
+
+			$db = $this->get_db();
+
+			// Identifiers come from BerlinDB's sanitized table name and our schema.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$result = $db->query("ALTER TABLE `{$this->table_name}` CHANGE COLUMN `{$legacy}` `{$column}` bigint(20) unsigned NOT NULL DEFAULT '0'");
+
+			if (false === $result) {
+				return;
+			}
+		} elseif (! in_array($column, $columns, true)) {
+			return;
+		}
+
+		// Failed or incomplete migrations remain retryable on the next request.
+		update_network_option($network_id, $version_key, '2.18.0');
 	}
 }
