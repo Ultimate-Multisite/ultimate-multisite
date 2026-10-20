@@ -1139,58 +1139,45 @@ class Domain_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Mappings stored by a secondary network route only while the site belongs to it.
+	 * A main-table miss consults the wu_domain_mapping_fallback filter.
 	 */
-	public function test_get_by_domain_falls_back_to_secondary_network_tables(): void {
+	public function test_get_by_domain_uses_fallback_filter_on_miss(): void {
 
-		global $wpdb;
+		$blog_id = self::factory()->blog->create(['domain' => 'fallback-site.example.org']);
+		$seen    = [];
 
-		$network_id = 7;
-		$table      = $wpdb->base_prefix . 'wu_' . $network_id . '_domain_mappings';
+		$filter = function ($mapping, $domains) use ($blog_id, &$seen) {
+			$seen = $domains;
 
-		$wpdb->insert($wpdb->site, [
-			'id'     => $network_id,
-			'domain' => 'network-seven.example',
-			'path'   => '/',
-		]);
-		$wpdb->query("CREATE TABLE `{$table}` LIKE {$wpdb->base_prefix}wu_domain_mappings"); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			if ( ! in_array('fallback-mapped.example', $domains, true)) {
+				return $mapping;
+			}
 
-		$moved_blog = self::factory()->blog->create(['domain' => 'moved.network-seven.example']);
-		$stale_blog = self::factory()->blog->create(['domain' => 'stale.example.org']);
+			return (object) [
+				'id'             => 991,
+				'blog_id'        => $blog_id,
+				'domain'         => 'fallback-mapped.example',
+				'active'         => 1,
+				'primary_domain' => 1,
+				'secure'         => 1,
+				'stage'          => 'done',
+			];
+		};
 
-		$wpdb->update($wpdb->blogs, ['site_id' => $network_id], ['blog_id' => $moved_blog]);
+		add_filter('wu_domain_mapping_fallback', $filter, 10, 2);
 
-		$wpdb->insert($table, [
-			'blog_id'        => $moved_blog,
-			'domain'         => 'moved-mapped.example',
-			'active'         => 1,
-			'primary_domain' => 1,
-			'secure'         => 1,
-			'stage'          => 'done',
-		]);
-		$wpdb->insert($table, [
-			'blog_id'        => $stale_blog,
-			'domain'         => 'stale-mapped.example',
-			'active'         => 1,
-			'primary_domain' => 1,
-			'secure'         => 1,
-			'stage'          => 'done',
-		]);
+		wp_cache_delete('domain:fallback-mapped.example', 'domain_mappings');
+		wp_cache_delete('domain:fallback-missing.example', 'domain_mappings');
 
-		$filter = fn() => [$network_id => $table];
-		add_filter('wu_domain_mapping_network_tables', $filter);
+		$found   = Domain::get_by_domain(['fallback-mapped.example', 'www.fallback-mapped.example']);
+		$missing = Domain::get_by_domain('fallback-missing.example');
 
-		wp_cache_delete('domain:moved-mapped.example', 'domain_mappings');
-		wp_cache_delete('domain:stale-mapped.example', 'domain_mappings');
-
-		$found = Domain::get_by_domain(['moved-mapped.example', 'www.moved-mapped.example']);
-		$stale = Domain::get_by_domain('stale-mapped.example');
-
-		remove_filter('wu_domain_mapping_network_tables', $filter);
-		$wpdb->query("DROP TABLE IF EXISTS `{$table}`"); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		remove_filter('wu_domain_mapping_fallback', $filter, 10);
 
 		$this->assertInstanceOf(Domain::class, $found);
-		$this->assertSame($moved_blog, (int) $found->get_blog_id());
-		$this->assertNull($stale, 'A row whose site left the owning network must not route.');
+		$this->assertSame($blog_id, (int) $found->get_blog_id());
+		$this->assertNull($missing);
+		$this->assertSame(['fallback-missing.example'], $seen, 'The filter receives the searched domains.');
+		$this->assertSame('notexists', wp_cache_get('domain:fallback-missing.example', 'domain_mappings'));
 	}
 }

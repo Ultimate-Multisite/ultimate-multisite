@@ -721,14 +721,21 @@ class Domain extends Base_Model {
 
 		$wpdb->suppress_errors($suppress);
 
-		/*
-		 * Secondary networks store their mappings in network-prefixed tables
-		 * ({prefix}wu_{network_id}_domain_mappings). Fall back to those so a
-		 * domain mapped on any network routes before the network is known.
-		 */
 		if (empty($mapping) && empty($query_error)) {
-			$mapping     = static::get_by_domain_from_network_tables($domains);
-			$query_error = $wpdb->last_error;
+			/**
+			 * Filters the mapping used when the main mapping table has no match.
+			 *
+			 * Runs at sunrise, before regular plugins load, so register it from an
+			 * add-on `sunrise.php`. Add-ons that store mappings elsewhere (for
+			 * example per-network tables) return the raw mapping row here.
+			 *
+			 * @since 2.18.0
+			 *
+			 * @param object|null $mapping Raw mapping row with the domain_mappings columns, or null.
+			 * @param string[]    $domains Domain names searched.
+			 */
+			$mapping = apply_filters('wu_domain_mapping_fallback', null, $domains);
+			$mapping = is_object($mapping) && ! empty($mapping->domain) ? $mapping : null;
 		}
 
 		if (empty($mapping)) {
@@ -745,98 +752,5 @@ class Domain extends Base_Model {
 		wp_cache_set('domain:' . $mapping->domain, $mapping, 'domain_mappings');
 
 		return new self($mapping);
-	}
-
-	/**
-	 * Searches the mapping tables of secondary networks for a domain.
-	 *
-	 * A row only matches while its site still belongs to the network that owns
-	 * the table, so stale rows left behind by a site move never route.
-	 *
-	 * Note: This is used in sunrise, so it only relies on $wpdb.
-	 *
-	 * @since 2.18.0
-	 *
-	 * @param array $domains Domain names to search for.
-	 * @return object|null Raw mapping row, or null when none matches.
-	 */
-	protected static function get_by_domain_from_network_tables(array $domains) {
-
-		global $wpdb;
-
-		$tables = static::get_network_mapping_tables();
-
-		if (empty($tables) || empty($domains)) {
-			return null;
-		}
-
-		$placeholders_in = implode(',', array_fill(0, count($domains), '%s'));
-
-		$selects = [];
-		$args    = [];
-
-		foreach ($tables as $network_id => $table) {
-			$selects[] = "(SELECT m.* FROM `{$table}` AS m INNER JOIN {$wpdb->blogs} AS b ON b.blog_id = m.blog_id AND b.site_id = %d WHERE m.domain IN ($placeholders_in))";
-			$args      = array_merge($args, [(int) $network_id], $domains);
-		}
-
-		$query = implode(' UNION ALL ', $selects) . ' ORDER BY primary_domain DESC, active DESC, secure DESC LIMIT 1';
-
-		$suppress = $wpdb->suppress_errors();
-
-		$mapping = $wpdb->get_row($wpdb->prepare($query, $args)); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
-
-		$wpdb->suppress_errors($suppress);
-
-		return $mapping ?: null;
-	}
-
-	/**
-	 * Lists the domain mapping tables of secondary networks.
-	 *
-	 * @since 2.18.0
-	 * @return array<int, string> Table names keyed by network ID.
-	 */
-	public static function get_network_mapping_tables(): array {
-
-		global $wpdb;
-
-		$tables = wp_cache_get('network_tables', 'domain_mappings');
-
-		if ( ! is_array($tables)) {
-			$prefix = $wpdb->base_prefix . 'wu_';
-
-			$suppress = $wpdb->suppress_errors();
-
-			$names = $wpdb->get_col($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($prefix) . '%' . $wpdb->esc_like('_domain_mappings'))); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-
-			$query_error = $wpdb->last_error;
-
-			$wpdb->suppress_errors($suppress);
-
-			$tables  = [];
-			$pattern = '/^' . preg_quote($prefix, '/') . '(\d+)_domain_mappings$/';
-
-			foreach ((array) $names as $name) {
-				if (preg_match($pattern, (string) $name, $matches)) {
-					$tables[ (int) $matches[1] ] = (string) $name;
-				}
-			}
-
-			ksort($tables);
-
-			if (empty($query_error)) {
-				wp_cache_set('network_tables', $tables, 'domain_mappings', 5 * MINUTE_IN_SECONDS);
-			}
-		}
-
-		/**
-		 * Filters the secondary network domain mapping tables searched by sunrise.
-		 *
-		 * @since 2.18.0
-		 *
-		 * @param array<int, string> $tables Table names keyed by network ID.
-		 */
-		return (array) apply_filters('wu_domain_mapping_network_tables', $tables);
 	}
 }
