@@ -23,11 +23,12 @@ class OCI_Email_Transactional_Email_Test extends WP_UnitTestCase {
 
 	public function test_verify_domain_reuses_existing_sender_from_senders_endpoint(): void {
 
-		$this->integration->expects($this->exactly(3))
+		$this->integration->expects($this->exactly(4))
 			->method('oci_api_call')
 			->withConsecutive(
 				['emailDomains?compartmentId=&name=example.com'],
 				['dkims?emailDomainId=email-domain-id'],
+				['dkims/dkim-id'],
 				['senders?compartmentId=&emailAddress=support%40example.com']
 			)
 			->willReturnOnConsecutiveCalls(
@@ -42,10 +43,12 @@ class OCI_Email_Transactional_Email_Test extends WP_UnitTestCase {
 				[
 					'items' => [
 						[
-							'id'                => 'dkim-id',
-							'dnsTxtRecordValue' => 'dkim-value',
+							'id' => 'dkim-id',
 						],
 					],
+				],
+				[
+					'dnsTxtRecordValue' => 'dkim-value',
 				],
 				[
 					'items' => [
@@ -65,11 +68,12 @@ class OCI_Email_Transactional_Email_Test extends WP_UnitTestCase {
 
 	public function test_verify_domain_creates_sender_at_senders_endpoint(): void {
 
-		$this->integration->expects($this->exactly(4))
+		$this->integration->expects($this->exactly(5))
 			->method('oci_api_call')
 			->withConsecutive(
 				['emailDomains?compartmentId=&name=example.com'],
 				['dkims?emailDomainId=email-domain-id'],
+				['dkims/dkim-id'],
 				['senders?compartmentId=&emailAddress=support%40example.com'],
 				[
 					'senders',
@@ -92,10 +96,12 @@ class OCI_Email_Transactional_Email_Test extends WP_UnitTestCase {
 				[
 					'items' => [
 						[
-							'id'                => 'dkim-id',
-							'dnsTxtRecordValue' => 'dkim-value',
+							'id' => 'dkim-id',
 						],
 					],
+				],
+				[
+					'dnsTxtRecordValue' => 'dkim-value',
 				],
 				new \WP_Error('oracle-oci-approved-sender-not-found'),
 				[
@@ -112,11 +118,12 @@ class OCI_Email_Transactional_Email_Test extends WP_UnitTestCase {
 
 	public function test_get_domain_dns_records_reuses_existing_dkim_from_dkims_endpoint(): void {
 
-		$this->integration->expects($this->exactly(2))
+		$this->integration->expects($this->exactly(3))
 			->method('oci_api_call')
 			->withConsecutive(
 				['emailDomains?compartmentId=&name=example.com'],
-				['dkims?emailDomainId=email-domain-id']
+				['dkims?emailDomainId=email-domain-id'],
+				['dkims/dkim-id']
 			)
 			->willReturnOnConsecutiveCalls(
 				[
@@ -130,10 +137,12 @@ class OCI_Email_Transactional_Email_Test extends WP_UnitTestCase {
 				[
 					'items' => [
 						[
-							'id'                => 'dkim-id',
-							'dnsTxtRecordValue' => 'dkim-value',
+							'id' => 'dkim-id',
 						],
 					],
+				],
+				[
+					'dnsTxtRecordValue' => 'dkim-value',
 				]
 			);
 
