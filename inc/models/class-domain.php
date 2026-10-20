@@ -744,7 +744,10 @@ class Domain extends Base_Model {
 			 * @param string[]    $domains Domain names searched.
 			 */
 			$mapping = apply_filters(self::MAPPING_FALLBACK_FILTER, null, $domains);
-			$mapping = is_object($mapping) && ! empty($mapping->domain) ? $mapping : null;
+
+			// Accept only a row for one of the searched domains (case-insensitive, like the table collation).
+			$searched = array_map('strtolower', array_map('strval', $domains));
+			$mapping  = is_object($mapping) && ! empty($mapping->domain) && in_array(strtolower((string) $mapping->domain), $searched, true) ? $mapping : null;
 		}
 
 		if (empty($mapping)) {

@@ -1180,4 +1180,27 @@ class Domain_Test extends WP_UnitTestCase {
 		$this->assertSame(['fallback-missing.example'], $seen, 'The filter receives the searched domains.');
 		$this->assertSame('notexists', wp_cache_get('domain:fallback-missing.example', 'domain_mappings'));
 	}
+
+	/**
+	 * A fallback row for a domain that was not searched is ignored.
+	 */
+	public function test_get_by_domain_rejects_fallback_row_for_other_domain(): void {
+
+		$filter = fn() => (object) [
+			'id'      => 992,
+			'blog_id' => 1,
+			'domain'  => 'someone-else.example',
+			'active'  => 1,
+		];
+
+		add_filter('wu_domain_mapping_fallback', $filter);
+
+		wp_cache_delete('domain:requested-host.example', 'domain_mappings');
+
+		$result = Domain::get_by_domain('requested-host.example');
+
+		remove_filter('wu_domain_mapping_fallback', $filter);
+
+		$this->assertNull($result);
+	}
 }
