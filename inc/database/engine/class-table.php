@@ -81,5 +81,32 @@ abstract class Table extends \BerlinDB\Database\Table {
 		if (true === $this->global) {
 			remove_action('switch_blog', [$this, 'switch_blog']);
 		}
+
+		$this->register_network_meta_table();
+	}
+
+	/**
+	 * Point the canonical meta table property at this network's table.
+	 *
+	 * On a secondary network the prefix becomes `wu_{network_id}`, so BerlinDB
+	 * registers `$wpdb->wu_{network_id}_customermeta`. WordPress's metadata API
+	 * resolves meta type `wu_customer` through `$wpdb->wu_customermeta`, which
+	 * was then unset: get_meta()/update_meta() on customers, memberships,
+	 * payments and other models silently did nothing on that network.
+	 *
+	 * @since 2.18.0
+	 * @return void
+	 */
+	protected function register_network_meta_table(): void {
+
+		global $wpdb;
+
+		$base = 'wu';
+
+		if ($this->prefix === $base || ! str_starts_with((string) $this->prefix, $base . '_') || ! str_ends_with((string) $this->name, 'meta') || empty($this->table_name)) {
+			return;
+		}
+
+		$wpdb->{$base . '_' . $this->name} = $this->table_name;
 	}
 }

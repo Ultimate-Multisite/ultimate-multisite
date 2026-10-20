@@ -105,4 +105,35 @@ class Table_Test extends WP_UnitTestCase {
 
 		return $reflection->getValue($table);
 	}
+
+	/**
+	 * On a secondary network the WordPress meta API must resolve model meta
+	 * types to that network's prefixed table, not an unset property.
+	 */
+	public function test_secondary_network_meta_table_is_registered_for_the_meta_api(): void {
+		global $wpdb;
+
+		$canonical = $wpdb->wu_customermeta ?? null;
+		$main      = static fn() => get_current_network_id() + 1000;
+
+		add_filter('get_main_network_id', $main);
+
+		try {
+			$table    = new \WP_Ultimo\Database\Customers\Customers_Meta_Table();
+			$expected = $wpdb->base_prefix . 'wu_' . get_current_network_id() . '_customermeta';
+
+			$this->assertSame($expected, $table->table_name);
+			$this->assertSame($expected, $wpdb->wu_customermeta);
+			$this->assertSame($expected, _get_meta_table('wu_customer'));
+		} finally {
+			remove_filter('get_main_network_id', $main);
+			$wpdb->wu_customermeta = $canonical;
+		}
+
+		// The main network keeps the unprefixed table.
+		$table = new \WP_Ultimo\Database\Customers\Customers_Meta_Table();
+
+		$this->assertSame($wpdb->base_prefix . 'wu_customermeta', $wpdb->wu_customermeta);
+		$this->assertSame($wpdb->base_prefix . 'wu_customermeta', $table->table_name);
+	}
 }
