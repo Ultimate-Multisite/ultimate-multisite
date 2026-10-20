@@ -1,6 +1,97 @@
 --- /dev/null
 +++ ../src/Database/Query.php
-@@ -2183,7 +2183,7 @@
+@@ -106,6 +106,27 @@
+ 	protected $item_name_plural = '';
+ 
+ 	/**
++	 * Prefix for hook/filter names. Falls back to $prefix when empty.
++	 *
++	 * Backport of BerlinDB 3.1 (#242).
++	 *
++	 * @since 3.1.0
++	 * @var   string
++	 */
++	protected $hook_prefix = '';
++
++	/**
++	 * WordPress meta type for this query's items. Falls back to the prefixed
++	 * item name when empty.
++	 *
++	 * Backport of BerlinDB 3.1 (#243).
++	 *
++	 * @since 3.1.0
++	 * @var   string
++	 */
++	protected $meta_type = '';
++
++	/**
+ 	 * Name of class used to turn IDs into first-class objects.
+ 	 *
+ 	 * This is used when looping through return values to guarantee their shape.
+@@ -637,7 +658,7 @@
+ 			 * @param string $found_items_query SQL query. Default 'SELECT FOUND_ROWS()'.
+ 			 * @param object $item_query        The object instance.
+ 			 */
+-			$found_items_query = (string) apply_filters_ref_array( $this->apply_prefix( "found_{$this->item_name_plural}_query" ), array( 'SELECT FOUND_ROWS()', &$this ) );
++			$found_items_query = (string) apply_filters_ref_array( $this->apply_hook_prefix( "found_{$this->item_name_plural}_query" ), array( 'SELECT FOUND_ROWS()', &$this ) );
+ 
+ 			// Maybe query for found items
+ 			if ( ! empty( $found_items_query ) ) {
+@@ -880,7 +901,7 @@
+ 		 *
+ 		 * @param Query &$this Current instance of Query, passed by reference.
+ 		 */
+-		do_action_ref_array( $this->apply_prefix( "pre_get_{$this->item_name_plural}" ), array( &$this ) );
++		do_action_ref_array( $this->apply_hook_prefix( "pre_get_{$this->item_name_plural}" ), array( &$this ) );
+ 
+ 		// Never limit, never update item/meta caches when counting
+ 		if ( ! empty( $this->query_vars['count'] ) ) {
+@@ -991,7 +1012,7 @@
+ 		 * @param array $pieces A compacted array of item query clauses.
+ 		 * @param Query &$this  Current instance passed by reference.
+ 		 */
+-		$clauses = (array) apply_filters_ref_array( $this->apply_prefix( "{$this->item_name_plural}_query_clauses" ), array( $query, &$this ) );
++		$clauses = (array) apply_filters_ref_array( $this->apply_hook_prefix( "{$this->item_name_plural}_query_clauses" ), array( $query, &$this ) );
+ 
+ 		// Setup request
+ 		$this->set_request_clauses( $clauses );
+@@ -1156,7 +1177,7 @@
+ 		 *
+ 		 * @param Query &$this The Query instance (passed by reference).
+ 		 */
+-		do_action_ref_array( $this->apply_prefix( "parse_{$this->item_name_plural}_query" ), array( &$this ) );
++		do_action_ref_array( $this->apply_hook_prefix( "parse_{$this->item_name_plural}_query" ), array( &$this ) );
+ 	}
+ 
+ 	/**
+@@ -1303,7 +1324,7 @@
+ 			 * @param string $search         Text being searched.
+ 			 * @param object $this           The current Query instance.
+ 			 */
+-			$search_columns = (array) apply_filters( $this->apply_prefix( "{$this->item_name_plural}_search_columns" ), $search_columns, $this->query_vars['search'], $this );
++			$search_columns = (array) apply_filters( $this->apply_hook_prefix( "{$this->item_name_plural}_search_columns" ), $search_columns, $this->query_vars['search'], $this );
+ 
+ 			// Add search query clause
+ 			$where['search'] = $this->get_search_sql( $this->query_vars['search'], $search_columns );
+@@ -1592,7 +1613,7 @@
+ 		 * @param array  $retval An array of items.
+ 		 * @param object &$this  Current instance of Query, passed by reference.
+ 		 */
+-		$retval = (array) apply_filters_ref_array( $this->apply_prefix( "the_{$this->item_name_plural}" ), array( $retval, &$this ) );
++		$retval = (array) apply_filters_ref_array( $this->apply_hook_prefix( "the_{$this->item_name_plural}" ), array( $retval, &$this ) );
+ 
+ 		// Return filtered results
+ 		return ! empty( $this->query_vars['fields'] )
+@@ -2065,7 +2086,7 @@
+ 	 * @return array
+ 	 */
+ 	public function filter_item( $item = array() ) {
+-		return (array) apply_filters_ref_array( $this->apply_prefix( "filter_{$this->item_name}_item" ), array( $item, &$this ) );
++		return (array) apply_filters_ref_array( $this->apply_hook_prefix( "filter_{$this->item_name}_item" ), array( $item, &$this ) );
+ 	}
+ 
+ 	/**
+@@ -2183,7 +2204,7 @@
  			$caps = $this->get_column_field( array( 'name' => $key ), 'caps' );
  
  			// Unset if not explicitly allowed
@@ -9,42 +100,85 @@
  				if ( is_array( $item ) ) {
  					unset( $item[ $key ] );
  				} elseif ( is_object( $item ) ) {
-@@ -2523,7 +2523,7 @@
+@@ -2289,7 +2310,7 @@
+ 		foreach ( $diff as $key => $value ) {
+ 			$old_value  = $old_data[ $key ];
+ 			$new_value  = $new_data[ $key ];
+-			$key_action = $this->apply_prefix( "transition_{$this->item_name}_{$key}" );
++			$key_action = $this->apply_hook_prefix( "transition_{$this->item_name}_{$key}" );
+ 
+ 			/**
+ 			 * Fires after an object value has transitioned.
+@@ -2522,8 +2543,8 @@
+ 		// Get the primary column name
  		$primary = $this->get_primary_column_name();
  
- 		// Guess the item ID column for the meta table
+-		// Guess the item ID column for the meta table
 -		$item_id_column = $this->apply_prefix( "{$this->item_name}_{$primary}" );
++		// Derive the item ID column from the meta type (backport of BerlinDB 3.1 #243)
 +		$item_id_column = $this->get_meta_type() . "_{$primary}";
  
  		// Get meta IDs
  		$query    = "SELECT meta_id FROM {$table} WHERE {$item_id_column} = %d";
-@@ -2584,10 +2584,19 @@
+@@ -2584,8 +2605,46 @@
  	 *
  	 * @return string
  	 */
 -	private function get_meta_type() {
-+	protected function get_meta_type() {
- 		return $this->apply_prefix( $this->item_name );
- 	}
- 
+-		return $this->apply_prefix( $this->item_name );
++	public function get_meta_type() {
++		return ( '' !== $this->meta_type )
++			? $this->meta_type
++			: $this->apply_prefix( $this->item_name );
++	}
++
 +	/**
-+	 * Get the meta type used to prime the meta cache.
++	 * Return the prefix applied to hook/filter names.
++	 *
++	 * Backport of BerlinDB 3.1 (#242): the $hook_prefix property when set,
++	 * else $prefix.
++	 *
++	 * @since 3.1.0
 +	 *
 +	 * @return string
 +	 */
-+	protected function get_meta_cache_type() {
-+		return rtrim( $this->table_name, 's' ); // sic
++	public function get_hook_prefix(): string {
++		return ( '' !== $this->hook_prefix )
++			? $this->hook_prefix
++			: $this->prefix;
 +	}
 +
- 	/** Cache *****************************************************************/
++	/**
++	 * Prepend the hook prefix to a hook/filter name.
++	 *
++	 * Backport of BerlinDB 3.1 (#242). Identical to apply_prefix() when
++	 * $hook_prefix is unset.
++	 *
++	 * @since 3.1.0
++	 *
++	 * @param string $string The hook/filter name to prefix.
++	 * @param string $sep    Separator. Default '_'.
++	 * @return string
++	 */
++	protected function apply_hook_prefix( $string = '', $sep = '_' ) {
++		$prefix = $this->get_hook_prefix();
++
++		return ! empty( $prefix )
++			? "{$prefix}{$sep}{$string}"
++			: $string;
+ 	}
  
- 	/**
-@@ -2726,7 +2735,7 @@
+ 	/** Cache *****************************************************************/
+@@ -2726,8 +2785,10 @@
  
  		// Update meta data caches
  		if ( ! empty( $this->query_vars['update_meta_cache'] ) ) {
 -			$singular = rtrim( $this->table_name, 's' ); // sic
-+			$singular = $this->get_meta_cache_type();
- 			update_meta_cache( $singular, $item_ids );
+-			update_meta_cache( $singular, $item_ids );
++			// Prime with the meta type (backport of BerlinDB 3.1 #243)
++			if ( $this->get_meta_table_name() ) {
++				update_meta_cache( $this->get_meta_type(), $item_ids );
++			}
  		}
  	}
+ 

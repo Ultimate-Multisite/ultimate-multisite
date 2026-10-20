@@ -65,19 +65,14 @@ class Query extends \BerlinDB\Database\Query {
 	protected $cache_group = 'sites';
 
 	/**
-	 * The prefix before the network ID is appended on secondary networks.
-	 *
-	 * Meta tables share one schema on every network: their object column is
-	 * always `wu_{item}_id`. The meta type must therefore use this prefix,
-	 * not the network-suffixed one.
-	 *
-	 * @since 2.18.0
-	 * @var string
-	 */
-	protected $shared_prefix = '';
-
-	/**
 	 * The class constructor
+	 *
+	 * On secondary networks the table prefix gains the network ID (`wu_2`) so
+	 * every network keeps its own tables and cache groups. Hook names and the
+	 * meta type stay shared: hooks fire as `wu_*` on every network, and meta
+	 * uses `wu_{item}` (column `wu_{item}_id`, the shared meta schema).
+	 * Table::register_network_meta_table() points `$wpdb->wu_{item}meta` at
+	 * this network's meta table.
 	 *
 	 * @since 2.1.2
 	 * @param string|array $query Optional. An array or string of Query parameters.
@@ -85,10 +80,19 @@ class Query extends \BerlinDB\Database\Query {
 	 */
 	public function __construct($query = []) {
 
-		$base_prefix         = $this->prefix;
-		$this->shared_prefix = (string) $base_prefix;
+		$base_prefix = (string) $this->prefix;
 
 		$this->update_prefix_with_network_id();
+
+		if ($base_prefix !== $this->prefix) {
+			if ('' === $this->hook_prefix) {
+				$this->hook_prefix = $base_prefix;
+			}
+
+			if ('' === $this->meta_type) {
+				$this->meta_type = "{$base_prefix}_{$this->item_name}";
+			}
+		}
 
 		$cache_group = $this->apply_prefix($this->cache_group, '-');
 
@@ -99,59 +103,6 @@ class Query extends \BerlinDB\Database\Query {
 		}
 
 		parent::__construct($query);
-
-		if ($base_prefix !== $this->prefix) {
-			$this->bridge_network_transition_hooks($base_prefix);
-		}
-	}
-
-	/**
-	 * Keep track of the transition hooks we've bridged.
-	 *
-	 * @since 2.17.3
-	 * @var array<string, bool>
-	 */
-	protected static $bridged_transition_hooks = [];
-
-	/**
-	 * Re-fires network-prefixed transition hooks under their canonical names.
-	 *
-	 * On non-main networks the table prefix becomes e.g. `wu_2`, so BerlinDB
-	 * fires `wu_2_transition_customer_email_verification` instead of
-	 * `wu_transition_customer_email_verification`. All listeners use the
-	 * canonical name, so without this bridge every transition side effect
-	 * (email verification, membership/payment status changes, domain changes)
-	 * is silently skipped on secondary networks.
-	 *
-	 * @since 2.17.3
-	 *
-	 * @param string $base_prefix The prefix before the network ID was appended.
-	 * @return void
-	 */
-	protected function bridge_network_transition_hooks(string $base_prefix): void {
-
-		$columns = $this->get_columns(['transition' => true], 'and', 'name');
-
-		foreach ($columns as $column) {
-			$suffix         = "transition_{$this->item_name}_{$column}";
-			$network_hook   = $this->apply_prefix($suffix);
-			$canonical_hook = $base_prefix ? "{$base_prefix}_{$suffix}" : $suffix;
-
-			if (isset(self::$bridged_transition_hooks[ $network_hook ])) {
-				continue;
-			}
-
-			self::$bridged_transition_hooks[ $network_hook ] = true;
-
-			add_action(
-				$network_hook,
-				function ($old_value, $new_value, $item_id) use ($canonical_hook) {
-					do_action($canonical_hook, $old_value, $new_value, $item_id); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores
-				},
-				10,
-				3
-			);
-		}
 	}
 
 	/**
@@ -163,60 +114,6 @@ class Query extends \BerlinDB\Database\Query {
 	public function get_plural_name() {
 
 		return $this->item_name_plural;
-	}
-
-	/**
-	 * Get the WordPress meta type for this query's items.
-	 *
-	 * Uses the shared prefix on every network (e.g. `wu_customer`, never
-	 * `wu_99_customer`), because WordPress derives the meta object column
-	 * as `{$meta_type}_id` and the meta schema always uses `wu_{item}_id`.
-	 * Table::register_network_meta_table() points `$wpdb->wu_{item}meta` at
-	 * the current network's meta table.
-	 *
-	 * @since 2.18.0
-	 * @return string
-	 */
-	public function get_shared_meta_type() {
-
-		return '' !== $this->shared_prefix
-			? "{$this->shared_prefix}_{$this->item_name}"
-			: $this->item_name;
-	}
-
-	/**
-	 * Get the meta type BerlinDB uses for meta queries and meta writes.
-	 *
-	 * Overrides the (patched) BerlinDB method, which applies the
-	 * network-suffixed prefix.
-	 *
-	 * @since 2.18.0
-	 * @return string
-	 */
-	protected function get_meta_type() {
-
-		return $this->get_shared_meta_type();
-	}
-
-	/**
-	 * Get the meta type BerlinDB uses to prime the meta cache.
-	 *
-	 * BerlinDB derives it from the table name (`wu_99_customers` →
-	 * `wu_99_customer`); strip the network suffix so priming queries the
-	 * shared `wu_{item}_id` column on secondary networks.
-	 *
-	 * @since 2.18.0
-	 * @return string
-	 */
-	protected function get_meta_cache_type() {
-
-		$type = parent::get_meta_cache_type();
-
-		if ($this->shared_prefix === $this->prefix || ! str_starts_with($type, $this->prefix . '_')) {
-			return $type;
-		}
-
-		return $this->shared_prefix . substr($type, strlen($this->prefix));
 	}
 
 	/**
