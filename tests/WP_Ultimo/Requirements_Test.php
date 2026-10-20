@@ -211,8 +211,9 @@ class Requirements_Test extends \WP_UnitTestCase {
 
 		global $wpdb;
 
-		$original_table_loader = Table_Loader::get_instance();
-		$table_loader          = clone $original_table_loader;
+		$original_table_loader     = Table_Loader::get_instance();
+		$original_ms_global_tables = $wpdb->ms_global_tables;
+		$table_loader              = clone $original_table_loader;
 
 		foreach ($table_loader->get_tables() as $table_key => $table) {
 			unset($table_loader->$table_key);
@@ -230,6 +231,8 @@ class Requirements_Test extends \WP_UnitTestCase {
 				public $create_result = false;
 
 				public $create_error = '';
+
+				public $create_calls = 0;
 
 				public function is_upgradeable(): bool {
 					return false;
@@ -250,6 +253,7 @@ class Requirements_Test extends \WP_UnitTestCase {
 				public function create() {
 					global $wpdb;
 
+					++$this->create_calls;
 					$this->create_result = false !== $wpdb->query("CREATE TABLE `{$this->table_name}` ( {$this->schema} ) {$this->charset_collation}"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Creates the disposable fixture from its registered table definition.
 					$this->create_error  = $wpdb->last_error;
 
@@ -268,12 +272,14 @@ class Requirements_Test extends \WP_UnitTestCase {
 
 			$this->assertNotFalse($drop_result, $wpdb->last_error);
 
-			$table_loader->domain_table = $new_fixture_table();
+			$created_table              = $new_fixture_table();
+			$table_loader->domain_table = $created_table;
 			Table_Loader::$instance     = $table_loader;
 
 			$this->assertFalse($table_loader->is_installed());
 			$this->assertTrue(Requirements::run_setup());
 			$this->assertTrue($table_loader->domain_table->create_result, $table_loader->domain_table->create_error);
+			$this->assertSame(1, $created_table->create_calls);
 
 			$installed_table = $new_fixture_table();
 
@@ -283,9 +289,11 @@ class Requirements_Test extends \WP_UnitTestCase {
 
 			$this->assertTrue(Requirements::run_setup());
 			$this->assertTrue($installed_table->exists());
+			$this->assertSame(0, $installed_table->create_calls);
 		} finally {
 			$wpdb->query("DROP TABLE IF EXISTS `{$table_name}`"); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Removes the disposable registered-table fixture.
 
+			$wpdb->ms_global_tables = $original_ms_global_tables;
 			Table_Loader::$instance = $original_table_loader;
 		}
 	}
