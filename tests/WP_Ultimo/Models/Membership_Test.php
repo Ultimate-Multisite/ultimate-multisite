@@ -571,6 +571,181 @@ class Membership_Test extends \WP_UnitTestCase {
 	// Product-Related Method Tests
 	// ---------------------------------------------------------------
 
+	public function test_constructor_does_not_compile_products(): void {
+		$membership = $this->getMockBuilder(Membership::class)
+			->disableOriginalConstructor()
+			->onlyMethods(['get_all_products'])
+			->getMock();
+		$membership->expects($this->never())->method('get_all_products');
+		$membership->__construct([
+			'plan_id' => $this->product->get_id(),
+			'amount'  => 29.99,
+		]);
+
+		$this->assertSame(29.99, $membership->get_normalized_amount());
+	}
+
+	public function test_product_snapshot_is_lazy_and_reused(): void {
+		$membership = new Membership(['plan_id' => $this->product->get_id()]);
+		$snapshot   = new \ReflectionProperty(Membership::class, 'compiled_product_list');
+		$changes    = new \ReflectionMethod(Membership::class, 'has_product_changes');
+
+		$this->assertNull($snapshot->getValue($membership));
+		$this->assertCount(1, $membership->get_all_products());
+		$this->assertNull($snapshot->getValue($membership), 'Explicit product reads must not initialize the original snapshot.');
+		$this->assertFalse($changes->invoke($membership));
+		$original_products = $snapshot->getValue($membership);
+		$this->assertCount(1, $original_products);
+		$this->assertFalse($changes->invoke($membership));
+		$this->assertSame($original_products, $snapshot->getValue($membership));
+	}
+
+	/**
+	 * Changes before the first comparison must still use the original state.
+	 *
+	 * @dataProvider provider_lazy_product_changes
+	 */
+	public function test_lazy_product_changes(string $change, bool $expected): void {
+		$addon = wu_create_product([
+			'name'            => 'Lazy Snapshot Addon',
+			'slug'            => 'lazy-snapshot-' . wp_generate_password(6, false),
+			'type'            => 'package',
+			'skip_validation' => true,
+		]);
+		$this->assertNotWPError($addon);
+		$membership = new Membership([
+			'plan_id'        => $this->product->get_id(),
+			'addon_products' => maybe_serialize([$addon->get_id() => 2]),
+		]);
+
+		switch ($change) {
+			case 'plan':
+				$membership->set_plan_id($addon->get_id());
+				break;
+			case 'remove_plan':
+				$membership->set_plan_id(0);
+				break;
+			case 'add':
+				$membership->add_product($this->product->get_id());
+				break;
+			case 'remove':
+				$membership->remove_product($addon->get_id(), 2);
+				break;
+			case 'quantity':
+				$membership->add_product($addon->get_id());
+				break;
+			case 'replace_addons':
+				$membership->set_addon_products([$this->product->get_id() => 2]);
+				break;
+			case 'missing_addon':
+				$membership->add_product(999999);
+				break;
+			case 'restore':
+				$membership->remove_product($addon->get_id(), 2);
+				$membership->add_product($addon->get_id(), 2);
+				break;
+		}
+
+		$changes = new \ReflectionMethod(Membership::class, 'has_product_changes');
+		$this->assertSame($expected, $changes->invoke($membership));
+		$this->assertSame($expected, $changes->invoke($membership), 'Repeated checks must retain the original baseline.');
+		$this->assertSame($this->product->get_id(), $membership->_get_original()['plan_id']);
+	}
+
+	public function provider_lazy_product_changes(): array {
+		return [
+			'unchanged'       => ['unchanged', false],
+			'changed plan'    => ['plan', true],
+			'removed plan'    => ['remove_plan', true],
+			'added addon'     => ['add', true],
+			'removed addon'   => ['remove', true],
+			'addon quantity'  => ['quantity', true],
+			'replaced addons' => ['replace_addons', true],
+			'missing addon'   => ['missing_addon', false],
+			'restored addons' => ['restore', false],
+		];
+	}
+
+	public function test_lazy_product_snapshot_preserves_empty_original_behavior(): void {
+		$changes  = new \ReflectionMethod(Membership::class, 'has_product_changes');
+		$snapshot = new \ReflectionProperty(Membership::class, 'compiled_product_list');
+
+		foreach ([null, ['plan_id' => 999999]] as $row) {
+			$membership = new Membership($row);
+			$membership->set_plan_id($this->product->get_id());
+			$this->assertFalse($changes->invoke($membership));
+			$this->assertSame([], $snapshot->getValue($membership));
+		}
+	}
+
+	public function test_lazy_product_snapshot_uses_original_variation(): void {
+		$variation = static function ($price, $duration, $unit) {
+			return [
+				'amount'        => 100,
+				'duration'      => $duration,
+				'duration_unit' => $unit,
+			];
+		};
+		add_filter('wu_get_as_variation_price_variation', $variation, 10, 3);
+
+		try {
+			$membership = new Membership([
+				'plan_id'       => $this->product->get_id(),
+				'duration'      => 2,
+				'duration_unit' => 'year',
+			]);
+			$membership->set_duration(3);
+			$membership->set_duration_unit('week');
+			$changes  = new \ReflectionMethod(Membership::class, 'has_product_changes');
+			$snapshot = new \ReflectionProperty(Membership::class, 'compiled_product_list');
+
+			$this->assertFalse($changes->invoke($membership), 'Duration changes alone do not change product IDs.');
+			$original_plan = $snapshot->getValue($membership)[0]['product'];
+			$this->assertSame(2, $original_plan->get_duration());
+			$this->assertSame('year', $original_plan->get_duration_unit());
+			$this->assertSame(3, $membership->get_duration());
+			$this->assertSame('week', $membership->get_duration_unit());
+		} finally {
+			remove_filter('wu_get_as_variation_price_variation', $variation, 10);
+		}
+	}
+
+	public function test_lazy_product_changes_preserve_save_side_effects(): void {
+		$membership = $this->make_membership_with_pending_meta();
+		$membership->set_gateway('lazy-snapshot-gateway');
+		$this->assertTrue($membership->save());
+		$membership = wu_get_membership($membership->get_id());
+		$this->assertInstanceOf(Membership::class, $membership);
+
+		$gateway = $this->getMockBuilder(\WP_Ultimo\Gateways\Base_Gateway::class)
+			->disableOriginalConstructor()
+			->onlyMethods(['process_membership_update'])
+			->getMockForAbstractClass();
+		$gateway->expects($this->once())->method('process_membership_update')->willReturn(true);
+		$resolve_gateway = static function ($resolved, $id) use ($gateway) {
+			return 'lazy-snapshot-gateway' === $id ? $gateway : $resolved;
+		};
+		add_filter('wu_get_gateway', $resolve_gateway, 10, 2);
+		$args = ['membership_id' => $membership->get_id()];
+
+		try {
+			$this->assertFalse(wu_next_scheduled_action('wu_async_after_membership_update_products', $args, 'membership'));
+			// BerlinDB can return false for an unchanged row (zero affected rows).
+			$this->assertNotWPError($membership->save());
+			$this->assertFalse(wu_next_scheduled_action('wu_async_after_membership_update_products', $args, 'membership'));
+
+			// Reload so the changed save is also the first product comparison.
+			$membership = wu_get_membership($membership->get_id());
+			$membership->set_plan_id($this->product->get_id());
+			$this->assertTrue($membership->save());
+			$this->assertNotFalse(wu_next_scheduled_action('wu_async_after_membership_update_products', $args, 'membership'));
+			$this->assertSame($this->product->get_id(), wu_get_membership($membership->get_id())->get_plan_id());
+		} finally {
+			remove_filter('wu_get_gateway', $resolve_gateway, 10);
+			wu_unschedule_action('wu_async_after_membership_update_products', $args, 'membership');
+		}
+	}
+
 	/**
 	 * Test adding a product to the membership.
 	 */
