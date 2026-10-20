@@ -625,6 +625,10 @@ class Domain_Manager extends Base_Manager {
 			'site_id'   => $site->blog_id,
 		];
 
+		if ( ! $this->should_enqueue_domain_removal('wu_remove_subdomain', $args)) {
+			return;
+		}
+
 		wu_enqueue_async_action('wu_remove_subdomain', $args, 'domain');
 	}
 
@@ -670,7 +674,9 @@ class Domain_Manager extends Base_Manager {
 				'site_id' => $site_id,
 			];
 
-			wu_enqueue_async_action('wu_remove_domain', $args, 'domain');
+			if ($this->should_enqueue_domain_removal('wu_remove_domain', $args)) {
+				wu_enqueue_async_action('wu_remove_domain', $args, 'domain');
+			}
 
 			/**
 			 * Fires when a custom domain is removed from the network.
@@ -685,6 +691,39 @@ class Domain_Manager extends Base_Manager {
 			 */
 			do_action('wu_domain_removed', $domain_name, $site_id);
 		}
+	}
+
+	/**
+	 * Checks whether a host-provider removal action should be queued.
+	 *
+	 * Host-provider integrations register their removal callbacks during
+	 * bootstrap, so a listener-less hook means no integration is active and
+	 * a queued job would only fail in Action Scheduler.
+	 *
+	 * @since 2.17.3
+	 *
+	 * @param string $hook The removal action hook.
+	 * @param array  $args The removal action arguments.
+	 * @return bool Whether the action should be queued.
+	 */
+	private function should_enqueue_domain_removal(string $hook, array $args): bool {
+
+		$should_enqueue = (bool) has_action($hook);
+
+		if ( ! $should_enqueue) {
+			wu_log_add(
+				'domain-removal',
+				sprintf(
+					// translators: %1$s is the action hook, %2$d is the site ID.
+					__('Skipping %1$s for site %2$d: no listener is registered.', 'ultimate-multisite'),
+					$hook,
+					$args['site_id']
+				),
+				LogLevel::DEBUG
+			);
+		}
+
+		return $should_enqueue;
 	}
 
 	/**

@@ -1137,4 +1137,70 @@ class Domain_Test extends WP_UnitTestCase {
 
 		$this->assertEquals('https://second.example.com/', $domain->get_url());
 	}
+
+	/**
+	 * A main-table miss consults the wu_domain_mapping_fallback filter.
+	 */
+	public function test_get_by_domain_uses_fallback_filter_on_miss(): void {
+
+		$blog_id = self::factory()->blog->create(['domain' => 'fallback-site.example.org']);
+		$seen    = [];
+
+		$filter = function ($mapping, $domains) use ($blog_id, &$seen) {
+			$seen = $domains;
+
+			if ( ! in_array('fallback-mapped.example', $domains, true)) {
+				return $mapping;
+			}
+
+			return (object) [
+				'id'             => 991,
+				'blog_id'        => $blog_id,
+				'domain'         => 'fallback-mapped.example',
+				'active'         => 1,
+				'primary_domain' => 1,
+				'secure'         => 1,
+				'stage'          => 'done',
+			];
+		};
+
+		add_filter('wu_domain_mapping_fallback', $filter, 10, 2);
+
+		wp_cache_delete('domain:fallback-mapped.example', 'domain_mappings');
+		wp_cache_delete('domain:fallback-missing.example', 'domain_mappings');
+
+		$found   = Domain::get_by_domain(['fallback-mapped.example', 'www.fallback-mapped.example']);
+		$missing = Domain::get_by_domain('fallback-missing.example');
+
+		remove_filter('wu_domain_mapping_fallback', $filter, 10);
+
+		$this->assertInstanceOf(Domain::class, $found);
+		$this->assertSame($blog_id, (int) $found->get_blog_id());
+		$this->assertNull($missing);
+		$this->assertSame(['fallback-missing.example'], $seen, 'The filter receives the searched domains.');
+		$this->assertSame('notexists', wp_cache_get('domain:fallback-missing.example', 'domain_mappings'));
+	}
+
+	/**
+	 * A fallback row for a domain that was not searched is ignored.
+	 */
+	public function test_get_by_domain_rejects_fallback_row_for_other_domain(): void {
+
+		$filter = fn() => (object) [
+			'id'      => 992,
+			'blog_id' => 1,
+			'domain'  => 'someone-else.example',
+			'active'  => 1,
+		];
+
+		add_filter('wu_domain_mapping_fallback', $filter);
+
+		wp_cache_delete('domain:requested-host.example', 'domain_mappings');
+
+		$result = Domain::get_by_domain('requested-host.example');
+
+		remove_filter('wu_domain_mapping_fallback', $filter);
+
+		$this->assertNull($result);
+	}
 }

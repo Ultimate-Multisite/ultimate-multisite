@@ -24,6 +24,15 @@ defined('ABSPATH') || exit;
 class Domain extends Base_Model {
 
 	/**
+	 * Filter consulted by get_by_domain() when the main mapping table has no match.
+	 *
+	 * Add-ons can check for this constant to detect support.
+	 *
+	 * @since 2.18.0
+	 */
+	const MAPPING_FALLBACK_FILTER = 'wu_domain_mapping_fallback';
+
+	/**
 	 * Blog ID of the site associated with this domain.
 	 *
 	 * @since 2.0.0
@@ -720,6 +729,26 @@ class Domain extends Base_Model {
 		$query_error = $wpdb->last_error;
 
 		$wpdb->suppress_errors($suppress);
+
+		if (empty($mapping) && empty($query_error)) {
+			/**
+			 * Filters the mapping used when the main mapping table has no match.
+			 *
+			 * Runs at sunrise, before regular plugins load, so register it from an
+			 * add-on `sunrise.php`. Add-ons that store mappings elsewhere (for
+			 * example per-network tables) return the raw mapping row here.
+			 *
+			 * @since 2.18.0
+			 *
+			 * @param object|null $mapping Raw mapping row with the domain_mappings columns, or null.
+			 * @param string[]    $domains Domain names searched.
+			 */
+			$mapping = apply_filters(self::MAPPING_FALLBACK_FILTER, null, $domains);
+
+			// Accept only a row for one of the searched domains (case-insensitive, like the table collation).
+			$searched = array_map('strtolower', array_map('strval', $domains));
+			$mapping  = is_object($mapping) && ! empty($mapping->domain) && in_array(strtolower((string) $mapping->domain), $searched, true) ? $mapping : null;
+		}
 
 		if (empty($mapping)) {
 			if (empty($query_error)) {
