@@ -54,8 +54,9 @@ jobs:
         with:
           path: vendor
           # composer-patches only re-applies when the patch list changes, not
-          # when a patch's contents change, so key the cache on the patches too.
-          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock', 'patches/**') }}
+          # when a patch's contents change, so key the cache on the patch list
+          # (composer.json extra.patches) and the patch files too.
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.json', 'composer.lock', 'patches/**') }}
 
       - name: Install Composer dependencies
         run: composer install
