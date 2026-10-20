@@ -696,6 +696,10 @@ class Domain_Manager extends Base_Manager {
 	/**
 	 * Checks whether a host-provider removal action should be queued.
 	 *
+	 * Host-provider integrations register their removal callbacks during
+	 * bootstrap, so a listener-less hook means no integration is active and
+	 * a queued job would only fail in Action Scheduler.
+	 *
 	 * @since 2.17.3
 	 *
 	 * @param string $hook The removal action hook.
@@ -704,27 +708,14 @@ class Domain_Manager extends Base_Manager {
 	 */
 	private function should_enqueue_domain_removal(string $hook, array $args): bool {
 
-		/**
-		 * Filters whether to enqueue a host-provider domain removal action.
-		 *
-		 * Return true to support integrations that register their removal callbacks
-		 * only inside the Action Scheduler runner, rather than during bootstrap.
-		 * This does not affect the synchronous wu_domain_removed action.
-		 *
-		 * @since 2.17.3
-		 *
-		 * @param bool   $should_enqueue Whether to enqueue. Defaults to whether the hook has listeners.
-		 * @param string $hook           The wu_remove_domain or wu_remove_subdomain hook.
-		 * @param array  $args           The removal action arguments.
-		 */
-		$should_enqueue = (bool) apply_filters('wu_should_enqueue_domain_removal', has_action($hook), $hook, $args);
+		$should_enqueue = (bool) has_action($hook);
 
 		if ( ! $should_enqueue) {
 			wu_log_add(
 				'domain-removal',
 				sprintf(
 					// translators: %1$s is the action hook, %2$d is the site ID.
-					__('Skipping %1$s for site %2$d: no listener is registered or enqueuing was disabled by a filter.', 'ultimate-multisite'),
+					__('Skipping %1$s for site %2$d: no listener is registered.', 'ultimate-multisite'),
 					$hook,
 					$args['site_id']
 				),
