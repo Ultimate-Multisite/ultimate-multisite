@@ -1,6 +1,6 @@
 (function($) {
 
-	var coupon_app = new Vue({
+	const coupon_app = new Vue({
 		el: "#coupon-code-app",
 		data: {
 			coupon_id: '',
@@ -91,7 +91,7 @@
 
 								for (const each_plan of allowed_plans) {
 
-									if (parseInt(each_plan) == plan_id) {
+									if (parseInt(each_plan, 10) === Number(plan_id)) {
 										is_allowed_plan = true;
 									}
 
@@ -107,7 +107,7 @@
 
 								for (const each_freq of allowed_freqs) {
 
-									if (each_freq == $('#wu_plan_freq').val()) {
+									if (String(each_freq) === String($('#wu_plan_freq').val())) {
 										is_allowed_freq = true;
 									}
 
@@ -153,7 +153,7 @@
 							let off_with_symbol = '';
 
 							// OFF RENDER
-							if (coupon_type != '"absolute"') {
+							if (coupon_type !== '"absolute"') {
 								off_with_symbol = ''.concat(coupon_value, '%');
 							} else {
 								off_with_symbol = accounting.formatMoney(parseFloat(coupon_value));
@@ -169,7 +169,7 @@
 							if (applies_to_setup_fee) {
 								let setupfee_off_with_symbol = '';
 
-								if (setup_fee_discount_type != '"absolute"') {
+								if (setup_fee_discount_type !== '"absolute"') {
 									setupfee_off_with_symbol = ''.concat(setup_fee_discount_value, '%');
 								} else {
 									setupfee_off_with_symbol = accounting.formatMoney(parseFloat(setup_fee_discount_value));
@@ -185,7 +185,7 @@
 
 							// END OFF RENDER
 
-							if (coupon_type != '"absolute"') {
+							if (coupon_type !== '"absolute"') {
 
 								new_price = old_price * ((100 - coupon_value) / 100);
 
@@ -207,7 +207,7 @@
 
 							if (applies_to_setup_fee) {
 
-								if (setup_fee_discount_type != '"absolute"') {
+								if (setup_fee_discount_type !== '"absolute"') {
 
 									new_setupfee = old_setupfee * ((100 - setup_fee_discount_value) / 100);
 

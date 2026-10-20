@@ -1,4 +1,4 @@
-/* global jQuery, ajaxurl, wu_dns_config */
+/* global jQuery, ajaxurl */
 /**
  * DNS Management Vue.js Component
  *
@@ -325,8 +325,6 @@
 				 * Select all records.
 				 */
 				selectAll() {
-					const self = this;
-
 					this.selectedRecords = this.records.map(function(record) {
 						return record.id;
 					});
