@@ -458,7 +458,7 @@ class OCI_Email_Transactional_Email extends Base_Capability_Module implements Tr
 			);
 		}
 
-		$existing = $this->get_oci()->oci_api_call('emailDomains/' . rawurlencode($domain_id) . '/dkims');
+		$existing = $this->get_oci()->oci_api_call('dkims?emailDomainId=' . rawurlencode($domain_id));
 
 		if ( ! is_wp_error($existing)) {
 			$items = $existing['items'] ?? $existing;
@@ -478,13 +478,14 @@ class OCI_Email_Transactional_Email extends Base_Capability_Module implements Tr
 		$body     = apply_filters(
 			'wu_oci_create_dkim_body',
 			[
-				'name' => $selector,
+				'name'          => $selector,
+				'emailDomainId' => $domain_id,
 			],
 			$domain,
 			$email_domain
 		);
 
-		$created = $this->get_oci()->oci_api_call('emailDomains/' . rawurlencode($domain_id) . '/dkims', 'POST', $body);
+		$created = $this->get_oci()->oci_api_call('dkims', 'POST', $body);
 
 		if (is_wp_error($created)) {
 			return $created;
@@ -517,7 +518,7 @@ class OCI_Email_Transactional_Email extends Base_Capability_Module implements Tr
 		}
 
 		$result = $this->get_oci()->oci_api_call(
-			'emailDomains/' . rawurlencode($domain_id) . '/dkims/' . rawurlencode($dkim_id)
+			'dkims/' . rawurlencode($dkim_id)
 		);
 
 		if (is_wp_error($result)) {
@@ -599,7 +600,7 @@ class OCI_Email_Transactional_Email extends Base_Capability_Module implements Tr
 			$domain
 		);
 
-		$result = $this->get_oci()->oci_api_call('approvedSenders', 'POST', $body);
+		$result = $this->get_oci()->oci_api_call('senders', 'POST', $body);
 
 		if (is_wp_error($result)) {
 			return new \WP_Error(
@@ -628,7 +629,7 @@ class OCI_Email_Transactional_Email extends Base_Capability_Module implements Tr
 	 */
 	private function get_approved_sender(string $email_address) {
 
-		$query  = 'approvedSenders?compartmentId=' . rawurlencode($this->get_oci()->get_compartment_ocid());
+		$query  = 'senders?compartmentId=' . rawurlencode($this->get_oci()->get_compartment_ocid());
 		$query .= '&emailAddress=' . rawurlencode($email_address);
 		$result = $this->get_oci()->oci_api_call($query);
 
