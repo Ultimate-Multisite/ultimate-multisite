@@ -249,7 +249,7 @@ class Payment extends Base_Model implements Notable {
 			'status'                      => "in:{$payment_types}|default:pending",
 			'gateway'                     => 'default:',
 			'gateway_payment_id'          => 'default:',
-			'discount_total'              => 'integer',
+			'discount_total'              => 'numeric',
 			'invoice_number'              => 'default:',
 			'cancel_membership_on_refund' => 'boolean|default:0',
 		];
