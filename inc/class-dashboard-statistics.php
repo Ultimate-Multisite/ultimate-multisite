@@ -14,7 +14,6 @@ namespace WP_Ultimo;
 use WP_Ultimo\Models\Membership;
 use WP_Ultimo\Models\Payment;
 use WP_Ultimo\Database\Payments\Payment_Status;
-use WP_Ultimo\Database\Memberships\Membership_Statistics_Query;
 
 // Exit if accessed directly
 defined('ABSPATH') || exit;
@@ -143,8 +142,7 @@ class Dashboard_Statistics {
 			],
 		];
 
-		$memberships_query = new Membership_Statistics_Query();
-		$memberships       = $memberships_query->query(
+		$memberships = wu_get_memberships(
 			[
 				'date_query' => [
 					'column'   => 'date_created',
