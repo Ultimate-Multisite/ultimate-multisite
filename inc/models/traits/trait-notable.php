@@ -147,6 +147,11 @@ trait Notable {
 
 		$query_class = new $this->query_class();
 
+		// Use the shared meta type (wu_customer, not wu_99_customer) on every network.
+		if (method_exists($query_class, 'get_shared_meta_type')) {
+			return $query_class->get_shared_meta_type();
+		}
+
 		// Maybe apply table prefix
 		$table = ! empty($query_class->prefix)
 		? "{$query_class->prefix}_{$query_class->item_name}"

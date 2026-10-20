@@ -65,6 +65,18 @@ class Query extends \BerlinDB\Database\Query {
 	protected $cache_group = 'sites';
 
 	/**
+	 * The prefix before the network ID is appended on secondary networks.
+	 *
+	 * Meta tables share one schema on every network: their object column is
+	 * always `wu_{item}_id`. The meta type must therefore use this prefix,
+	 * not the network-suffixed one.
+	 *
+	 * @since 2.18.0
+	 * @var string
+	 */
+	protected $shared_prefix = '';
+
+	/**
 	 * The class constructor
 	 *
 	 * @since 2.1.2
@@ -73,7 +85,8 @@ class Query extends \BerlinDB\Database\Query {
 	 */
 	public function __construct($query = []) {
 
-		$base_prefix = $this->prefix;
+		$base_prefix         = $this->prefix;
+		$this->shared_prefix = (string) $base_prefix;
 
 		$this->update_prefix_with_network_id();
 
@@ -150,6 +163,60 @@ class Query extends \BerlinDB\Database\Query {
 	public function get_plural_name() {
 
 		return $this->item_name_plural;
+	}
+
+	/**
+	 * Get the WordPress meta type for this query's items.
+	 *
+	 * Uses the shared prefix on every network (e.g. `wu_customer`, never
+	 * `wu_99_customer`), because WordPress derives the meta object column
+	 * as `{$meta_type}_id` and the meta schema always uses `wu_{item}_id`.
+	 * Table::register_network_meta_table() points `$wpdb->wu_{item}meta` at
+	 * the current network's meta table.
+	 *
+	 * @since 2.18.0
+	 * @return string
+	 */
+	public function get_shared_meta_type() {
+
+		return '' !== $this->shared_prefix
+			? "{$this->shared_prefix}_{$this->item_name}"
+			: $this->item_name;
+	}
+
+	/**
+	 * Get the meta type BerlinDB uses for meta queries and meta writes.
+	 *
+	 * Overrides the (patched) BerlinDB method, which applies the
+	 * network-suffixed prefix.
+	 *
+	 * @since 2.18.0
+	 * @return string
+	 */
+	protected function get_meta_type() {
+
+		return $this->get_shared_meta_type();
+	}
+
+	/**
+	 * Get the meta type BerlinDB uses to prime the meta cache.
+	 *
+	 * BerlinDB derives it from the table name (`wu_99_customers` →
+	 * `wu_99_customer`); strip the network suffix so priming queries the
+	 * shared `wu_{item}_id` column on secondary networks.
+	 *
+	 * @since 2.18.0
+	 * @return string
+	 */
+	protected function get_meta_cache_type() {
+
+		$type = parent::get_meta_cache_type();
+
+		if ($this->shared_prefix === $this->prefix || ! str_starts_with($type, $this->prefix . '_')) {
+			return $type;
+		}
+
+		return $this->shared_prefix . substr($type, strlen($this->prefix));
 	}
 
 	/**

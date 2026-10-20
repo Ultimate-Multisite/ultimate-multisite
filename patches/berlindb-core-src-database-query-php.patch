@@ -1,6 +1,6 @@
 --- /dev/null
 +++ ../src/Database/Query.php
-@@ -2169,7 +2169,7 @@
+@@ -2183,7 +2183,7 @@
  			$caps = $this->get_column_field( array( 'name' => $key ), 'caps' );
  
  			// Unset if not explicitly allowed
@@ -9,3 +9,42 @@
  				if ( is_array( $item ) ) {
  					unset( $item[ $key ] );
  				} elseif ( is_object( $item ) ) {
+@@ -2523,7 +2523,7 @@
+ 		$primary = $this->get_primary_column_name();
+ 
+ 		// Guess the item ID column for the meta table
+-		$item_id_column = $this->apply_prefix( "{$this->item_name}_{$primary}" );
++		$item_id_column = $this->get_meta_type() . "_{$primary}";
+ 
+ 		// Get meta IDs
+ 		$query    = "SELECT meta_id FROM {$table} WHERE {$item_id_column} = %d";
+@@ -2584,10 +2584,19 @@
+ 	 *
+ 	 * @return string
+ 	 */
+-	private function get_meta_type() {
++	protected function get_meta_type() {
+ 		return $this->apply_prefix( $this->item_name );
+ 	}
+ 
++	/**
++	 * Get the meta type used to prime the meta cache.
++	 *
++	 * @return string
++	 */
++	protected function get_meta_cache_type() {
++		return rtrim( $this->table_name, 's' ); // sic
++	}
++
+ 	/** Cache *****************************************************************/
+ 
+ 	/**
+@@ -2726,7 +2735,7 @@
+ 
+ 		// Update meta data caches
+ 		if ( ! empty( $this->query_vars['update_meta_cache'] ) ) {
+-			$singular = rtrim( $this->table_name, 's' ); // sic
++			$singular = $this->get_meta_cache_type();
+ 			update_meta_cache( $singular, $item_ids );
+ 		}
+ 	}
