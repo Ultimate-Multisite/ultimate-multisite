@@ -24,6 +24,15 @@ defined('ABSPATH') || exit;
 class Domain extends Base_Model {
 
 	/**
+	 * Filter consulted by get_by_domain() when the main mapping table has no match.
+	 *
+	 * Add-ons can check for this constant to detect support.
+	 *
+	 * @since 2.18.0
+	 */
+	const MAPPING_FALLBACK_FILTER = 'wu_domain_mapping_fallback';
+
+	/**
 	 * Blog ID of the site associated with this domain.
 	 *
 	 * @since 2.0.0
@@ -734,7 +743,7 @@ class Domain extends Base_Model {
 			 * @param object|null $mapping Raw mapping row with the domain_mappings columns, or null.
 			 * @param string[]    $domains Domain names searched.
 			 */
-			$mapping = apply_filters('wu_domain_mapping_fallback', null, $domains);
+			$mapping = apply_filters(self::MAPPING_FALLBACK_FILTER, null, $domains);
 			$mapping = is_object($mapping) && ! empty($mapping->domain) ? $mapping : null;
 		}
 
