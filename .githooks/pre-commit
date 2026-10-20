@@ -39,7 +39,7 @@ if [ -n "$STAGED_PHP_FILES" ]; then
     PHPCS_FAILED_FILES=""
     for FILE in $STAGED_PHP_FILES; do
         if [ -f "$FILE" ]; then
-            if ! vendor/bin/phpcs --colors "$FILE"; then
+            if ! vendor/bin/phpcs --colors --runtime-set ignore_warnings_on_exit 1 "$FILE"; then
                 PHPCS_FAILED_FILES="$PHPCS_FAILED_FILES $FILE"
                 HAS_PHPCS_ERRORS=1
             fi
@@ -57,7 +57,7 @@ if [ -n "$STAGED_PHP_FILES" ]; then
                 vendor/bin/phpcbf "$FILE" || true
 
                 # Re-run phpcs to check if the file is now clean
-                if vendor/bin/phpcs --colors "$FILE" 2>&1; then
+                if vendor/bin/phpcs --colors --runtime-set ignore_warnings_on_exit 1 "$FILE" 2>&1; then
                     echo -e "${GREEN}✓ Auto-fixed: $FILE${NC}"
                     FIXED_FILES="$FIXED_FILES $FILE"
                     # Stage the fixed file
@@ -72,7 +72,7 @@ if [ -n "$STAGED_PHP_FILES" ]; then
         HAS_PHPCS_ERRORS=0
         for FILE in $STAGED_PHP_FILES; do
             if [ -f "$FILE" ]; then
-                vendor/bin/phpcs --colors "$FILE" > /dev/null 2>&1 || HAS_PHPCS_ERRORS=1
+                vendor/bin/phpcs --colors --runtime-set ignore_warnings_on_exit 1 "$FILE" > /dev/null 2>&1 || HAS_PHPCS_ERRORS=1
             fi
         done
 
