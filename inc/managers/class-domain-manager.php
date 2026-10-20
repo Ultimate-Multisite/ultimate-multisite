@@ -708,7 +708,20 @@ class Domain_Manager extends Base_Manager {
 	 */
 	private function should_enqueue_domain_removal(string $hook, array $args): bool {
 
-		$should_enqueue = (bool) has_action($hook);
+		/**
+		 * Filters whether to enqueue a host-provider domain removal action.
+		 *
+		 * Return true to support integrations that register their removal callbacks
+		 * only inside the Action Scheduler runner, rather than during bootstrap.
+		 * This does not affect the synchronous wu_domain_removed action.
+		 *
+		 * @since 2.17.3
+		 *
+		 * @param bool   $should_enqueue Whether to enqueue. Defaults to whether the hook has listeners.
+		 * @param string $hook           The wu_remove_domain or wu_remove_subdomain hook.
+		 * @param array  $args           The removal action arguments.
+		 */
+		$should_enqueue = (bool) apply_filters('wu_should_enqueue_domain_removal', (bool) has_action($hook), $hook, $args);
 
 		if ( ! $should_enqueue) {
 			wu_log_add(
