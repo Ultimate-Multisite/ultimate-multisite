@@ -106,11 +106,12 @@ trait Notable {
 			if ($note->note_id && $note->note_id === $note_id) {
 				global $wpdb;
 
-				$prefix = $wpdb->base_prefix;
+				// Resolve this network's meta table (registered by Table::register_network_meta_table()).
+				$meta_type = $this->get_meta_data_table_name();
 
-				$table_name = "{$prefix}wu_{$model}meta";
+				$table_name = _get_meta_table($meta_type);
 
-				$column_name = "wu_{$model}_id";
+				$column_name = "{$meta_type}_id";
 
 				if ('site' === $model) {
 					$table_name = "{$wpdb->base_prefix}blogmeta";
@@ -147,11 +148,7 @@ trait Notable {
 
 		$query_class = new $this->query_class();
 
-		// Maybe apply table prefix
-		$table = ! empty($query_class->prefix)
-		? "{$query_class->prefix}_{$query_class->item_name}"
-		: $query_class->item_name;
-
-		return $table;
+		// The query's meta type: wu_{item} on every network, never wu_2_{item}.
+		return $query_class->get_meta_type();
 	}
 }

@@ -686,28 +686,13 @@ abstract class Base_Model implements \JsonSerializable {
 	private function get_meta_type_name() {
 
 		$query_class = new $this->query_class();
-		$prefix      = (string) $query_class->prefix;
 
 		/*
-		 * Secondary networks suffix the table prefix with the network ID
-		 * (wu_99), but the meta tables keep the shared schema, whose object
-		 * column is wu_{item}_id. The meta API must therefore use the
-		 * unsuffixed type; Table::register_network_meta_table() points it at
-		 * this network's table.
+		 * Use the query's meta type so model meta matches BerlinDB's own meta
+		 * paths. On secondary networks it stays wu_{item} (column
+		 * wu_{item}_id), not the network-suffixed table prefix.
 		 */
-		$network_id = get_current_network_id();
-
-		if ('' !== $prefix && get_main_network_id() !== $network_id) {
-			$prefix = (string) preg_replace('/_' . $network_id . '$/', '', $prefix);
-		}
-
-		// Maybe apply table prefix
-		$table = '' !== $prefix
-		? "{$prefix}_{$query_class->item_name}"
-		: $query_class->item_name;
-
-		// Return table if exists, or false if not
-		return $table;
+		return $query_class->get_meta_type();
 	}
 
 	/**
