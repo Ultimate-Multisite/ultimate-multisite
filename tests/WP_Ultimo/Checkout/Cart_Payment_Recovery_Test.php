@@ -189,6 +189,14 @@ class Cart_Payment_Recovery_Test extends WP_UnitTestCase {
 		$this->assertEquals(19.64, $cart->get_total());
 		$this->assertEquals(19.64, $cart->get_recurring_total());
 		$this->assertEquals(-11.60, $cart->get_total_discounts());
+
+		// A settled invoice with a fractional discount must still be refundable
+		// (Stripe's charge.refunded webhook calls Payment::refund()).
+		$payment->set_status('completed');
+		$this->assertTrue($payment->save());
+		$refunded = wu_get_payment($payment->get_id())->refund(19.64, false);
+		$this->assertNotWPError($refunded);
+		$this->assertSame('refunded', wu_get_payment($payment->get_id())->get_status());
 	}
 
 	/** @return array Membership and payment states supported by payment recovery. */
