@@ -2372,7 +2372,16 @@ class Site extends Base_Model implements Limitable, Notable {
 		global $wpdb;
 
 		if ('pending' === $type) {
-			$table_name = "{$wpdb->base_prefix}wu_membershipmeta";
+			/*
+			 * Pending sites live in membership meta. Resolve the table through the
+			 * metadata API, like Membership::get_meta() does, so a secondary network
+			 * reads its own table instead of the main network's shared one.
+			 */
+			$table_name = _get_meta_table('wu_membership');
+
+			if ( ! $table_name) {
+				return [];
+			}
 
 			$customer_id = (int) wu_get_isset($query_args, 'customer_id');
 
