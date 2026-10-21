@@ -182,4 +182,44 @@ class Table_Test extends WP_UnitTestCase {
 			$wpdb->wu_customermeta = $canonical;
 		}
 	}
+
+	/**
+	 * GH#2009: a secondary network's tables are created on the first request
+	 * (not only by the main network's admin_init), once per schema version.
+	 */
+	public function test_secondary_network_table_is_created_on_first_request(): void {
+		global $wpdb;
+
+		$network_id = get_current_network_id();
+		$main       = static fn() => $network_id + 1000;
+		$table_name = $wpdb->base_prefix . 'wu_' . $network_id . '_webhooks';
+		$key        = 'wu_' . $network_id . '_webhooks';
+
+		// Create real tables: the test case rewrites CREATE/DROP TABLE to TEMPORARY, which SHOW TABLES cannot see.
+		remove_filter('query', [$this, '_create_temporary_tables']);
+		remove_filter('query', [$this, '_drop_temporary_tables']);
+
+		add_filter('get_main_network_id', $main);
+
+		try {
+			$wpdb->query("DROP TABLE IF EXISTS {$table_name}"); // phpcs:ignore WordPress.DB
+			delete_network_option($network_id + 1000, "wpdb_{$key}_version");
+			delete_network_option($network_id, Table::NETWORK_TABLE_VERSIONS_OPTION);
+
+			$table = new \WP_Ultimo\Database\Webhooks\Webhooks_Table();
+
+			$this->assertTrue($table->is_upgradeable());
+			$this->assertSame($table_name, $table->table_name);
+			$this->assertTrue($table->exists());
+
+			$versions = get_network_option($network_id, Table::NETWORK_TABLE_VERSIONS_OPTION);
+
+			$this->assertSame($this->get_table_property($table, 'version'), $versions[ $key ] ?? null);
+		} finally {
+			remove_filter('get_main_network_id', $main);
+			$wpdb->query("DROP TABLE IF EXISTS {$table_name}"); // phpcs:ignore WordPress.DB
+			delete_network_option($network_id + 1000, "wpdb_{$key}_version");
+			delete_network_option($network_id, Table::NETWORK_TABLE_VERSIONS_OPTION);
+		}
+	}
 }
