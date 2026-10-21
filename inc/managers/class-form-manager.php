@@ -404,6 +404,11 @@ class Form_Manager extends Base_Manager {
 				// No need to do anything, but cool to stop fatal errors.
 			}
 
+			// Pending metadata can outlive its membership, but must remain removable.
+			if ( ! $object && 'membership' === $model && 'pending_site' === $meta_key && metadata_exists('wu_membership', $id, 'pending_site')) {
+				$object = new \WP_Ultimo\Models\Membership(['id' => absint($id)]);
+			}
+
 			$object = apply_filters("wu_delete_form_get_object_{$model}", $object, $id, $model);
 
 			if ( ! $object) {

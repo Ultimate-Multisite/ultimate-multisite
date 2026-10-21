@@ -2393,18 +2393,21 @@ class Site extends Base_Model implements Limitable, Notable {
 				$customer_id_query = ! empty($memberships_str) ? "AND wu_membership_id IN ($memberships_str)" : '';
 			}
 
-			$sql = "SELECT meta_value FROM {$table_name} WHERE meta_key = 'pending_site' $customer_id_query ORDER BY meta_id DESC"; // phpcs:ignore
+			$sql = "SELECT wu_membership_id, meta_value FROM {$table_name} WHERE meta_key = 'pending_site' $customer_id_query ORDER BY meta_id DESC"; // phpcs:ignore
 
-			$results = array_column($wpdb->get_results($sql), 'meta_value'); // phpcs:ignore
+			$results = $wpdb->get_results($sql); // phpcs:ignore
 
 			$results = array_map(
 				function ($item) {
 
-					$pending_site = maybe_unserialize($item);
+					$pending_site = maybe_unserialize($item->meta_value);
 
 					if ( ! $pending_site instanceof self ) {
 						return null;
 					}
+
+					// The metadata owner is authoritative, even for legacy or orphaned sites.
+					$pending_site->set_membership_id((int) $item->wu_membership_id);
 
 					$pending_site->set_type('pending');
 
