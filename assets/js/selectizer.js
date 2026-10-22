@@ -45,6 +45,7 @@
 					searchField: $(item).data('search-field'),
 					maxItems: $(item).data('max-items'),
 					selected: $(item).data('selected'),
+					searchWhenSelected: !! $(item).data('search-when-selected'),
 					options: [],
 					data: {
 						action: 'wu_search',
@@ -152,6 +153,21 @@
 		jQuery(options.el).attr('data-init', 1);
 
 		const selectize = select[ 0 ].selectize;
+
+		/*
+		 * Selectize blocks typing while a single-item control holds its only
+		 * value. Fields that always hold one (a default such as "Current Page")
+		 * opt in so typing searches and picking a result replaces the value.
+		 */
+		if (options.searchWhenSelected && options.maxItems === 1) {
+
+			selectize.isFull = function() {
+
+				return false;
+
+			};
+
+		} // end if;
 
 		/*
      * Makes sure this is reactive for vue

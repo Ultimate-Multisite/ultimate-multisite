@@ -712,12 +712,13 @@ abstract class Base_Element {
 			'page_search' => true,
 			'placeholder' => __('Search pages...', 'ultimate-multisite'),
 			'html_attr'   => [
-				'data-model'        => 'page',
-				'data-value-field'  => 'ID',
-				'data-label-field'  => 'post_title',
-				'data-search-field' => 'post_title',
-				'data-max-items'    => 1,
-				'data-exclude'      => get_the_ID() ?: '',
+				'data-model'                => 'page',
+				'data-value-field'          => 'ID',
+				'data-label-field'          => 'post_title',
+				'data-search-field'         => 'post_title',
+				'data-max-items'            => 1,
+				'data-search-when-selected' => 1,
+				'data-exclude'              => get_the_ID() ?: '',
 			],
 			'options'     => static function ($field = null) use ($default_label) {
 				$options = [0 => $default_label];
