@@ -44,9 +44,42 @@ class Base_Element_Test extends WP_UnitTestCase {
 			$this->assertCount(1, $options());
 			$this->assertCount(2, $options((object) ['value' => $page_id]));
 			$this->assertSame('Saved target', $options((object) ['value' => $page_id])[ $page_id ]);
-			$this->assertCount(1, $options((object) ['value' => $draft]));
-			$this->assertCount(1, $options((object) ['value' => PHP_INT_MAX]));
+			$this->assertCount(2, $options((object) ['value' => $draft]));
+			$this->assertStringContainsString('unavailable', $options((object) ['value' => $draft])[ $draft ]);
+			$this->assertCount(2, $options((object) ['value' => PHP_INT_MAX]));
 		}
+	}
+
+	/**
+	 * The real form renderer retains search metadata and selects string page IDs.
+	 */
+	public function test_page_generator_preserves_search_attributes_and_saved_selection(): void {
+
+		$page_id                        = self::factory()->post->create([
+			'post_type'   => 'page',
+			'post_status' => 'publish',
+		]);
+		$_REQUEST['custom_manage_page'] = (string) $page_id;
+		$_REQUEST['site_manage_type']   = 'custom_page';
+
+		ob_start();
+		try {
+			My_Sites_Element::get_instance()->render_generator_modal();
+			$html = ob_get_contents();
+		} finally {
+			ob_end_clean();
+			unset($_REQUEST['custom_manage_page'], $_REQUEST['site_manage_type']);
+		}
+
+		$dom = new \DOMDocument();
+		$dom->loadHTML($html, LIBXML_NOERROR | LIBXML_NOWARNING);
+		$xpath  = new \DOMXPath($dom);
+		$select = $xpath->query('//select[@name="custom_manage_page"]')->item(0);
+		$this->assertNotNull($select);
+		$this->assertSame('page', $select->getAttribute('data-model'));
+		$this->assertSame('attributes.custom_manage_page', $select->getAttribute('v-model.lazy'));
+		$this->assertSame(2, $xpath->query('.//option', $select)->length);
+		$this->assertSame((string) $page_id, $xpath->query('.//option[@selected]', $select)->item(0)->getAttribute('value'));
 	}
 
 	/**

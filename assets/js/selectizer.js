@@ -94,7 +94,14 @@
 			maxItems: options.maxItems,
 			create: options.create,
 			render: {
-				option(option) {
+				option(option, escape) {
+
+					// Initial page choices carry only an ID and label, not a full post.
+					if (options.data.model === 'page' && typeof option.post_name === 'undefined') {
+
+						return '<div>' + escape(option[ options.labelField ] || '') + '</div>';
+
+					}
 
 					const templateName = options.templateName ? options.templateName : options.data.model;
 
@@ -166,7 +173,7 @@
 
 				const app = window[ 'wu_' + vue_app ];
 
-				if (input.data('page-search') && app.attributes) {
+				if (input.data('model') === 'page' && app.attributes) {
 
 					app.attributes[ input.attr('name') ] = value || '0';
 

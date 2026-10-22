@@ -711,7 +711,6 @@ abstract class Base_Element {
 			'placeholder' => __('Search pages...', 'ultimate-multisite'),
 			'html_attr'   => [
 				'data-model'        => 'page',
-				'data-page-search'  => 1,
 				'data-value-field'  => 'ID',
 				'data-label-field'  => 'post_title',
 				'data-search-field' => 'post_title',
@@ -723,8 +722,17 @@ abstract class Base_Element {
 				$page_id = $field && is_scalar($field->value) ? absint($field->value) : 0;
 				$page    = $page_id ? get_post($page_id) : null;
 
-				if ($page && 'page' === $page->post_type && 'publish' === $page->post_status) {
-					$options[ $page->ID ] = $page->post_title;
+				if ($page_id) {
+					// Preserve a removed/unpublished selection without exposing its title.
+					$options[ $page_id ] = $page && 'page' === $page->post_type && 'publish' === $page->post_status
+						? $page->post_title
+						/* translators: %d: saved page ID. */
+						: sprintf(__('Page #%d (unavailable)', 'ultimate-multisite'), $page_id);
+				}
+
+				if ($field instanceof Field) {
+					// The native select compares integer option keys strictly.
+					$field->set_attribute('value', $page_id);
 				}
 
 				return $options;
@@ -1347,6 +1355,12 @@ abstract class Base_Element {
 		$should_display = $this->should_display_customize_controls();
 
 		if ($should_display) {
+			// These links can open a form containing an asynchronous page selector.
+			wp_enqueue_script('wu-selectizer');
+
+			if ( ! is_admin()) {
+				add_action('wp_footer', [\WP_Ultimo\Ajax::get_instance(), 'render_selectize_templates']);
+			}
 			?>
 				<div class="wu-styling">
 						<div class="wu-widget-inset">
