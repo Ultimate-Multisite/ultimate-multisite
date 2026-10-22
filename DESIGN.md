@@ -22,3 +22,13 @@ ring, while the selected control retains the blue card border. Contact-us cards
 use a non-submitting button so they remain keyboard operable without becoming a
 checkout selection. After a plan refresh, focus returns to the selected radio
 only when the visitor has not moved it elsewhere during the request.
+
+## My Sites toolbar
+
+The WordPress My Sites toolbar keeps the current site and the full My Sites
+administration link available without JavaScript. Additional sites load only
+when the menu is opened, in bounded pages, with an explicit load-more action.
+Loading, empty, and failed states stay in the menu; failed requests provide a
+retry link. Keyboard, hover, and touch can request the first page, while Escape
+returns focus to the menu trigger. Lazy dashboard links retain the existing
+same-origin magic-link handoff.
