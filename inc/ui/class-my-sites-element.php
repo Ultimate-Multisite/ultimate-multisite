@@ -162,11 +162,10 @@ class My_Sites_Element extends Base_Element {
 			],
 		];
 
-		$fields['custom_manage_page'] = array_merge(
-			$this->get_page_search_field(__('Current Page', 'ultimate-multisite')),
+		$fields['custom_manage_page'] = $this->get_page_search_field(
+			__('Current Page', 'ultimate-multisite'),
 			[
 				'title'    => __('Manage Redirect Page', 'ultimate-multisite'),
-				'value'    => 0,
 				'desc'     => __('The page to redirect user after select a site.', 'ultimate-multisite'),
 				'tooltip'  => '',
 				'required' => [

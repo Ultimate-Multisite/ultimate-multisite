@@ -11,7 +11,9 @@
 		TextareaControl = wp.components.TextareaControl,
 		Notice = wp.components.Notice,
 		SelectControl = wp.components.SelectControl,
-		InspectorControls = wp.blockEditor.InspectorControls;
+		InspectorControls = wp.blockEditor.InspectorControls,
+		// Very old WordPress versions lack useDebounce; searching still works, just undebounced.
+		useDebounce = wp.compose.useDebounce || ((callback) => callback);
 
 	_.each(wu_blocks, function(block, index) {
 
@@ -167,119 +169,70 @@
 
 	}
 
+	// Search box for WordPress versions without ComboboxControl.
+	function LegacySearchInput(props) {
+
+		const [ input, setInput ] = element.useState('');
+
+		return el(TextControl, {
+			label: props.label,
+			value: input,
+			onChange(nextSearch) {
+
+				setInput(nextSearch);
+				props.onSearch(nextSearch);
+
+			},
+		});
+
+	}
+
 	function PageSearchControl(props) {
 
+		// Matches core's Parent Page control: debounced search against the core-data store.
 		const [ search, setSearch ] = element.useState('');
-		const [ results, setResults ] = element.useState([]);
-		const [ selected, setSelected ] = element.useState(null);
-		const [ searchError, setSearchError ] = element.useState('');
-		const [ selectedError, setSelectedError ] = element.useState('');
+		const updateSearch = useDebounce(setSearch, 300);
 		const value = String(props.value || 0);
-		const editor = wp.data.select('core/editor');
-		const postId = editor && editor.getCurrentPostId ? Number(editor.getCurrentPostId()) : 0;
-		const currentPostId = Number.isInteger(postId) && postId > 0 ? postId : 0;
+		const savedId = Number(value) || 0;
+		const term = search.trim();
+
+		const state = wp.data.useSelect(function(select) {
+
+			const core = select('core');
+			const editor = select('core/editor');
+			const postId = editor && editor.getCurrentPostId ? Number(editor.getCurrentPostId()) : 0;
+			const searchQuery = { status: 'publish', per_page: 20, _fields: 'id,title', search: term };
+			const savedArgs = [ 'postType', 'page', savedId, { _fields: 'id,title,status' } ];
+			const searchArgs = [ 'postType', 'page', searchQuery ];
+			const searching = term.length >= 2;
+
+			if (postId > 0) {
+
+				searchQuery.exclude = postId;
+
+			}
+
+			const saved = savedId ? core.getEntityRecord(...savedArgs) : null;
+			const pages = searching ? core.getEntityRecords(...searchArgs) : null;
+
+			return {
+				saved,
+				pages,
+				isLoading: searching && core.isResolving('getEntityRecords', searchArgs),
+				savedUnavailable: savedId > 0 && core.hasFinishedResolution('getEntityRecord', savedArgs) && ! (saved && saved.status === 'publish'),
+				searchFailed: searching && core.hasFinishedResolution('getEntityRecords', searchArgs) && pages === null,
+			};
+
+		}, [ term, savedId ]);
 
 		function pageOption(page) {
 
 			return {
 				value: String(page.id),
-				label: wp.htmlEntities.decodeEntities(page.title.rendered.replace(/<[^>]*>/g, '')) || wp.i18n.__('(no title)', 'ultimate-multisite'),
+				label: wp.htmlEntities.decodeEntities(page.title.rendered) || wp.i18n.__('(no title)', 'ultimate-multisite'),
 			};
 
 		}
-
-		element.useEffect(function() {
-
-			let active = true;
-			setSelectedError('');
-
-			if (value === '0') {
-
-				setSelected(null);
-				return;
-
-			}
-
-			wp.apiFetch({ path: '/wp/v2/pages/' + encodeURIComponent(value) + '?_fields=id,title,status' }).then(function(page) {
-
-				if (active) {
-
-					if (page.status === 'publish') {
-
-						setSelected(pageOption(page));
-
-					} else {
-
-						setSelected(null);
-						setSelectedError(wp.i18n.__('The saved page is no longer published. Choose another page or keep the saved ID.', 'ultimate-multisite'));
-
-					}
-
-				}
-
-			}).catch(function() {
-
-				if (active) {
-
-					setSelected(null);
-					setSelectedError(wp.i18n.__('Could not load the saved page. Its ID has not been changed.', 'ultimate-multisite'));
-
-				}
-
-			});
-
-			return function() {
-
-				active = false;
-
-			};
-
-		}, [ value ]);
-
-		element.useEffect(function() {
-
-			let active = true;
-			setSearchError('');
-			setResults([]);
-
-			if (search.trim().length < 2) {
-
-				return;
-
-			}
-
-			const timer = window.setTimeout(function() {
-
-				const path = '/wp/v2/pages?status=publish&per_page=20&_fields=id,title&search=' + encodeURIComponent(search.trim()) + (currentPostId ? '&exclude=' + encodeURIComponent(currentPostId) : '');
-
-				wp.apiFetch({ path }).then(function(pages) {
-
-					if (active) {
-
-						setResults(pages.map(pageOption));
-
-					}
-
-				}).catch(function() {
-
-					if (active) {
-
-						setSearchError(wp.i18n.__('Page search failed. Please try again.', 'ultimate-multisite'));
-
-					}
-
-				});
-
-			}, 300);
-
-			return function() {
-
-				active = false;
-				window.clearTimeout(timer);
-
-			};
-
-		}, [ search, currentPostId ]);
 
 		const options = props.options.map(function(option) {
 
@@ -287,17 +240,7 @@
 
 		});
 
-		if (value !== '0') {
-
-			options.push(selected && selected.value === value ? selected : {
-				value,
-				// translators: %s is the saved page ID.
-				label: wp.i18n.sprintf(wp.i18n.__('Page #%s', 'ultimate-multisite'), value),
-			});
-
-		}
-
-		results.forEach(function(option) {
+		function addOption(option) {
 
 			if (! options.some(function(existing) {
 
@@ -309,11 +252,39 @@
 
 			}
 
+		}
+
+		if (savedId) {
+
+			addOption(state.saved && state.saved.status === 'publish' ? pageOption(state.saved) : {
+				value,
+				// translators: %s is the saved page ID.
+				label: wp.i18n.sprintf(wp.i18n.__('Page #%s', 'ultimate-multisite'), value),
+			});
+
+		}
+
+		(state.pages || []).forEach(function(page) {
+
+			addOption(pageOption(page));
+
 		});
+
+		let help = props.help;
+
+		if (state.savedUnavailable) {
+
+			help = wp.i18n.__('The saved page is unavailable or no longer published. Choose another page or keep the saved ID.', 'ultimate-multisite');
+
+		} else if (state.searchFailed) {
+
+			help = wp.i18n.__('Page search failed. Please try again.', 'ultimate-multisite');
+
+		}
 
 		const controlProps = {
 			label: props.label,
-			help: selectedError || searchError || props.help,
+			help,
 			value,
 			options,
 			onChange(nextValue) {
@@ -327,19 +298,16 @@
 
 			return el(components.ComboboxControl, {
 				...controlProps,
-				onFilterValueChange(nextSearch) {
-
-					setSearch(nextSearch || '');
-
-				},
 				allowReset: true,
+				isLoading: state.isLoading,
+				onFilterValueChange: updateSearch,
 			});
 
 		}
 
 		// Older WordPress versions still get bounded search, never a full-page list.
 		return el(element.Fragment, null,
-			el(TextControl, { label: props.placeholder, value: search, onChange: setSearch }),
+			el(LegacySearchInput, { label: props.placeholder, onSearch: updateSearch }),
 			el(SelectControl, controlProps)
 		);
 

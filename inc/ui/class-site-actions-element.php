@@ -182,11 +182,10 @@ class Site_Actions_Element extends Base_Element {
 			'value'   => 1,
 		];
 
-		$fields['redirect_after_delete'] = array_merge(
-			$this->get_page_search_field(__('Default', 'ultimate-multisite')),
+		$fields['redirect_after_delete'] = $this->get_page_search_field(
+			__('Default', 'ultimate-multisite'),
 			[
 				'title'   => __('Redirect After Delete', 'ultimate-multisite'),
-				'value'   => 0,
 				'desc'    => __('The page to redirect user after delete current site.', 'ultimate-multisite'),
 				'tooltip' => '',
 			]

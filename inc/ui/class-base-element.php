@@ -700,13 +700,15 @@ abstract class Base_Element {
 	 * Forms hydrate only their saved selection; the block editor resolves it
 	 * through the WordPress REST API when the control is mounted.
 	 *
-	 * @param string $default_label Label for the zero/default option.
+	 * @param string               $default_label Label for the zero/default option.
+	 * @param array<string, mixed> $args          Field definition entries (title, desc, required...) merged over the defaults.
 	 * @return array
 	 */
-	protected function get_page_search_field($default_label) {
+	protected function get_page_search_field($default_label, $args = []) {
 
-		return [
+		$definition = [
 			'type'        => 'select',
+			'value'       => 0,
 			'page_search' => true,
 			'placeholder' => __('Search pages...', 'ultimate-multisite'),
 			'html_attr'   => [
@@ -738,64 +740,8 @@ abstract class Base_Element {
 				return $options;
 			},
 		];
-	}
 
-	/**
-	 * Builds page choices only when an editor or settings form needs them.
-	 *
-	 * Let core handle defaults, hierarchy and filters. On WordPress 6.3+, select
-	 * only dropdown metadata without caching partial posts. Older core versions
-	 * use normal get_pages() retrieval, still deferred until options are needed.
-	 *
-	 * @param string $default_label Label for the zero/default option.
-	 * @return array
-	 */
-	protected function get_page_options($default_label) {
-
-		global $wpdb, $wp_version;
-
-		$current_id = get_the_ID();
-		$args       = $current_id ? ['exclude' => [$current_id]] : []; // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
-		$marker     = new \stdClass();
-		$optimize   = version_compare($wp_version, '6.3', '>=');
-
-		$prepare_query = static function ($query_args, $page_args) use ($marker) {
-			if (($page_args['wu_page_options_query'] ?? null) === $marker) {
-				$query_args['wu_page_options_query'] = $marker;
-				// Never store projected rows as full posts.
-				$query_args['cache_results'] = false;
-			}
-			return $query_args;
-		};
-
-		$select_fields = static function ($fields, $query) use ($marker, $wpdb) {
-			return $query->get('wu_page_options_query') === $marker
-				? "{$wpdb->posts}.ID, {$wpdb->posts}.post_title, {$wpdb->posts}.post_parent, {$wpdb->posts}.post_type, {$wpdb->posts}.post_status"
-				: $fields;
-		};
-
-		if ($optimize) {
-			$args['wu_page_options_query'] = $marker;
-			add_filter('get_pages_query_args', $prepare_query, PHP_INT_MAX, 2);
-			add_filter('posts_fields', $select_fields, 10, 2);
-		}
-
-		try {
-			$pages = get_pages($args);
-		} finally {
-			if ($optimize) {
-				remove_filter('get_pages_query_args', $prepare_query, PHP_INT_MAX);
-				remove_filter('posts_fields', $select_fields, 10);
-			}
-		}
-
-		$options = [0 => $default_label];
-
-		foreach ($pages ?: [] as $page) {
-			$options[ $page->ID ] = $page->post_title;
-		}
-
-		return $options;
+		return array_merge($definition, $args);
 	}
 
 	/**

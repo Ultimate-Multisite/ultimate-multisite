@@ -51,7 +51,7 @@ class Block_Editor_Widget_Manager {
 	 */
 	public function register_scripts(): void {
 
-		\WP_Ultimo\Scripts::get_instance()->register_script('wu-blocks', wu_get_asset('blocks.js', 'js', 'inc/builders/block-editor/assets'), ['underscore', 'wp-blocks', 'wp-element', 'wp-components', 'wp-editor', 'wp-block-editor', 'wp-server-side-render', 'wp-api-fetch', 'wp-html-entities', 'wu-functions', 'wp-i18n', 'wp-polyfill']);
+		\WP_Ultimo\Scripts::get_instance()->register_script('wu-blocks', wu_get_asset('blocks.js', 'js', 'inc/builders/block-editor/assets'), ['underscore', 'wp-blocks', 'wp-element', 'wp-components', 'wp-editor', 'wp-block-editor', 'wp-server-side-render', 'wp-data', 'wp-core-data', 'wp-compose', 'wp-html-entities', 'wu-functions', 'wp-i18n', 'wp-polyfill']);
 	}
 
 	/**
