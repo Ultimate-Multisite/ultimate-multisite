@@ -215,21 +215,25 @@
 			const saved = savedId ? core.getEntityRecord(...savedArgs) : null;
 			const pages = searching ? core.getEntityRecords(...searchArgs) : null;
 
+			// Return primitives for the saved page: getEntityRecord() builds a new object per call when _fields is set.
+			const savedStatus = saved ? saved.status : '';
+
 			return {
-				saved,
+				savedStatus,
+				savedTitle: saved && saved.title ? saved.title.rendered : '',
 				pages,
 				isLoading: searching && core.isResolving('getEntityRecords', searchArgs),
-				savedUnavailable: savedId > 0 && core.hasFinishedResolution('getEntityRecord', savedArgs) && ! (saved && saved.status === 'publish'),
+				savedUnavailable: savedId > 0 && core.hasFinishedResolution('getEntityRecord', savedArgs) && savedStatus !== 'publish',
 				searchFailed: searching && core.hasFinishedResolution('getEntityRecords', searchArgs) && pages === null,
 			};
 
 		}, [ term, savedId ]);
 
-		function pageOption(page) {
+		function pageOption(id, title) {
 
 			return {
-				value: String(page.id),
-				label: wp.htmlEntities.decodeEntities(page.title.rendered) || wp.i18n.__('(no title)', 'ultimate-multisite'),
+				value: String(id),
+				label: wp.htmlEntities.decodeEntities(title) || wp.i18n.__('(no title)', 'ultimate-multisite'),
 			};
 
 		}
@@ -256,7 +260,7 @@
 
 		if (savedId) {
 
-			addOption(state.saved && state.saved.status === 'publish' ? pageOption(state.saved) : {
+			addOption(state.savedStatus === 'publish' ? pageOption(savedId, state.savedTitle) : {
 				value,
 				// translators: %s is the saved page ID.
 				label: wp.i18n.sprintf(wp.i18n.__('Page #%s', 'ultimate-multisite'), value),
@@ -266,7 +270,7 @@
 
 		(state.pages || []).forEach(function(page) {
 
-			addOption(pageOption(page));
+			addOption(pageOption(page.id, page.title.rendered));
 
 		});
 
