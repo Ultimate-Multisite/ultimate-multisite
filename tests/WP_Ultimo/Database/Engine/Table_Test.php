@@ -222,4 +222,47 @@ class Table_Test extends WP_UnitTestCase {
 			delete_network_option($network_id, Table::NETWORK_TABLE_VERSIONS_OPTION);
 		}
 	}
+
+	/**
+	 * A secondary table with an earlier recorded version is upgraded on its
+	 * first request instead of only creating completely missing tables.
+	 */
+	public function test_secondary_network_table_is_upgraded_on_first_request(): void {
+		global $wpdb;
+
+		$network_id = get_current_network_id();
+		$main       = static fn() => $network_id + 1000;
+		$table_name = $wpdb->base_prefix . 'wu_' . $network_id . '_webhooks';
+		$key        = 'wu_' . $network_id . '_webhooks';
+
+		remove_filter('query', [$this, '_create_temporary_tables']);
+		remove_filter('query', [$this, '_drop_temporary_tables']);
+		add_filter('get_main_network_id', $main);
+
+		try {
+			$wpdb->query("DROP TABLE IF EXISTS {$table_name}"); // phpcs:ignore WordPress.DB
+			delete_network_option($network_id + 1000, "wpdb_{$key}_version");
+			delete_network_option($network_id, Table::NETWORK_TABLE_VERSIONS_OPTION);
+
+			new \WP_Ultimo\Database\Webhooks\Webhooks_Table();
+
+			$wpdb->query("ALTER TABLE {$table_name} MODIFY COLUMN `date_created` datetime NOT NULL"); // phpcs:ignore WordPress.DB
+			$wpdb->query("ALTER TABLE {$table_name} MODIFY COLUMN `date_modified` datetime NOT NULL"); // phpcs:ignore WordPress.DB
+			update_network_option($network_id + 1000, "wpdb_{$key}_version", '2.0.0');
+			delete_network_option($network_id, Table::NETWORK_TABLE_VERSIONS_OPTION);
+
+			new \WP_Ultimo\Database\Webhooks\Webhooks_Table();
+
+			$columns     = $wpdb->get_results("SHOW COLUMNS FROM {$table_name}", ARRAY_A); // phpcs:ignore WordPress.DB
+			$nullability = wp_list_pluck($columns, 'Null', 'Field');
+
+			$this->assertSame('YES', $nullability['date_created'] ?? null);
+			$this->assertSame('YES', $nullability['date_modified'] ?? null);
+		} finally {
+			remove_filter('get_main_network_id', $main);
+			$wpdb->query("DROP TABLE IF EXISTS {$table_name}"); // phpcs:ignore WordPress.DB
+			delete_network_option($network_id + 1000, "wpdb_{$key}_version");
+			delete_network_option($network_id, Table::NETWORK_TABLE_VERSIONS_OPTION);
+		}
+	}
 }

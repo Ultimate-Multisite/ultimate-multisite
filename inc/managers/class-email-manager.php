@@ -80,6 +80,14 @@ class Email_Manager extends Base_Manager {
 	const SCHEDULED_ARGS_MAX_LENGTH = 8000;
 
 	/**
+	 * Network option marking default system emails as created.
+	 *
+	 * @since 2.18.0
+	 * @var string
+	 */
+	const SYSTEM_EMAILS_CREATED_OPTION = 'wu_system_emails_created';
+
+	/**
 	 * Instantiate the necessary hooks.
 	 *
 	 * @since 2.0.0
@@ -109,6 +117,35 @@ class Email_Manager extends Base_Manager {
 		add_action('wp_mail_failed', [$this, 'log_mailer_failure']);
 
 		add_action('wp_ajax_wu_get_event_payload_placeholders', [$this, 'get_event_placeholders']);
+
+		add_action('wp_ultimo_load', [$this, 'maybe_create_secondary_network_system_emails']);
+	}
+
+	/**
+	 * Creates the default system emails after a secondary network's posts table exists.
+	 *
+	 * A secondary network can finish setup after its tables have been created outside
+	 * the regular setup wizard. Creating the defaults here keeps its system emails
+	 * available without repeating the idempotent creation check on every request.
+	 *
+	 * @since 2.18.0
+	 * @return void
+	 */
+	public function maybe_create_secondary_network_system_emails(): void {
+
+		if (is_main_network() || get_network_option(null, self::SYSTEM_EMAILS_CREATED_OPTION, false)) {
+			return;
+		}
+
+		$post_table = \WP_Ultimo\Loaders\Table_Loader::get_instance()->post_table;
+
+		if ( ! $post_table->exists()) {
+			return;
+		}
+
+		$this->create_all_system_emails();
+
+		update_network_option(null, self::SYSTEM_EMAILS_CREATED_OPTION, true);
 	}
 
 	/**

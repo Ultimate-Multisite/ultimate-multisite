@@ -132,6 +132,7 @@ abstract class Table extends \BerlinDB\Database\Table {
 	 * from creating or altering the same table twice.
 	 *
 	 * @since 2.18.0
+	 * @throws \RuntimeException When the table setup lock cannot be acquired.
 	 * @return void
 	 */
 	protected function maybe_install_network_table(): void {
@@ -153,7 +154,11 @@ abstract class Table extends \BerlinDB\Database\Table {
 
 		// Wait briefly for a concurrent request that is installing this network's tables.
 		if ('1' !== (string) $db->get_var($db->prepare('SELECT GET_LOCK(%s, 10)', $lock))) {
-			return;
+			if ( ! $this->needs_upgrade() && parent::exists()) {
+				return;
+			}
+
+			throw new \RuntimeException('Unable to acquire the Ultimate Multisite table setup lock.');
 		}
 
 		try {
