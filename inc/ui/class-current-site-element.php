@@ -162,13 +162,14 @@ class Current_Site_Element extends Base_Element {
 			'value'   => 1,
 		];
 
-		$fields['breadcrumbs_my_sites_page'] = [
-			'type'    => 'select',
-			'title'   => __('My Sites Page', 'ultimate-multisite'),
-			'value'   => 0,
-			'desc'    => __('The page with the customer sites list.', 'ultimate-multisite'),
-			'options' => fn() => $this->get_page_options(__('Current Page', 'ultimate-multisite')),
-		];
+		$fields['breadcrumbs_my_sites_page'] = array_merge(
+			$this->get_page_search_field(__('Current Page', 'ultimate-multisite')),
+			[
+				'title' => __('My Sites Page', 'ultimate-multisite'),
+				'value' => 0,
+				'desc'  => __('The page with the customer sites list.', 'ultimate-multisite'),
+			]
+		);
 
 		$fields['display_description'] = [
 			'type'    => 'toggle',

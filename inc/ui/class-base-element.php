@@ -695,6 +695,43 @@ abstract class Base_Element {
 	}
 
 	/**
+	 * Builds a page search field without enumerating the site's pages.
+	 *
+	 * Forms hydrate only their saved selection; the block editor resolves it
+	 * through the WordPress REST API when the control is mounted.
+	 *
+	 * @param string $default_label Label for the zero/default option.
+	 * @return array
+	 */
+	protected function get_page_search_field($default_label) {
+
+		return [
+			'type'        => 'select',
+			'page_search' => true,
+			'placeholder' => __('Search pages...', 'ultimate-multisite'),
+			'html_attr'   => [
+				'data-model'        => 'page',
+				'data-value-field'  => 'ID',
+				'data-label-field'  => 'post_title',
+				'data-search-field' => 'post_title',
+				'data-max-items'    => 1,
+				'data-exclude'      => get_the_ID() ?: '',
+			],
+			'options'     => static function ($field = null) use ($default_label) {
+				$options = [0 => $default_label];
+				$page_id = $field && is_scalar($field->value) ? absint($field->value) : 0;
+				$page    = $page_id ? get_post($page_id) : null;
+
+				if ($page && 'page' === $page->post_type && 'publish' === $page->post_status) {
+					$options[ $page->ID ] = $page->post_title;
+				}
+
+				return $options;
+			},
+		];
+	}
+
+	/**
 	 * Builds page choices only when an editor or settings form needs them.
 	 *
 	 * Let core handle defaults, hierarchy and filters. On WordPress 6.3+, select
@@ -797,9 +834,12 @@ abstract class Base_Element {
 			/*
 			 * Set v-model
 			 */
-			$field['html_attr'] = [
-				'v-model.lazy' => "attributes.{$field_slug}",
-			];
+			$field['html_attr'] = array_merge(
+				wu_get_isset($field, 'page_search') ? $field['html_attr'] : [],
+				[
+					'v-model.lazy' => "attributes.{$field_slug}",
+				]
+			);
 
 			$required = wu_get_isset($field, 'required');
 
@@ -824,6 +864,10 @@ abstract class Base_Element {
 			}
 
 			$state[ $field_slug ] = wu_request($field_slug, wu_get_isset($defaults, $field_slug));
+
+			if (wu_get_isset($field, 'page_search')) {
+				$field['value'] = $state[ $field_slug ];
+			}
 		}
 
 		$fields['shortcode_result'] = [
