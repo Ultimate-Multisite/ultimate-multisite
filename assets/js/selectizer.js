@@ -188,6 +188,17 @@
 
 			});
 
+			// Escape abandons the search; leave the control so the blur handler restores the value.
+			selectize.$control_input.on('keydown', function(event) {
+
+				if (event.key === 'Escape') {
+
+					selectize.blur();
+
+				}
+
+			});
+
 		} // end if;
 
 		/*
