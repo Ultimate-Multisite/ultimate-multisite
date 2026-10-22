@@ -157,15 +157,36 @@
 		/*
 		 * Selectize blocks typing while a single-item control holds its only
 		 * value. Fields that always hold one (a default such as "Current Page")
-		 * opt in so typing searches and picking a result replaces the value.
+		 * opt in: focusing empties the control so typing searches, and leaving
+		 * it without a choice silently restores the previous value.
 		 */
 		if (options.searchWhenSelected && options.maxItems === 1) {
 
-			selectize.isFull = function() {
+			let held = null;
 
-				return false;
+			selectize.on('focus', function() {
 
-			};
+				held = selectize.items[ 0 ] || null;
+
+				if (held !== null) {
+
+					selectize.clear(true);
+
+				}
+
+			});
+
+			selectize.on('blur', function() {
+
+				if (held !== null && ! selectize.items.length) {
+
+					selectize.addItem(held, true);
+
+				}
+
+				held = null;
+
+			});
 
 		} // end if;
 
