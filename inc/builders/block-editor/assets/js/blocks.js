@@ -1,245 +1,424 @@
 (function(blocks, element, components, wu_blocks, _) {
 
-  const el = element.createElement,
-    registerBlockType = blocks.registerBlockType,
-    ServerSideRender = wp.serverSideRender,
-    PanelBody = wp.components.PanelBody,
-    TextControl = wp.components.TextControl,
-    NumberControl = wp.components.__experimentalNumberControl,
-    RangeControl = wp.components.RangeControl,
-    ToggleControl = wp.components.ToggleControl,
-    TextareaControl = wp.components.TextareaControl,
-    Notice = wp.components.Notice,
-    SelectControl = wp.components.SelectControl,
-    InspectorControls = wp.blockEditor.InspectorControls;
+	const el = element.createElement,
+		registerBlockType = blocks.registerBlockType,
+		ServerSideRender = wp.serverSideRender,
+		PanelBody = wp.components.PanelBody,
+		TextControl = wp.components.TextControl,
+		NumberControl = wp.components.__experimentalNumberControl,
+		RangeControl = wp.components.RangeControl,
+		ToggleControl = wp.components.ToggleControl,
+		TextareaControl = wp.components.TextareaControl,
+		Notice = wp.components.Notice,
+		SelectControl = wp.components.SelectControl,
+		InspectorControls = wp.blockEditor.InspectorControls;
 
-  _.each(wu_blocks, function(block, index) {
+	_.each(wu_blocks, function(block, index) {
 
-    registerBlockType(block.id, {
-      icon: wu_badge(),
-      category: 'wp-ultimo',
-      title: block.title,
-      description: block.description,
-      keywords: block.keywords,
-      supports: {
-        multiple: false,
-        html: false,
-      },
-      edit(props) {
+		registerBlockType(block.id, {
+			icon: wu_badge(),
+			category: 'wp-ultimo',
+			title: block.title,
+			description: block.description,
+			keywords: block.keywords,
+			supports: {
+				multiple: false,
+				html: false,
+			},
+			edit(props) {
 
-        return [
-          el(ServerSideRender, {
-            key: block.id + index,
-            block: block.id,
-            attributes: props.attributes,
-          }),
-          wu_fields_to_block_options(block.fields, props),
-        ];
+				return [
+					el(ServerSideRender, {
+						key: block.id + index,
+						block: block.id,
+						attributes: props.attributes,
+					}),
+					wu_fields_to_block_options(block.fields, props),
+				];
 
-      },
-      save() {
+			},
+			save() {
 
-        return null;
+				return null;
 
-      },
-    });
+			},
+		});
 
-  });
+	});
 
-  function wu_fields_to_block_options(fields, props) {
+	function wu_fields_to_block_options(fields, props) {
 
-    const gt_panels = [];
+		const gt_panels = [];
 
-    let gt_fields = [];
+		let gt_fields = [];
 
-    let current_panel = null;
+		let current_panel = null;
 
-    let current_panel_slug = null;
+		let current_panel_slug = null;
 
-    let new_panel = false;
+		let new_panel = false;
 
-    let first_panel = true;
+		let first_panel = true;
 
-    _.each(fields, function(field, field_slug) {
+		_.each(fields, function(field, field_slug) {
 
-      if (field.type === 'group') {
+			if (field.type === 'group') {
 
-        const sub_fields = field.fields;
+				const sub_fields = field.fields;
 
-        field = _.first(_.values(sub_fields));
+				field = _.first(_.values(sub_fields));
 
-        field.desc = '';
+				field.desc = '';
 
-        field_slug = _.first(_.keys(sub_fields));
+				field_slug = _.first(_.keys(sub_fields));
 
-      }
+			}
 
-      const component = wu_get_field_component(field.type, field);
+			const component = field.page_search ? PageSearchControl : wu_get_field_component(field.type, field);
 
-      if (! _.isObject(field.required)) {
+			if (! _.isObject(field.required)) {
 
-        field.required = {};
+				field.required = {};
 
-      }
+			}
 
-      let should_display = true;
+			let should_display = true;
 
-      _.each(field.required, function(value, key) {
+			_.each(field.required, function(value, key) {
 
-        // eslint-disable-next-line eqeqeq
-        should_display = props.attributes[key] == value;
+				// eslint-disable-next-line eqeqeq
+				should_display = props.attributes[ key ] == value;
 
-      });
+			});
 
-      if (should_display) {
+			if (should_display) {
 
-        gt_fields.push(el(component, {
-          key: field_slug,
-          label: field.title,
-          help: field.desc,
-          value: props.attributes[field_slug],
-          checked: props.attributes[field_slug],
-          options: wu_format_options(field.options),
-          min: field.min,
-          max: field.max,
-          onChange(value) {
+				gt_fields.push(el(component, {
+					key: field_slug,
+					label: field.title,
+					help: field.desc,
+					value: props.attributes[ field_slug ],
+					checked: props.attributes[ field_slug ],
+					options: wu_format_options(field.options),
+					placeholder: field.placeholder,
+					min: field.min,
+					max: field.max,
+					onChange(value) {
 
-            const obj = {};
+						const obj = {};
 
-            obj[field_slug] = value;
+						obj[ field_slug ] = value;
 
-            props.setAttributes(obj);
+						props.setAttributes(obj);
 
-          },
-        }));
+					},
+				}));
 
-      }
+			}
 
-      /*
+			/*
        * Handle header types differently
        */
-      if (field.type === 'header') {
+			if (field.type === 'header') {
 
-        gt_fields.pop();
+				gt_fields.pop();
 
-        if (current_panel !== null) {
+				if (current_panel !== null) {
 
-          new_panel = true;
+					new_panel = true;
 
-        }
+				}
 
-        if (new_panel) {
+				if (new_panel) {
 
-          gt_panels.push(
-            el(PanelBody, {
-              key: current_panel_slug,
-              title: current_panel.title,
-              description: current_panel.desc,
-              initialOpen: first_panel,
-            }, gt_fields)
-          );
+					gt_panels.push(
+						el(PanelBody, {
+							key: current_panel_slug,
+							title: current_panel.title,
+							description: current_panel.desc,
+							initialOpen: first_panel,
+						}, gt_fields)
+					);
 
-          first_panel = false;
+					first_panel = false;
 
-        }
+				}
 
-        current_panel = field;
+				current_panel = field;
 
-        current_panel_slug = field_slug;
+				current_panel_slug = field_slug;
 
-        gt_fields = [];
+				gt_fields = [];
 
-      }
+			}
 
-    });
+		});
 
-    gt_panels.push(
-      el(PanelBody, {
-        key: current_panel_slug,
-        title: current_panel.title,
-        help: current_panel.desc,
-        initialOpen: first_panel,
-      }, gt_fields)
-    );
+		gt_panels.push(
+			el(PanelBody, {
+				key: current_panel_slug,
+				title: current_panel.title,
+				help: current_panel.desc,
+				initialOpen: first_panel,
+			}, gt_fields)
+		);
 
-    return el(InspectorControls, { key: 'wp-ultimo' }, gt_panels);
+		return el(InspectorControls, { key: 'wp-ultimo' }, gt_panels);
 
-  }
+	}
 
-  function wu_format_options(options) {
+	function PageSearchControl(props) {
 
-    const formatted_options = [];
+		const [ search, setSearch ] = element.useState('');
+		const [ results, setResults ] = element.useState([]);
+		const [ selected, setSelected ] = element.useState(null);
+		const [ searchError, setSearchError ] = element.useState('');
+		const [ selectedError, setSelectedError ] = element.useState('');
+		const value = String(props.value || 0);
+		const editor = wp.data.select('core/editor');
+		const postId = editor && editor.getCurrentPostId ? Number(editor.getCurrentPostId()) : 0;
+		const currentPostId = Number.isInteger(postId) && postId > 0 ? postId : 0;
 
-    _.each(options, function(label, value) {
+		function pageOption(page) {
 
-      formatted_options.push({
-        label,
-        value,
-      });
+			return {
+				value: String(page.id),
+				label: wp.htmlEntities.decodeEntities(page.title.rendered.replace(/<[^>]*>/g, '')) || wp.i18n.__('(no title)', 'ultimate-multisite'),
+			};
 
-    });
+		}
 
-    return formatted_options;
+		element.useEffect(function() {
 
-  }
+			let active = true;
+			setSelectedError('');
 
-  function wu_get_field_component(field_type, field) {
+			if (value === '0') {
 
-    let component = TextControl;
+				setSelected(null);
+				return;
 
-    switch (field_type) {
+			}
 
-    case 'toggle':
+			wp.apiFetch({ path: '/wp/v2/pages/' + encodeURIComponent(value) + '?_fields=id,title,status' }).then(function(page) {
 
-      component = ToggleControl;
+				if (active) {
 
-      break;
+					if (page.status === 'publish') {
 
-    case 'number':
+						setSelected(pageOption(page));
 
-      if (field.max && field.min) {
+					} else {
 
-        component = RangeControl;
+						setSelected(null);
+						setSelectedError(wp.i18n.__('The saved page is no longer published. Choose another page or keep the saved ID.', 'ultimate-multisite'));
 
-      } else {
+					}
 
-        component = NumberControl;
+				}
 
-      }
+			}).catch(function() {
 
-      break;
+				if (active) {
 
-    case 'textarea':
+					setSelected(null);
+					setSelectedError(wp.i18n.__('Could not load the saved page. Its ID has not been changed.', 'ultimate-multisite'));
 
-      component = TextareaControl;
+				}
 
-      break;
+			});
 
-    case 'select':
+			return function() {
 
-      component = SelectControl;
+				active = false;
 
-      break;
+			};
 
-    case 'note':
+		}, [ value ]);
 
-      component = Notice;
+		element.useEffect(function() {
 
-      break;
+			let active = true;
+			setSearchError('');
+			setResults([]);
 
-    default:
+			if (search.trim().length < 2) {
 
-      component = TextControl;
+				return;
 
-      break;
+			}
 
-    }
+			const timer = window.setTimeout(function() {
 
-    return component;
+				const path = '/wp/v2/pages?status=publish&per_page=20&_fields=id,title&search=' + encodeURIComponent(search.trim()) + (currentPostId ? '&exclude=' + encodeURIComponent(currentPostId) : '');
 
-  }
+				wp.apiFetch({ path }).then(function(pages) {
 
-  /* eslint-disable */
+					if (active) {
+
+						setResults(pages.map(pageOption));
+
+					}
+
+				}).catch(function() {
+
+					if (active) {
+
+						setSearchError(wp.i18n.__('Page search failed. Please try again.', 'ultimate-multisite'));
+
+					}
+
+				});
+
+			}, 300);
+
+			return function() {
+
+				active = false;
+				window.clearTimeout(timer);
+
+			};
+
+		}, [ search, currentPostId ]);
+
+		const options = props.options.map(function(option) {
+
+			return { ...option, value: String(option.value) };
+
+		});
+
+		if (value !== '0') {
+
+			options.push(selected && selected.value === value ? selected : {
+				value,
+				// translators: %s is the saved page ID.
+				label: wp.i18n.sprintf(wp.i18n.__('Page #%s', 'ultimate-multisite'), value),
+			});
+
+		}
+
+		results.forEach(function(option) {
+
+			if (! options.some(function(existing) {
+
+				return existing.value === option.value;
+
+			})) {
+
+				options.push(option);
+
+			}
+
+		});
+
+		const controlProps = {
+			label: props.label,
+			help: selectedError || searchError || props.help,
+			value,
+			options,
+			onChange(nextValue) {
+
+				props.onChange(nextValue || '0');
+
+			},
+		};
+
+		if (components.ComboboxControl) {
+
+			return el(components.ComboboxControl, {
+				...controlProps,
+				onFilterValueChange(nextSearch) {
+
+					setSearch(nextSearch || '');
+
+				},
+				allowReset: true,
+			});
+
+		}
+
+		// Older WordPress versions still get bounded search, never a full-page list.
+		return el(element.Fragment, null,
+			el(TextControl, { label: props.placeholder, value: search, onChange: setSearch }),
+			el(SelectControl, controlProps)
+		);
+
+	}
+
+	function wu_format_options(options) {
+
+		const formatted_options = [];
+
+		_.each(options, function(label, value) {
+
+			formatted_options.push({
+				label,
+				value,
+			});
+
+		});
+
+		return formatted_options;
+
+	}
+
+	function wu_get_field_component(field_type, field) {
+
+		let component = TextControl;
+
+		switch (field_type) {
+
+			case 'toggle':
+
+				component = ToggleControl;
+
+				break;
+
+			case 'number':
+
+				if (field.max && field.min) {
+
+					component = RangeControl;
+
+				} else {
+
+					component = NumberControl;
+
+				}
+
+				break;
+
+			case 'textarea':
+
+				component = TextareaControl;
+
+				break;
+
+			case 'select':
+
+				component = SelectControl;
+
+				break;
+
+			case 'note':
+
+				component = Notice;
+
+				break;
+
+			default:
+
+				component = TextControl;
+
+				break;
+
+		}
+
+		return component;
+
+	}
+
+	/* eslint-disable */
   function wu_badge() {
 
     return el('svg', {
@@ -271,9 +450,9 @@
   /* eslint-enable */
 
 }(
-  window.wp.blocks,
-  window.wp.element,
-  window.wp.components,
-  window.wu_blocks,
-  window._
+	window.wp.blocks,
+	window.wp.element,
+	window.wp.components,
+	window.wu_blocks,
+	window._
 ));

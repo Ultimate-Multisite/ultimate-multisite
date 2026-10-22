@@ -22,3 +22,17 @@ ring, while the selected control retains the blue card border. Contact-us cards
 use a non-submitting button so they remain keyboard operable without becoming a
 checkout selection. After a plan refresh, focus returns to the selected radio
 only when the visitor has not moved it elsewhere during the request.
+
+## Page selection in element settings
+
+Page choices use asynchronous search, never a dropdown preloaded with every page.
+The block inspector uses WordPress's keyboard-accessible combobox; shortcode and
+customization forms reuse the existing Selectize model selector. Keep results
+bounded to at most 20 published pages on the current site, debounce typing, and
+hydrate only the saved selection. Preserve the zero-valued Current Page/Default
+choice and existing saved IDs, including when a lookup fails. Show search errors
+without silently changing the selection. Controls follow their container width
+in both the narrow editor sidebar and mobile forms; do not add fixed widths.
+Editor-only settings are resolved on the editor-assets hook, not on unrelated
+admin requests. See the block-editor widget manager and Base_Element page-search
+field helper for the shared implementation.

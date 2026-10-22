@@ -711,6 +711,7 @@ abstract class Base_Element {
 			'placeholder' => __('Search pages...', 'ultimate-multisite'),
 			'html_attr'   => [
 				'data-model'        => 'page',
+				'data-page-search'  => 1,
 				'data-value-field'  => 'ID',
 				'data-label-field'  => 'post_title',
 				'data-search-field' => 'post_title',

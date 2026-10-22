@@ -92,6 +92,43 @@ class Block_Editor_Widget_Manager_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Registering a handle must not resolve options on unrelated admin pages.
+	 */
+	public function test_settings_are_resolved_only_when_editor_assets_are_enqueued(): void {
+
+		$calls  = 0;
+		$filter = static function ($blocks) use (&$calls) {
+			++$calls;
+			return $blocks;
+		};
+		add_filter('wu_blocks', $filter);
+
+		try {
+			$this->manager->register_scripts();
+			$this->assertSame(0, $calls);
+			$this->assertTrue(wp_script_is('wu-blocks', 'registered'));
+
+			$this->manager->enqueue_editor_scripts();
+			$this->assertSame(1, $calls);
+			$this->assertTrue(wp_script_is('wu-blocks', 'enqueued'));
+		} finally {
+			remove_filter('wu_blocks', $filter);
+			wp_dequeue_script('wu-blocks');
+		}
+	}
+
+	/**
+	 * Editor settings use the editor-only lifecycle hook.
+	 */
+	public function test_init_hooks_settings_to_block_editor_assets(): void {
+
+		set_current_screen('dashboard');
+		$this->manager->init();
+		$this->assertNotFalse(has_action('enqueue_block_editor_assets', [$this->manager, 'enqueue_editor_scripts']));
+		$this->assertFalse(has_action('init', [$this->manager, 'enqueue_editor_scripts']));
+	}
+
+	/**
 	 * Test is_block_preview returns true in REST edit context.
 	 *
 	 * @runInSeparateProcess

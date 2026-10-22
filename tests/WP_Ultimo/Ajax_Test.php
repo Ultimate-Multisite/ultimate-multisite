@@ -113,7 +113,7 @@ class Ajax_Test extends WP_UnitTestCase {
 
 		$handler = function () {
 			return function ($message) {
-				throw new \WPAjaxDieContinueException( (string) $message );
+				throw new \WPAjaxDieContinueException( esc_html((string) $message) );
 			};
 		};
 
@@ -136,10 +136,10 @@ class Ajax_Test extends WP_UnitTestCase {
 	/**
 	 * Call a callable inside an AJAX context, capturing JSON output.
 	 *
-	 * @param callable $callable The callable to invoke.
+	 * @param callable $callback The callable to invoke.
 	 * @return array{output: string, exception: bool}
 	 */
-	private function call_in_ajax_context(callable $callable): array {
+	private function call_in_ajax_context(callable $callback): array {
 
 		$handler          = $this->install_ajax_die_handler();
 		$exception_caught = false;
@@ -147,7 +147,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		ob_start();
 
 		try {
-			$callable();
+			$callback();
 		} catch ( \WPAjaxDieContinueException $e ) {
 			$exception_caught = true;
 		}
@@ -508,6 +508,69 @@ class Ajax_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Page autocomplete honors the term, permissions, exclusions and result cap.
+	 */
+	public function test_page_autocomplete_is_bounded_and_searchable(): void {
+
+		$previous = get_current_user_id();
+		$admin    = self::factory()->user->create(['role' => 'administrator']);
+		grant_super_admin($admin);
+		wp_set_current_user($admin);
+		$pages = self::factory()->post->create_many(
+			25,
+			[
+				'post_type'   => 'page',
+				'post_status' => 'publish',
+				'post_title'  => 'UMPageNeedle search match',
+			]
+		);
+		self::factory()->post->create([
+			'post_type'   => 'page',
+			'post_status' => 'publish',
+			'post_title'  => 'Unrelated title',
+		]);
+		self::factory()->post->create([
+			'post_type'   => 'page',
+			'post_status' => 'draft',
+			'post_title'  => 'UMPageNeedle draft',
+		]);
+		$_REQUEST['model']   = 'page';
+		$_REQUEST['query']   = [
+			'search' => '*UMPageNeedle*',
+			'number' => 9999,
+		];
+		$_REQUEST['exclude'] = (string) $pages[0];
+
+		try {
+			$result  = $this->call_in_ajax_context([$this->ajax, 'search_models']);
+			$decoded = json_decode($result['output'], true);
+			$this->assertCount(20, $decoded);
+
+			foreach ($decoded as $page) {
+				$this->assertStringContainsString('UMPageNeedle', $page['post_title']);
+				$this->assertSame('publish', $page['post_status']);
+				$this->assertNotSame($pages[0], $page['ID']);
+			}
+
+			$_REQUEST['query']['number'] = 5;
+			$result                      = $this->call_in_ajax_context([$this->ajax, 'search_models']);
+			$this->assertCount(5, json_decode($result['output'], true));
+
+			$_REQUEST['query']['search'] = '*UMPageNoSuchMatch*';
+			$result                      = $this->call_in_ajax_context([$this->ajax, 'search_models']);
+			$this->assertSame([], json_decode($result['output'], true));
+
+			wp_set_current_user(0);
+			$_REQUEST['query']['search'] = '*UMPageNeedle*';
+			$result                      = $this->call_in_ajax_context([$this->ajax, 'search_models']);
+			$this->assertSame([], json_decode($result['output'], true));
+		} finally {
+			revoke_super_admin($admin);
+			wp_set_current_user($previous);
+		}
+	}
+
+	/**
 	 * Test search_models with unknown model and no matching function returns empty JSON array.
 	 */
 	public function test_search_models_unknown_model_returns_empty_array(): void {
@@ -806,7 +869,7 @@ class Ajax_Test extends WP_UnitTestCase {
 		$filter_applied = false;
 		add_filter(
 			'wu_search_models_functions',
-			function ($functions) use (&$filter_applied) {
+			function () use (&$filter_applied) {
 				$filter_applied = true;
 				return [];
 			}

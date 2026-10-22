@@ -173,12 +173,20 @@ class Ajax implements \WP_Ultimo\Interfaces\Singleton {
 		if ('user' === $args['model']) {
 			$results = $this->search_wordpress_users($query);
 		} elseif ('page' === $args['model']) {
+			$search = isset($query['search']) && is_scalar($query['search']) ? sanitize_text_field(wp_unslash((string) $query['search'])) : '';
+			$number = isset($query['number']) && is_scalar($query['number']) ? absint($query['number']) : 10;
+
 			$results = get_posts(
 				[
-					'post_type'   => 'page',
-					'post_status' => 'publish',
-					'numberposts' => -1,
-					'exclude'     => $query['id__not_in'] ?? '', // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
+					'post_type'              => 'page',
+					'post_status'            => 'publish',
+					'numberposts'            => min(20, max(1, $number)),
+					's'                      => trim($search, '*'),
+					'post__in'               => array_slice(wp_parse_id_list($query['id__in'] ?? []), 0, 20),
+					'post__not_in'           => wp_parse_id_list($query['id__not_in'] ?? []), // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
+					'update_post_meta_cache' => false,
+					'update_post_term_cache' => false,
+					'lazy_load_term_meta'    => false,
 				]
 			);
 		} elseif ('setting' === $args['model']) {

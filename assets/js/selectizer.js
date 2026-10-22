@@ -164,7 +164,17 @@
 
 			if (vue_app && typeof window[ 'wu_' + vue_app ] !== 'undefined') {
 
-				window[ 'wu_' + vue_app ][ input.attr('name') ] = value;
+				const app = window[ 'wu_' + vue_app ];
+
+				if (input.data('page-search') && app.attributes) {
+
+					app.attributes[ input.attr('name') ] = value || '0';
+
+				} else {
+
+					app[ input.attr('name') ] = value;
+
+				}
 
 			} // end if;
 
