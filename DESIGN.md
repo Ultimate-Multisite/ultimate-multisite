@@ -36,6 +36,7 @@ in both the narrow editor sidebar and mobile forms; do not add fixed widths.
 Editor-only settings are resolved on the editor-assets hook, not on unrelated
 admin requests. See the block-editor widget manager and Base_Element page-search
 field helper for the shared implementation.
+
 ## Domain DNS lookup
 
 DNS lookup without a configured integration is a normal read-only state, not a
@@ -52,3 +53,13 @@ Keep the existing stacked widget layout on desktop and mobile. List nameservers
 on separate lines and allow long hostnames to wrap without truncation. Hide the
 summary during loading or lookup errors; preserve the existing record table and
 provider-managed editing controls.
+
+## My Sites toolbar
+
+The WordPress My Sites toolbar keeps the current site and the full My Sites
+administration link available without JavaScript. Additional sites load only
+when the menu is opened, in bounded pages, with an explicit load-more action.
+Loading, empty, and failed states stay in the menu; failed requests provide a
+retry link. Keyboard, hover, and touch can request the first page, while Escape
+returns focus to the menu trigger. Lazy dashboard links retain the existing
+same-origin magic-link handoff.
