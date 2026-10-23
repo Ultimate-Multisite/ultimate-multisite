@@ -80,6 +80,7 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 		add_action('wu_remove_domain', [$this, 'on_remove_domain'], 10, 2);
 		add_action('wu_domain_manager_dns_propagation_finished', [$this, 'request_ssl'], 10, 1);
 		add_action(BigScoots_Integration::RECONCILE_SITE_HOOK, [$this, 'reconcile_site'], 10, 1);
+		add_action(BigScoots_Integration::RECONCILE_BATCH_HOOK, [$this, 'reconcile_site_batch'], 10, 1);
 	}
 
 	/**
@@ -142,6 +143,19 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 	 * @return void
 	 */
 	public function on_remove_subdomain(string $subdomain, int $site_id): void {
+	}
+
+	/**
+	 * Processes one scheduled batch of existing sites.
+	 *
+	 * @since 2.16.2
+	 *
+	 * @param int $offset Site-query offset for this batch.
+	 * @return void
+	 */
+	public function reconcile_site_batch(int $offset): void {
+
+		$this->get_bigscoots()->reconcile_existing_sites_batch($offset);
 	}
 
 	/**

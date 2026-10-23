@@ -14,7 +14,7 @@ class BigScoots_Domain_Mapping_Test extends WP_UnitTestCase {
 		parent::setUp();
 
 		$this->integration = $this->getMockBuilder(BigScoots_Integration::class)
-			->onlyMethods(['bigscoots_api_call', 'get_credential', 'test_connection'])
+			->onlyMethods(['bigscoots_api_call', 'get_credential', 'test_connection', 'reconcile_existing_sites_batch'])
 			->getMock();
 
 		$this->integration->method('get_credential')
@@ -39,8 +39,19 @@ class BigScoots_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->assertIsInt(has_action('wu_remove_domain', [$this->module, 'on_remove_domain']));
 		$this->assertIsInt(has_action('wu_domain_manager_dns_propagation_finished', [$this->module, 'request_ssl']));
 		$this->assertIsInt(has_action(BigScoots_Integration::RECONCILE_SITE_HOOK, [$this->module, 'reconcile_site']));
+		$this->assertIsInt(has_action(BigScoots_Integration::RECONCILE_BATCH_HOOK, [$this->module, 'reconcile_site_batch']));
 		$this->assertFalse(has_action('wu_add_subdomain', [$this->module, 'on_add_subdomain']));
 		$this->assertFalse(has_action('wu_remove_subdomain', [$this->module, 'on_remove_subdomain']));
+	}
+
+	public function test_reconcile_site_batch_delegates_to_integration(): void {
+
+		$this->integration->expects($this->once())
+			->method('reconcile_existing_sites_batch')
+			->with(50)
+			->willReturn(0);
+
+		$this->module->reconcile_site_batch(50);
 	}
 
 	public function test_reconcile_site_updates_domain_and_requests_ssl_without_creating_site(): void {

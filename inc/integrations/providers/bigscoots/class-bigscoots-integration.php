@@ -39,6 +39,22 @@ class BigScoots_Integration extends Integration {
 	public const RECONCILE_SITE_HOOK = 'wu_bigscoots_reconcile_site';
 
 	/**
+	 * Async hook used to process a batch of existing sites.
+	 *
+	 * @since 2.16.2
+	 * @var string
+	 */
+	public const RECONCILE_BATCH_HOOK = 'wu_bigscoots_reconcile_site_batch';
+
+	/**
+	 * Number of existing sites processed by each reconciliation batch.
+	 *
+	 * @since 2.16.2
+	 * @var int
+	 */
+	private const RECONCILE_BATCH_SIZE = 50;
+
+	/**
 	 * User-Agent header sent with API requests.
 	 *
 	 * @since 2.15.2
@@ -198,28 +214,53 @@ class BigScoots_Integration extends Integration {
 		parent::update_credentials($values);
 
 		if ( ! empty($values['WU_BIGSCOOTS_PRIMARY_UUID']) && $this->is_setup()) {
-			$this->enqueue_existing_site_reconciliation();
+			$this->schedule_existing_site_reconciliation();
 		}
 	}
 
 	/**
-	 * Schedules each existing subsite for WPO domain and SSL reconciliation.
+	 * Schedules network-wide WPO domain and SSL reconciliation.
+	 *
+	 * The wizard request enqueues only this coordinator action. Site discovery
+	 * and per-site action creation happen later in bounded background batches.
+	 *
+	 * @since 2.16.2
+	 * @return int The scheduled action ID, or zero when already scheduled.
+	 */
+	public function schedule_existing_site_reconciliation() {
+
+		$args = ['offset' => 0];
+
+		if (wu_next_scheduled_action(self::RECONCILE_BATCH_HOOK, $args, 'domain')) {
+			return 0;
+		}
+
+		return wu_enqueue_async_action(self::RECONCILE_BATCH_HOOK, $args, 'domain');
+	}
+
+	/**
+	 * Schedules one batch of existing subsites for reconciliation.
 	 *
 	 * WPO already discovers WordPress sites from the multisite database. The
 	 * reconciliation therefore updates the domain and requests SSL without
 	 * calling the WPO site-creation endpoint.
 	 *
 	 * @since 2.16.2
-	 * @return int Number of reconciliation actions enqueued.
+	 *
+	 * @param int $offset Site-query offset for this batch.
+	 * @return int Number of per-site reconciliation actions enqueued.
 	 */
-	public function enqueue_existing_site_reconciliation() {
+	public function reconcile_existing_sites_batch(int $offset = 0) {
 
 		$main_site_id = get_main_site_id(get_current_network_id());
 		$site_ids     = get_sites(
 			[
 				'fields'     => 'ids',
 				'network_id' => get_current_network_id(),
-				'number'     => 0,
+				'number'     => self::RECONCILE_BATCH_SIZE,
+				'offset'     => max(0, $offset),
+				'orderby'    => 'id',
+				'order'      => 'ASC',
 			]
 		);
 		$enqueued     = 0;
@@ -239,6 +280,14 @@ class BigScoots_Integration extends Integration {
 
 			wu_enqueue_async_action(self::RECONCILE_SITE_HOOK, $args, 'domain');
 			++$enqueued;
+		}
+
+		if (self::RECONCILE_BATCH_SIZE === count($site_ids)) {
+			$next_args = ['offset' => max(0, $offset) + self::RECONCILE_BATCH_SIZE];
+
+			if ( ! wu_next_scheduled_action(self::RECONCILE_BATCH_HOOK, $next_args, 'domain')) {
+				wu_enqueue_async_action(self::RECONCILE_BATCH_HOOK, $next_args, 'domain');
+			}
 		}
 
 		return $enqueued;

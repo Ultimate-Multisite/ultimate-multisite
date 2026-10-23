@@ -75,7 +75,35 @@ class BigScoots_Integration_Test extends WP_UnitTestCase {
 		$this->assertSame(['site-uuid' => 'example.com — site-uuid'], $fields['WU_BIGSCOOTS_PRIMARY_UUID']['options']);
 	}
 
-	public function test_existing_site_reconciliation_is_queued_once_per_subsite(): void {
+	public function test_existing_site_reconciliation_schedules_only_one_coordinator_action(): void {
+
+		$queries     = 0;
+		$query_spy   = function ($sites) use (&$queries) {
+
+			++$queries;
+
+			return $sites;
+		};
+		$integration = new BigScoots_Integration();
+
+		add_filter('sites_pre_query', $query_spy);
+
+		try {
+			$this->assertGreaterThan(0, $integration->schedule_existing_site_reconciliation());
+			$this->assertSame(0, $integration->schedule_existing_site_reconciliation());
+		} finally {
+			remove_filter('sites_pre_query', $query_spy);
+		}
+
+		$args = ['offset' => 0];
+
+		$this->assertSame(0, $queries);
+		$this->assertNotFalse(wu_next_scheduled_action(BigScoots_Integration::RECONCILE_BATCH_HOOK, $args, 'domain'));
+
+		wu_unschedule_all_actions(BigScoots_Integration::RECONCILE_BATCH_HOOK, $args, 'domain');
+	}
+
+	public function test_existing_site_reconciliation_batch_is_queued_once_per_subsite(): void {
 
 		$site_ids    = [
 			self::factory()->blog->create(),
@@ -83,7 +111,7 @@ class BigScoots_Integration_Test extends WP_UnitTestCase {
 		];
 		$integration = new BigScoots_Integration();
 
-		$this->assertSame(2, $integration->enqueue_existing_site_reconciliation());
+		$this->assertSame(2, $integration->reconcile_existing_sites_batch());
 
 		foreach ($site_ids as $site_id) {
 			$args = ['site_id' => $site_id];
@@ -98,21 +126,51 @@ class BigScoots_Integration_Test extends WP_UnitTestCase {
 				'domain'
 			)
 		);
-		$this->assertSame(0, $integration->enqueue_existing_site_reconciliation());
+		$this->assertSame(0, $integration->reconcile_existing_sites_batch());
 
 		foreach ($site_ids as $site_id) {
 			wu_unschedule_all_actions(BigScoots_Integration::RECONCILE_SITE_HOOK, ['site_id' => $site_id], 'domain');
 		}
 	}
 
+	public function test_full_reconciliation_batch_schedules_the_next_batch(): void {
+
+		$site_ids  = range(100, 149);
+		$query_spy = function ($sites, \WP_Site_Query $query) use ($site_ids) {
+
+			$this->assertSame(50, $query->query_vars['number']);
+			$this->assertSame(0, $query->query_vars['offset']);
+
+			return $site_ids;
+		};
+
+		add_filter('sites_pre_query', $query_spy, 10, 2);
+
+		try {
+			$this->assertSame(50, (new BigScoots_Integration())->reconcile_existing_sites_batch());
+		} finally {
+			remove_filter('sites_pre_query', $query_spy, 10);
+		}
+
+		$next_args = ['offset' => 50];
+
+		$this->assertNotFalse(wu_next_scheduled_action(BigScoots_Integration::RECONCILE_BATCH_HOOK, $next_args, 'domain'));
+
+		foreach ($site_ids as $site_id) {
+			wu_unschedule_all_actions(BigScoots_Integration::RECONCILE_SITE_HOOK, ['site_id' => $site_id], 'domain');
+		}
+
+		wu_unschedule_all_actions(BigScoots_Integration::RECONCILE_BATCH_HOOK, $next_args, 'domain');
+	}
+
 	public function test_selecting_primary_site_starts_existing_site_reconciliation(): void {
 
 		$integration = $this->getMockBuilder(BigScoots_Integration::class)
-			->onlyMethods(['is_setup', 'enqueue_existing_site_reconciliation'])
+			->onlyMethods(['is_setup', 'schedule_existing_site_reconciliation'])
 			->getMock();
 
 		$integration->expects($this->once())->method('is_setup')->willReturn(true);
-		$integration->expects($this->once())->method('enqueue_existing_site_reconciliation')->willReturn(0);
+		$integration->expects($this->once())->method('schedule_existing_site_reconciliation')->willReturn(0);
 
 		$integration->update_credentials(['WU_BIGSCOOTS_PRIMARY_UUID' => 'primary-uuid']);
 
