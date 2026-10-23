@@ -59,7 +59,7 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 
 		return [
 			'will'     => [
-				__('Register new network sites with BigScoots WPO', 'ultimate-multisite'),
+				__('Reconcile existing network site domains with BigScoots WPO', 'ultimate-multisite'),
 				__('Keep mapped domains synchronized with their BigScoots multisite records', 'ultimate-multisite'),
 				__('Request SSL certificates after domain DNS propagation is complete', 'ultimate-multisite'),
 			],
@@ -78,13 +78,8 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 
 		add_action('wu_add_domain', [$this, 'on_add_domain'], 10, 2);
 		add_action('wu_remove_domain', [$this, 'on_remove_domain'], 10, 2);
-		add_action('wu_add_subdomain', [$this, 'on_add_subdomain'], 10, 2);
-		add_action('wu_remove_subdomain', [$this, 'on_remove_subdomain'], 10, 2);
 		add_action('wu_domain_manager_dns_propagation_finished', [$this, 'request_ssl'], 10, 1);
-		add_action('wp_insert_site', [$this, 'on_wordpress_site_created'], 20, 1);
-		add_action('wp_delete_site', [$this, 'on_wordpress_site_deleted'], 20, 1);
-		add_action('wu_bigscoots_add_subdirectory_site', [$this, 'on_add_subdomain'], 10, 2);
-		add_action('wu_bigscoots_remove_subdirectory_site', [$this, 'on_remove_subdomain'], 10, 2);
+		add_action(BigScoots_Integration::RECONCILE_SITE_HOOK, [$this, 'reconcile_site'], 10, 1);
 	}
 
 	/**
@@ -116,7 +111,11 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 	}
 
 	/**
-	 * Registers a newly created network subsite with BigScoots.
+	 * Safely reconciles callers of the legacy subdomain callback.
+	 *
+	 * WPO discovers WordPress sites directly. Calling its site-creation endpoint
+	 * for an existing site creates a duplicate, so this callback now performs
+	 * only the domain and SSL reconciliation that existing callers expect.
 	 *
 	 * @since 2.15.2
 	 *
@@ -126,20 +125,15 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 	 */
 	public function on_add_subdomain(string $subdomain, int $site_id): void {
 
-		$response = $this->get_bigscoots()->bigscoots_api_call(
-			'/v1/multi-sites/sub-sites/',
-			'POST',
-			[
-				'primary_uuid' => $this->get_primary_uuid(),
-				'blog_url'     => $this->normalize_site_address($subdomain),
-			]
-		);
-
-		$this->log_result($response, sprintf('register subsite %d', $site_id));
+		$this->reconcile_site($site_id);
 	}
 
 	/**
-	 * Removes a network subsite from BigScoots.
+	 * Preserves the legacy removal callback without deleting a WPO site.
+	 *
+	 * WPO reflects WordPress site deletion automatically. Calling the WPO
+	 * deletion endpoint would attempt to delete a site that WordPress already
+	 * removed and is therefore intentionally avoided.
 	 *
 	 * @since 2.15.2
 	 *
@@ -148,69 +142,31 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 	 * @return void
 	 */
 	public function on_remove_subdomain(string $subdomain, int $site_id): void {
-
-		$response = $this->get_bigscoots()->bigscoots_api_call(
-			$this->get_subsite_endpoint($site_id),
-			'DELETE'
-		);
-
-		$error_data = is_wp_error($response) ? $response->get_error_data() : [];
-
-		if (is_wp_error($response) && 404 === (int) ($error_data['status'] ?? 0)) {
-			wu_log_add('integration-bigscoots', sprintf('BigScoots subsite %d was already absent.', $site_id));
-
-			return;
-		}
-
-		$this->log_result($response, sprintf('remove subsite %d', $site_id));
 	}
 
 	/**
-	 * Registers subdirectory sites that do not emit the subdomain lifecycle hook.
+	 * Reconciles an existing WordPress site with its WPO domain and SSL state.
 	 *
-	 * @since 2.15.2
+	 * @since 2.16.2
 	 *
-	 * @param \WP_Site $site Created WordPress site.
+	 * @param int $site_id Existing WordPress site ID.
 	 * @return void
 	 */
-	public function on_wordpress_site_created($site) {
+	public function reconcile_site(int $site_id): void {
 
-		if (is_subdomain_install() || ! $site instanceof \WP_Site) {
+		$domain = $this->get_active_domain($site_id);
+
+		if ('' === $domain) {
+			$this->log_error(sprintf('Could not reconcile existing site %d because it was not found.', $site_id));
+
 			return;
 		}
 
-		wu_enqueue_async_action(
-			'wu_bigscoots_add_subdirectory_site',
-			[
-				'subdomain' => $site->domain . $site->path,
-				'site_id'   => (int) $site->blog_id,
-			],
-			'domain'
-		);
-	}
-
-	/**
-	 * Removes subdirectory sites that do not emit the subdomain lifecycle hook.
-	 *
-	 * @since 2.15.2
-	 *
-	 * @param \WP_Site $site Deleted WordPress site.
-	 * @return void
-	 */
-	public function on_wordpress_site_deleted($site) {
-
-		if (is_subdomain_install() || ! $site instanceof \WP_Site) {
+		if ( ! $this->update_subsite_domain($site_id, $domain, 'reconcile existing site domain')) {
 			return;
 		}
 
-		wu_enqueue_async_action(
-			'wu_bigscoots_remove_subdirectory_site',
-			[
-				'subdomain' => $site->domain . $site->path,
-				'site_id'   => (int) $site->blog_id,
-			],
-			'domain'
-		);
+		$this->request_ssl_for_site($site_id, 'request SSL while reconciling existing site');
 	}
 
 	/**
@@ -245,16 +201,7 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 			return;
 		}
 
-		$response = $this->get_bigscoots()->bigscoots_api_call(
-			sprintf(
-				'/v1/multi-sites/sub-sites/ssl/%s/%d',
-				rawurlencode($this->get_primary_uuid()),
-				$site_id
-			),
-			'POST'
-		);
-
-		$this->log_result($response, sprintf('request SSL for subsite %d', $site_id));
+		$this->request_ssl_for_site($site_id, 'request SSL');
 	}
 
 	/**
@@ -351,6 +298,31 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 	}
 
 	/**
+	 * Requests an SSL certificate for a specific existing WordPress site.
+	 *
+	 * @since 2.16.2
+	 *
+	 * @param int    $site_id Site ID.
+	 * @param string $action  Log context.
+	 * @return bool Whether BigScoots accepted the request.
+	 */
+	private function request_ssl_for_site(int $site_id, string $action): bool {
+
+		$response = $this->get_bigscoots()->bigscoots_api_call(
+			sprintf(
+				'/v1/multi-sites/sub-sites/ssl/%s/%d',
+				rawurlencode($this->get_primary_uuid()),
+				$site_id
+			),
+			'POST'
+		);
+
+		$this->log_result($response, sprintf('%s for subsite %d', $action, $site_id));
+
+		return ! is_wp_error($response);
+	}
+
+	/**
 	 * Gets the effective primary hostname for a site.
 	 *
 	 * Resolving this when the asynchronous action runs prevents stale secondary
@@ -437,29 +409,6 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 		}
 
 		return strtolower(trim($domain, " \t\n\r\0\x0B./"));
-	}
-
-	/**
-	 * Normalizes a site address while preserving a subdirectory path.
-	 *
-	 * @since 2.15.2
-	 *
-	 * @param string $address Site hostname or URL.
-	 * @return string
-	 */
-	private function normalize_site_address(string $address): string {
-
-		$url  = str_contains($address, '://') ? $address : 'https://' . ltrim($address, '/');
-		$host = wp_parse_url($url, PHP_URL_HOST);
-		$path = wp_parse_url($url, PHP_URL_PATH);
-
-		if ( ! is_string($host) || '' === $host) {
-			return $this->normalize_domain($address);
-		}
-
-		$path = is_string($path) ? trim($path, '/') : '';
-
-		return strtolower($host . ('' === $path ? '' : '/' . $path));
 	}
 
 	/**

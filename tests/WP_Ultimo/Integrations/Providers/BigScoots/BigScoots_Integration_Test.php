@@ -75,6 +75,50 @@ class BigScoots_Integration_Test extends WP_UnitTestCase {
 		$this->assertSame(['site-uuid' => 'example.com — site-uuid'], $fields['WU_BIGSCOOTS_PRIMARY_UUID']['options']);
 	}
 
+	public function test_existing_site_reconciliation_is_queued_once_per_subsite(): void {
+
+		$site_ids    = [
+			self::factory()->blog->create(),
+			self::factory()->blog->create(),
+		];
+		$integration = new BigScoots_Integration();
+
+		$this->assertSame(2, $integration->enqueue_existing_site_reconciliation());
+
+		foreach ($site_ids as $site_id) {
+			$args = ['site_id' => $site_id];
+
+			$this->assertNotFalse(wu_next_scheduled_action(BigScoots_Integration::RECONCILE_SITE_HOOK, $args, 'domain'));
+		}
+
+		$this->assertFalse(
+			wu_next_scheduled_action(
+				BigScoots_Integration::RECONCILE_SITE_HOOK,
+				['site_id' => get_main_site_id(get_current_network_id())],
+				'domain'
+			)
+		);
+		$this->assertSame(0, $integration->enqueue_existing_site_reconciliation());
+
+		foreach ($site_ids as $site_id) {
+			wu_unschedule_all_actions(BigScoots_Integration::RECONCILE_SITE_HOOK, ['site_id' => $site_id], 'domain');
+		}
+	}
+
+	public function test_selecting_primary_site_starts_existing_site_reconciliation(): void {
+
+		$integration = $this->getMockBuilder(BigScoots_Integration::class)
+			->onlyMethods(['is_setup', 'enqueue_existing_site_reconciliation'])
+			->getMock();
+
+		$integration->expects($this->once())->method('is_setup')->willReturn(true);
+		$integration->expects($this->once())->method('enqueue_existing_site_reconciliation')->willReturn(0);
+
+		$integration->update_credentials(['WU_BIGSCOOTS_PRIMARY_UUID' => 'primary-uuid']);
+
+		delete_network_option(null, 'wu_hosting_credential_WU_BIGSCOOTS_PRIMARY_UUID');
+	}
+
 	public function test_detect_requires_all_credentials(): void {
 
 		$integration = $this->getMockBuilder(BigScoots_Integration::class)

@@ -31,6 +31,14 @@ class BigScoots_Integration extends Integration {
 	public const API_BASE_URL = 'https://api.bigscoots.com';
 
 	/**
+	 * Async hook used to reconcile an existing WordPress site with WPO.
+	 *
+	 * @since 2.16.2
+	 * @var string
+	 */
+	public const RECONCILE_SITE_HOOK = 'wu_bigscoots_reconcile_site';
+
+	/**
 	 * User-Agent header sent with API requests.
 	 *
 	 * @since 2.15.2
@@ -175,6 +183,65 @@ class BigScoots_Integration extends Integration {
 				],
 			],
 		];
+	}
+
+	/**
+	 * Updates selected resources and schedules existing sites for reconciliation.
+	 *
+	 * @since 2.16.2
+	 *
+	 * @param array $values Key => Value pairs of credential constants.
+	 * @return void
+	 */
+	public function update_credentials(array $values) {
+
+		parent::update_credentials($values);
+
+		if ( ! empty($values['WU_BIGSCOOTS_PRIMARY_UUID']) && $this->is_setup()) {
+			$this->enqueue_existing_site_reconciliation();
+		}
+	}
+
+	/**
+	 * Schedules each existing subsite for WPO domain and SSL reconciliation.
+	 *
+	 * WPO already discovers WordPress sites from the multisite database. The
+	 * reconciliation therefore updates the domain and requests SSL without
+	 * calling the WPO site-creation endpoint.
+	 *
+	 * @since 2.16.2
+	 * @return int Number of reconciliation actions enqueued.
+	 */
+	public function enqueue_existing_site_reconciliation() {
+
+		$main_site_id = get_main_site_id(get_current_network_id());
+		$site_ids     = get_sites(
+			[
+				'fields'     => 'ids',
+				'network_id' => get_current_network_id(),
+				'number'     => 0,
+			]
+		);
+		$enqueued     = 0;
+
+		foreach ($site_ids as $site_id) {
+			$site_id = (int) $site_id;
+
+			if ($main_site_id === $site_id) {
+				continue;
+			}
+
+			$args = ['site_id' => $site_id];
+
+			if (wu_next_scheduled_action(self::RECONCILE_SITE_HOOK, $args, 'domain')) {
+				continue;
+			}
+
+			wu_enqueue_async_action(self::RECONCILE_SITE_HOOK, $args, 'domain');
+			++$enqueued;
+		}
+
+		return $enqueued;
 	}
 
 	/**

@@ -37,38 +37,57 @@ class BigScoots_Domain_Mapping_Test extends WP_UnitTestCase {
 
 		$this->assertIsInt(has_action('wu_add_domain', [$this->module, 'on_add_domain']));
 		$this->assertIsInt(has_action('wu_remove_domain', [$this->module, 'on_remove_domain']));
-		$this->assertIsInt(has_action('wu_add_subdomain', [$this->module, 'on_add_subdomain']));
-		$this->assertIsInt(has_action('wu_remove_subdomain', [$this->module, 'on_remove_subdomain']));
 		$this->assertIsInt(has_action('wu_domain_manager_dns_propagation_finished', [$this->module, 'request_ssl']));
-		$this->assertIsInt(has_action('wp_insert_site', [$this->module, 'on_wordpress_site_created']));
-		$this->assertIsInt(has_action('wp_delete_site', [$this->module, 'on_wordpress_site_deleted']));
-		$this->assertIsInt(has_action('wu_bigscoots_add_subdirectory_site', [$this->module, 'on_add_subdomain']));
-		$this->assertIsInt(has_action('wu_bigscoots_remove_subdirectory_site', [$this->module, 'on_remove_subdomain']));
+		$this->assertIsInt(has_action(BigScoots_Integration::RECONCILE_SITE_HOOK, [$this->module, 'reconcile_site']));
+		$this->assertFalse(has_action('wu_add_subdomain', [$this->module, 'on_add_subdomain']));
+		$this->assertFalse(has_action('wu_remove_subdomain', [$this->module, 'on_remove_subdomain']));
 	}
 
-	public function test_on_add_subdomain_registers_site(): void {
+	public function test_reconcile_site_updates_domain_and_requests_ssl_without_creating_site(): void {
 
-		$this->integration->expects($this->once())
+		$site_id    = self::factory()->blog->create();
+		$site_model = wu_get_site($site_id);
+		$domain     = wp_parse_url($site_model->get_active_site_url(), PHP_URL_HOST);
+		$calls      = 0;
+
+		$this->integration->expects($this->exactly(2))
 			->method('bigscoots_api_call')
-			->with(
-				'/v1/multi-sites/sub-sites/',
-				'POST',
-				[
-					'primary_uuid' => 'primary-uuid',
-					'blog_url'     => 'customer.example.com/shop',
-				]
-			)
-			->willReturn((object) ['success' => true]);
+			->willReturnCallback(function (string $endpoint, string $method, array $data = []) use ($site_id, $domain, &$calls) {
 
-		$this->module->on_add_subdomain('https://customer.example.com/shop/', 27);
+				++$calls;
+
+				if (1 === $calls) {
+					$this->assertSame('/v1/multi-sites/sub-sites/primary-uuid/' . $site_id, $endpoint);
+					$this->assertSame('PATCH', $method);
+					$this->assertSame(['domain' => $domain], $data);
+				} else {
+					$this->assertSame('/v1/multi-sites/sub-sites/ssl/primary-uuid/' . $site_id, $endpoint);
+					$this->assertSame('POST', $method);
+					$this->assertSame([], $data);
+				}
+
+				return (object) ['success' => true];
+			});
+
+		$this->module->reconcile_site($site_id);
+		wp_cache_delete($site_id, 'wu-sites');
 	}
 
-	public function test_on_remove_subdomain_deletes_site_by_wordpress_blog_id(): void {
+	public function test_legacy_add_subdomain_callback_reconciles_without_creating_site(): void {
 
+		$site_id = self::factory()->blog->create();
 		$this->integration->expects($this->once())
 			->method('bigscoots_api_call')
-			->with('/v1/multi-sites/sub-sites/primary-uuid/27', 'DELETE')
-			->willReturn((object) ['success' => true]);
+			->with('/v1/multi-sites/sub-sites/primary-uuid/' . $site_id, 'PATCH', $this->anything())
+			->willReturn(new \WP_Error('stop-after-patch', 'Stop before SSL.'));
+
+		$this->module->on_add_subdomain('ignored.example.com', $site_id);
+		wp_cache_delete($site_id, 'wu-sites');
+	}
+
+	public function test_legacy_remove_subdomain_callback_does_not_call_api(): void {
+
+		$this->integration->expects($this->never())->method('bigscoots_api_call');
 
 		$this->module->on_remove_subdomain('customer.example.com', 27);
 	}
@@ -127,10 +146,10 @@ class BigScoots_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->module->on_remove_domain('secondary.example.net', $site_id);
 	}
 
-	public function test_on_remove_last_domain_restores_wordpress_site_domain(): void {
+	public function test_on_remove_last_domain_restores_active_site_domain(): void {
 
 		$site_id         = self::factory()->blog->create();
-		$original_domain = get_site($site_id)->domain;
+		$original_domain = wp_parse_url(wu_get_site($site_id)->get_active_site_url(), PHP_URL_HOST);
 
 		$this->integration->expects($this->once())
 			->method('bigscoots_api_call')
