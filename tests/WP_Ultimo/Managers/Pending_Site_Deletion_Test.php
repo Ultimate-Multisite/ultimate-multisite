@@ -63,9 +63,9 @@ class Pending_Site_Deletion_Test extends \WP_UnitTestCase {
 		$_REQUEST['model'] = 'membership_meta_pending_site';
 		$_REQUEST['id']    = '999999';
 
-		$membership = null;
-		$check_object = function ($object) use (&$membership) {
-			$membership = $object;
+		$membership   = null;
+		$check_object = function ($filtered_membership) use (&$membership) {
+			$membership = $filtered_membership;
 
 			throw new \RuntimeException('Stop before the unavailable form renderer exits.');
 		};
