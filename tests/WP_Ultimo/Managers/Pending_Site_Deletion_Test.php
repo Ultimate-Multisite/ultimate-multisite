@@ -59,6 +59,30 @@ class Pending_Site_Deletion_Test extends \WP_UnitTestCase {
 		$this->assertStringContainsString('value="999999"', $html);
 	}
 
+	public function test_orphaned_pending_site_fallback_requires_pending_site_metadata(): void {
+		$_REQUEST['model'] = 'membership_meta_pending_site';
+		$_REQUEST['id']    = '999999';
+
+		$membership = null;
+		$check_object = function ($object) use (&$membership) {
+			$membership = $object;
+
+			throw new \RuntimeException('Stop before the unavailable form renderer exits.');
+		};
+		add_filter('wu_delete_form_get_object_membership', $check_object);
+		try {
+			Form_Manager::get_instance()->render_model_delete_form();
+			$this->fail('The object filter should stop rendering before the unavailable form exits.');
+		} catch (\RuntimeException $exception) {
+			$this->assertSame('Stop before the unavailable form renderer exits.', $exception->getMessage());
+		} finally {
+			remove_filter('wu_delete_form_get_object_membership', $check_object);
+			unset($_REQUEST['model'], $_REQUEST['id']);
+		}
+
+		$this->assertFalse($membership);
+	}
+
 	public function test_delete_pending_site_removes_only_pending_metadata(): void {
 		add_metadata('wu_membership', 999999, 'pending_site', new Site(['membership_id' => 999999]));
 		add_metadata('wu_membership', 999999, 'keep_me', 'untouched');
