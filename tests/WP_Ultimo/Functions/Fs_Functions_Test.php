@@ -15,6 +15,20 @@ use WP_UnitTestCase;
 class Fs_Functions_Test extends WP_UnitTestCase {
 
 	/**
+	 * Test opcode cache invalidation degrades safely when a file is not cached.
+	 */
+	public function test_invalidate_opcode_cache_returns_boolean(): void {
+
+		$file_path = tempnam(sys_get_temp_dir(), 'wu-opcache-');
+
+		try {
+			$this->assertIsBool(wu_invalidate_opcode_cache($file_path));
+		} finally {
+			wp_delete_file($file_path);
+		}
+	}
+
+	/**
 	 * Test wu_get_main_site_upload_dir returns array.
 	 */
 	public function test_get_main_site_upload_dir(): void {
