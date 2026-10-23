@@ -93,6 +93,19 @@ class WP_Config_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test injecting a constant invalidates the updated config file.
+	 */
+	public function test_inject_wp_config_constant_invalidates_opcode_cache(): void {
+
+		$wp_config = $this->create_testable_wp_config(
+			"<?php\n\n/* That's all, stop editing! Happy publishing. */\n",
+			true
+		);
+
+		$this->assertTrue($wp_config->inject_wp_config_constant('WU_TEST_CONSTANT', true));
+	}
+
+	/**
 	 * Test get_instance returns singleton.
 	 */
 	public function test_get_instance_returns_singleton(): void {
@@ -120,7 +133,8 @@ class WP_Config_Test extends WP_UnitTestCase {
 	public function test_revert_removes_constant(): void {
 
 		$wp_config = $this->create_testable_wp_config(
-			"<?php\n\ndefine( 'WU_TEST_CONSTANT', true );\n\n/* That's all, stop editing! Happy publishing. */\n"
+			"<?php\n\ndefine( 'WU_TEST_CONSTANT', true );\n\n/* That's all, stop editing! Happy publishing. */\n",
+			true
 		);
 
 		$this->assertTrue($wp_config->revert('WU_TEST_CONSTANT'));
@@ -166,9 +180,10 @@ class WP_Config_Test extends WP_UnitTestCase {
 	 * Create a WP_Config mock backed by a temporary wp-config.php file.
 	 *
 	 * @param string $contents Config file contents.
+	 * @param bool   $expect_invalidation Whether cache invalidation is expected.
 	 * @return WP_Config
 	 */
-	protected function create_testable_wp_config($contents) {
+	protected function create_testable_wp_config($contents, $expect_invalidation = false) {
 
 		$config_path = tempnam(sys_get_temp_dir(), 'wu-wp-config-');
 
@@ -178,10 +193,19 @@ class WP_Config_Test extends WP_UnitTestCase {
 
 		$wp_config = $this->getMockBuilder(WP_Config::class)
 			->disableOriginalConstructor()
-			->onlyMethods(['get_wp_config_path'])
+			->onlyMethods(['get_wp_config_path', 'invalidate_opcode_cache'])
 			->getMock();
 
 		$wp_config->method('get_wp_config_path')->willReturn($config_path);
+
+		if ($expect_invalidation) {
+			$wp_config->expects($this->once())
+				->method('invalidate_opcode_cache')
+				->with($config_path)
+				->willReturn(true);
+		} else {
+			$wp_config->method('invalidate_opcode_cache')->willReturn(true);
+		}
 
 		return $wp_config;
 	}

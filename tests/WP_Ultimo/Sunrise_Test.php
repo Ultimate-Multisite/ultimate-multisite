@@ -10,6 +10,8 @@ namespace WP_Ultimo;
 
 use WP_UnitTestCase;
 
+require_once __DIR__ . '/Testable_Sunrise.php';
+
 /**
  * Test Sunrise class functionality.
  */
@@ -339,7 +341,7 @@ class Sunrise_Test extends WP_UnitTestCase {
 	/**
 	 * A process that does not have the plugin running must not deactivate sunrise.
 	 *
-	 * sunrise.php is a drop-in, so maybe_tap_on_init() also runs in processes
+	 * Sunrise.php is a drop-in, so maybe_tap_on_init() also runs in processes
 	 * that never load plugins: `wp --skip-plugins`, the installer, or a custom
 	 * bootstrap. There the main plugin class is absent and the state observed
 	 * at the decision point is exactly the one reproduced here - `false`,
@@ -432,11 +434,15 @@ class Sunrise_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test try_upgrade method doesn't throw fatal errors.
+	 * Test try_upgrade invalidates the copied sunrise file.
 	 */
-	public function test_try_upgrade_no_fatal_errors() {
-		// Skip this test as it requires complex WordPress multisite operations
-		// that involve blog switching and logging, which can fail in test environment
-		$this->markTestSkipped('Requires complex multisite setup with logging capabilities');
+	public function test_try_upgrade_invalidates_opcode_cache() {
+
+		Testable_Sunrise::$copied      = null;
+		Testable_Sunrise::$invalidated = null;
+
+		$this->assertTrue(Testable_Sunrise::try_upgrade());
+		$this->assertSame(WP_CONTENT_DIR . '/sunrise.php', Testable_Sunrise::$copied[1]);
+		$this->assertSame(WP_CONTENT_DIR . '/sunrise.php', Testable_Sunrise::$invalidated);
 	}
 }
