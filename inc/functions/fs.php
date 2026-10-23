@@ -10,6 +10,29 @@
 defined('ABSPATH') || exit;
 
 /**
+ * Invalidates PHP's filesystem and opcode caches for a file.
+ *
+ * Hosts can configure OPcache to wait several minutes before checking file
+ * timestamps. Explicit invalidation ensures configuration changes are visible
+ * to the next request without flushing unrelated cached scripts.
+ *
+ * @since 2.17.3
+ *
+ * @param string $file_path Absolute path to the updated file.
+ * @return bool Whether OPcache invalidated the cached script.
+ */
+function wu_invalidate_opcode_cache($file_path) {
+
+	clearstatcache(true, $file_path);
+
+	if ( ! function_exists('opcache_invalidate')) {
+		return false;
+	}
+
+	return opcache_invalidate($file_path, true);
+}
+
+/**
  * Returns the main site uploads dir array from WordPress.
  *
  * @since 2.0.11
