@@ -37,9 +37,9 @@ function wu_invalidate_opcode_cache($file_path) {
 		wu_log_add(
 			'opcache',
 			sprintf(
-				/* translators: %s is an absolute file path. */
+				/* translators: %s is a file name. */
 				__('OPcache could not invalidate the updated file: %s', 'ultimate-multisite'),
-				$file_path
+				basename($file_path)
 			),
 			\Psr\Log\LogLevel::WARNING
 		);
