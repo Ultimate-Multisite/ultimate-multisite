@@ -52,8 +52,11 @@ class BigScoots_Integration_Test extends WP_UnitTestCase {
 
 		$this->assertNotEmpty($instructions['title']);
 		$this->assertStringContainsString('UUID', $instructions['description']);
-		$this->assertCount(4, $instructions['steps']);
-		$this->assertStringContainsString('multisite', $instructions['steps'][3]);
+		$this->assertCount(5, $instructions['steps']);
+		$this->assertStringContainsString('href="https://wpo.bigscoots.com"', $instructions['steps'][0]);
+		$this->assertStringContainsString('href="https://wpo.bigscoots.com/user/profile/edit"', $instructions['steps'][0]);
+		$this->assertStringContainsString('migrated to the newer WPO Portal', $instructions['steps'][1]);
+		$this->assertStringContainsString('multisite', $instructions['steps'][4]);
 	}
 
 	public function test_get_resource_selection_fields_returns_api_sites(): void {

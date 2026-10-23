@@ -133,7 +133,13 @@ class BigScoots_Integration extends Integration {
 			'title'       => __('BigScoots WPO configuration checklist', 'ultimate-multisite'),
 			'description' => __('Ultimate Multisite verifies your WPO credentials first, then retrieves the primary sites available to your account so you do not need to find or copy a UUID manually.', 'ultimate-multisite'),
 			'steps'       => [
-				__('Sign in to the BigScoots WPO Portal, open <strong>Edit Profile &amp; Security</strong>, and enable API Access to generate an API key.', 'ultimate-multisite'),
+				sprintf(
+					/* translators: 1: BigScoots WPO Portal URL, 2: Edit Profile & Security URL. */
+					__('Sign in to the <a href="%1$s" target="_blank" rel="noopener noreferrer">BigScoots WPO Portal</a>, open <a href="%2$s" target="_blank" rel="noopener noreferrer">Edit Profile &amp; Security</a>, and enable API Access to generate an API key.', 'ultimate-multisite'),
+					esc_url('https://wpo.bigscoots.com'),
+					esc_url('https://wpo.bigscoots.com/user/profile/edit')
+				),
+				__('If your account does not have access to the WPO Portal, contact BigScoots support and ask to be migrated to the newer WPO Portal.', 'ultimate-multisite'),
 				__('Enter the email address used to sign in to that WPO account and the generated API key.', 'ultimate-multisite'),
 				__('Test the credentials. On the next step, select the primary site that hosts this WordPress multisite network.', 'ultimate-multisite'),
 				__('The selected WPO site must use a <strong>multisite</strong> or <strong>hybrid</strong> plan type. If BigScoots reports another plan type, contact BigScoots support and ask them to enable multisite API access for the site.', 'ultimate-multisite'),
