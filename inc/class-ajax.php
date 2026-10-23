@@ -173,13 +173,31 @@ class Ajax implements \WP_Ultimo\Interfaces\Singleton {
 		if ('user' === $args['model']) {
 			$results = $this->search_wordpress_users($query);
 		} elseif ('page' === $args['model']) {
-			$results = get_posts(
+			$search = isset($query['search']) && is_scalar($query['search']) ? sanitize_text_field(wp_unslash((string) $query['search'])) : '';
+			$number = isset($query['number']) && is_scalar($query['number']) ? absint($query['number']) : 10;
+
+			$pages = get_posts(
 				[
-					'post_type'   => 'page',
-					'post_status' => 'publish',
-					'numberposts' => -1,
-					'exclude'     => $query['id__not_in'] ?? '', // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
+					'post_type'              => 'page',
+					'post_status'            => 'publish',
+					'numberposts'            => min(20, max(1, $number)),
+					's'                      => trim($search, '*'),
+					'post__not_in'           => wp_parse_id_list($query['id__not_in'] ?? []), // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
+					'update_post_meta_cache' => false,
+					'update_post_term_cache' => false,
+					'lazy_load_term_meta'    => false,
 				]
+			);
+
+			// Only expose what the selector renders, never page content or passwords.
+			$results = array_map(
+				static fn($page) => [
+					'ID'          => $page->ID,
+					'post_title'  => $page->post_title,
+					'post_name'   => $page->post_name,
+					'post_status' => $page->post_status,
+				],
+				$pages
 			);
 		} elseif ('setting' === $args['model']) {
 			$results = $this->search_wp_ultimo_setting($query);

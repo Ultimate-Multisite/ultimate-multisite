@@ -283,9 +283,9 @@ defined('ABSPATH') || exit;
 
 	<div>
 
-		<span class="wu-block">{{ post_title }} (#{{ ID }})</span>
+		<span class="wu-block">{{ post_title }}{{ Number(ID) ? ' (#' + ID + ')' : '' }}</span>
 
-		<small>/{{ post_name }} - {{ post_status.charAt(0).toUpperCase() + post_status.slice(1) }}</small>
+		<small>{{ typeof post_name !== 'undefined' ? '/' + post_name : '' }}{{ typeof post_status !== 'undefined' ? ' - ' + post_status.charAt(0).toUpperCase() + post_status.slice(1) : '' }}</small>
 
 	</div>
 

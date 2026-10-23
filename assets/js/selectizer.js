@@ -45,6 +45,7 @@
 					searchField: $(item).data('search-field'),
 					maxItems: $(item).data('max-items'),
 					selected: $(item).data('selected'),
+					searchWhenSelected: !! $(item).data('search-when-selected'),
 					options: [],
 					data: {
 						action: 'wu_search',
@@ -154,6 +155,53 @@
 		const selectize = select[ 0 ].selectize;
 
 		/*
+		 * Selectize blocks typing while a single-item control holds its only
+		 * value. Fields that always hold one (a default such as "Current Page")
+		 * opt in: focusing empties the control so typing searches, and leaving
+		 * it without a choice silently restores the previous value.
+		 */
+		if (options.searchWhenSelected && options.maxItems === 1) {
+
+			let held = null;
+
+			selectize.on('focus', function() {
+
+				held = selectize.items[ 0 ] || null;
+
+				if (held !== null) {
+
+					selectize.clear(true);
+
+				}
+
+			});
+
+			selectize.on('blur', function() {
+
+				if (held !== null && ! selectize.items.length) {
+
+					selectize.addItem(held, true);
+
+				}
+
+				held = null;
+
+			});
+
+			// Escape abandons the search; leave the control so the blur handler restores the value.
+			selectize.$control_input.on('keydown', function(event) {
+
+				if (event.key === 'Escape') {
+
+					selectize.blur();
+
+				}
+
+			});
+
+		} // end if;
+
+		/*
      * Makes sure this is reactive for vue
      */
 		selectize.on('change', function(value) {
@@ -164,7 +212,18 @@
 
 			if (vue_app && typeof window[ 'wu_' + vue_app ] !== 'undefined') {
 
-				window[ 'wu_' + vue_app ][ input.attr('name') ] = value;
+				const app = window[ 'wu_' + vue_app ];
+
+				// Generator modals keep their fields under `attributes`.
+				if (app.attributes && input.attr('name') in app.attributes) {
+
+					app.attributes[ input.attr('name') ] = value;
+
+				} else {
+
+					app[ input.attr('name') ] = value;
+
+				}
 
 			} // end if;
 
