@@ -29,7 +29,23 @@ function wu_invalidate_opcode_cache($file_path) {
 		return false;
 	}
 
-	return opcache_invalidate($file_path, true);
+	$invalidated       = opcache_invalidate($file_path, true);
+	$enabled_directive = in_array(PHP_SAPI, ['cli', 'phpdbg'], true) ? 'opcache.enable_cli' : 'opcache.enable';
+	$opcache_enabled   = filter_var(ini_get($enabled_directive), FILTER_VALIDATE_BOOLEAN);
+
+	if ( ! $invalidated && $opcache_enabled && function_exists('wu_log_add')) {
+		wu_log_add(
+			'opcache',
+			sprintf(
+				/* translators: %s is an absolute file path. */
+				__('OPcache could not invalidate the updated file: %s', 'ultimate-multisite'),
+				$file_path
+			),
+			\Psr\Log\LogLevel::WARNING
+		);
+	}
+
+	return $invalidated;
 }
 
 /**
