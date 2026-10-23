@@ -52,12 +52,16 @@ class WP_Config {
 				}
 			}
 
-			return $wp_config_transformer->update(
+			$updated = $wp_config_transformer->update(
 				'constant',
 				$constant,
 				(string) $value,
 				$options
 			);
+
+			$this->invalidate_opcode_cache($config_path);
+
+			return $updated;
 		} catch (\Exception $exception) {
 			return new \WP_Error('wp-config-update-failed', $exception->getMessage());
 		}
@@ -137,10 +141,27 @@ class WP_Config {
 		try {
 			$wp_config_transformer = new \WPConfigTransformer($config_path);
 
-			return $wp_config_transformer->remove('constant', $constant);
+			$removed = $wp_config_transformer->remove('constant', $constant);
+
+			$this->invalidate_opcode_cache($config_path);
+
+			return $removed;
 		} catch (\Exception $exception) {
 			return new \WP_Error('wp-config-update-failed', $exception->getMessage());
 		}
+	}
+
+	/**
+	 * Invalidates the cached WordPress configuration after an update.
+	 *
+	 * @since 2.17.3
+	 *
+	 * @param string $file_path WordPress configuration file path.
+	 * @return bool
+	 */
+	protected function invalidate_opcode_cache($file_path) {
+
+		return wu_invalidate_opcode_cache($file_path);
 	}
 
 	/**
