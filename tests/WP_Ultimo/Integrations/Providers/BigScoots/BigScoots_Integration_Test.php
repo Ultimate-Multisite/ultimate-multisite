@@ -95,7 +95,7 @@ class BigScoots_Integration_Test extends WP_UnitTestCase {
 			remove_filter('sites_pre_query', $query_spy);
 		}
 
-		$args = ['offset' => 0];
+		$args = ['last_site_id' => 0];
 
 		$this->assertSame(0, $queries);
 		$this->assertNotFalse(wu_next_scheduled_action(BigScoots_Integration::RECONCILE_BATCH_HOOK, $args, 'domain'));
@@ -139,7 +139,6 @@ class BigScoots_Integration_Test extends WP_UnitTestCase {
 		$query_spy = function ($sites, \WP_Site_Query $query) use ($site_ids) {
 
 			$this->assertSame(50, $query->query_vars['number']);
-			$this->assertSame(0, $query->query_vars['offset']);
 
 			return $site_ids;
 		};
@@ -152,7 +151,7 @@ class BigScoots_Integration_Test extends WP_UnitTestCase {
 			remove_filter('sites_pre_query', $query_spy, 10);
 		}
 
-		$next_args = ['offset' => 50];
+		$next_args = ['last_site_id' => 149];
 
 		$this->assertNotFalse(wu_next_scheduled_action(BigScoots_Integration::RECONCILE_BATCH_HOOK, $next_args, 'domain'));
 
@@ -161,6 +160,31 @@ class BigScoots_Integration_Test extends WP_UnitTestCase {
 		}
 
 		wu_unschedule_all_actions(BigScoots_Integration::RECONCILE_BATCH_HOOK, $next_args, 'domain');
+	}
+
+	public function test_reconciliation_cursor_continues_after_the_last_processed_site_id(): void {
+
+		$site_ids = [
+			self::factory()->blog->create(),
+			self::factory()->blog->create(),
+			self::factory()->blog->create(),
+		];
+
+		$this->assertSame(2, (new BigScoots_Integration())->reconcile_existing_sites_batch($site_ids[0]));
+		$this->assertFalse(
+			wu_next_scheduled_action(
+				BigScoots_Integration::RECONCILE_SITE_HOOK,
+				['site_id' => $site_ids[0]],
+				'domain'
+			)
+		);
+
+		foreach (array_slice($site_ids, 1) as $site_id) {
+			$args = ['site_id' => $site_id];
+
+			$this->assertNotFalse(wu_next_scheduled_action(BigScoots_Integration::RECONCILE_SITE_HOOK, $args, 'domain'));
+			wu_unschedule_all_actions(BigScoots_Integration::RECONCILE_SITE_HOOK, $args, 'domain');
+		}
 	}
 
 	public function test_selecting_primary_site_starts_existing_site_reconciliation(): void {

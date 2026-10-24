@@ -150,12 +150,12 @@ class BigScoots_Domain_Mapping extends Base_Capability_Module implements Domain_
 	 *
 	 * @since 2.16.2
 	 *
-	 * @param int $offset Site-query offset for this batch.
+	 * @param int $last_site_id Last site ID processed by the previous batch.
 	 * @return void
 	 */
-	public function reconcile_site_batch(int $offset): void {
+	public function reconcile_site_batch(int $last_site_id): void {
 
-		$this->get_bigscoots()->reconcile_existing_sites_batch($offset);
+		$this->get_bigscoots()->reconcile_existing_sites_batch($last_site_id);
 	}
 
 	/**

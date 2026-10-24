@@ -229,7 +229,7 @@ class BigScoots_Integration extends Integration {
 	 */
 	public function schedule_existing_site_reconciliation() {
 
-		$args = ['offset' => 0];
+		$args = ['last_site_id' => 0];
 
 		if (wu_next_scheduled_action(self::RECONCILE_BATCH_HOOK, $args, 'domain')) {
 			return 0;
@@ -247,23 +247,44 @@ class BigScoots_Integration extends Integration {
 	 *
 	 * @since 2.16.2
 	 *
-	 * @param int $offset Site-query offset for this batch.
+	 * @param int $last_site_id Last site ID processed by the previous batch.
 	 * @return int Number of per-site reconciliation actions enqueued.
 	 */
-	public function reconcile_existing_sites_batch(int $offset = 0) {
+	public function reconcile_existing_sites_batch(int $last_site_id = 0) {
 
 		$main_site_id = get_main_site_id(get_current_network_id());
-		$site_ids     = get_sites(
-			[
-				'fields'     => 'ids',
-				'network_id' => get_current_network_id(),
-				'number'     => self::RECONCILE_BATCH_SIZE,
-				'offset'     => max(0, $offset),
-				'orderby'    => 'id',
-				'order'      => 'ASC',
-			]
-		);
-		$enqueued     = 0;
+		$last_site_id = max(0, $last_site_id);
+		$cursor       = null;
+
+		if ($last_site_id > 0) {
+			$cursor = static function (array $clauses) use ($last_site_id): array {
+				global $wpdb;
+
+				$clauses['where'] .= $wpdb->prepare(" AND {$wpdb->blogs}.blog_id > %d", $last_site_id);
+
+				return $clauses;
+			};
+
+			add_filter('sites_clauses', $cursor);
+		}
+
+		try {
+			$site_ids = get_sites(
+				[
+					'fields'     => 'ids',
+					'network_id' => get_current_network_id(),
+					'number'     => self::RECONCILE_BATCH_SIZE,
+					'orderby'    => 'id',
+					'order'      => 'ASC',
+				]
+			);
+		} finally {
+			if ($cursor) {
+				remove_filter('sites_clauses', $cursor);
+			}
+		}
+
+		$enqueued = 0;
 
 		foreach ($site_ids as $site_id) {
 			$site_id = (int) $site_id;
@@ -283,7 +304,7 @@ class BigScoots_Integration extends Integration {
 		}
 
 		if (self::RECONCILE_BATCH_SIZE === count($site_ids)) {
-			$next_args = ['offset' => max(0, $offset) + self::RECONCILE_BATCH_SIZE];
+			$next_args = ['last_site_id' => (int) max($site_ids)];
 
 			if ( ! wu_next_scheduled_action(self::RECONCILE_BATCH_HOOK, $next_args, 'domain')) {
 				wu_enqueue_async_action(self::RECONCILE_BATCH_HOOK, $next_args, 'domain');
