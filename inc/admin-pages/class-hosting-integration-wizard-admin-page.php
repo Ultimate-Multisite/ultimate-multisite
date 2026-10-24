@@ -201,6 +201,28 @@ class Hosting_Integration_Wizard_Admin_Page extends Wizard_Admin_Page {
 			unset($sections['config']);
 		}
 
+		if (method_exists($this->integration, 'get_resource_selection_fields')) {
+			$done = $sections['done'];
+			unset($sections['done']);
+
+			$sections['selection'] = [
+				'title'       => __('Select Site', 'ultimate-multisite'),
+				'description' => __('Choose the hosting resource Ultimate Multisite should manage. The available options were retrieved using the credentials you just verified.', 'ultimate-multisite'),
+				'view'        => [$this, 'default_view'],
+				'handler'     => [$this, 'handle_resource_selection'],
+				'fields'      => [$this, 'get_resource_selection_fields'],
+				'next_label'  => __('Validate Selection &rarr;', 'ultimate-multisite'),
+				'back'        => true,
+			];
+
+			$sections['validation'] = [
+				'title' => __('Validating Site', 'ultimate-multisite'),
+				'view'  => [$this, 'section_test'],
+			];
+
+			$sections['done'] = $done;
+		}
+
 		/**
 		 * Filters the wizard sections for hosting integration setup.
 		 *
@@ -344,6 +366,36 @@ class Hosting_Integration_Wizard_Admin_Page extends Wizard_Admin_Page {
 	}
 
 	/**
+	 * Returns provider resource fields with their configured values.
+	 *
+	 * @since 2.16.2
+	 * @return array
+	 */
+	public function get_resource_selection_fields(): array {
+
+		$fields = call_user_func([$this->integration, 'get_resource_selection_fields']);
+
+		foreach ($fields as $field_constant => &$field) {
+			$field['value'] = $this->integration->get_credential($field_constant);
+
+			if (defined($field_constant) && constant($field_constant)) {
+				$field['html_attr'] = array_merge(
+					$field['html_attr'] ?? [],
+					['disabled' => 'disabled']
+				);
+
+				$field['desc'] = sprintf(
+					/* translators: %s is the constant name, e.g. WU_BIGSCOOTS_PRIMARY_UUID. */
+					__('Defined as <code>%s</code> in wp-config.php. Edit your wp-config.php to change this value.', 'ultimate-multisite'),
+					esc_html($field_constant)
+				);
+			}
+		}
+
+		return $fields;
+	}
+
+	/**
 	 * Handles the activation of a given integration.
 	 *
 	 * @since 2.0.0
@@ -396,6 +448,55 @@ class Hosting_Integration_Wizard_Admin_Page extends Wizard_Admin_Page {
 		}
 
 		$this->integration->save_credentials($filtered_data);
+
+		wp_safe_redirect($this->get_next_section_link());
+
+		exit;
+	}
+
+	/**
+	 * Saves the resource selected after credential validation.
+	 *
+	 * @since 2.16.2
+	 * @return void
+	 */
+	public function handle_resource_selection(): void {
+
+		check_admin_referer('saving_selection', 'saving_selection');
+
+		$resource_fields = call_user_func([$this->integration, 'get_resource_selection_fields']);
+		$allowed_fields  = array_keys($resource_fields);
+		$unknown_fields  = array_diff($allowed_fields, $this->integration->get_all_constants());
+		$filtered_data   = [];
+
+		if ( ! empty($unknown_fields)) {
+			wp_die(
+				esc_html__('The integration resource field is not registered as a credential.', 'ultimate-multisite'),
+				esc_html__('Invalid integration configuration', 'ultimate-multisite'),
+				['response' => 500]
+			);
+		}
+
+		foreach ($allowed_fields as $field) {
+			if (defined($field) && constant($field)) {
+				continue;
+			}
+
+			$value   = isset($_POST[ $field ]) ? sanitize_text_field(wp_unslash($_POST[ $field ])) : '';
+			$options = $resource_fields[ $field ]['options'] ?? [];
+
+			if ('' === $value || empty($options) || ! array_key_exists($value, $options)) {
+				wp_die(
+					esc_html__('Please select a valid hosting resource from the available options.', 'ultimate-multisite'),
+					esc_html__('Invalid hosting resource', 'ultimate-multisite'),
+					['response' => 400]
+				);
+			}
+
+			$filtered_data[ $field ] = $value;
+		}
+
+		$this->integration->update_credentials($filtered_data);
 
 		wp_safe_redirect($this->get_next_section_link());
 
