@@ -106,6 +106,14 @@ class Site_Manager extends Base_Manager {
 
 		add_action('pre_get_blogs_of_user', [$this, 'hide_customer_sites_from_super_admin_list'], 999, 3);
 
+		add_action('admin_bar_menu', [$this, 'add_lazy_my_sites_toolbar_controls'], 100);
+
+		add_action('wp_enqueue_scripts', [$this, 'enqueue_my_sites_toolbar_script']);
+
+		add_action('admin_enqueue_scripts', [$this, 'enqueue_my_sites_toolbar_script']);
+
+		add_action('wp_ajax_wu_get_my_sites_toolbar_page', [$this, 'get_my_sites_toolbar_page']);
+
 		add_filter('wpmu_validate_blog_signup', [$this, 'allow_hyphens_in_site_name'], 10, 1);
 
 		add_action('wu_daily', [$this, 'delete_pending_sites']);
@@ -1278,11 +1286,11 @@ class Site_Manager extends Base_Manager {
 	}
 
 	/**
-	 * Determines whether get_blogs_of_user is preparing the front-end My Sites toolbar.
+	 * Determines whether get_blogs_of_user is preparing the My Sites toolbar.
 	 *
-	 * The pre_get_blogs_of_user filter is also used by wp-admin, REST requests, and
-	 * application code. Checking that WP_Admin_Bar::initialize() directly calls
-	 * get_blogs_of_user() keeps the optimization away from nested calls such as
+	 * The pre_get_blogs_of_user filter is also used by REST requests and application
+	 * code. Checking that WP_Admin_Bar::initialize() directly calls get_blogs_of_user()
+	 * keeps the optimization away from nested calls such as
 	 * get_active_blog_for_user(), which may update the user's primary site.
 	 *
 	 * @since 2.15.0
@@ -1292,9 +1300,7 @@ class Site_Manager extends Base_Manager {
 	protected function is_frontend_my_sites_toolbar_request($backtrace = null) {
 
 		if (
-			! wu_get_setting('optimize_frontend_my_sites_toolbar', false)
-			|| is_admin()
-			|| wp_doing_ajax()
+			wp_doing_ajax()
 			|| wp_doing_cron()
 			|| (defined('REST_REQUEST') && REST_REQUEST)
 			|| (defined('WP_CLI') && WP_CLI)
@@ -1323,6 +1329,284 @@ class Site_Manager extends Base_Manager {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Adds the progressive-enhancement controls after WordPress adds My Sites.
+	 *
+	 * WordPress receives only the current site during direct toolbar initialization.
+	 * This retains its current-site navigation while the controller fetches bounded
+	 * pages only after the user opens the menu.
+	 *
+	 * @since 2.17.2
+	 * @param \WP_Admin_Bar $wp_admin_bar The admin bar instance.
+	 * @return void
+	 */
+	public function add_lazy_my_sites_toolbar_controls(\WP_Admin_Bar $wp_admin_bar): void {
+
+		$my_sites      = $wp_admin_bar->get_node('my-sites');
+		$my_sites_list = $wp_admin_bar->get_node('my-sites-list');
+
+		if ( ! $my_sites || ! $my_sites_list) {
+			return;
+		}
+
+		$wp_admin_bar->add_node(
+			[
+				'parent' => 'my-sites-list',
+				'id'     => 'wu-my-sites-toolbar-all',
+				'title'  => esc_html__('All My Sites', 'ultimate-multisite'),
+				'href'   => $my_sites->href,
+				'meta'   => [
+					'class' => 'wu-my-sites-toolbar-all',
+				],
+			]
+		);
+	}
+
+	/**
+	 * Enqueue the controller only on requests which render an authenticated toolbar.
+	 *
+	 * @since 2.17.2
+	 * @return void
+	 */
+	public function enqueue_my_sites_toolbar_script(): void {
+
+		if ( ! is_multisite() || ! is_user_logged_in() || ! is_admin_bar_showing()) {
+			return;
+		}
+
+		wp_enqueue_script(
+			'wu-my-sites-toolbar',
+			wu_get_asset('my-sites-toolbar.js', 'js'),
+			[],
+			\WP_Ultimo::VERSION,
+			true
+		);
+
+		wp_localize_script(
+			'wu-my-sites-toolbar',
+			'wu_my_sites_toolbar',
+			[
+				'ajax_url' => admin_url('admin-ajax.php'),
+				'action'   => 'wu_get_my_sites_toolbar_page',
+				'nonce'    => wp_create_nonce('wu_my_sites_toolbar'),
+				'labels'   => [
+					'dashboard' => __('Dashboard', 'ultimate-multisite'),
+					'new_post'  => get_post_type_object('post')->labels->new_item,
+					'comments'  => __('Manage Comments', 'ultimate-multisite'),
+					'visit'     => __('Visit Site', 'ultimate-multisite'),
+					'loading'   => __('Loading sites…', 'ultimate-multisite'),
+					'empty'     => __('No additional sites are available.', 'ultimate-multisite'),
+					'load_more' => __('Load more sites', 'ultimate-multisite'),
+					'retry'     => __('Retry loading sites', 'ultimate-multisite'),
+					'failed'    => __('Sites could not be loaded.', 'ultimate-multisite'),
+				],
+			]
+		);
+	}
+
+	/**
+	 * Returns a bounded, authorized page of My Sites toolbar entries.
+	 *
+	 * @since 2.17.2
+	 * @return void
+	 */
+	public function get_my_sites_toolbar_page(): void {
+
+		if ( ! is_multisite() || ! is_user_logged_in()) {
+			wp_send_json_error(new \WP_Error('unauthorized', __('You do not have permission to perform this action.', 'ultimate-multisite')), 403);
+		}
+
+		if ( ! check_ajax_referer('wu_my_sites_toolbar', 'nonce', false)) {
+			wp_send_json_error(new \WP_Error('invalid_nonce', __('Security check failed. Please try again.', 'ultimate-multisite')), 403);
+		}
+
+		$page = max(1, absint(wu_request('page', 1)));
+
+		wp_send_json_success($this->get_my_sites_toolbar_page_data(get_current_user_id(), $page));
+	}
+
+	/**
+	 * Gets a bounded page of sites and the toolbar links allowed for each site.
+	 *
+	 * @since 2.17.2
+	 * @param int $user_id The authenticated user ID.
+	 * @param int $page The one-based page number.
+	 * @return array{sites: array<int, array<string, mixed>>, has_more: bool, next_page: int}
+	 */
+	protected function get_my_sites_toolbar_page_data($user_id, $page) {
+
+		$per_page = 20;
+		$site_ids = array_diff($this->get_my_sites_toolbar_site_ids($user_id), [get_current_blog_id()]);
+
+		if (empty($site_ids)) {
+			return [
+				'sites'     => [],
+				'has_more'  => false,
+				'next_page' => 0,
+			];
+		}
+
+		$args = [
+			'site__in'               => $site_ids,
+			'number'                 => $per_page + 1,
+			'offset'                 => ($page - 1) * $per_page,
+			'orderby'                => 'id',
+			'order'                  => 'ASC',
+			'update_site_meta_cache' => false,
+			'archived'               => 0,
+			'spam'                   => 0,
+			'deleted'                => 0,
+		];
+
+		if (is_super_admin($user_id)) {
+			$args['meta_query'] = [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				'relation' => 'OR',
+				[
+					'key'     => 'wu_type',
+					'compare' => 'NOT EXISTS',
+				],
+				[
+					'key'     => 'wu_type',
+					'compare' => 'NOT LIKE',
+					'value'   => Site_Type::CUSTOMER_OWNED,
+				],
+			];
+		}
+
+		$queried_sites = get_sites($args);
+		$has_more      = $per_page < count($queried_sites);
+		$sites         = [];
+
+		foreach (array_slice($queried_sites, 0, $per_page) as $site) {
+			$sites[ $site->id ] = (object) [
+				'userblog_id' => $site->id,
+				'blogname'    => $site->blogname,
+				'domain'      => $site->domain,
+				'path'        => $site->path,
+				'site_id'     => $site->network_id,
+				'siteurl'     => $site->siteurl,
+				'archived'    => $site->archived,
+				'mature'      => $site->mature,
+				'spam'        => $site->spam,
+				'deleted'     => $site->deleted,
+			];
+		}
+
+		$sites = apply_filters('get_blogs_of_user', $sites, $user_id, false); // phpcs:ignore
+		$items = [];
+
+		foreach ($sites as $site) {
+			if ( ! is_object($site) || empty($site->userblog_id)) {
+				continue;
+			}
+
+			$item = $this->get_my_sites_toolbar_item((int) $site->userblog_id);
+
+			if ($item) {
+				$items[] = $item;
+			}
+		}
+
+		return [
+			'sites'     => $items,
+			'has_more'  => $has_more,
+			'next_page' => $has_more ? $page + 1 : 0,
+		];
+	}
+
+	/**
+	 * Extracts the site IDs from the user's multisite capability metadata.
+	 *
+	 * @since 2.17.2
+	 * @param int $user_id User ID.
+	 * @return int[]
+	 */
+	protected function get_my_sites_toolbar_site_ids($user_id) {
+
+		global $wpdb;
+
+		$site_ids = [];
+		$keys     = get_user_meta($user_id);
+
+		foreach (array_keys($keys) as $key) {
+			if ($wpdb->base_prefix . 'capabilities' === $key && defined('MULTISITE')) {
+				$site_ids[] = wu_get_main_site_id();
+
+				continue;
+			}
+
+			if (
+				! str_ends_with($key, 'capabilities')
+				|| ($wpdb->base_prefix && ! str_starts_with($key, (string) $wpdb->base_prefix))
+			) {
+				continue;
+			}
+
+			$site_id = str_replace([$wpdb->base_prefix, '_capabilities'], '', $key);
+
+			if (is_numeric($site_id)) {
+				$site_ids[] = (int) $site_id;
+			}
+		}
+
+		return array_values(array_unique($site_ids));
+	}
+
+	/**
+	 * Builds the links which WordPress normally creates after switching to a site.
+	 *
+	 * @since 2.17.2
+	 * @param int $site_id Site ID.
+	 * @return array<string, mixed>|false
+	 */
+	protected function get_my_sites_toolbar_item($site_id) {
+
+		$site = get_site($site_id);
+
+		if ( ! $site || $site->archived || $site->spam || $site->deleted) {
+			return false;
+		}
+
+		switch_to_blog($site_id);
+
+		try {
+			$can_read = current_user_can('read');
+			$blogname = get_bloginfo('name');
+
+			if ( ! $blogname) {
+				$blogname = preg_replace('#^(https?://)?(www\\.)?#', '', get_home_url());
+			}
+
+			$item = [
+				'id'            => $site_id,
+				'name'          => $blogname,
+				'url'           => $can_read ? admin_url() : home_url(),
+				'dashboard_url' => '',
+				'new_post_url'  => '',
+				'comments_url'  => '',
+				'visit_url'     => home_url('/'),
+			];
+
+			if ($can_read) {
+				$item['dashboard_url'] = \WP_Ultimo\SSO\Admin_Bar_Magic_Links::get_instance()->get_admin_bar_action_url($site_id);
+			}
+
+			$post_type = get_post_type_object('post');
+
+			if ($post_type && current_user_can($post_type->cap->create_posts)) {
+				$item['new_post_url'] = admin_url('post-new.php');
+			}
+
+			if (current_user_can('edit_posts')) {
+				$item['comments_url'] = admin_url('edit-comments.php');
+			}
+
+			return $item;
+		} finally {
+			restore_current_blog();
+		}
 	}
 
 	/**
