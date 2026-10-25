@@ -67,8 +67,12 @@ class Query_Test extends \WP_UnitTestCase {
 
 			$wpdb->last_error = '';
 
-			$this->assertSame( [], $query->query( [ 'number' => 1 ] ) );
-			$this->assertSame( 0, $query->query( [ 'count' => true ] ) );
+			$this->assertSame( [], $query->query( ['number' => 1] ) );
+			$this->assertSame( 0, $query->query( ['count' => true] ) );
+			$this->assertSame( [], $query->query( [
+				'count'   => true,
+				'groupby' => 'type',
+			] ) );
 			$this->assertSame( '', $wpdb->last_error );
 		} finally {
 			$current_site = $original;

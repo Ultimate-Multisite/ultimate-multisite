@@ -118,7 +118,8 @@ class Email_Manager extends Base_Manager {
 
 		add_action('wp_ajax_wu_get_event_payload_placeholders', [$this, 'get_event_placeholders']);
 
-		add_action('wp_ultimo_load', [$this, 'maybe_create_secondary_network_system_emails']);
+		// Late init: default emails are translated, so text domains must be loaded.
+		add_action('init', [$this, 'maybe_create_secondary_network_system_emails'], 99);
 	}
 
 	/**
@@ -143,9 +144,29 @@ class Email_Manager extends Base_Manager {
 			return;
 		}
 
-		$this->create_all_system_emails();
+		global $wpdb;
 
-		update_network_option(null, self::SYSTEM_EMAILS_CREATED_OPTION, true);
+		// One request creates the defaults; others skip instead of duplicating them.
+		$lock = 'wu_system_emails_' . get_current_network_id();
+
+		if ('1' !== (string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock))) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- named lock, never cached.
+			return;
+		}
+
+		try {
+			// Skips slugs a previous lock holder already created.
+			$this->create_all_system_emails();
+
+			foreach (wu_get_default_system_emails() as $email) {
+				if (empty($email['slug']) || ! $this->is_created($email['slug'])) {
+					return; // Retry on a later request.
+				}
+			}
+
+			update_network_option(null, self::SYSTEM_EMAILS_CREATED_OPTION, true);
+		} finally {
+			$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- named lock, never cached.
+		}
 	}
 
 	/**

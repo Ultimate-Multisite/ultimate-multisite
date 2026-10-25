@@ -165,12 +165,11 @@ abstract class Table extends \BerlinDB\Database\Table {
 		}
 
 		try {
-			if ($this->needs_upgrade()) {
-				if (parent::exists()) {
-					$this->upgrade();
-				} else {
-					$this->install();
-				}
+			// A version can be recorded for a table that no longer exists.
+			if ( ! parent::exists()) {
+				$this->install();
+			} elseif ($this->needs_upgrade()) {
+				$this->upgrade();
 			}
 
 			if ($this->needs_upgrade() || ! parent::exists()) {
