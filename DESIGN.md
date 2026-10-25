@@ -16,7 +16,7 @@ warning. Use a neutral gray information strip with a secondary configuration
 link; reserve warning/error styling for actual failures.
 
 Show returned NS records in a separate nameserver summary, using escaped text
-and a neutral explanation when none are returned. Nameservers may help identify
+and hiding the entire summary when none are returned. Nameservers may help identify
 the DNS host, but do not infer a provider name or imply an integration is enabled.
 
 ### Responsive behaviour

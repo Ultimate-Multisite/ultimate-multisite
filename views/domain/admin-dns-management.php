@@ -156,13 +156,12 @@ defined('ABSPATH') || exit;
 
 		<!-- Read-only DNS Table (PHP DNS Lookup) -->
 		<div id="wu-dns-table">
-			<div v-if="!loading && !error && results.entries" class="wu-p-4 wu-text-sm wu-text-gray-700 wu-border-b wu-border-solid wu-border-0 wu-border-gray-300" v-cloak>
+			<div v-if="!loading && !error && nameservers.length" class="wu-p-4 wu-text-sm wu-text-gray-700 wu-border-b wu-border-solid wu-border-0 wu-border-gray-300" v-cloak>
 				<strong><?php esc_html_e('Nameservers', 'ultimate-multisite'); ?></strong>
-				<ul v-if="nameservers.length" class="wu-m-0 wu-mt-2">
+				<ul class="wu-m-0 wu-mt-2">
 					<li v-for="nameserver in nameservers" :key="nameserver" class="wu-font-mono" style="overflow-wrap: anywhere;">{{ nameserver }}</li>
 				</ul>
-				<p v-else class="wu-m-0 wu-mt-2"><?php esc_html_e('No nameserver records were returned for this domain. Subdomains may use their parent domain’s nameservers.', 'ultimate-multisite'); ?></p>
-				<p v-if="nameservers.length" class="wu-m-0 wu-mt-2"><?php esc_html_e('These nameservers may help identify your DNS hosting provider.', 'ultimate-multisite'); ?></p>
+				<p class="wu-m-0 wu-mt-2"><?php esc_html_e('These nameservers may help identify your DNS hosting provider.', 'ultimate-multisite'); ?></p>
 			</div>
 			<table class="wp-list-table widefat fixed striped wu-border-t-0" v-cloak>
 				<thead>
