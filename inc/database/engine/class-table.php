@@ -129,10 +129,11 @@ abstract class Table extends \BerlinDB\Database\Table {
 	 * The per-table versions BerlinDB records (on the main network) remain
 	 * the source of truth; this network option only avoids re-checking them
 	 * on every request. A MySQL named lock keeps concurrent first requests
-	 * from creating or altering the same table twice.
+	 * from creating or altering the same table twice; a request that finds
+	 * the lock taken skips setup instead of waiting. A failed setup is retried
+	 * at most hourly so a broken table never adds DDL to every request.
 	 *
 	 * @since 2.18.0
-	 * @throws \RuntimeException When the table setup lock cannot be acquired.
 	 * @return void
 	 */
 	protected function maybe_install_network_table(): void {
@@ -149,16 +150,18 @@ abstract class Table extends \BerlinDB\Database\Table {
 			return;
 		}
 
+		$retry_key = 'wu_table_setup_failed_' . $this->prefixed_name;
+
+		if (get_site_transient($retry_key)) {
+			return;
+		}
+
 		$db   = $this->get_db();
 		$lock = 'wu_tables_' . $network_id;
 
-		// Wait briefly for a concurrent request that is installing this network's tables.
-		if ('1' !== (string) $db->get_var($db->prepare('SELECT GET_LOCK(%s, 10)', $lock))) {
-			if ( ! $this->needs_upgrade() && parent::exists()) {
-				return;
-			}
-
-			throw new \RuntimeException('Unable to acquire the Ultimate Multisite table setup lock.');
+		// Another request is setting up this network's tables: do not wait for it.
+		if ('1' !== (string) $db->get_var($db->prepare('SELECT GET_LOCK(%s, 0)', $lock))) {
+			return;
 		}
 
 		try {
@@ -171,6 +174,8 @@ abstract class Table extends \BerlinDB\Database\Table {
 			}
 
 			if ($this->needs_upgrade() || ! parent::exists()) {
+				set_site_transient($retry_key, 1, HOUR_IN_SECONDS);
+
 				return;
 			}
 

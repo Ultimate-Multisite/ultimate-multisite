@@ -48,4 +48,30 @@ class Query_Test extends \WP_UnitTestCase {
 		$this->assertSame( 'wu', $query->get_hook_prefix() );
 		$this->assertSame( 'wu_customer', $query->get_meta_type() );
 	}
+
+	/**
+	 * GH#2012: a network whose tables were never registered returns no rows
+	 * instead of querying an empty table name (`FROM  wu_987_c`).
+	 */
+	public function test_unregistered_network_table_returns_no_items(): void {
+
+		global $current_site, $wpdb;
+
+		$original     = $current_site;
+		$fake         = clone $current_site;
+		$fake->id     = 987;
+		$current_site = $fake;
+
+		try {
+			$query = new Customer_Query();
+
+			$wpdb->last_error = '';
+
+			$this->assertSame( [], $query->query( [ 'number' => 1 ] ) );
+			$this->assertSame( 0, $query->query( [ 'count' => true ] ) );
+			$this->assertSame( '', $wpdb->last_error );
+		} finally {
+			$current_site = $original;
+		}
+	}
 }
