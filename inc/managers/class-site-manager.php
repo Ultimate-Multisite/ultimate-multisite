@@ -698,6 +698,7 @@ class Site_Manager extends Base_Manager {
 					)
 				),
 				esc_html__('Site in Demo Mode', 'ultimate-multisite'),
+				['response' => 403]
 			);
 		}
 
@@ -739,6 +740,7 @@ class Site_Manager extends Base_Manager {
 				// translators: %s: link to the login page
 				sprintf(wp_kses_post(__('This site is not available at the moment.<br><small>If you are the site admin, click <a href="%s">here</a> to login.</small>', 'ultimate-multisite')), esc_attr(wp_login_url())),
 				esc_html__('Site not available', 'ultimate-multisite'),
+				['response' => 403]
 			);
 		}
 	}
