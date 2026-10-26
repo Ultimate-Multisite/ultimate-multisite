@@ -138,7 +138,12 @@ if ( ! class_exists('MUCD_Data') ) {
 			foreach ($from_site_table as $table) {
 				$table_base_name = substr((string) $table, $from_site_prefix_length);
 
-				if ( ! self::should_copy_table($table, $table_base_name, $from_site_id, $to_site_id)) {
+				$copy_rows = self::should_copy_table($table, $table_base_name, $from_site_id, $to_site_id);
+
+				// Runtime-only tables (sessions, logs, queues) skip their rows but keep
+				// their structure, because plugins track their schema version in options
+				// (which are copied) and will not recreate missing tables on their own.
+				if ( ! $copy_rows && ! self::is_runtime_table($table_base_name)) {
 					continue;
 				}
 
@@ -159,7 +164,9 @@ if ( ! class_exists('MUCD_Data') ) {
 				self::do_sql_query($create_statement_sql);
 
 				// Populate database with data from source table
-				self::do_sql_query('INSERT IGNORE `' . $table_name . '` SELECT * FROM `' . $table . '`');
+				if ($copy_rows) {
+					self::do_sql_query('INSERT IGNORE `' . $table_name . '` SELECT * FROM `' . $table . '`');
+				}
 
 				$wpdb->get_results('SET foreign_key_checks = 1'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			}
@@ -173,8 +180,10 @@ if ( ! class_exists('MUCD_Data') ) {
 		/**
 		 * Determine whether a source table should be copied to the duplicated site.
 		 *
-		 * Runtime-only tables are skipped by default because queues, logs, caches,
-		 * analytics, and sessions are regenerated on the destination site. Empty
+		 * Runtime-only tables have their rows skipped by default because queues, logs,
+		 * caches, analytics, and sessions are regenerated on the destination site.
+		 * Their structure is still created empty on the destination (see
+		 * db_copy_tables()), since plugins do not recreate missing tables. Empty
 		 * per-site tables are copied by default so plugins retain the complete schema
 		 * they expect on the destination. Installations can opt into skipping empty
 		 * optional tables through the dedicated filter.
