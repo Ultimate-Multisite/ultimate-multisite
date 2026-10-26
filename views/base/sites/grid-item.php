@@ -49,10 +49,27 @@ defined('ABSPATH') || exit;
 
 			<?php if ($item->get_type() === 'pending') : ?>
 
+				<?php
+				/*
+				* Pending checkboxes carry membership IDs. Only the dedicated
+				* Pending view submits them to `delete-pending`; in any other view
+				* the bulk action is the regular site `delete`, which treats every
+				* value as a blog ID and would delete an unrelated live site whose
+				* blog ID equals the membership ID. Mirrors Site_List_Table::column_cb().
+				*/
+				?>
+				<?php if ('pending' === wu_request('type')) : ?>
+
 			<label>
 				<input class="wu-rounded-none" type="checkbox" name="bulk-delete[]" value="<?php echo esc_attr($item->get_membership_id()); ?>" />
-				<?php esc_html_e('Select Site', 'ultimate-multisite'); ?>
+					<?php esc_html_e('Select Site', 'ultimate-multisite'); ?>
 			</label>
+
+			<?php else : ?>
+
+			<span>&nbsp;</span>
+
+			<?php endif; ?>
 
 			<a title="<?php echo esc_attr(__('Publish pending site', 'ultimate-multisite')); ?>" href="<?php echo esc_attr(wu_get_form_url('publish_pending_site', ['membership_id' => $item->get_membership_id()])); ?>" class="wubox button button-primary">
 				<?php esc_html_e('Publish Site', 'ultimate-multisite'); ?>
