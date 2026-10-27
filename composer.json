@@ -232,6 +232,9 @@
                 "patches/berlindb-core-src-database-query-php.patch",
                 "patches/berlindb-core-src-database-column-php.patch"
             ],
+            "mpdf/mpdf": [
+                "patches/mpdf-mpdf-otl-undefined-shift.patch"
+            ],
             "mpdf/psr-log-aware-trait": [
                 "patches/mpdf-psr-log-aware-trait-void-return.patch",
                 "patches/mpdf-mpdf-psr-log-aware-trait-void-return.patch"

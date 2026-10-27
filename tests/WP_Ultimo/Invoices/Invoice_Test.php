@@ -9,6 +9,7 @@
 namespace WP_Ultimo\Tests\Invoices;
 
 use WP_Ultimo\Invoices\Invoice;
+use WP_Ultimo\Invoices\Language_To_Font;
 use WP_Ultimo\Models\Payment;
 use WP_Ultimo\Models\Customer;
 use WP_Ultimo\Models\Membership;
@@ -720,34 +721,48 @@ class Invoice_Test extends WP_UnitTestCase {
 
 		$payment = $this->create_test_payment();
 
+		// Tibetan has no packaged font.
 		$invoice = new Invoice($payment, [
-			'company_name' => 'मासिक सदस्यता के लिए चालान',
+			'company_name' => 'བོད་ཡིག་གི་རྩིས་ཐོ',
 		]);
 
-		$this->assertSame(['Devanagari'], $invoice->get_unsupported_scripts($invoice->render()));
+		$this->assertSame(['Tibetan'], $invoice->get_unsupported_scripts($invoice->render()));
 
 		$this->expectException(\WP_Ultimo\Exception\Runtime_Exception::class);
-		$this->expectExceptionMessage('Devanagari');
+		$this->expectExceptionMessage('Tibetan');
 
 		$invoice->get_content();
 	}
 
 	/**
-	 * Sample text for each script whose font is packaged (GH#2039).
+	 * Sample text for each script with a packaged font, and the font the PDF must embed.
 	 *
-	 * @return array<string, array{0: string}>
+	 * Noto Sans for most scripts (GH#2047), and the mPDF fonts that are kept for
+	 * Myanmar (Tharlon) and Sindhi (Lateef). The samples include conjuncts and marks.
+	 *
+	 * @return array<string, array{0: string, 1: string}>
 	 */
 	public function packaged_script_samples(): array {
 
 		return [
-			'Hebrew'  => ['חשבונית עבור מנוי חודשי'],
-			'Thai'    => ['ใบแจ้งหนี้รายเดือน'],
-			'Lao'     => ['ໃບແຈ້ງໜີ້ປະຈຳເດືອນ'],
-			'Khmer'   => ['វិក្កយបត្រប្រចាំខែ'],
-			'Myanmar' => ['လစဉ်ငွေတောင်းခံလွှာ'],
-			'Kannada' => ['ಮಾಸಿಕ ಬಿಲ್'],
-			'Telugu'  => ['నెలవారీ ఇన్వాయిస్'],
-			'Sindhi'  => ['سنڌي بل ٺ'],
+			'Devanagari' => ['क्षत्रिय कृष्ण हिन्दी चालान', 'NotoSansDevanagari'],
+			'Bengali'    => ['বাংলা চালান ক্ষ কৃষ্ণ', 'NotoSansBengali'],
+			'Gujarati'   => ['ગુજરાતી ઇન્વોઇસ ક્ષ જ્ઞ', 'NotoSansGujarati'],
+			'Gurmukhi'   => ['ਪੰਜਾਬੀ ਇਨਵੌਇਸ ਸ਼ਹਿਰ', 'NotoSansGurmukhi'],
+			'Tamil'      => ['தமிழ் விலைப்பட்டியல் ஸ்ரீ கொ', 'NotoSansTamil'],
+			'Malayalam'  => ['മലയാളം ഇൻവോയ്സ് പ്രതിമാസം ക്ഷ', 'NotoSansMalayalam'],
+			'Oriya'      => ['ଓଡ଼ିଆ ଇନଭଏସ୍ କ୍ଷ ଜ୍ଞ', 'NotoSansOriya'],
+			'Thaana'     => ['ޚަރަދު ޙިސާބު ދިވެހި', 'NotoSansThaana'],
+			'Telugu'     => ['తెలుగు ఇన్వాయిస్ క్ష శ్రీ', 'NotoSansTelugu'],
+			'Kannada'    => ['ಕನ್ನಡ ಇನ್ವಾಯ್ಸ್ ಕ್ಷ ಶ್ರೀ', 'NotoSansKannada'],
+			'Sinhala'    => ['සිංහල ඉන්වොයිසිය ක්‍ෂ ශ්‍රී', 'NotoSansSinhala'],
+			'Hebrew'     => ['חשבונית עבור מנוי חודשי', 'NotoSansHebrew'],
+			'Thai'       => ['ใบแจ้งหนี้รายเดือน ก็ กิ่ง', 'NotoSansThai'],
+			'Lao'        => ['ໃບແຈ້ງໜີ້ປະຈຳເດືອນ', 'NotoSansLao'],
+			'Khmer'      => ['វិក្កយបត្រប្រចាំខែ', 'NotoSansKhmer'],
+			'Ethiopic'   => ['የክፍያ ደረሰኝ ወርሃዊ አማርኛ', 'NotoSansEthiopic'],
+			'Myanmar'    => ['လစဉ်ငွေတောင်းခံလွှာ', 'Tharlon'],
+			'Sindhi'     => ['سنڌي بل ٺ ۽', 'Lateef'],
 		];
 	}
 
@@ -755,13 +770,16 @@ class Invoice_Test extends WP_UnitTestCase {
 	 * Test PDF generation for each script with a packaged font.
 	 *
 	 * The company name is rendered inside <strong> and the line item title in
-	 * regular text, so both the bold and regular faces are exercised.
+	 * regular text, so both the bold and regular faces are exercised. The PDF must
+	 * embed the intended font: mPDF silently falls back to the default font when a
+	 * font name is not registered everywhere, which would show empty boxes.
 	 *
 	 * @dataProvider packaged_script_samples
 	 *
 	 * @param string $sample Sample text in the script.
+	 * @param string $font   Name of the font the PDF must embed.
 	 */
-	public function test_pdf_with_packaged_script_fonts(string $sample) {
+	public function test_pdf_with_packaged_script_fonts(string $sample, string $font) {
 
 		$payment = $this->create_test_payment([
 			'line_items' => [
@@ -781,29 +799,70 @@ class Invoice_Test extends WP_UnitTestCase {
 		]);
 
 		$this->assertSame([], $invoice->get_unsupported_scripts($invoice->render()));
-		$this->assertStringStartsWith('%PDF-', $invoice->get_content());
+
+		$pdf = $invoice->get_content();
+
+		$this->assertStringStartsWith('%PDF-', $pdf);
+
+		// Not the whole PDF as the failure message: it is binary and very long.
+		$this->assertTrue(false !== stripos($pdf, $font), "The PDF does not embed the $font font.");
 	}
 
 	/**
-	 * Test the Thai font resolves all four styles to packaged files.
-	 *
-	 * The oblique Garuda files are not packaged, so the italic styles are remapped.
+	 * Test every packaged Noto font resolves all four styles to files on disk.
 	 */
-	public function test_thai_font_italic_styles_use_packaged_files() {
+	public function test_packaged_fonts_exist_for_every_style() {
 
-		$invoice = new Invoice($this->create_test_payment());
+		$fontdata = Language_To_Font::get_fontdata();
 
-		$method = new \ReflectionMethod($invoice, 'get_missing_fontdata');
+		$this->assertCount(count(Language_To_Font::LANGUAGES), $fontdata);
 
-		if (PHP_VERSION_ID < 80100) {
-			$method->setAccessible(true);
+		foreach ($fontdata as $name => $config) {
+			foreach (['R', 'B', 'I', 'BI'] as $style) {
+				$this->assertFileExists(Language_To_Font::get_font_dir() . '/' . $config[ $style ], "$name $style");
+			}
 		}
+	}
 
-		$garuda = $method->invoke($invoice)['garuda'];
+	/**
+	 * Test the "Paid" watermark uses a font that has the glyphs of its script.
+	 *
+	 * The plugin used to draw it with the default Latin font, which shows empty boxes
+	 * for scripts DejaVu lacks.
+	 */
+	public function test_watermark_font_follows_the_script_of_the_text() {
 
-		foreach (['R', 'B', 'I', 'BI'] as $style) {
-			$this->assertFileExists(WP_ULTIMO_PLUGIN_DIR . 'vendor/mpdf/mpdf/ttfonts/' . $garuda[ $style ]);
-		}
+		$printer_of = static function (Invoice $invoice) {
+			$invoice->get_content();
+
+			return (new \ReflectionProperty($invoice, 'printer'))->getValue($invoice);
+		};
+
+		$hindi = new Invoice($this->create_test_payment(), ['paid_tag_text' => 'भुगतान किया गया']);
+
+		$this->assertSame(Language_To_Font::get_font_name('devanagari'), $printer_of($hindi)->watermark_font);
+
+		$english = new Invoice($this->create_test_payment(), ['paid_tag_text' => 'Paid']);
+
+		$this->assertSame('DejaVuSansCondensed', $printer_of($english)->watermark_font);
+	}
+
+	/**
+	 * Test an invoice in a Latin-script language embeds only the default font.
+	 *
+	 * Guards against the packaged fonts leaking into languages DejaVu already covers.
+	 */
+	public function test_latin_invoice_embeds_no_packaged_fonts() {
+
+		$invoice = new Invoice($this->create_test_payment(), [
+			'company_name'    => 'Müller & Söhne GmbH — Société Étoile',
+			'company_address' => "Königstraße 42\nСанкт-Петербург\nΑθήνα\nHà Nội",
+		]);
+
+		$pdf = $invoice->get_content();
+
+		$this->assertTrue(false !== strpos($pdf, 'DejaVuSansCondensed'), 'The PDF does not embed DejaVu Sans Condensed.');
+		$this->assertTrue(false === strpos($pdf, 'NotoSans'), 'A Latin-script invoice embeds a packaged Noto font.');
 	}
 
 	/**
@@ -818,15 +877,15 @@ class Invoice_Test extends WP_UnitTestCase {
 		$this->assertSame([], $invoice->get_unsupported_scripts($supported));
 		$this->assertSame([], $invoice->get_unsupported_scripts('<style>.a{}</style><b>Plain &amp; simple</b>'));
 
-		// Hebrew, Thai and Sindhi fonts are packaged since GH#2039.
-		$this->assertSame([], $invoice->get_unsupported_scripts('ใบแจ้งหนี้ <b>חשבונית</b> فاتورة ٺ ' . $supported));
+		// Scripts with a packaged font (GH#2039, GH#2047).
+		$this->assertSame([], $invoice->get_unsupported_scripts('ใบแจ้งหนี้ <b>חשבונית</b> فاتورة ٺ मासिक මාසික ' . $supported));
 
-		// Devanagari (freeserif) and Sinhala (kaputaunicode) fonts are not packaged.
-		$unsupported = $invoice->get_unsupported_scripts('मासिक <b>මාසික</b> ' . $supported);
+		// Tibetan and Syriac have no packaged font.
+		$unsupported = $invoice->get_unsupported_scripts('བོད་ཡིག <b>ܣܘܪܝܝܐ</b> ' . $supported);
 
 		sort($unsupported);
 
-		$this->assertSame(['Devanagari', 'Sinhala'], $unsupported);
+		$this->assertSame(['Syriac', 'Tibetan'], $unsupported);
 	}
 
 	/**

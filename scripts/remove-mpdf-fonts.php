@@ -2,24 +2,23 @@
 /**
  * Removes mPDF font files that the plugin does not need, to reduce package size.
  *
- * Fonts retained for invoice PDF language support (GH#2039), by script:
+ * Invoice PDF language support (GH#2047):
  *
- * - Hebrew:  TaameyDavidCLM-Medium.ttf, TaameyDavidCLM-LICENSE.txt
- * - Thai:    Garuda.ttf, Garuda-Bold.ttf (oblique files are stripped)
- * - Lao:     Dhyana-Regular.ttf, Dhyana-Bold.ttf, DhyanaOFL.txt
- * - Khmer:   KhmerOS.ttf, KhmerOFL.txt
- * - Myanmar: Tharlon-Regular.ttf, TharlonOFL.txt
- * - Kannada: Lohit-Kannada.ttf, LohitKannadaOFL.txt
- * - Telugu:  Pothana2000.ttf
- * - Sindhi:  LateefRegOT.ttf, Lateef font OFL.txt
+ * Most non-Latin scripts use the Noto Sans fonts packaged in assets/fonts/noto/ (see the
+ * README there). The mPDF fonts they replace are stripped here: Hebrew (TaameyDavidCLM),
+ * Thai (Garuda), Lao (Dhyana), Khmer (KhmerOS), Kannada (Lohit-Kannada) and Telugu
+ * (Pothana2000). Sinhala (kaputaunicode.ttf) stays stripped as well: its only licence
+ * text is "All rights reserved", so it cannot be redistributed. Noto covers it.
  *
- * Sinhala (kaputaunicode.ttf) stays stripped: its only licence text is
- * "All rights reserved", so redistribution is not allowed.
+ * Two mPDF fonts are kept, by script:
  *
- * Every retained font family must keep all four fontdata styles (R, B, I, BI)
- * resolvable. mPDF defines only some styles for these fonts, and the oblique
- * Garuda files are stripped, so Invoice::get_missing_fontdata() remaps the
- * missing styles to a retained file. Update that method when changing this list.
+ * - Myanmar: Tharlon-Regular.ttf, TharlonOFL.txt (Noto Sans Myanmar has a glyph defect under mPDF)
+ * - Sindhi:  LateefRegOT.ttf, Lateef font OFL.txt (covers Sindhi letters that DejaVu lacks)
+ *
+ * mPDF defines only some styles for these two fonts; it simulates the missing bold and
+ * italic from the regular file, so no remap is needed. Any other retained font family
+ * must keep all four fontdata styles (R, B, I, BI) resolvable: remap the missing styles in
+ * Invoice::get_missing_fontdata() when changing this list.
  *
  * @package WP_Ultimo
  */
@@ -36,6 +35,9 @@ $fonts = [
 	'damase_v.2.ttf',
 	'DBSILBR.ttf',
 	'DejaVuSerif.ttf',
+	'Dhyana-Regular.ttf',
+	'Dhyana-Bold.ttf',
+	'DhyanaOFL.txt',
 	'DejaVuSansMono-Oblique.ttf',
 	'DejaVuSerif-BoldItalic.ttf',
 	'DejaVuSerifCondensed-BoldItalic.ttf',
@@ -61,22 +63,31 @@ $fonts = [
 	'FreeSerifBold.ttf',
 	'FreeSerifBoldItalic.ttf',
 	'FreeSerifItalic.ttf',
+	'Garuda.ttf',
+	'Garuda-Bold.ttf',
 	'Garuda-BoldOblique.ttf',
 	'Garuda-Oblique.ttf',
 	'GNUFreeFontinfo.txt',
 	'Jomolhari.ttf',
 	'Jomolhari-OFL.txt',
 	'kaputaunicode.ttf',
+	'KhmerOS.ttf',
+	'KhmerOFL.txt',
 	'lannaalif-v1-03.ttf',
+	'Lohit-Kannada.ttf',
+	'LohitKannadaOFL.txt',
 	'ocrb10.ttf',
 	'ocrbinfo.txt',
 	'Padauk-book.ttf',
+	'Pothana2000.ttf',
 	'Quivira.otf',
 	'Sun-ExtA.ttf',
 	'Sun-ExtB.ttf',
 	'SundaneseUnicode-1.0.5.ttf',
 	'SyrCOMEdessa.otf',
 	'SyrCOMEdessa_license.txt',
+	'TaameyDavidCLM-Medium.ttf',
+	'TaameyDavidCLM-LICENSE.txt',
 	'TaiHeritagePro.ttf',
 	'UnBatang_0613.ttf',
 	'Uthman.otf',
