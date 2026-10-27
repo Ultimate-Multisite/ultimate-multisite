@@ -830,6 +830,25 @@ class Invoice_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test Chinese, Japanese and Korean text is not blocked by the script check (GH#2045).
+	 *
+	 * These scripts use mPDF's built-in Adobe CJK fonts (gb, sjis, uhc), which are not
+	 * files on disk. Before the fix they were reported as unsupported and the invoice
+	 * failed to generate.
+	 */
+	public function test_pdf_with_cjk_text_is_not_blocked() {
+
+		$cjk = '王小明 こんにちは カタカナ 한국어';
+
+		$invoice = new Invoice($this->create_test_payment(), [
+			'company_address' => $cjk,
+		]);
+
+		$this->assertSame([], $invoice->get_unsupported_scripts($cjk));
+		$this->assertStringStartsWith('%PDF-', $invoice->get_content());
+	}
+
+	/**
 	 * Test Invoice render contains Bill To section.
 	 */
 	public function test_render_contains_bill_to_section() {
