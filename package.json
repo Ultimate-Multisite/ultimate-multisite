@@ -111,7 +111,7 @@
     "@babel/core": "7.29.6",
     "@simple-git/argv-parser": "2.0.1",
     "glob": "^10.5.0",
-    "js-yaml": "4.3.1",
+    "js-yaml": "4.3.2",
     "minimatch@^3": "3.1.4",
     "minimatch@^9": "9.0.9",
     "picomatch": "4.0.4",

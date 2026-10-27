@@ -7,7 +7,7 @@ allowBuilds:
 overrides:
   '@babel/core': 7.29.6
   '@simple-git/argv-parser': 2.0.1
-  js-yaml: 4.3.1
+  js-yaml: 4.3.2
   minimatch@^9: 9.0.9
   postcss: 8.5.23
   postcss-selector-parser: 7.1.6
