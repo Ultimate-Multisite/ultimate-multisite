@@ -201,7 +201,8 @@
 			const core = select('core');
 			const editor = select('core/editor');
 			const postId = editor && editor.getCurrentPostId ? Number(editor.getCurrentPostId()) : 0;
-			const searchQuery = { status: 'publish', per_page: 20, _fields: 'id,title', search: term };
+			// The combobox filters options by label, so search titles only (WP 6.5+; older versions ignore it).
+			const searchQuery = { status: 'publish', per_page: 20, _fields: 'id,title', search: term, search_columns: 'post_title' };
 			const savedArgs = [ 'postType', 'page', savedId, { _fields: 'id,title,status' } ];
 			const searchArgs = [ 'postType', 'page', searchQuery ];
 			const searching = term.length >= 2;

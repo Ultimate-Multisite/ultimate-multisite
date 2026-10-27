@@ -182,6 +182,8 @@ class Ajax implements \WP_Ultimo\Interfaces\Singleton {
 					'post_status'            => 'publish',
 					'numberposts'            => min(20, max(1, $number)),
 					's'                      => trim($search, '*'),
+					// Selectize filters results by title; content-only matches would use up the cap and then be hidden (WP 6.2+, ignored on older versions).
+					'search_columns'         => ['post_title'],
 					'post__not_in'           => wp_parse_id_list($query['id__not_in'] ?? []), // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
 					'update_post_meta_cache' => false,
 					'update_post_term_cache' => false,
