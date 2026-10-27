@@ -1,245 +1,396 @@
 (function(blocks, element, components, wu_blocks, _) {
 
-  const el = element.createElement,
-    registerBlockType = blocks.registerBlockType,
-    ServerSideRender = wp.serverSideRender,
-    PanelBody = wp.components.PanelBody,
-    TextControl = wp.components.TextControl,
-    NumberControl = wp.components.__experimentalNumberControl,
-    RangeControl = wp.components.RangeControl,
-    ToggleControl = wp.components.ToggleControl,
-    TextareaControl = wp.components.TextareaControl,
-    Notice = wp.components.Notice,
-    SelectControl = wp.components.SelectControl,
-    InspectorControls = wp.blockEditor.InspectorControls;
+	const el = element.createElement,
+		registerBlockType = blocks.registerBlockType,
+		ServerSideRender = wp.serverSideRender,
+		PanelBody = wp.components.PanelBody,
+		TextControl = wp.components.TextControl,
+		NumberControl = wp.components.__experimentalNumberControl,
+		RangeControl = wp.components.RangeControl,
+		ToggleControl = wp.components.ToggleControl,
+		TextareaControl = wp.components.TextareaControl,
+		Notice = wp.components.Notice,
+		SelectControl = wp.components.SelectControl,
+		InspectorControls = wp.blockEditor.InspectorControls,
+		// Very old WordPress versions lack useDebounce; searching still works, just undebounced.
+		useDebounce = wp.compose.useDebounce || ((callback) => callback);
 
-  _.each(wu_blocks, function(block, index) {
+	_.each(wu_blocks, function(block, index) {
 
-    registerBlockType(block.id, {
-      icon: wu_badge(),
-      category: 'wp-ultimo',
-      title: block.title,
-      description: block.description,
-      keywords: block.keywords,
-      supports: {
-        multiple: false,
-        html: false,
-      },
-      edit(props) {
+		registerBlockType(block.id, {
+			icon: wu_badge(),
+			category: 'wp-ultimo',
+			title: block.title,
+			description: block.description,
+			keywords: block.keywords,
+			supports: {
+				multiple: false,
+				html: false,
+			},
+			edit(props) {
 
-        return [
-          el(ServerSideRender, {
-            key: block.id + index,
-            block: block.id,
-            attributes: props.attributes,
-          }),
-          wu_fields_to_block_options(block.fields, props),
-        ];
+				return [
+					el(ServerSideRender, {
+						key: block.id + index,
+						block: block.id,
+						attributes: props.attributes,
+					}),
+					wu_fields_to_block_options(block.fields, props),
+				];
 
-      },
-      save() {
+			},
+			save() {
 
-        return null;
+				return null;
 
-      },
-    });
+			},
+		});
 
-  });
+	});
 
-  function wu_fields_to_block_options(fields, props) {
+	function wu_fields_to_block_options(fields, props) {
 
-    const gt_panels = [];
+		const gt_panels = [];
 
-    let gt_fields = [];
+		let gt_fields = [];
 
-    let current_panel = null;
+		let current_panel = null;
 
-    let current_panel_slug = null;
+		let current_panel_slug = null;
 
-    let new_panel = false;
+		let new_panel = false;
 
-    let first_panel = true;
+		let first_panel = true;
 
-    _.each(fields, function(field, field_slug) {
+		_.each(fields, function(field, field_slug) {
 
-      if (field.type === 'group') {
+			if (field.type === 'group') {
 
-        const sub_fields = field.fields;
+				const sub_fields = field.fields;
 
-        field = _.first(_.values(sub_fields));
+				field = _.first(_.values(sub_fields));
 
-        field.desc = '';
+				field.desc = '';
 
-        field_slug = _.first(_.keys(sub_fields));
+				field_slug = _.first(_.keys(sub_fields));
 
-      }
+			}
 
-      const component = wu_get_field_component(field.type, field);
+			const component = field.page_search ? PageSearchControl : wu_get_field_component(field.type, field);
 
-      if (! _.isObject(field.required)) {
+			if (! _.isObject(field.required)) {
 
-        field.required = {};
+				field.required = {};
 
-      }
+			}
 
-      let should_display = true;
+			let should_display = true;
 
-      _.each(field.required, function(value, key) {
+			_.each(field.required, function(value, key) {
 
-        // eslint-disable-next-line eqeqeq
-        should_display = props.attributes[key] == value;
+				// eslint-disable-next-line eqeqeq
+				should_display = props.attributes[ key ] == value;
 
-      });
+			});
 
-      if (should_display) {
+			if (should_display) {
 
-        gt_fields.push(el(component, {
-          key: field_slug,
-          label: field.title,
-          help: field.desc,
-          value: props.attributes[field_slug],
-          checked: props.attributes[field_slug],
-          options: wu_format_options(field.options),
-          min: field.min,
-          max: field.max,
-          onChange(value) {
+				gt_fields.push(el(component, {
+					key: field_slug,
+					label: field.title,
+					help: field.desc,
+					value: props.attributes[ field_slug ],
+					checked: props.attributes[ field_slug ],
+					options: wu_format_options(field.options),
+					placeholder: field.placeholder,
+					min: field.min,
+					max: field.max,
+					onChange(value) {
 
-            const obj = {};
+						const obj = {};
 
-            obj[field_slug] = value;
+						obj[ field_slug ] = value;
 
-            props.setAttributes(obj);
+						props.setAttributes(obj);
 
-          },
-        }));
+					},
+				}));
 
-      }
+			}
 
-      /*
+			/*
        * Handle header types differently
        */
-      if (field.type === 'header') {
+			if (field.type === 'header') {
 
-        gt_fields.pop();
+				gt_fields.pop();
 
-        if (current_panel !== null) {
+				if (current_panel !== null) {
 
-          new_panel = true;
+					new_panel = true;
 
-        }
+				}
 
-        if (new_panel) {
+				if (new_panel) {
 
-          gt_panels.push(
-            el(PanelBody, {
-              key: current_panel_slug,
-              title: current_panel.title,
-              description: current_panel.desc,
-              initialOpen: first_panel,
-            }, gt_fields)
-          );
+					gt_panels.push(
+						el(PanelBody, {
+							key: current_panel_slug,
+							title: current_panel.title,
+							description: current_panel.desc,
+							initialOpen: first_panel,
+						}, gt_fields)
+					);
 
-          first_panel = false;
+					first_panel = false;
 
-        }
+				}
 
-        current_panel = field;
+				current_panel = field;
 
-        current_panel_slug = field_slug;
+				current_panel_slug = field_slug;
 
-        gt_fields = [];
+				gt_fields = [];
 
-      }
+			}
 
-    });
+		});
 
-    gt_panels.push(
-      el(PanelBody, {
-        key: current_panel_slug,
-        title: current_panel.title,
-        help: current_panel.desc,
-        initialOpen: first_panel,
-      }, gt_fields)
-    );
+		gt_panels.push(
+			el(PanelBody, {
+				key: current_panel_slug,
+				title: current_panel.title,
+				help: current_panel.desc,
+				initialOpen: first_panel,
+			}, gt_fields)
+		);
 
-    return el(InspectorControls, { key: 'wp-ultimo' }, gt_panels);
+		return el(InspectorControls, { key: 'wp-ultimo' }, gt_panels);
 
-  }
+	}
 
-  function wu_format_options(options) {
+	// Search box for WordPress versions without ComboboxControl.
+	function LegacySearchInput(props) {
 
-    const formatted_options = [];
+		const [ input, setInput ] = element.useState('');
 
-    _.each(options, function(label, value) {
+		return el(TextControl, {
+			label: props.label,
+			value: input,
+			onChange(nextSearch) {
 
-      formatted_options.push({
-        label,
-        value,
-      });
+				setInput(nextSearch);
+				props.onSearch(nextSearch);
 
-    });
+			},
+		});
 
-    return formatted_options;
+	}
 
-  }
+	function PageSearchControl(props) {
 
-  function wu_get_field_component(field_type, field) {
+		// Matches core's Parent Page control: debounced search against the core-data store.
+		const [ search, setSearch ] = element.useState('');
+		const updateSearch = useDebounce(setSearch, 300);
+		const value = String(props.value || 0);
+		const savedId = Number(value) || 0;
+		const term = search.trim();
 
-    let component = TextControl;
+		const state = wp.data.useSelect(function(select) {
 
-    switch (field_type) {
+			const core = select('core');
+			const editor = select('core/editor');
+			const postId = editor && editor.getCurrentPostId ? Number(editor.getCurrentPostId()) : 0;
+			const searchQuery = { status: 'publish', per_page: 20, _fields: 'id,title', search: term };
+			const savedArgs = [ 'postType', 'page', savedId, { _fields: 'id,title,status' } ];
+			const searchArgs = [ 'postType', 'page', searchQuery ];
+			const searching = term.length >= 2;
 
-    case 'toggle':
+			if (postId > 0) {
 
-      component = ToggleControl;
+				searchQuery.exclude = postId;
 
-      break;
+			}
 
-    case 'number':
+			const saved = savedId ? core.getEntityRecord(...savedArgs) : null;
+			const pages = searching ? core.getEntityRecords(...searchArgs) : null;
 
-      if (field.max && field.min) {
+			// Return primitives for the saved page: getEntityRecord() builds a new object per call when _fields is set.
+			const savedStatus = saved ? saved.status : '';
 
-        component = RangeControl;
+			return {
+				savedStatus,
+				savedTitle: saved && saved.title ? saved.title.rendered : '',
+				pages,
+				isLoading: searching && core.isResolving('getEntityRecords', searchArgs),
+				savedUnavailable: savedId > 0 && core.hasFinishedResolution('getEntityRecord', savedArgs) && savedStatus !== 'publish',
+				searchFailed: searching && core.hasFinishedResolution('getEntityRecords', searchArgs) && pages === null,
+			};
 
-      } else {
+		}, [ term, savedId ]);
 
-        component = NumberControl;
+		function pageOption(id, title) {
 
-      }
+			return {
+				value: String(id),
+				label: wp.htmlEntities.decodeEntities(title) || wp.i18n.__('(no title)', 'ultimate-multisite'),
+			};
 
-      break;
+		}
 
-    case 'textarea':
+		const options = props.options.map(function(option) {
 
-      component = TextareaControl;
+			return { ...option, value: String(option.value) };
 
-      break;
+		});
 
-    case 'select':
+		function addOption(option) {
 
-      component = SelectControl;
+			if (! options.some(function(existing) {
 
-      break;
+				return existing.value === option.value;
 
-    case 'note':
+			})) {
 
-      component = Notice;
+				options.push(option);
 
-      break;
+			}
 
-    default:
+		}
 
-      component = TextControl;
+		if (savedId) {
 
-      break;
+			addOption(state.savedStatus === 'publish' ? pageOption(savedId, state.savedTitle) : {
+				value,
+				// translators: %s is the saved page ID.
+				label: wp.i18n.sprintf(wp.i18n.__('Page #%s', 'ultimate-multisite'), value),
+			});
 
-    }
+		}
 
-    return component;
+		(state.pages || []).forEach(function(page) {
 
-  }
+			addOption(pageOption(page.id, page.title.rendered));
 
-  /* eslint-disable */
+		});
+
+		let help = props.help;
+
+		if (state.savedUnavailable) {
+
+			help = wp.i18n.__('The saved page is unavailable or no longer published. Choose another page or keep the saved ID.', 'ultimate-multisite');
+
+		} else if (state.searchFailed) {
+
+			help = wp.i18n.__('Page search failed. Please try again.', 'ultimate-multisite');
+
+		}
+
+		const controlProps = {
+			label: props.label,
+			help,
+			value,
+			options,
+			onChange(nextValue) {
+
+				props.onChange(nextValue || '0');
+
+			},
+		};
+
+		if (components.ComboboxControl) {
+
+			return el(components.ComboboxControl, {
+				...controlProps,
+				allowReset: true,
+				isLoading: state.isLoading,
+				onFilterValueChange: updateSearch,
+			});
+
+		}
+
+		// Older WordPress versions still get bounded search, never a full-page list.
+		return el(element.Fragment, null,
+			el(LegacySearchInput, { label: props.placeholder, onSearch: updateSearch }),
+			el(SelectControl, controlProps)
+		);
+
+	}
+
+	function wu_format_options(options) {
+
+		const formatted_options = [];
+
+		_.each(options, function(label, value) {
+
+			formatted_options.push({
+				label,
+				value,
+			});
+
+		});
+
+		return formatted_options;
+
+	}
+
+	function wu_get_field_component(field_type, field) {
+
+		let component = TextControl;
+
+		switch (field_type) {
+
+			case 'toggle':
+
+				component = ToggleControl;
+
+				break;
+
+			case 'number':
+
+				if (field.max && field.min) {
+
+					component = RangeControl;
+
+				} else {
+
+					component = NumberControl;
+
+				}
+
+				break;
+
+			case 'textarea':
+
+				component = TextareaControl;
+
+				break;
+
+			case 'select':
+
+				component = SelectControl;
+
+				break;
+
+			case 'note':
+
+				component = Notice;
+
+				break;
+
+			default:
+
+				component = TextControl;
+
+				break;
+
+		}
+
+		return component;
+
+	}
+
+	/* eslint-disable */
   function wu_badge() {
 
     return el('svg', {
@@ -271,9 +422,9 @@
   /* eslint-enable */
 
 }(
-  window.wp.blocks,
-  window.wp.element,
-  window.wp.components,
-  window.wu_blocks,
-  window._
+	window.wp.blocks,
+	window.wp.element,
+	window.wp.components,
+	window.wu_blocks,
+	window._
 ));

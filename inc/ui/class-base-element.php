@@ -695,61 +695,54 @@ abstract class Base_Element {
 	}
 
 	/**
-	 * Builds page choices only when an editor or settings form needs them.
+	 * Builds a page search field without enumerating the site's pages.
 	 *
-	 * Let core handle defaults, hierarchy and filters. On WordPress 6.3+, select
-	 * only dropdown metadata without caching partial posts. Older core versions
-	 * use normal get_pages() retrieval, still deferred until options are needed.
+	 * Forms hydrate only their saved selection; the block editor resolves it
+	 * through the WordPress REST API when the control is mounted.
 	 *
-	 * @param string $default_label Label for the zero/default option.
+	 * @param string               $default_label Label for the zero/default option.
+	 * @param array<string, mixed> $args          Field definition entries (title, desc, required...) merged over the defaults.
 	 * @return array
 	 */
-	protected function get_page_options($default_label) {
+	protected function get_page_search_field($default_label, $args = []) {
 
-		global $wpdb, $wp_version;
+		$definition = [
+			'type'        => 'select',
+			'value'       => 0,
+			'page_search' => true,
+			'placeholder' => __('Search pages...', 'ultimate-multisite'),
+			'html_attr'   => [
+				'data-model'                => 'page',
+				'data-value-field'          => 'ID',
+				'data-label-field'          => 'post_title',
+				'data-search-field'         => 'post_title',
+				'data-max-items'            => 1,
+				'data-search-when-selected' => 1,
+				'data-exclude'              => get_the_ID() ?: '',
+			],
+			'options'     => static function ($field = null) use ($default_label) {
+				$options = [0 => $default_label];
+				$page_id = $field && is_scalar($field->value) ? absint($field->value) : 0;
+				$page    = $page_id ? get_post($page_id) : null;
 
-		$current_id = get_the_ID();
-		$args       = $current_id ? ['exclude' => [$current_id]] : []; // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude
-		$marker     = new \stdClass();
-		$optimize   = version_compare($wp_version, '6.3', '>=');
+				if ($page_id) {
+					// Preserve a removed/unpublished selection without exposing its title.
+					$options[ $page_id ] = $page && 'page' === $page->post_type && 'publish' === $page->post_status
+						? $page->post_title
+						/* translators: %d: saved page ID. */
+						: sprintf(__('Page #%d (unavailable)', 'ultimate-multisite'), $page_id);
+				}
 
-		$prepare_query = static function ($query_args, $page_args) use ($marker) {
-			if (($page_args['wu_page_options_query'] ?? null) === $marker) {
-				$query_args['wu_page_options_query'] = $marker;
-				// Never store projected rows as full posts.
-				$query_args['cache_results'] = false;
-			}
-			return $query_args;
-		};
+				if ($field instanceof Field) {
+					// The native select compares integer option keys strictly.
+					$field->set_attribute('value', $page_id);
+				}
 
-		$select_fields = static function ($fields, $query) use ($marker, $wpdb) {
-			return $query->get('wu_page_options_query') === $marker
-				? "{$wpdb->posts}.ID, {$wpdb->posts}.post_title, {$wpdb->posts}.post_parent, {$wpdb->posts}.post_type, {$wpdb->posts}.post_status"
-				: $fields;
-		};
+				return $options;
+			},
+		];
 
-		if ($optimize) {
-			$args['wu_page_options_query'] = $marker;
-			add_filter('get_pages_query_args', $prepare_query, PHP_INT_MAX, 2);
-			add_filter('posts_fields', $select_fields, 10, 2);
-		}
-
-		try {
-			$pages = get_pages($args);
-		} finally {
-			if ($optimize) {
-				remove_filter('get_pages_query_args', $prepare_query, PHP_INT_MAX);
-				remove_filter('posts_fields', $select_fields, 10);
-			}
-		}
-
-		$options = [0 => $default_label];
-
-		foreach ($pages ?: [] as $page) {
-			$options[ $page->ID ] = $page->post_title;
-		}
-
-		return $options;
+		return array_merge($definition, $args);
 	}
 
 	/**
@@ -797,9 +790,12 @@ abstract class Base_Element {
 			/*
 			 * Set v-model
 			 */
-			$field['html_attr'] = [
-				'v-model.lazy' => "attributes.{$field_slug}",
-			];
+			$field['html_attr'] = array_merge(
+				wu_get_isset($field, 'page_search') ? $field['html_attr'] : [],
+				[
+					'v-model.lazy' => "attributes.{$field_slug}",
+				]
+			);
 
 			$required = wu_get_isset($field, 'required');
 
@@ -824,6 +820,10 @@ abstract class Base_Element {
 			}
 
 			$state[ $field_slug ] = wu_request($field_slug, wu_get_isset($defaults, $field_slug));
+
+			if (wu_get_isset($field, 'page_search')) {
+				$field['value'] = $state[ $field_slug ];
+			}
 		}
 
 		$fields['shortcode_result'] = [
@@ -1302,6 +1302,12 @@ abstract class Base_Element {
 		$should_display = $this->should_display_customize_controls();
 
 		if ($should_display) {
+			// These links can open a form containing an asynchronous page selector.
+			wp_enqueue_script('wu-selectizer');
+
+			if ( ! is_admin()) {
+				add_action('wp_footer', [\WP_Ultimo\Ajax::get_instance(), 'render_selectize_templates']);
+			}
 			?>
 				<div class="wu-styling">
 						<div class="wu-widget-inset">

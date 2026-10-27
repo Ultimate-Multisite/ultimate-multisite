@@ -106,6 +106,16 @@ class Shortcodes_Admin_Page extends Base_Admin_Page {
 	}
 
 	/**
+	 * Loads autocomplete for the page fields inside generator modals.
+	 *
+	 * @return void
+	 */
+	public function register_scripts() {
+
+		wp_enqueue_script('wu-selectizer');
+	}
+
+	/**
 	 * Every child class should implement the output method to display the contents of the page.
 	 *
 	 * @since 1.8.2
@@ -151,6 +161,11 @@ class Shortcodes_Admin_Page extends Base_Admin_Page {
 						$params[ $key ]['options'] = '0 | 1';
 						break;
 					case 'select':
+						if ( ! empty($value['page_search'])) {
+							$params[ $key ]['options'] = __('Page ID (search in generator)', 'ultimate-multisite');
+							break;
+						}
+
 						$options = wu_get_isset($value, 'options', []);
 						$options = is_callable($options) ? call_user_func($options) : $options;
 

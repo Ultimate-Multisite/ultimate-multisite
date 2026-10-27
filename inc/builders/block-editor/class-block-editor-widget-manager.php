@@ -36,6 +36,7 @@ class Block_Editor_Widget_Manager {
 
 			if (is_admin()) {
 				add_action('init', [$this, 'register_scripts']);
+				add_action('enqueue_block_editor_assets', [$this, 'enqueue_editor_scripts']);
 			}
 
 			add_filter('wu_element_is_preview', [$this, 'is_block_preview']);
@@ -43,18 +44,29 @@ class Block_Editor_Widget_Manager {
 	}
 
 	/**
-	 * Adds the required scripts.
+	 * Registers the script handle without evaluating editor-only field options.
 	 *
 	 * @since 2.0.0
 	 * @return void
 	 */
 	public function register_scripts(): void {
 
-		\WP_Ultimo\Scripts::get_instance()->register_script('wu-blocks', wu_get_asset('blocks.js', 'js', 'inc/builders/block-editor/assets'), ['underscore', 'wp-blocks', 'wp-element', 'wp-components', 'wp-editor', 'wu-functions', 'wp-i18n', 'wp-polyfill']);
+		\WP_Ultimo\Scripts::get_instance()->register_script('wu-blocks', wu_get_asset('blocks.js', 'js', 'inc/builders/block-editor/assets'), ['underscore', 'wp-blocks', 'wp-element', 'wp-components', 'wp-editor', 'wp-block-editor', 'wp-server-side-render', 'wp-data', 'wp-core-data', 'wp-compose', 'wp-html-entities', 'wu-functions', 'wp-i18n', 'wp-polyfill']);
+	}
+
+	/**
+	 * Resolves editor settings only when WordPress loads a block editor.
+	 *
+	 * Server-side blocks remain registered on frontend and REST requests.
+	 *
+	 * @return void
+	 */
+	public function enqueue_editor_scripts(): void {
 
 		$blocks = apply_filters('wu_blocks', []);
 
 		wp_localize_script('wu-blocks', 'wu_blocks', $blocks);
+		wp_enqueue_script('wu-blocks');
 	}
 
 	/**
