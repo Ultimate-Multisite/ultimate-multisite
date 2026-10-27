@@ -8,6 +8,17 @@
 			results: {},
 			loading: true,
 		},
+		computed: {
+			nameservers() {
+				const records = (this.results.entries || []).concat(this.results.auth || []);
+				const nameservers = records
+					.filter((record) => record.type === 'NS' && typeof record.data === 'string')
+					.map((record) => record.data.replace(/\.$/, '').toLowerCase())
+					.filter((nameserver) => nameserver);
+
+				return [ ...new Set(nameservers) ].sort();
+			},
+		},
 		updated() {
 			this.$nextTick(function() {
 
