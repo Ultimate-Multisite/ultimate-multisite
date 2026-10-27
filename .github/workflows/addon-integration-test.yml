@@ -41,11 +41,18 @@ on:
         required: false
         type: string
         default: "main"
+      runner:
+        description: "runs-on label; empty uses the caller's CI_RUNNER variable, then ubuntu-latest"
+        required: false
+        type: string
+        default: ""
 
 jobs:
   phpunit:
     name: "PHPUnit (PHP ${{ matrix.php }})"
-    runs-on: ubuntu-latest
+    # Private addons set CI_RUNNER to a self-hosted label; public addons keep GitHub-hosted runners.
+    # Fork pull requests always use GitHub-hosted runners so untrusted code never reaches self-hosted ones.
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || inputs.runner || vars.CI_RUNNER || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -130,7 +137,8 @@ jobs:
   e2e:
     name: "E2E Tests"
     if: inputs.run-e2e
-    runs-on: ubuntu-latest
+    # Fork pull requests always use GitHub-hosted runners (see phpunit job).
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || inputs.runner || vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     services:
       mailpit:

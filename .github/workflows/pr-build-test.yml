@@ -51,6 +51,22 @@ jobs:
           MU_CLIENT_SECRET: ${{ secrets.MU_CLIENT_SECRET }}
         run: pnpm run build
 
+      # Source (Composer dev-main) installs serve the committed *.min.js/*.min.css
+      # directly, so they must match what this build regenerates. Vendored
+      # libraries under assets/js/lib are produced by build:vue/copylibs instead.
+      - name: Verify committed minified assets match their sources
+        run: |
+          paths=('assets/js/*.min.js' 'assets/css/*.min.css' ':(exclude)assets/js/lib/**')
+          if ! git diff --exit-code --stat -- "${paths[@]}"; then
+            echo "::error::Stale minified assets. Run 'pnpm run uglify && pnpm run cleancss' and commit the results."
+            exit 1
+          fi
+          untracked=$(git ls-files --others --exclude-standard -- "${paths[@]}")
+          if [ -n "$untracked" ]; then
+            echo "::error::Missing committed minified assets: $untracked"
+            exit 1
+          fi
+
       - name: Prepare artifact for upload
         id: artifact
         run: |

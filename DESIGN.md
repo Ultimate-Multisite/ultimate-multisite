@@ -36,3 +36,19 @@ in both the narrow editor sidebar and mobile forms; do not add fixed widths.
 Editor-only settings are resolved on the editor-assets hook, not on unrelated
 admin requests. See the block-editor widget manager and Base_Element page-search
 field helper for the shared implementation.
+## Domain DNS lookup
+
+DNS lookup without a configured integration is a normal read-only state, not a
+warning. Use a neutral gray information strip with a secondary configuration
+link; reserve warning/error styling for actual failures.
+
+Show returned NS records in a separate nameserver summary, using escaped text
+and hiding the entire summary when none are returned. Nameservers may help identify
+the DNS host, but do not infer a provider name or imply an integration is enabled.
+
+### Responsive behaviour
+
+Keep the existing stacked widget layout on desktop and mobile. List nameservers
+on separate lines and allow long hostnames to wrap without truncation. Hide the
+summary during loading or lookup errors; preserve the existing record table and
+provider-managed editing controls.

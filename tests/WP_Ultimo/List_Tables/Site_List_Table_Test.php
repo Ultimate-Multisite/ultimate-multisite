@@ -278,6 +278,86 @@ class Site_List_Table_Test extends WP_UnitTestCase {
 	}
 
 	// =========================================================================
+	// single_row_grid() — GH#2028
+	// =========================================================================
+
+	/**
+	 * Builds a pending grid item whose membership ID collides with a blog ID.
+	 *
+	 * @return object
+	 */
+	private function pending_grid_item() {
+
+		$item = $this->getMockBuilder( \stdClass::class )
+			->addMethods( ['get_type', 'get_id', 'get_membership_id', 'get_featured_image', 'get_type_class', 'get_type_label', 'get_title', 'get_active_site_url'] )
+			->getMock();
+		$item->method( 'get_type' )->willReturn( 'pending' );
+		$item->method( 'get_id' )->willReturn( 0 );
+		$item->method( 'get_membership_id' )->willReturn( 9 );
+		$item->method( 'get_featured_image' )->willReturn( '' );
+		$item->method( 'get_type_class' )->willReturn( '' );
+		$item->method( 'get_type_label' )->willReturn( 'Pending' );
+		$item->method( 'get_title' )->willReturn( 'Pending grid regression' );
+		$item->method( 'get_active_site_url' )->willReturn( 'https://pending.example.invalid' );
+
+		return $item;
+	}
+
+	/**
+	 * Renders one grid row.
+	 *
+	 * @param object $item Grid item.
+	 * @return string
+	 */
+	private function render_grid_row($item): string {
+
+		ob_start();
+		$this->table->single_row_grid( $item );
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Pending grid cards in the All Sites view must not expose a bulk-delete
+	 * checkbox: the regular `delete` bulk action treats values as blog IDs, so a
+	 * membership ID there deletes an unrelated live site.
+	 */
+	public function test_grid_pending_site_has_no_bulk_checkbox_in_all_view(): void {
+
+		$_REQUEST['type'] = 'all';
+
+		$output = $this->render_grid_row( $this->pending_grid_item() );
+
+		$this->assertStringNotContainsString( 'bulk-delete[]', $output );
+		$this->assertStringContainsString( 'Pending grid regression', $output );
+	}
+
+	/**
+	 * Same as above when no type filter is set (default All Sites view).
+	 */
+	public function test_grid_pending_site_has_no_bulk_checkbox_with_no_type(): void {
+
+		unset( $_REQUEST['type'] );
+
+		$output = $this->render_grid_row( $this->pending_grid_item() );
+
+		$this->assertStringNotContainsString( 'bulk-delete[]', $output );
+	}
+
+	/**
+	 * In the dedicated Pending view the grid keeps the membership-ID checkbox,
+	 * which is submitted to `delete-pending`.
+	 */
+	public function test_grid_pending_site_uses_membership_id_in_pending_view(): void {
+
+		$_REQUEST['type'] = 'pending';
+
+		$output = $this->render_grid_row( $this->pending_grid_item() );
+
+		$this->assertStringContainsString( 'name="bulk-delete[]" value="9"', $output );
+	}
+
+	// =========================================================================
 	// column_type()
 	// =========================================================================
 

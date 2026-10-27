@@ -469,6 +469,13 @@ abstract class Wizard_Admin_Page extends Base_Admin_Page {
 			$section['content'] = ob_get_clean();
 		}
 
+		/*
+		 * Callback metadata is not part of the template context. In particular,
+		 * passing "view" would overwrite wu_get_template()'s $view argument when
+		 * the context is extracted.
+		 */
+		unset($section['view'], $section['handler']);
+
 		wu_get_template(
 			'wizards/setup/default',
 			array_merge(

@@ -144,10 +144,10 @@ defined('ABSPATH') || exit;
 
 	<?php else : ?>
 		<!-- No Provider Configured - Show Read-Only PHP DNS Lookup -->
-		<div class="wu-p-4 wu-bg-yellow-50 wu-border-b wu-border-solid wu-border-0 wu-border-yellow-200">
-			<span class="dashicons dashicons-warning wu-text-yellow-600 wu-mr-2"></span>
+		<div class="wu-p-4 wu-bg-gray-50 wu-border-b wu-border-solid wu-border-0 wu-border-gray-300">
+			<span class="dashicons dashicons-info wu-text-gray-600 wu-mr-2" aria-hidden="true"></span>
 			<span class="wu-text-sm wu-text-gray-700">
-				<?php esc_html_e('No DNS provider configured. Showing read-only DNS lookup results.', 'ultimate-multisite'); ?>
+				<?php esc_html_e('DNS lookup results are read-only. Manage DNS records with your DNS hosting provider.', 'ultimate-multisite'); ?>
 			</span>
 			<a href="<?php echo esc_url(wu_network_admin_url('wp-ultimo-settings', ['tab' => 'integrations'])); ?>" class="wu-ml-2 wu-text-blue-600">
 				<?php esc_html_e('Configure a provider', 'ultimate-multisite'); ?>
@@ -156,6 +156,13 @@ defined('ABSPATH') || exit;
 
 		<!-- Read-only DNS Table (PHP DNS Lookup) -->
 		<div id="wu-dns-table">
+			<div v-if="!loading && !error && nameservers.length" class="wu-p-4 wu-text-sm wu-text-gray-700 wu-border-b wu-border-solid wu-border-0 wu-border-gray-300" v-cloak>
+				<strong><?php esc_html_e('Nameservers', 'ultimate-multisite'); ?></strong>
+				<ul class="wu-m-0 wu-mt-2">
+					<li v-for="nameserver in nameservers" :key="nameserver" class="wu-font-mono" style="overflow-wrap: anywhere;">{{ nameserver }}</li>
+				</ul>
+				<p class="wu-m-0 wu-mt-2"><?php esc_html_e('These nameservers may help identify your DNS hosting provider.', 'ultimate-multisite'); ?></p>
+			</div>
 			<table class="wp-list-table widefat fixed striped wu-border-t-0" v-cloak>
 				<thead>
 					<tr>

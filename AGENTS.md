@@ -147,14 +147,16 @@ assets/                  # JS, CSS, images, fonts
 
 - WordPress ESLint config. Tabs for indentation. jQuery and Vue.js globals available.
 - `camelCase` off — snake_case allowed for WP compatibility.
-- `*.min.js` files are generated during the release build. Edit the non-minified
-  source only and do not commit `.min.js` files on feature branches.
+- Edit the non-minified source, then run `pnpm run uglify` and commit the
+  regenerated `*.min.js` with it. Source (Composer `dev-main`) installs serve the
+  committed minified files without a build step; the PR build fails on stale or
+  missing ones. Vendored `assets/js/lib/` files come from `build:vue`/`copylibs`.
 
 ### CSS
 
 - WordPress Stylelint config. `!important` allowed for admin overrides.
-- `*.min.css` files are generated during the release build. Edit the non-minified
-  source only and do not commit `.min.css` files on feature branches.
+- Edit the non-minified source, then run `pnpm run cleancss` and commit the
+  regenerated `*.min.css` with it (same PR build freshness check as JavaScript).
 
 ## Key Patterns
 

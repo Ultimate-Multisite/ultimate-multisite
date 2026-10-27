@@ -394,9 +394,10 @@ class Sunrise {
 	 */
 	public static function try_upgrade() {
 
-		$copy_results = copy(
+		$sunrise_path = WP_CONTENT_DIR . '/sunrise.php';
+		$copy_results = static::copy_sunrise_file(
 			dirname(WP_ULTIMO_PLUGIN_FILE) . '/sunrise.php',
-			WP_CONTENT_DIR . '/sunrise.php'
+			$sunrise_path
 		);
 
 		if ( ! $copy_results) {
@@ -407,8 +408,37 @@ class Sunrise {
 			return new \WP_Error('error', sprintf(__('Sunrise copy failed: %s', 'ultimate-multisite'), $error['message']));
 		}
 
+		static::invalidate_opcode_cache($sunrise_path);
+
 		wu_log_add('sunrise', __('Sunrise upgrade attempt succeeded.', 'ultimate-multisite'));
 		return true;
+	}
+
+	/**
+	 * Copies the bundled sunrise file into the content directory.
+	 *
+	 * @since 2.17.3
+	 *
+	 * @param string $source Source file path.
+	 * @param string $destination Destination file path.
+	 * @return bool
+	 */
+	protected static function copy_sunrise_file($source, $destination) {
+
+		return copy($source, $destination);
+	}
+
+	/**
+	 * Invalidates the cached sunrise script after replacement.
+	 *
+	 * @since 2.17.3
+	 *
+	 * @param string $file_path Sunrise file path.
+	 * @return bool
+	 */
+	protected static function invalidate_opcode_cache($file_path) {
+
+		return wu_invalidate_opcode_cache($file_path);
 	}
 
 	/**
