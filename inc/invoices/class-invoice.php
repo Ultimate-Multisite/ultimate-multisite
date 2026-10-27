@@ -117,8 +117,10 @@ class Invoice {
 	 * and Arabic-script language rules), so the check follows what mPDF will
 	 * really try to load. A script is unsupported when that font file is not
 	 * on disk, for example because scripts/remove-mpdf-fonts.php stripped it.
-	 * Scripts that use core PDF fonts or Adobe CJK fonts need no font file and
-	 * are not reported.
+	 * Scripts that use core PDF fonts need no font file and are not reported.
+	 * Neither are Chinese, Japanese and Korean: with the '+aCJK' mode mPDF
+	 * references its built-in Adobe CJK fonts (gb, big5, sjis and uhc), which
+	 * are not files and are not embedded, so viewers substitute a system font.
 	 *
 	 * @since 2.18.0
 	 *
@@ -184,7 +186,8 @@ class Invoice {
 
 				[, $unifont] = $language_to_font->getLanguageOptions($language, $this->printer->useAdobeCJK);
 
-				if ('' !== $unifont && ! $this->is_font_available($unifont)) {
+				// mPDF always treats its built-in Adobe CJK fonts as available (see Mpdf::setCSS()).
+				if ('' !== $unifont && ! in_array($unifont, ['sjis', 'uhc', 'big5', 'gb'], true) && ! $this->is_font_available($unifont)) {
 					$unsupported[ $language_label ] = $language_label;
 				}
 			}
