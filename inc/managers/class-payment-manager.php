@@ -455,6 +455,15 @@ class Payment_Manager extends Base_Manager {
 					LogLevel::ERROR
 				);
 
+				/*
+				 * Network admins can act on the plugin's own error messages (for
+				 * example, text in a script with no bundled font). Everyone else
+				 * gets a generic message.
+				 */
+				if ($e instanceof \WP_Ultimo\Exception\Runtime_Exception && current_user_can('manage_network')) {
+					wp_die(esc_html($e->getMessage()));
+				}
+
 				wp_die(esc_html__('The invoice could not be generated. Please try again later or contact support.', 'ultimate-multisite'));
 			}
 
