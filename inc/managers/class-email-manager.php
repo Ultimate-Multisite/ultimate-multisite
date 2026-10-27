@@ -80,6 +80,17 @@ class Email_Manager extends Base_Manager {
 	const SCHEDULED_ARGS_MAX_LENGTH = 8000;
 
 	/**
+	 * Key in a secondary network's setup state marking its default system emails as created.
+	 *
+	 * Stored in Table::NETWORK_TABLE_VERSIONS_OPTION, which is already loaded on
+	 * every secondary-network request, so the check costs no query.
+	 *
+	 * @since 2.18.0
+	 * @var string
+	 */
+	const SYSTEM_EMAILS_SETUP_KEY = '_system_emails';
+
+	/**
 	 * Instantiate the necessary hooks.
 	 *
 	 * @since 2.0.0
@@ -109,6 +120,75 @@ class Email_Manager extends Base_Manager {
 		add_action('wp_mail_failed', [$this, 'log_mailer_failure']);
 
 		add_action('wp_ajax_wu_get_event_payload_placeholders', [$this, 'get_event_placeholders']);
+
+		// Late init: default emails are translated, so text domains must be loaded.
+		add_action('init', [$this, 'maybe_create_secondary_network_system_emails'], 99);
+	}
+
+	/**
+	 * Creates the default system emails after a secondary network's posts table exists.
+	 *
+	 * A secondary network can finish setup after its tables have been created outside
+	 * the regular setup wizard. Creating the defaults here keeps its system emails
+	 * available without repeating the idempotent creation check on every request:
+	 * once created, the check reads only the network's already-loaded setup state.
+	 *
+	 * @since 2.18.0
+	 * @return void
+	 */
+	public function maybe_create_secondary_network_system_emails(): void {
+
+		if (is_main_network()) {
+			return;
+		}
+
+		$network_id = get_current_network_id();
+		$state      = \WP_Ultimo\Database\Engine\Table::get_network_setup_state($network_id);
+
+		if ( ! empty($state[ self::SYSTEM_EMAILS_SETUP_KEY ])) {
+			return;
+		}
+
+		// The posts table records its version in the same state once it is set up; no SHOW TABLES needed.
+		$post_table = \WP_Ultimo\Loaders\Table_Loader::get_instance()->post_table;
+
+		if (empty($state[ $post_table->prefixed_name ])) {
+			return;
+		}
+
+		// Site transients are per network, so a failure here never delays other networks.
+		$retry_key = 'wu_system_emails_failed';
+
+		if (get_site_transient($retry_key)) {
+			return;
+		}
+
+		global $wpdb;
+
+		// One request creates the defaults; others skip instead of duplicating them.
+		$lock = \WP_Ultimo\Database\Engine\Table::get_network_setup_lock($network_id);
+
+		if ('1' !== (string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock))) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- named lock, never cached.
+			return;
+		}
+
+		try {
+			// Skips slugs a previous lock holder already created.
+			$this->create_all_system_emails();
+
+			foreach (wu_get_default_system_emails() as $email) {
+				if (empty($email['slug']) || ! $this->is_created($email['slug'])) {
+					// Retry at most hourly instead of rendering every template on each request.
+					set_site_transient($retry_key, 1, HOUR_IN_SECONDS);
+
+					return;
+				}
+			}
+
+			\WP_Ultimo\Database\Engine\Table::set_network_setup_state($network_id, self::SYSTEM_EMAILS_SETUP_KEY, '1');
+		} finally {
+			$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- named lock, never cached.
+		}
 	}
 
 	/**

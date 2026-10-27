@@ -106,6 +106,33 @@ class Query extends \BerlinDB\Database\Query {
 	}
 
 	/**
+	 * Return no items when this network's table is not registered.
+	 *
+	 * Sunrise domain mapping runs on every network, including networks where
+	 * Ultimate Multisite stops before setting up its tables. Querying then
+	 * would build SQL with an empty table name (`FROM  wu_5_d`).
+	 *
+	 * @since 2.18.0
+	 * @param string|array $query Query parameters.
+	 * @return array|int
+	 */
+	public function query($query = []) {
+
+		$db = $this->get_db();
+
+		if ($db && empty($db->{$this->table_name})) {
+			$args = wp_parse_args($query);
+
+			// Grouped counts return an array, like BerlinDB, which also stores the result in items.
+			$this->items = empty($args['count']) || ! empty($args['groupby']) ? [] : 0;
+
+			return $this->items;
+		}
+
+		return parent::query($query);
+	}
+
+	/**
 	 * Get the plural name.
 	 *
 	 * @since 2.0.0
