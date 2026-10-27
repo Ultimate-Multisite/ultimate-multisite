@@ -108,6 +108,22 @@ class Requirements {
 			return true;
 		}
 
+		/*
+		 * Secondary networks read their table setup state on every request
+		 * (Table::maybe_install_network_table()). Load it in the same query as
+		 * the setup flag, so an up-to-date network costs no extra query. The
+		 * main network never reads it, so it is not primed there.
+		 */
+		if (function_exists('wp_prime_network_option_caches') && ! is_main_network()) {
+			wp_prime_network_option_caches(
+				null,
+				[
+					\WP_Ultimo::NETWORK_OPTION_SETUP_FINISHED,
+					\WP_Ultimo\Database\Engine\Table::NETWORK_TABLE_VERSIONS_OPTION,
+				]
+			);
+		}
+
 		return get_network_option(null, \WP_Ultimo::NETWORK_OPTION_SETUP_FINISHED, false);
 	}
 

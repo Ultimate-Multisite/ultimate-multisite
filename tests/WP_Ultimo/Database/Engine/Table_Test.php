@@ -208,13 +208,21 @@ class Table_Test extends WP_UnitTestCase {
 
 			$table = new \WP_Ultimo\Database\Webhooks\Webhooks_Table();
 
-			$this->assertTrue($table->is_upgradeable());
+			// Secondary networks are set up on first request, not by BerlinDB's admin_init check.
+			$this->assertFalse($table->is_upgradeable());
 			$this->assertSame($table_name, $table->table_name);
 			$this->assertTrue($table->exists());
 
 			$versions = get_network_option($network_id, Table::NETWORK_TABLE_VERSIONS_OPTION);
 
 			$this->assertSame($this->get_table_property($table, 'version'), $versions[ $key ] ?? null);
+
+			// Once current, later requests' table setup runs no queries.
+			$queries = $wpdb->num_queries;
+
+			new \WP_Ultimo\Database\Webhooks\Webhooks_Table();
+
+			$this->assertSame($queries, $wpdb->num_queries);
 		} finally {
 			remove_filter('get_main_network_id', $main);
 			$wpdb->query("DROP TABLE IF EXISTS {$table_name}"); // phpcs:ignore WordPress.DB
@@ -262,6 +270,52 @@ class Table_Test extends WP_UnitTestCase {
 			remove_filter('get_main_network_id', $main);
 			$wpdb->query("DROP TABLE IF EXISTS {$table_name}"); // phpcs:ignore WordPress.DB
 			delete_network_option($network_id + 1000, "wpdb_{$key}_version");
+			delete_network_option($network_id, Table::NETWORK_TABLE_VERSIONS_OPTION);
+		}
+	}
+
+	/**
+	 * GH#2034: a version recorded under the secondary network itself (not the
+	 * main network, where BerlinDB reads it) is adopted, so pending upgrades
+	 * run instead of the table being stamped current.
+	 */
+	public function test_secondary_network_table_adopts_network_local_version(): void {
+		global $wpdb;
+
+		$network_id = get_current_network_id();
+		$main_id    = $network_id + 1000;
+		$main       = static fn() => $main_id;
+		$table_name = $wpdb->base_prefix . 'wu_' . $network_id . '_webhooks';
+		$key        = 'wu_' . $network_id . '_webhooks';
+
+		remove_filter('query', [$this, '_create_temporary_tables']);
+		remove_filter('query', [$this, '_drop_temporary_tables']);
+		add_filter('get_main_network_id', $main);
+
+		try {
+			$wpdb->query("DROP TABLE IF EXISTS {$table_name}"); // phpcs:ignore WordPress.DB
+			delete_network_option($main_id, "wpdb_{$key}_version");
+			delete_network_option($network_id, "wpdb_{$key}_version");
+			delete_network_option($network_id, Table::NETWORK_TABLE_VERSIONS_OPTION);
+
+			new \WP_Ultimo\Database\Webhooks\Webhooks_Table();
+
+			$wpdb->query("ALTER TABLE {$table_name} MODIFY COLUMN `date_created` datetime NOT NULL"); // phpcs:ignore WordPress.DB
+			delete_network_option($main_id, "wpdb_{$key}_version");
+			update_network_option($network_id, "wpdb_{$key}_version", '2.0.0');
+			delete_network_option($network_id, Table::NETWORK_TABLE_VERSIONS_OPTION);
+
+			$table = new \WP_Ultimo\Database\Webhooks\Webhooks_Table();
+
+			$columns = wp_list_pluck($wpdb->get_results("SHOW COLUMNS FROM {$table_name}", ARRAY_A), 'Null', 'Field'); // phpcs:ignore WordPress.DB
+
+			$this->assertSame('YES', $columns['date_created'] ?? null);
+			$this->assertSame($this->get_table_property($table, 'version'), get_network_option($main_id, "wpdb_{$key}_version"));
+		} finally {
+			remove_filter('get_main_network_id', $main);
+			$wpdb->query("DROP TABLE IF EXISTS {$table_name}"); // phpcs:ignore WordPress.DB
+			delete_network_option($main_id, "wpdb_{$key}_version");
+			delete_network_option($network_id, "wpdb_{$key}_version");
 			delete_network_option($network_id, Table::NETWORK_TABLE_VERSIONS_OPTION);
 		}
 	}
