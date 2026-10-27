@@ -429,9 +429,32 @@ class Email_Manager extends Base_Manager {
 					return;
 				}
 
-				$invoice = new \WP_Ultimo\Invoices\Invoice($payment);
+				/*
+				 * A PDF failure (e.g. a font that mPDF cannot parse) must not
+				 * abort wp_mail(). Log it and send the email without the attachment.
+				 * Only the exception class and message are logged, never invoice
+				 * content or customer data.
+				 */
+				try {
+					$invoice = new \WP_Ultimo\Invoices\Invoice($payment);
 
-				$mail->addStringAttachment($invoice->get_content(), $file_name);
+					$content = $invoice->get_content();
+				} catch (\Throwable $e) {
+					wu_log_add(
+						'mailer',
+						sprintf(
+							/* translators: 1: exception class, 2: exception message. */
+							__('Could not attach the invoice PDF to the email, sending it without the attachment: %1$s: %2$s', 'ultimate-multisite'),
+							get_class($e),
+							$e->getMessage()
+						),
+						LogLevel::ERROR
+					);
+
+					return;
+				}
+
+				$mail->addStringAttachment($content, $file_name);
 			}
 		);
 	}

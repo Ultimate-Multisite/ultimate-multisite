@@ -82,17 +82,6 @@ class Invoice {
 	}
 
 	/**
-	 * Returns the path to the bundled RTL fonts directory.
-	 *
-	 * @since 2.0.0
-	 * @return string
-	 */
-	private function get_rtl_font_dir(): string {
-
-		return WP_ULTIMO_PLUGIN_DIR . 'assets/fonts/amiri/';
-	}
-
-	/**
 	 * Returns mPDF fontdata overrides for fonts removed to reduce package size.
 	 *
 	 * The composer post-install script (scripts/remove-mpdf-fonts.php) strips
@@ -130,35 +119,37 @@ class Invoice {
 	/**
 	 * Returns the mPDF fontdata configuration for bundled RTL fonts.
 	 *
-	 * Amiri is an Arabic Naskh-style font with full OpenType Layout (OTL)
-	 * support. The useOTL flag enables Arabic letter-joining (shaping) and
-	 * the useKashida flag enables kashida-based text justification.
-	 * Without these flags Arabic letters render as isolated glyphs with
-	 * spaces between them instead of connected words.
+	 * The built-in mPDF Arabic language-to-font mapping maps 'ar', 'fa', 'ur'
+	 * etc. to 'xbriyaz'. The XB Riyaz font files are removed by the composer
+	 * post-install script to reduce package size, so 'xbriyaz' is remapped to
+	 * DejaVu Sans Condensed, which is retained and covers the Arabic block.
 	 *
-	 * The font is registered under both 'amiri' (for explicit use) and
-	 * 'xbriyaz' (to satisfy mPDF's built-in Arabic language-to-font mapping,
-	 * which maps 'ar', 'fa', 'ur' etc. to 'xbriyaz'). The XB Riyaz font
-	 * files are removed by the composer post-install script to reduce package
-	 * size; Amiri serves as a drop-in replacement with superior Arabic shaping.
+	 * The useOTL flag enables Arabic letter-joining (shaping) and the
+	 * useKashida flag enables kashida-based text justification. Without these
+	 * flags Arabic letters render as isolated glyphs with spaces between them
+	 * instead of connected words.
+	 *
+	 * The previously bundled Amiri font was dropped: its GSUB table uses
+	 * contextual substitution lookups (type 5, format 3) that mPDF cannot
+	 * parse, which threw a FontException for any Arabic text.
+	 *
+	 * Only the Regular and Bold files are retained, so Italic variants map to
+	 * their upright counterparts.
 	 *
 	 * @since 2.0.0
 	 * @return array
 	 */
 	private function get_rtl_fontdata(): array {
 
-		$amiri = [
-			'R'          => 'Amiri-Regular.ttf',
-			'B'          => 'Amiri-Bold.ttf',
-			'I'          => 'Amiri-Italic.ttf',
-			'BI'         => 'Amiri-BoldItalic.ttf',
-			'useOTL'     => 0xFF,
-			'useKashida' => 75,
-		];
-
 		return [
-			'amiri'   => $amiri,
-			'xbriyaz' => $amiri,
+			'xbriyaz' => [
+				'R'          => 'DejaVuSansCondensed.ttf',
+				'B'          => 'DejaVuSansCondensed-Bold.ttf',
+				'I'          => 'DejaVuSansCondensed.ttf',
+				'BI'         => 'DejaVuSansCondensed-Bold.ttf',
+				'useOTL'     => 0xFF,
+				'useKashida' => 75,
+			],
 		];
 	}
 
@@ -181,20 +172,18 @@ class Invoice {
 		);
 
 		/*
-		 * Register the bundled Amiri font for Arabic/RTL support.
+		 * Register the Arabic/RTL font mapping.
 		 *
-		 * AddFontDirectory() appends to the existing font search path so the
-		 * default mPDF fonts (DejaVu, etc.) remain available. The fontdata
-		 * entry is merged into $this->fontdata so mPDF can locate Amiri by
-		 * name when autoLangToFont selects it for Arabic script.
+		 * The fontdata entry is merged into $this->fontdata so mPDF can locate
+		 * the retained DejaVu Sans Condensed files under the 'xbriyaz' name
+		 * when autoLangToFont selects it for Arabic script. These files live in
+		 * the default mPDF ttfonts directory, which is already on the search path.
 		 *
 		 * useOTL => 0xFF enables OpenType Layout features (required for Arabic
 		 * letter-joining/shaping). Without it, Arabic letters render as
 		 * isolated glyphs with spaces between them instead of connected words.
 		 * useKashida => 75 enables kashida-based text justification.
 		 */
-		$this->printer->AddFontDirectory($this->get_rtl_font_dir());
-
 		foreach ($this->get_rtl_fontdata() as $font_name => $font_config) {
 			$this->printer->fontdata[ $font_name ] = $font_config;
 

@@ -659,6 +659,42 @@ class Invoice_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test PDF generation with Arabic text (regular and bold) does not throw a FontException.
+	 *
+	 * Regression test for GH#1925: the bundled Amiri font used GSUB lookups
+	 * that mPDF cannot parse, so any Arabic text made PDF generation fail.
+	 */
+	public function test_pdf_with_arabic_text() {
+
+		$line_items = [
+			new Line_Item([
+				'type'        => 'product',
+				'hash'        => 'arabic_plan',
+				'title'       => 'فاتورة مرحبا بالعالم',
+				'description' => 'خطة الاشتراك الشهرية',
+				'unit_price'  => 49.00,
+				'quantity'    => 1,
+				'taxable'     => false,
+			]),
+		];
+
+		$payment = $this->create_test_payment([
+			'line_items' => $line_items,
+		]);
+
+		// The company name is rendered inside <strong>, which exercises the bold face.
+		$invoice = new Invoice($payment, [
+			'company_name'    => 'شركة مرحبا بالعالم',
+			'company_address' => "شارع الملك فهد\nالرياض",
+		]);
+
+		$content = $invoice->get_content();
+
+		$this->assertNotEmpty($content);
+		$this->assertStringStartsWith('%PDF-', $content);
+	}
+
+	/**
 	 * Test Invoice render contains Bill To section.
 	 */
 	public function test_render_contains_bill_to_section() {
