@@ -1,4 +1,31 @@
 <?php
+/**
+ * Removes mPDF font files that the plugin does not need, to reduce package size.
+ *
+ * Fonts retained for invoice PDF language support (GH#2039), by script:
+ *
+ * - Hebrew:  TaameyDavidCLM-Medium.ttf, TaameyDavidCLM-LICENSE.txt
+ * - Thai:    Garuda.ttf, Garuda-Bold.ttf (oblique files are stripped)
+ * - Lao:     Dhyana-Regular.ttf, Dhyana-Bold.ttf, DhyanaOFL.txt
+ * - Khmer:   KhmerOS.ttf, KhmerOFL.txt
+ * - Myanmar: Tharlon-Regular.ttf, TharlonOFL.txt
+ * - Kannada: Lohit-Kannada.ttf, LohitKannadaOFL.txt
+ * - Telugu:  Pothana2000.ttf
+ * - Sindhi:  LateefRegOT.ttf, Lateef font OFL.txt
+ *
+ * Sinhala (kaputaunicode.ttf) stays stripped: its only licence text is
+ * "All rights reserved", so redistribution is not allowed.
+ *
+ * Every retained font family must keep all four fontdata styles (R, B, I, BI)
+ * resolvable. mPDF defines only some styles for these fonts, and the oblique
+ * Garuda files are stripped, so Invoice::get_missing_fontdata() remaps the
+ * missing styles to a retained file. Update that method when changing this list.
+ *
+ * @package WP_Ultimo
+ */
+
+// This is a composer CLI script that runs without WordPress loaded.
+// phpcs:disable WordPress.WP.AlternativeFunctions.unlink_unlink, WordPress.Security.EscapeOutput.OutputNotEscaped
 
 $fonts = [
 	'AboriginalSansREGULAR.ttf',
@@ -9,17 +36,14 @@ $fonts = [
 	'damase_v.2.ttf',
 	'DBSILBR.ttf',
 	'DejaVuSerif.ttf',
-	'Dhyana-Regular.ttf',
 	'DejaVuSansMono-Oblique.ttf',
 	'DejaVuSerif-BoldItalic.ttf',
-	'DhyanaOFL.txt',
 	'DejaVuSerifCondensed-BoldItalic.ttf',
 	'DejaVuSansMono-Bold.ttf',
 	'DejaVuSerif-Italic.ttf',
 	'DejaVuSansMono.ttf',
 	'DejaVuSansMono-BoldOblique.ttf',
 	'DejaVuSerif-Bold.ttf',
-	'Dhyana-Bold.ttf',
 	'DejaVuSerifCondensed-Italic.ttf',
 	'DejaVuSansCondensed-BoldOblique.ttf',
 	'DejaVuSansCondensed-Oblique.ttf',
@@ -37,36 +61,23 @@ $fonts = [
 	'FreeSerifBold.ttf',
 	'FreeSerifBoldItalic.ttf',
 	'FreeSerifItalic.ttf',
-	'Garuda.ttf',
-	'Garuda-Bold.ttf',
 	'Garuda-BoldOblique.ttf',
 	'Garuda-Oblique.ttf',
 	'GNUFreeFontinfo.txt',
 	'Jomolhari.ttf',
 	'Jomolhari-OFL.txt',
 	'kaputaunicode.ttf',
-	'KhmerOFL.txt',
-	'KhmerOS.ttf',
 	'lannaalif-v1-03.ttf',
-	'Lateef font OFL.txt',
-	'LateefRegOT.ttf',
-	'Lohit-Kannada.ttf',
-	'LohitKannadaOFL.txt',
 	'ocrb10.ttf',
 	'ocrbinfo.txt',
 	'Padauk-book.ttf',
-	'Pothana2000.ttf',
 	'Quivira.otf',
 	'Sun-ExtA.ttf',
 	'Sun-ExtB.ttf',
 	'SundaneseUnicode-1.0.5.ttf',
 	'SyrCOMEdessa.otf',
 	'SyrCOMEdessa_license.txt',
-	'TaameyDavidCLM-LICENSE.txt',
-	'TaameyDavidCLM-Medium.ttf',
 	'TaiHeritagePro.ttf',
-	'Tharlon-Regular.ttf',
-	'TharlonOFL.txt',
 	'UnBatang_0613.ttf',
 	'Uthman.otf',
 	'XB Riyaz.ttf',
@@ -83,9 +94,9 @@ $dir = __DIR__ . '/../vendor/mpdf/mpdf/ttfonts/';
 echo "\nRemoving fonts...\n\n";
 
 foreach ($fonts as $font) {
-	$filePath = $dir . $font;
-	if (file_exists($filePath)) {
-		unlink($filePath);
+	$file_path = $dir . $font;
+	if (file_exists($file_path)) {
+		unlink($file_path);
 		echo "Deleted: $font\n";
 	} else {
 		echo "Not found: $font\n";

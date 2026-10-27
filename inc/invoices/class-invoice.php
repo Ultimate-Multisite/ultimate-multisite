@@ -301,6 +301,11 @@ class Invoice {
 	 * variants, which have the same glyph coverage, so those scripts render
 	 * without shipping any additional font file.
 	 *
+	 * Garuda (Thai) is packaged without its two oblique files, so its italic
+	 * styles are remapped to the upright files. Fonts that mPDF defines with
+	 * only some styles (for example Dhyana, Khmer OS) need no remap: mPDF
+	 * simulates the missing bold or italic style from the regular file.
+	 *
 	 * @since 2.3.2
 	 * @return array
 	 */
@@ -324,6 +329,14 @@ class Invoice {
 				'B'  => 'DejaVuSerifCondensed-Bold.ttf',
 				'I'  => 'DejaVuSerifCondensed.ttf',
 				'BI' => 'DejaVuSerifCondensed-Bold.ttf',
+			],
+			// Thai. The oblique files are not packaged, so italics use the upright files.
+			'garuda'         => [
+				'R'      => 'Garuda.ttf',
+				'B'      => 'Garuda-Bold.ttf',
+				'I'      => 'Garuda.ttf',
+				'BI'     => 'Garuda-Bold.ttf',
+				'useOTL' => 0xFF,
 			],
 		];
 	}
