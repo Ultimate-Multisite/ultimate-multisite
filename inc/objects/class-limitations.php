@@ -460,21 +460,18 @@ class Limitations implements \JsonSerializable {
 	 */
 	public static function early_get_limitations($slug, $id) {
 
-		$wu_prefix = 'wu_';
+		$meta_table = self::get_meta_table($slug);
 
-		/*
-		 * Reset the slug and prefixes
-		 * for the native tables of blogs.
-		 */
-		if ('site' === $slug) {
-			$slug = 'blog';
-
-			$wu_prefix = '';
+		if ( ! $meta_table) {
+			return [];
 		}
+
+		[$table_name, $id_column] = $meta_table;
 
 		$cache = static::$limitations_cache;
 
-		$key = sprintf('%s-%s', $slug, $id);
+		// Model IDs are only unique within a network's own tables.
+		$key = sprintf('%s-%s', $table_name, $id);
 
 		if (isset($cache[ $key ])) {
 			return $cache[ $key ];
@@ -484,9 +481,7 @@ class Limitations implements \JsonSerializable {
 
 		$limitations = [];
 
-		$table_name = "{$wpdb->base_prefix}{$wu_prefix}{$slug}meta";
-
-		$sql = $wpdb->prepare("SELECT meta_value FROM {$table_name} WHERE meta_key = 'wu_limitations' AND  {$wu_prefix}{$slug}_id = %d LIMIT 1", $id); // phpcs:ignore
+		$sql = $wpdb->prepare("SELECT meta_value FROM {$table_name} WHERE meta_key = 'wu_limitations' AND  {$id_column} = %d LIMIT 1", $id); // phpcs:ignore
 
 		$results = $wpdb->get_var($sql); // phpcs:ignore
 
@@ -515,35 +510,59 @@ class Limitations implements \JsonSerializable {
 
 		global $wpdb;
 
+		$meta_table = self::get_meta_table($slug);
+
+		if ( ! $meta_table) {
+			return;
+		}
+
+		[$table_name, $id_column] = $meta_table;
+
+		$sql = $wpdb->prepare("DELETE FROM {$table_name} WHERE meta_key = 'wu_limitations' AND  {$id_column} = %d LIMIT 1", $id); // phpcs:ignore
+
+		$wpdb->get_var($sql); // phpcs:ignore
+
+		unset(static::$limitations_cache[ sprintf('%s-%s', $table_name, $id) ]);
+	}
+
+	/**
+	 * Resolve the meta table and ID column that store a model's limitations.
+	 *
+	 * Ultimate Multisite tables are network-scoped (`wu_{network_id}_*`) on
+	 * secondary networks, so model IDs must be looked up in the current
+	 * network's table. Site limitations live in the shared blogmeta table.
+	 *
+	 * @since 2.17.3
+	 *
+	 * @param string $slug The model slug.
+	 * @return array{0: string, 1: string}|null Table name and ID column, or null for unknown models.
+	 */
+	protected static function get_meta_table($slug): ?array {
+
+		global $wpdb;
+
 		/*
-		 * $slug is used to build the meta table and column names below, so it
+		 * $slug is used to build the meta table and column names, so it
 		 * must never be taken from request input verbatim. Validate it against
 		 * a fixed allow-list of the models that actually carry limitations to
 		 * prevent SQL injection through the identifier.
 		 */
-		$allowed_models = ['membership', 'product', 'customer', 'site'];
-
-		if ( ! in_array($slug, $allowed_models, true)) {
-			return;
+		if ( ! in_array($slug, ['membership', 'product', 'customer', 'site'], true)) {
+			return null;
 		}
 
-		$wu_prefix = 'wu_';
-
-		/*
-		 * Site apis are already available,
-		 * so no need to use low-level sql calls.
-		 */
 		if ('site' === $slug) {
-			$wu_prefix = '';
-
-			$slug = 'blog';
+			return ["{$wpdb->base_prefix}blogmeta", 'blog_id'];
 		}
 
-		$table_name = "{$wpdb->base_prefix}{$wu_prefix}{$slug}meta";
+		$network_prefix = '';
+		$network_id     = get_current_network_id();
 
-		$sql = $wpdb->prepare("DELETE FROM {$table_name} WHERE meta_key = 'wu_limitations' AND  {$wu_prefix}{$slug}_id = %d LIMIT 1", $id); // phpcs:ignore
+		if (get_main_network_id() !== $network_id) {
+			$network_prefix = $network_id . '_';
+		}
 
-		$wpdb->get_var($sql); // phpcs:ignore
+		return ["{$wpdb->base_prefix}wu_{$network_prefix}{$slug}meta", "wu_{$slug}_id"];
 	}
 
 	/**

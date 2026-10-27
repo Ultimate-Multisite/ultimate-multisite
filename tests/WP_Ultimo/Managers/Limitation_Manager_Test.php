@@ -3000,6 +3000,36 @@ class Limitation_Manager_Test extends \WP_UnitTestCase {
 		$this->assertEmpty($result);
 	}
 
+	/**
+	 * Early limitations read the current network's meta table, not the main network's.
+	 *
+	 * On a secondary network the same product ID can exist in both tables, so reading
+	 * the unprefixed table applied another network's plan limits (e.g. customer role).
+	 */
+	public function test_early_get_limitations_uses_network_scoped_meta_table(): void {
+
+		global $current_site, $wpdb;
+
+		$method = new \ReflectionMethod(Limitations::class, 'get_meta_table');
+		$method->setAccessible(true);
+
+		$this->assertSame(["{$wpdb->base_prefix}wu_productmeta", 'wu_product_id'], $method->invoke(null, 'product'));
+		$this->assertSame(["{$wpdb->base_prefix}blogmeta", 'blog_id'], $method->invoke(null, 'site'));
+		$this->assertNull($method->invoke(null, 'product; DROP TABLE x'));
+
+		$original     = $current_site;
+		$fake         = clone $current_site;
+		$fake->id     = 987;
+		$current_site = $fake;
+
+		try {
+			$this->assertSame(["{$wpdb->base_prefix}wu_987_membershipmeta", 'wu_membership_id'], $method->invoke(null, 'membership'));
+			$this->assertSame(["{$wpdb->base_prefix}blogmeta", 'blog_id'], $method->invoke(null, 'site'));
+		} finally {
+			$current_site = $original;
+		}
+	}
+
 	// ---------------------------------------------------------------
 	// Limitations remove_limitations
 	// ---------------------------------------------------------------
