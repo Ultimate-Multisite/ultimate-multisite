@@ -8,8 +8,12 @@ const { execFileSync } = require("child_process");
 // `process.env.NODE_ENV === 'production'`, leaving a minified development
 // build that still emits the "Vue is running in development mode" warning.
 // See issue #1221 for the regression history.
+//
+// wu_get_asset() serves *.min.js whenever SCRIPT_DEBUG is off, including
+// module assets under inc/ (e.g. the block editor's blocks.js), so those
+// must be minified too or production keeps loading a stale build.
 const files = glob
-  .sync("assets/js/**/*.js")
+  .sync("{assets/js,inc/**/assets/js}/**/*.js")
   .filter((f) => !f.endsWith(".min.js"))
   .filter((f) => !f.startsWith("assets/js/lib/"));
 
