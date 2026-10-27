@@ -695,6 +695,66 @@ class Invoice_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test PDF generation with Armenian and Georgian text.
+	 *
+	 * The stripped 'dejavusans' font that mPDF selects for these scripts is
+	 * remapped to the retained DejaVu Sans Condensed files (GH#2037).
+	 */
+	public function test_pdf_with_armenian_and_georgian_text() {
+
+		$payment = $this->create_test_payment();
+
+		$invoice = new Invoice($payment, [
+			'company_name'    => 'Ամսական բաժանորդագրություն',
+			'company_address' => 'ყოველთვიური გამოწერა',
+		]);
+
+		$this->assertSame([], $invoice->get_unsupported_scripts($invoice->render()));
+		$this->assertStringStartsWith('%PDF-', $invoice->get_content());
+	}
+
+	/**
+	 * Test scripts without a bundled font fail early with a clear, actionable error.
+	 */
+	public function test_pdf_with_unsupported_script_throws_clear_error() {
+
+		$payment = $this->create_test_payment();
+
+		$invoice = new Invoice($payment, [
+			'company_name' => 'חשבונית עבור מנוי חודשי',
+		]);
+
+		$this->assertSame(['Hebrew'], $invoice->get_unsupported_scripts($invoice->render()));
+
+		$this->expectException(\WP_Ultimo\Exception\Runtime_Exception::class);
+		$this->expectExceptionMessage('Hebrew');
+
+		$invoice->get_content();
+	}
+
+	/**
+	 * Test the script check reports only scripts that lack a font, using mPDF's own language rules.
+	 */
+	public function test_get_unsupported_scripts() {
+
+		$invoice = new Invoice($this->create_test_payment());
+
+		$supported = 'Müller Søn — Счёт Τιμολόγιο فاتورة Ամսական ყოველთვიური Hóa đơn €49';
+
+		$this->assertSame([], $invoice->get_unsupported_scripts($supported));
+		$this->assertSame([], $invoice->get_unsupported_scripts('<style>.a{}</style><b>Plain &amp; simple</b>'));
+
+		$unsupported = $invoice->get_unsupported_scripts('ใบแจ้งหนี้ मासिक <b>חשבונית</b> ' . $supported);
+
+		sort($unsupported);
+
+		$this->assertSame(['Devanagari', 'Hebrew', 'Thai'], $unsupported);
+
+		// Sindhi letters make mPDF pick a different (stripped) font than other Arabic text.
+		$this->assertSame(['Sindhi'], $invoice->get_unsupported_scripts('فاتورة ٺ'));
+	}
+
+	/**
 	 * Test Invoice render contains Bill To section.
 	 */
 	public function test_render_contains_bill_to_section() {
