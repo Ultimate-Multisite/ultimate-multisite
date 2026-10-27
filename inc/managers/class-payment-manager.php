@@ -432,12 +432,31 @@ class Payment_Manager extends Base_Manager {
 				wp_die(esc_html__('You do not have permissions to access this file.', 'ultimate-multisite'));
 			}
 
-			$invoice = new Invoice($payment);
-
 			/*
 			 * Displays the PDF on the screen.
+			 *
+			 * The PDF is generated before mPDF sends any output, so a failure
+			 * (e.g. an unparseable font) can be contained with a friendly error
+			 * instead of an HTTP 500. Raw exception details are only logged.
 			 */
-			$invoice->print_file();
+			try {
+				$invoice = new Invoice($payment);
+
+				$invoice->print_file();
+			} catch (\Throwable $e) {
+				wu_log_add(
+					self::LOG_FILE_NAME,
+					sprintf(
+						/* translators: 1: payment ID, 2: exception class and sanitized message. */
+						__('Could not generate the invoice PDF for payment %1$d: %2$s', 'ultimate-multisite'),
+						$payment->get_id(),
+						Invoice::get_loggable_error($e)
+					),
+					LogLevel::ERROR
+				);
+
+				wp_die(esc_html__('The invoice could not be generated. Please try again later or contact support.', 'ultimate-multisite'));
+			}
 
 			exit;
 		}
