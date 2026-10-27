@@ -123,8 +123,10 @@ class Query extends \BerlinDB\Database\Query {
 		if ($db && empty($db->{$this->table_name})) {
 			$args = wp_parse_args($query);
 
-			// Grouped counts return an array, like BerlinDB.
-			return empty($args['count']) || ! empty($args['groupby']) ? [] : 0;
+			// Grouped counts return an array, like BerlinDB, which also stores the result in items.
+			$this->items = empty($args['count']) || ! empty($args['groupby']) ? [] : 0;
+
+			return $this->items;
 		}
 
 		return parent::query($query);

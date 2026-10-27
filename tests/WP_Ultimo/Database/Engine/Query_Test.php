@@ -69,6 +69,7 @@ class Query_Test extends \WP_UnitTestCase {
 
 			$this->assertSame( [], $query->query( ['number' => 1] ) );
 			$this->assertSame( 0, $query->query( ['count' => true] ) );
+			$this->assertSame( 0, $query->items );
 			$this->assertSame( [], $query->query( [
 				'count'   => true,
 				'groupby' => 'type',

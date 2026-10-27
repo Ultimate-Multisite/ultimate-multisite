@@ -156,8 +156,10 @@ abstract class Table extends \BerlinDB\Database\Table {
 			return;
 		}
 
-		$db   = $this->get_db();
-		$lock = 'wu_tables_' . $network_id;
+		$db = $this->get_db();
+
+		// Named locks are server-wide: scope them to this installation, like Membership's publish lock.
+		$lock = sprintf('wu_tables_%s_%d', substr(md5(DB_NAME . '|' . $db->base_prefix), 0, 12), $network_id);
 
 		// Another request is setting up this network's tables: do not wait for it.
 		if ('1' !== (string) $db->get_var($db->prepare('SELECT GET_LOCK(%s, 0)', $lock))) {

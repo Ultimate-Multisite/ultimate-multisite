@@ -134,7 +134,10 @@ class Email_Manager extends Base_Manager {
 	 */
 	public function maybe_create_secondary_network_system_emails(): void {
 
-		if (is_main_network() || get_network_option(null, self::SYSTEM_EMAILS_CREATED_OPTION, false)) {
+		// Site transients are per network, so a failure here never delays other networks.
+		$retry_key = 'wu_system_emails_failed';
+
+		if (is_main_network() || get_network_option(null, self::SYSTEM_EMAILS_CREATED_OPTION, false) || get_site_transient($retry_key)) {
 			return;
 		}
 
@@ -147,7 +150,8 @@ class Email_Manager extends Base_Manager {
 		global $wpdb;
 
 		// One request creates the defaults; others skip instead of duplicating them.
-		$lock = 'wu_system_emails_' . get_current_network_id();
+		// Named locks are server-wide: scope them to this installation, like Membership's publish lock.
+		$lock = sprintf('wu_system_emails_%s_%d', substr(md5(DB_NAME . '|' . $wpdb->base_prefix), 0, 12), get_current_network_id());
 
 		if ('1' !== (string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock))) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- named lock, never cached.
 			return;
@@ -159,7 +163,10 @@ class Email_Manager extends Base_Manager {
 
 			foreach (wu_get_default_system_emails() as $email) {
 				if (empty($email['slug']) || ! $this->is_created($email['slug'])) {
-					return; // Retry on a later request.
+					// Retry at most hourly instead of rendering every template on each request.
+					set_site_transient($retry_key, 1, HOUR_IN_SECONDS);
+
+					return;
 				}
 			}
 
