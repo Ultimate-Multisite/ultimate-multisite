@@ -447,11 +447,10 @@ class Payment_Manager extends Base_Manager {
 				wu_log_add(
 					self::LOG_FILE_NAME,
 					sprintf(
-						/* translators: 1: payment ID, 2: exception class, 3: exception message. */
-						__('Could not generate the invoice PDF for payment %1$d: %2$s: %3$s', 'ultimate-multisite'),
+						/* translators: 1: payment ID, 2: exception class and sanitized message. */
+						__('Could not generate the invoice PDF for payment %1$d: %2$s', 'ultimate-multisite'),
 						$payment->get_id(),
-						get_class($e),
-						$e->getMessage()
+						Invoice::get_loggable_error($e)
 					),
 					LogLevel::ERROR
 				);

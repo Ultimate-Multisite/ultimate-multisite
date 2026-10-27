@@ -82,6 +82,24 @@ class Invoice {
 	}
 
 	/**
+	 * Returns an exception message that is safe to write to the logs.
+	 *
+	 * Strips HTML tags and removes the plugin and WordPress directory prefixes,
+	 * since mPDF font errors can include absolute filesystem paths.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param \Throwable $e The exception thrown while generating the PDF.
+	 * @return string
+	 */
+	public static function get_loggable_error(\Throwable $e): string {
+
+		$message = str_replace([WP_ULTIMO_PLUGIN_DIR, ABSPATH], '', $e->getMessage());
+
+		return get_class($e) . ': ' . wp_strip_all_tags($message);
+	}
+
+	/**
 	 * Returns mPDF fontdata overrides for fonts removed to reduce package size.
 	 *
 	 * The composer post-install script (scripts/remove-mpdf-fonts.php) strips
