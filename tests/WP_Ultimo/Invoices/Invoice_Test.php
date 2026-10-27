@@ -721,15 +721,89 @@ class Invoice_Test extends WP_UnitTestCase {
 		$payment = $this->create_test_payment();
 
 		$invoice = new Invoice($payment, [
-			'company_name' => 'חשבונית עבור מנוי חודשי',
+			'company_name' => 'मासिक सदस्यता के लिए चालान',
 		]);
 
-		$this->assertSame(['Hebrew'], $invoice->get_unsupported_scripts($invoice->render()));
+		$this->assertSame(['Devanagari'], $invoice->get_unsupported_scripts($invoice->render()));
 
 		$this->expectException(\WP_Ultimo\Exception\Runtime_Exception::class);
-		$this->expectExceptionMessage('Hebrew');
+		$this->expectExceptionMessage('Devanagari');
 
 		$invoice->get_content();
+	}
+
+	/**
+	 * Sample text for each script whose font is packaged (GH#2039).
+	 *
+	 * @return array<string, array{0: string}>
+	 */
+	public function packaged_script_samples(): array {
+
+		return [
+			'Hebrew'  => ['חשבונית עבור מנוי חודשי'],
+			'Thai'    => ['ใบแจ้งหนี้รายเดือน'],
+			'Lao'     => ['ໃບແຈ້ງໜີ້ປະຈຳເດືອນ'],
+			'Khmer'   => ['វិក្កយបត្រប្រចាំខែ'],
+			'Myanmar' => ['လစဉ်ငွေတောင်းခံလွှာ'],
+			'Kannada' => ['ಮಾಸಿಕ ಬಿಲ್'],
+			'Telugu'  => ['నెలవారీ ఇన్వాయిస్'],
+			'Sindhi'  => ['سنڌي بل ٺ'],
+		];
+	}
+
+	/**
+	 * Test PDF generation for each script with a packaged font.
+	 *
+	 * The company name is rendered inside <strong> and the line item title in
+	 * regular text, so both the bold and regular faces are exercised.
+	 *
+	 * @dataProvider packaged_script_samples
+	 *
+	 * @param string $sample Sample text in the script.
+	 */
+	public function test_pdf_with_packaged_script_fonts(string $sample) {
+
+		$payment = $this->create_test_payment([
+			'line_items' => [
+				new Line_Item([
+					'type'       => 'product',
+					'hash'       => 'script_plan',
+					'title'      => $sample,
+					'unit_price' => 49.00,
+					'quantity'   => 1,
+					'taxable'    => false,
+				]),
+			],
+		]);
+
+		$invoice = new Invoice($payment, [
+			'company_name' => $sample,
+		]);
+
+		$this->assertSame([], $invoice->get_unsupported_scripts($invoice->render()));
+		$this->assertStringStartsWith('%PDF-', $invoice->get_content());
+	}
+
+	/**
+	 * Test the Thai font resolves all four styles to packaged files.
+	 *
+	 * The oblique Garuda files are not packaged, so the italic styles are remapped.
+	 */
+	public function test_thai_font_italic_styles_use_packaged_files() {
+
+		$invoice = new Invoice($this->create_test_payment());
+
+		$method = new \ReflectionMethod($invoice, 'get_missing_fontdata');
+
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+
+		$garuda = $method->invoke($invoice)['garuda'];
+
+		foreach (['R', 'B', 'I', 'BI'] as $style) {
+			$this->assertFileExists(WP_ULTIMO_PLUGIN_DIR . 'vendor/mpdf/mpdf/ttfonts/' . $garuda[ $style ]);
+		}
 	}
 
 	/**
@@ -744,14 +818,15 @@ class Invoice_Test extends WP_UnitTestCase {
 		$this->assertSame([], $invoice->get_unsupported_scripts($supported));
 		$this->assertSame([], $invoice->get_unsupported_scripts('<style>.a{}</style><b>Plain &amp; simple</b>'));
 
-		$unsupported = $invoice->get_unsupported_scripts('ใบแจ้งหนี้ मासिक <b>חשבונית</b> ' . $supported);
+		// Hebrew, Thai and Sindhi fonts are packaged since GH#2039.
+		$this->assertSame([], $invoice->get_unsupported_scripts('ใบแจ้งหนี้ <b>חשבונית</b> فاتورة ٺ ' . $supported));
+
+		// Devanagari (freeserif) and Sinhala (kaputaunicode) fonts are not packaged.
+		$unsupported = $invoice->get_unsupported_scripts('मासिक <b>මාසික</b> ' . $supported);
 
 		sort($unsupported);
 
-		$this->assertSame(['Devanagari', 'Hebrew', 'Thai'], $unsupported);
-
-		// Sindhi letters make mPDF pick a different (stripped) font than other Arabic text.
-		$this->assertSame(['Sindhi'], $invoice->get_unsupported_scripts('فاتورة ٺ'));
+		$this->assertSame(['Devanagari', 'Sinhala'], $unsupported);
 	}
 
 	/**
