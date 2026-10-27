@@ -734,7 +734,14 @@ abstract class Base_Element {
 				}
 
 				if ($field instanceof Field) {
-					// The native select compares integer option keys strictly.
+					/*
+					 * Intentional side effect: normalize the field value to the
+					 * integer page ID. Saved/requested values arrive as strings,
+					 * but views/admin-pages/fields/field-select.php compares them
+					 * strictly (===) against these integer option keys. That view
+					 * resolves options before reading the value, so normalizing
+					 * here keeps the saved choice selected.
+					 */
 					$field->set_attribute('value', $page_id);
 				}
 
