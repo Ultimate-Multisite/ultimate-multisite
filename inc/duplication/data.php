@@ -209,7 +209,13 @@ if ( ! class_exists('MUCD_Data') ) {
 			/**
 			 * Filter whether a source table should be copied during site duplication.
 			 *
-			 * Returning true forces a table to be copied; returning false skips it.
+			 * For regular tables, returning true copies the table (structure and rows)
+			 * and returning false skips it entirely.
+			 *
+			 * For runtime-only tables (see is_runtime_table()), which db_copy_tables()
+			 * always recreates, returning true also copies their rows, while returning
+			 * false keeps the empty table structure and skips only the rows.
+			 *
 			 * This preserves extension control over custom table duplication while
 			 * keeping runtime table exclusions centralized.
 			 *
