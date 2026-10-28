@@ -217,6 +217,46 @@ class Payment_Manager extends Base_Manager {
 		}
 
 		wu_do_event('payment_received', $payload);
+
+		if ($payment->get_id()) {
+			$payment->update_meta('wu_payment_received_sent', 1);
+		}
+	}
+
+	/**
+	 * Sends the payment received notifications once per payment.
+	 *
+	 * Used by flows that confirm a payment outside a gateway callback, such as
+	 * manual payment confirmation and deferred free signups after email verification.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param \WP_Ultimo\Models\Payment         $payment    The payment.
+	 * @param \WP_Ultimo\Models\Membership|null $membership The membership, if known.
+	 * @return bool True when the notification was triggered now.
+	 */
+	public function maybe_trigger_payment_received($payment, $membership = null): bool {
+
+		if ( ! $payment || ! $payment->get_id() || $payment->get_meta('wu_payment_received_sent')) {
+			return false;
+		}
+
+		$gateway = wu_get_gateway($payment->get_gateway() ?: 'manual');
+
+		if ( ! $gateway) {
+			$gateway = wu_get_gateway('free');
+		}
+
+		if ( ! $gateway) {
+			return false;
+		}
+
+		// Mark first so a re-entrant or repeated call cannot send twice.
+		$payment->update_meta('wu_payment_received_sent', 1);
+
+		$gateway->trigger_payment_processed($payment, $membership);
+
+		return true;
 	}
 
 	/**

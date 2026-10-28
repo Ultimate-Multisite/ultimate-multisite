@@ -14,6 +14,7 @@ namespace WP_Ultimo\Managers;
 use WP_Ultimo\Checkout\Checkout;
 use WP_Ultimo\Models\Customer;
 use WP_Ultimo\Database\Memberships\Membership_Status;
+use WP_Ultimo\Database\Payments\Payment_Status;
 
 // Exit if accessed directly
 defined('ABSPATH') || exit;
@@ -233,6 +234,30 @@ class Customer_Manager extends Base_Manager {
 	}
 
 	/**
+	 * Sends the deferred receipt for a free signup once the customer is verified.
+	 *
+	 * Paid and manual payments are skipped: they are confirmed by their own flows.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param \WP_Ultimo\Models\Payment    $payment    The payment.
+	 * @param \WP_Ultimo\Models\Membership $membership The membership.
+	 * @return void
+	 */
+	protected function maybe_send_payment_received($payment, $membership): void {
+
+		if (Payment_Status::COMPLETED !== $payment->get_status() || 0 < (float) $payment->get_total()) {
+			return;
+		}
+
+		if ( ! in_array($membership->get_status(), [Membership_Status::ACTIVE, Membership_Status::TRIALING], true)) {
+			return;
+		}
+
+		Payment_Manager::get_instance()->maybe_trigger_payment_received($payment, $membership);
+	}
+
+	/**
 	 * Verifies a customer by checking the email key.
 	 *
 	 * If only one membership is available and that's pending,
@@ -317,6 +342,8 @@ class Customer_Manager extends Base_Manager {
 			$payments = $membership->get_payments();
 
 			if ($payments) {
+				$this->maybe_send_payment_received($payments[0], $membership);
+
 				$redirect_url = add_query_arg(
 					[
 						'payment' => $payments[0]->get_hash(),
