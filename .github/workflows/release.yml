@@ -139,6 +139,9 @@ jobs:
     name: Deploy to WordPress.org
     runs-on: ubuntu-latest
     needs: build
+    concurrency:
+      group: wordpress-org-deployment
+      cancel-in-progress: false
     # Only deploy stable releases to wp.org (skip pre-releases)
     if: ${{ !contains(github.ref, '-alpha') && !contains(github.ref, '-beta') && !contains(github.ref, '-rc') && !contains(github.ref, '-dev') && !contains(github.ref, '-preview') }}
 
@@ -159,120 +162,12 @@ jobs:
           name: ultimate-multisite-zip
           path: build/
 
-      - name: Unzip build artifact into workspace
-        run: |
-          unzip -o build/ultimate-multisite-${{ env.VERSION }}.zip -d .
-
       - name: Install SVN
         run: sudo apt-get update && sudo apt-get install -y subversion
 
-      - name: Deploy trunk to WordPress.org SVN
+      - name: Deploy and tag on WordPress.org SVN
         env:
           SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
           SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
-          SLUG: ultimate-multisite
           VERSION: ${{ env.VERSION }}
-        run: |
-          set -euo pipefail
-
-          SVN_URL="https://plugins.svn.wordpress.org/${SLUG}"
-          SVN_DIR="${HOME}/svn-${SLUG}"
-
-          # Step 1: Shallow checkout — only trunk (no tags, no history)
-          svn checkout --depth=immediates "${SVN_URL}" "${SVN_DIR}"
-          svn update --set-depth=infinity "${SVN_DIR}/trunk"
-
-          # Sync build artifact into trunk
-          rsync -rc --delete ./ultimate-multisite/ "${SVN_DIR}/trunk/" \
-            --exclude='.svn' --exclude='.git' --exclude='.github'
-
-          # Ensure readme.txt is in trunk for wp.org metadata
-          cp readme.txt "${SVN_DIR}/trunk/readme.txt"
-
-          # Sync the Playground preview Blueprint to the Plugin Directory assets.
-          svn update --set-depth=infinity "${SVN_DIR}/assets"
-          mkdir -p "${SVN_DIR}/assets/blueprints"
-          cp assets/blueprints/blueprint.json "${SVN_DIR}/assets/blueprints/blueprint.json"
-
-          # Stage changes in plugin code and Plugin Directory assets.
-          cd "${SVN_DIR}"
-
-          if svn status assets/blueprints/blueprint.json | grep -q '^?'; then
-            svn add --parents -q assets/blueprints/blueprint.json
-          fi
-
-          # Add new files in batches of 500 to avoid arg list / memory limits
-          # Use '|| true' to prevent grep returning exit 1 (no match) from killing the script under pipefail
-          svn status trunk | grep '^\?' | awk '{print $2}' > /tmp/svn-new-files.txt || true
-          NEW_COUNT=$(wc -l < /tmp/svn-new-files.txt)
-          echo "New files to add: ${NEW_COUNT}"
-          if [ "${NEW_COUNT}" -gt 0 ]; then
-            split -l 500 /tmp/svn-new-files.txt /tmp/svn-batch-add-
-            for batch in /tmp/svn-batch-add-*; do
-              echo "Adding batch: $(wc -l < "$batch") files"
-              xargs -r svn add --parents -q < "$batch"
-            done
-          fi
-
-          # Remove deleted files in batches
-          svn status trunk | grep '^\!' | awk '{print $2}' > /tmp/svn-del-files.txt || true
-          DEL_COUNT=$(wc -l < /tmp/svn-del-files.txt)
-          echo "Deleted files to remove: ${DEL_COUNT}"
-          if [ "${DEL_COUNT}" -gt 0 ]; then
-            split -l 500 /tmp/svn-del-files.txt /tmp/svn-batch-del-
-            for batch in /tmp/svn-batch-del-*; do
-              echo "Deleting batch: $(wc -l < "$batch") files"
-              xargs -r svn delete --force -q < "$batch"
-            done
-          fi
-
-          echo "=== SVN Status (trunk and assets) ==="
-          svn status trunk assets > /tmp/svn-status.txt || true
-          head -50 /tmp/svn-status.txt
-          CHANGES=$(wc -l < /tmp/svn-status.txt)
-          echo "Total trunk changes: ${CHANGES}"
-
-          if [ "${CHANGES}" -eq 0 ]; then
-            echo "No changes to commit"
-          else
-            echo "Committing ${CHANGES} changes to WordPress.org SVN..."
-            svn commit trunk assets \
-              --username "${SVN_USERNAME}" \
-              --password "${SVN_PASSWORD}" \
-              --no-auth-cache \
-              --non-interactive \
-              -m "Update trunk to ${VERSION}" 2>&1 || {
-              echo "::error::SVN commit failed. Check SVN_USERNAME and SVN_PASSWORD secrets."
-              exit 1
-            }
-            echo "Trunk committed successfully"
-          fi
-
-      - name: Tag release on WordPress.org SVN (server-side copy)
-        env:
-          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
-          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
-          SLUG: ultimate-multisite
-          VERSION: ${{ env.VERSION }}
-        run: |
-          set -euo pipefail
-
-          SVN_URL="https://plugins.svn.wordpress.org/${SLUG}"
-
-          # Check if tag already exists
-          if svn info "${SVN_URL}/tags/${VERSION}" > /dev/null 2>&1; then
-            echo "Tag ${VERSION} already exists in SVN — skipping"
-            exit 0
-          fi
-
-          # Server-side copy: no download/upload, runs entirely on wp.org SVN server
-          svn copy \
-            "${SVN_URL}/trunk" \
-            "${SVN_URL}/tags/${VERSION}" \
-            --username "${SVN_USERNAME}" \
-            --password "${SVN_PASSWORD}" \
-            --no-auth-cache \
-            --non-interactive \
-            -m "Tag ${VERSION}"
-
-          echo "Successfully tagged ${VERSION} on WordPress.org"
+        run: bash bin/deploy-wporg.sh "build/ultimate-multisite-${VERSION}.zip"
