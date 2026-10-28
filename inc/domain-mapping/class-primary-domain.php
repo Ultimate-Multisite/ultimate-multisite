@@ -149,7 +149,31 @@ class Primary_Domain {
 			$new_url = Domain_Mapping::get_instance()->replace_url($url, $primary_domain);
 
 			if ($url !== $new_url ) {
-				wp_safe_redirect(set_url_scheme($new_url));
+				$new_url = set_url_scheme($new_url);
+
+				/**
+				 * Filters the HTTP status used when redirecting to the primary domain.
+				 *
+				 * Making a domain primary is a permanent move, so the default is
+				 * 301 (Moved Permanently), which lets search engines transfer the
+				 * old URL's ranking to the primary domain. Return 302, 303, 307 or
+				 * 308 to use a different redirect. Any other value falls back to 301.
+				 *
+				 * @since 2.18.0
+				 * @param int                       $status         The HTTP redirect status. Default 301.
+				 * @param string                    $new_url        The URL on the primary domain.
+				 * @param string                    $url            The URL that was requested.
+				 * @param \WP_Ultimo\Models\Domain  $primary_domain The primary domain being redirected to.
+				 *
+				 * @return int
+				 */
+				$status = (int) apply_filters('wu_primary_domain_redirect_status', 301, $new_url, $url, $primary_domain);
+
+				if ( ! in_array($status, [301, 302, 303, 307, 308], true)) {
+					$status = 301;
+				}
+
+				wp_safe_redirect($new_url, $status);
 
 				exit;
 			}
