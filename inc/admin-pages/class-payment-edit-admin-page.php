@@ -1502,6 +1502,8 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 					return false;
 				}
 			}
+
+			\WP_Ultimo\Managers\Payment_Manager::get_instance()->maybe_trigger_payment_received($payment, $membership);
 		}
 
 		return $saved;
