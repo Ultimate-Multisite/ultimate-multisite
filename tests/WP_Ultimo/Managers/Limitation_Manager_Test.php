@@ -3000,6 +3000,63 @@ class Limitation_Manager_Test extends \WP_UnitTestCase {
 		$this->assertEmpty($result);
 	}
 
+	/**
+	 * Early limitations read the current network's meta table, not the main network's.
+	 *
+	 * On a secondary network the same product ID can exist in both tables, so reading
+	 * the unprefixed table applied another network's plan limits (e.g. customer role).
+	 */
+	public function test_early_get_limitations_uses_network_scoped_meta_table(): void {
+
+		global $current_site, $wpdb;
+
+		$method = new \ReflectionMethod(Limitations::class, 'get_meta_table');
+		$method->setAccessible(true);
+
+		$this->assertSame(["{$wpdb->base_prefix}wu_productmeta", 'wu_product_id'], $method->invoke(null, 'product'));
+		$this->assertSame(["{$wpdb->base_prefix}blogmeta", 'blog_id'], $method->invoke(null, 'site'));
+		$this->assertNull($method->invoke(null, 'product; DROP TABLE x'));
+
+		$original = $current_site;
+		$fake     = clone $current_site;
+		$fake->id = 987;
+
+		$main_table      = "{$wpdb->base_prefix}wu_productmeta";
+		$secondary_table = "{$wpdb->base_prefix}wu_987_productmeta";
+		$product_id      = 987654;
+		$limits          = static fn(string $role): string => maybe_serialize([
+			'customer_user_role' => [
+				'enabled' => true,
+				'limit'   => $role,
+			],
+		]);
+
+		$wpdb->query("CREATE TEMPORARY TABLE {$secondary_table} LIKE {$main_table}"); // phpcs:ignore
+		$wpdb->insert($main_table, ['wu_product_id' => $product_id, 'meta_key' => 'wu_limitations', 'meta_value' => $limits('administrator')]); // phpcs:ignore
+		$wpdb->insert($secondary_table, ['wu_product_id' => $product_id, 'meta_key' => 'wu_limitations', 'meta_value' => $limits('editor')]); // phpcs:ignore
+
+		$cache = new \ReflectionProperty(Limitations::class, 'limitations_cache');
+		$cache->setAccessible(true);
+		$cache->setValue(null, []);
+
+		try {
+			$this->assertSame('administrator', Limitations::early_get_limitations('product', $product_id)['customer_user_role']['limit']);
+
+			$current_site = $fake;
+
+			$this->assertSame(["{$wpdb->base_prefix}wu_987_membershipmeta", 'wu_membership_id'], $method->invoke(null, 'membership'));
+			$this->assertSame(["{$wpdb->base_prefix}blogmeta", 'blog_id'], $method->invoke(null, 'site'));
+
+			// Same product ID, with the main network's entry still cached.
+			$this->assertSame('editor', Limitations::early_get_limitations('product', $product_id)['customer_user_role']['limit']);
+		} finally {
+			$current_site = $original;
+			$wpdb->delete($main_table, ['wu_product_id' => $product_id]); // phpcs:ignore
+			$wpdb->query("DROP TEMPORARY TABLE IF EXISTS {$secondary_table}"); // phpcs:ignore
+			$cache->setValue(null, []);
+		}
+	}
+
 	// ---------------------------------------------------------------
 	// Limitations remove_limitations
 	// ---------------------------------------------------------------
