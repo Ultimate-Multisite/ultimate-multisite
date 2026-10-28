@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 8.2
 Tested up to: 7.1
-Stable tag: 2.17.2
+Stable tag: 2.18.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -251,6 +251,31 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+
+= 2.18.0 =
+Version [2.18.0] - Released on 2026-10-27
+- New: BigScoots hosting integration supports automatic domain mapping.
+- New: Checkout can show step-by-step site provisioning progress with estimated completion times and a signed handoff to the new site.
+- New: System emails support product targeting, a trial-expiring event, and an optional network-name subject prefix.
+- New: Invoice PDFs include bundled fonts for more languages and writing systems.
+- New: Developers can extend the add-on catalog and customize fallback domain lookup.
+- Fix: Stripe checkout handles multi-step forms, free recurring plans, cart currencies, discounts, trials, and initial payment expiration more reliably.
+- Fix: Outstanding invoices on active memberships and refunds with fractional discount totals now work correctly.
+- Fix: Paid checkout publishes pending sites reliably, customer panels isolate pending sites, and orphaned pending sites can be deleted safely.
+- Fix: Bulk site deletion no longer risks deleting unrelated sites whose IDs match pending memberships.
+- Fix: Secondary networks initialize their tables reliably and use the correct network's metadata, limits, pending sites, and model events.
+- Fix: Site duplication preserves destination URLs after retries and retains the structure of runtime-only tables.
+- Fix: Arabic and CJK invoice PDFs render more reliably, and PDF generation failures provide clearer errors.
+- Fix: Delayed system emails now send reliably with current membership details.
+- Fix: Primary-domain redirects use HTTP 301 by default, and blocked or demo-mode site frontends return HTTP 403 instead of 500.
+- Fix: Embedded browsing contexts no longer trigger SSO flows, and domain-removal integrations retain their enqueue filter.
+- Fix: Configuration changes invalidate cached PHP code and support custom wp-config.php insertion points.
+- Fix: OCI Email Delivery sender verification and DKIM details use the correct API paths.
+- Fix: Legacy pricing tables tolerate missing products, and page selectors retain the correct current-page choices.
+- Improved: Checkout and block-editor page selectors load choices on demand, reducing unnecessary editor and page-cache work.
+- Improved: DNS diagnostics clarify that lookups are read-only and display nameservers; logs identify SSL certificate failures more clearly.
+- Improved: Membership and revenue statistics avoid unnecessary plan and product loading.
+- Improved: Source installations include current minified assets, and dependency security updates improve reliability.
 
 = 2.17.2 =
 Version [2.17.2] - Released on 2026-10-06
