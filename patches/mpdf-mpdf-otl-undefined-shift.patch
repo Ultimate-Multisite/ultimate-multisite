@@ -1,0 +1,42 @@
+--- a/src/Otl.php
++++ b/src/Otl.php
+@@ -1871,6 +1871,7 @@
+ 								$LookupListIndex[$p] = $this->read_ushort();
+ 							}
+ 
++							$shift = 0;
+ 							for ($p = 0; $p < $SubstCount; $p++) {
+ 								// Apply  $LookupListIndex  at   $SequenceIndex
+ 								if ($SequenceIndex[$p] >= $InputGlyphCount) {
+@@ -1980,6 +1981,7 @@
+ 									$LookupListIndex[$p] = $this->read_ushort();
+ 								}
+ 
++								$shift = 0;
+ 								for ($p = 0; $p < $SubstCount; $p++) {
+ 									// Apply  $LookupListIndex  at   $SequenceIndex
+ 									if ($SequenceIndex[$p] >= $InputGlyphCount) {
+@@ -2077,6 +2079,7 @@
+ 							$SubstLookupRecord[$p]['SequenceIndex'] = $this->read_ushort();
+ 							$SubstLookupRecord[$p]['LookupListIndex'] = $this->read_ushort();
+ 						}
++						$shift = 0;
+ 						for ($p = 0; $p < $SubstCount; $p++) {
+ 							// Apply  $SubstLookupRecord[$p]['LookupListIndex']  at   $SubstLookupRecord[$p]['SequenceIndex']
+ 							if ($SubstLookupRecord[$p]['SequenceIndex'] >= $InputGlyphCount) {
+@@ -2247,6 +2250,7 @@
+ 									$LookupListIndex[$p] = $this->read_ushort();
+ 								}
+ 
++								$shift = 0;
+ 								for ($p = 0; $p < $SubstCount; $p++) {
+ 									// Apply  $LookupListIndex  at   $SequenceIndex
+ 									if ($SequenceIndex[$p] >= $InputGlyphCount) {
+@@ -2332,6 +2336,7 @@
+ 						$SubstLookupRecord[$p]['SequenceIndex'] = $this->read_ushort();
+ 						$SubstLookupRecord[$p]['LookupListIndex'] = $this->read_ushort();
+ 					}
++					$shift = 0;
+ 					for ($p = 0; $p < $SubstCount; $p++) {
+ 						// Apply  $SubstLookupRecord[$p]['LookupListIndex']  at   $SubstLookupRecord[$p]['SequenceIndex']
+ 						if ($SubstLookupRecord[$p]['SequenceIndex'] >= $InputGlyphCount) {

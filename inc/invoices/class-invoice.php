@@ -13,7 +13,6 @@ namespace WP_Ultimo\Invoices;
 defined('ABSPATH') || exit;
 
 use Mpdf\Config\ConfigVariables;
-use Mpdf\Language\LanguageToFont;
 use Mpdf\Language\ScriptToLanguage;
 use Mpdf\Mpdf;
 use Mpdf\Output\Destination;
@@ -31,6 +30,21 @@ class Invoice {
 	 * Keeps the settings key for the top-bar.
 	 */
 	const KEY = 'invoice_settings';
+
+	/**
+	 * Names of mPDF's built-in Adobe CJK fonts (gb, big5, sjis, uhc).
+	 *
+	 * They are not font files and are never embedded, so they are always available.
+	 */
+	const ADOBE_CJK_FONTS = ['sjis', 'uhc', 'big5', 'gb'];
+
+	/**
+	 * Maps languages to the packaged fonts. Created on first use.
+	 *
+	 * @since 2.18.0
+	 * @var Language_To_Font|null
+	 */
+	private $language_to_font;
 
 	/**
 	 * Order object to generate the line items.
@@ -129,6 +143,33 @@ class Invoice {
 	 */
 	public function get_unsupported_scripts(string $html): array {
 
+		$unsupported = [];
+
+		foreach ($this->get_script_fonts($html) as $label => $unifont) {
+			// mPDF always treats its built-in Adobe CJK fonts as available (see Mpdf::setCSS()).
+			if ( ! in_array($unifont, self::ADOBE_CJK_FONTS, true) && ! $this->is_font_available($unifont)) {
+				$unsupported[] = $label;
+			}
+		}
+
+		return $unsupported;
+	}
+
+	/**
+	 * Returns the font mPDF selects for each script found in the given text.
+	 *
+	 * Uses mPDF's script database and the plugin's language-to-font mapping, so it
+	 * reports exactly what the printer will try to load, including mPDF's
+	 * Vietnamese and Arabic-script language rules.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param string $html The HTML (or plain text) that is about to be rendered.
+	 * @return array<string, string> Script (or language) label => mPDF font name.
+	 *                               Scripts that need no font file are omitted.
+	 */
+	private function get_script_fonts(string $html): array {
+
 		$text = html_entity_decode(wp_strip_all_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
 		if ( ! preg_match_all('/[^\x00-\x7F]/u', $text, $matches)) {
@@ -140,7 +181,7 @@ class Invoice {
 		}
 
 		$script_to_language = new ScriptToLanguage();
-		$language_to_font   = new LanguageToFont();
+		$language_to_font   = $this->get_language_to_font();
 
 		// Language codes mPDF assigns to the Arabic-script and Vietnamese text it detects.
 		$delimiter_languages = [
@@ -151,7 +192,7 @@ class Invoice {
 			'viet'    => 'vi',
 		];
 
-		$unsupported = [];
+		$fonts = [];
 
 		$scripts = [];
 
@@ -186,14 +227,106 @@ class Invoice {
 
 				[, $unifont] = $language_to_font->getLanguageOptions($language, $this->printer->useAdobeCJK);
 
-				// mPDF always treats its built-in Adobe CJK fonts as available (see Mpdf::setCSS()).
-				if ('' !== $unifont && ! in_array($unifont, ['sjis', 'uhc', 'big5', 'gb'], true) && ! $this->is_font_available($unifont)) {
-					$unsupported[ $language_label ] = $language_label;
+				if ('' !== $unifont) {
+					$fonts[ $language_label ] = $unifont;
 				}
 			}
 		}
 
-		return array_values($unsupported);
+		return $fonts;
+	}
+
+	/**
+	 * Returns the object that maps languages to the packaged fonts.
+	 *
+	 * @since 2.18.0
+	 * @return Language_To_Font
+	 */
+	private function get_language_to_font(): Language_To_Font {
+
+		if (null === $this->language_to_font) {
+			$this->language_to_font = new Language_To_Font();
+		}
+
+		return $this->language_to_font;
+	}
+
+	/**
+	 * Returns the directories mPDF searches for font files.
+	 *
+	 * The directory of mPDF's own fonts first, then the packaged Noto fonts.
+	 *
+	 * @since 2.18.0
+	 * @return string[]
+	 */
+	private function get_font_dirs(): array {
+
+		return array_merge((array) (new ConfigVariables())->getDefaults()['fontDir'], [Language_To_Font::get_font_dir()]);
+	}
+
+	/**
+	 * Registers fonts with mPDF.
+	 *
+	 * The mPDF library resets available_unifonts from default_available_fonts several times while
+	 * rendering, so a font missing from default_available_fonts would silently stop
+	 * being selectable and the text would fall back to the default font.
+	 *
+	 * @since 2.18.0
+	 *
+	 * @param array $fontdata Font name => mPDF fontdata entry.
+	 * @return void
+	 */
+	private function register_fonts(array $fontdata): void {
+
+		foreach ($fontdata as $font_name => $font_config) {
+			$this->printer->fontdata[ $font_name ] = $font_config;
+
+			foreach ([
+				'R'  => '',
+				'B'  => 'B',
+				'I'  => 'I',
+				'BI' => 'BI',
+			] as $style => $suffix) {
+				if (empty($font_config[ $style ])) {
+					continue;
+				}
+
+				if ( ! in_array($font_name . $suffix, $this->printer->available_unifonts, true)) {
+					$this->printer->available_unifonts[] = $font_name . $suffix;
+				}
+
+				if ( ! in_array($font_name . $suffix, $this->printer->default_available_fonts, true)) {
+					$this->printer->default_available_fonts[] = $font_name . $suffix;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Returns the font for the watermark text.
+	 *
+	 * The mPDF library does not choose fonts by script for the watermark, so a "Paid" label in
+	 * Devanagari, Thai and similar scripts would otherwise be drawn with the default
+	 * Latin font and show empty boxes.
+	 *
+	 * @since 2.18.0
+	 * @return string
+	 */
+	private function get_watermark_font(): string {
+
+		if ($this->payment->is_payable()) {
+			return $this->font;
+		}
+
+		$packaged = array_merge(array_keys(Language_To_Font::get_fontdata()), Language_To_Font::MPDF_FONTS);
+
+		foreach ($this->get_script_fonts((string) $this->paid_tag_text) as $unifont) {
+			if (in_array($unifont, $packaged, true) && $this->is_font_available($unifont)) {
+				return $unifont;
+			}
+		}
+
+		return $this->font;
 	}
 
 	/**
@@ -231,9 +364,7 @@ class Invoice {
 			return false;
 		}
 
-		$font_dirs = (new ConfigVariables())->getDefaults()['fontDir'];
-
-		foreach ((array) $font_dirs as $font_dir) {
+		foreach ($this->get_font_dirs() as $font_dir) {
 			if (file_exists($font_dir . '/' . $file)) {
 				return true;
 			}
@@ -304,10 +435,9 @@ class Invoice {
 	 * variants, which have the same glyph coverage, so those scripts render
 	 * without shipping any additional font file.
 	 *
-	 * Garuda (Thai) is packaged without its two oblique files, so its italic
-	 * styles are remapped to the upright files. Fonts that mPDF defines with
-	 * only some styles (for example Dhyana, Khmer OS) need no remap: mPDF
-	 * simulates the missing bold or italic style from the regular file.
+	 * Fonts that mPDF defines with only some styles (Tharlon, Lateef) need no
+	 * remap: mPDF simulates the missing bold or italic style from the regular
+	 * file. Scripts with a packaged Noto font are handled by Language_To_Font.
 	 *
 	 * @since 2.3.2
 	 * @return array
@@ -332,14 +462,6 @@ class Invoice {
 				'B'  => 'DejaVuSerifCondensed-Bold.ttf',
 				'I'  => 'DejaVuSerifCondensed.ttf',
 				'BI' => 'DejaVuSerifCondensed-Bold.ttf',
-			],
-			// Thai. The oblique files are not packaged, so italics use the upright files.
-			'garuda'         => [
-				'R'      => 'Garuda.ttf',
-				'B'      => 'Garuda-Bold.ttf',
-				'I'      => 'Garuda.ttf',
-				'BI'     => 'Garuda-Bold.ttf',
-				'useOTL' => 0xFF,
 			],
 		];
 	}
@@ -396,6 +518,10 @@ class Invoice {
 				'autoLangToFont'   => true,
 				'autoArabic'       => true,
 				'tempDir'          => get_temp_dir(),
+				// mPDF's own fonts, then the packaged Noto fonts.
+				'fontDir'          => $this->get_font_dirs(),
+				// One packaged font per script instead of mPDF's shared "freeserif".
+				'languageToFont'   => $this->get_language_to_font(),
 			]
 		);
 
@@ -412,25 +538,10 @@ class Invoice {
 		 * isolated glyphs with spaces between them instead of connected words.
 		 * useKashida => 75 enables kashida-based text justification.
 		 */
-		foreach ($this->get_rtl_fontdata() as $font_name => $font_config) {
-			$this->printer->fontdata[ $font_name ] = $font_config;
+		$this->register_fonts($this->get_rtl_fontdata());
 
-			if ( ! empty($font_config['R'])) {
-				$this->printer->available_unifonts[] = $font_name;
-			}
-
-			if ( ! empty($font_config['B'])) {
-				$this->printer->available_unifonts[] = $font_name . 'B';
-			}
-
-			if ( ! empty($font_config['I'])) {
-				$this->printer->available_unifonts[] = $font_name . 'I';
-			}
-
-			if ( ! empty($font_config['BI'])) {
-				$this->printer->available_unifonts[] = $font_name . 'BI';
-			}
-		}
+		// The packaged Noto Sans fonts, one per script (see assets/fonts/noto/README.md).
+		$this->register_fonts(Language_To_Font::get_fontdata());
 
 		/*
 		 * Override fontdata for fonts removed from the ttfonts directory.
@@ -463,7 +574,7 @@ class Invoice {
 
 		$this->printer->watermarkTextAlpha = 0.1;
 
-		$this->printer->watermark_font = $this->font;
+		$this->printer->watermark_font = $this->get_watermark_font();
 
 		$this->printer->SetDisplayMode('fullpage');
 
