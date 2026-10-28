@@ -1,0 +1,61 @@
+name: Recover WordPress.org Deployment
+run-name: Recover WordPress.org ${{ inputs.tag }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Latest published stable tag to deploy without rebuilding
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wordpress-org-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify published release and download its exact ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          # aidevops:trust-boundary — never recover an arbitrary ref or old release.
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          LATEST_TAG=$(gh release view --json tagName --jq '.tagName')
+          [[ "$RELEASE_TAG" == "$LATEST_TAG" ]]
+          git merge-base --is-ancestor "refs/tags/${RELEASE_TAG}" HEAD
+          VERSION="${RELEASE_TAG#v}"
+          ASSET="ultimate-multisite-${VERSION}.zip"
+          gh api "repos/${GH_REPO}/releases/tags/${RELEASE_TAG}" > release.json
+          DIGEST=$(jq -er --arg tag "$RELEASE_TAG" --arg asset "$ASSET" '
+            select(.tag_name == $tag and .draft == false and .prerelease == false)
+            | .assets[] | select(.name == $asset and .state == "uploaded")
+            | .digest | select(test("^sha256:[0-9a-f]{64}$"))' release.json)
+          mkdir -p build
+          gh release download "$RELEASE_TAG" --pattern "$ASSET" --dir build
+          printf '%s  %s\n' "${DIGEST#sha256:}" "build/$ASSET" | sha256sum --check
+          mkdir -p release-source/assets/blueprints
+          git show "refs/tags/${RELEASE_TAG}:assets/blueprints/blueprint.json" > release-source/assets/blueprints/blueprint.json
+          printf 'VERSION=%s\n' "$VERSION" >> "$GITHUB_ENV"
+
+      - name: Install SVN
+        run: sudo apt-get update && sudo apt-get install -y subversion
+
+      - name: Deploy verified package to WordPress.org
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+        run: bash bin/deploy-wporg.sh "build/ultimate-multisite-${VERSION}.zip" release-source
