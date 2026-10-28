@@ -193,6 +193,17 @@ final class WP_Ultimo {
 		 * and have no dependencies outside of the classes loaded so far.
 		 */
 		if (WP_Ultimo\Requirements::met() === false || WP_Ultimo\Requirements::run_setup() === false || ($_GET['page'] ?? '') === 'wp-ultimo-multisite-setup') { // phpcs:ignore WordPress.Security
+
+			/*
+			 * A secondary network that never ran the wizard can still have the
+			 * plugin loaded (e.g. through a must-use plugin filter) and run
+			 * front-end code that queries network tables. Install its core
+			 * tables so it is not left half set up.
+			 */
+			if (WP_Ultimo\Requirements::met() && ! is_main_network() && ! wp_installing()) {
+				$this->setup_tables();
+			}
+
 			// Use wizard to setup multisite.
 			add_action(
 				'init',

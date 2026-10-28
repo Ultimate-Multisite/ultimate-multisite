@@ -106,6 +106,46 @@ abstract class Table extends \BerlinDB\Database\Table {
 	}
 
 	/**
+	 * Reads a network's setup state from the database, bypassing the object cache.
+	 *
+	 * Also removes duplicate rows left by concurrent first requests, keeping
+	 * the lowest meta_id. Only used while holding get_network_setup_lock().
+	 *
+	 * @since 2.18.0
+	 * @param int $network_id Network ID.
+	 * @return array<string, string>
+	 */
+	final public static function refresh_network_setup_state(int $network_id): array {
+
+		global $wpdb;
+
+		wp_cache_delete("{$network_id}:" . self::NETWORK_TABLE_VERSIONS_OPTION, 'site-options');
+		wp_cache_delete($network_id . ':notoptions', 'site-options');
+
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT meta_id, meta_value FROM {$wpdb->sitemeta} WHERE site_id = %d AND meta_key = %s ORDER BY meta_id ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$network_id,
+				self::NETWORK_TABLE_VERSIONS_OPTION
+			)
+		);
+
+		if (empty($rows)) {
+			return [];
+		}
+
+		if (count($rows) > 1) {
+			foreach (array_slice($rows, 1) as $duplicate) {
+				$wpdb->delete($wpdb->sitemeta, ['meta_id' => (int) $duplicate->meta_id]); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			}
+		}
+
+		$state = maybe_unserialize($rows[0]->meta_value);
+
+		return is_array($state) ? $state : [];
+	}
+
+	/**
 	 * Records one completed setup step in a network's setup state.
 	 *
 	 * Call while holding get_network_setup_lock(), so concurrent steps do not
@@ -119,7 +159,8 @@ abstract class Table extends \BerlinDB\Database\Table {
 	 */
 	final public static function set_network_setup_state(int $network_id, string $key, string $value): void {
 
-		$state         = self::get_network_setup_state($network_id);
+		// Read fresh: the request-start cache can predate other requests' entries.
+		$state         = self::refresh_network_setup_state($network_id);
 		$state[ $key ] = $value;
 
 		update_network_option($network_id, self::NETWORK_TABLE_VERSIONS_OPTION, $state);
@@ -223,6 +264,13 @@ abstract class Table extends \BerlinDB\Database\Table {
 		}
 
 		try {
+			// Another request may have finished this table while we waited on the cached state.
+			$fresh = self::refresh_network_setup_state($network_id);
+
+			if (isset($fresh[ $this->prefixed_name ]) && (string) $this->version === (string) $fresh[ $this->prefixed_name ] && parent::exists()) {
+				return;
+			}
+
 			// A version can be recorded for a table that no longer exists.
 			if ( ! parent::exists()) {
 				$this->install();
