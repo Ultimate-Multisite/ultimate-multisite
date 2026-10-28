@@ -62,6 +62,12 @@ class Gutenberg_Support {
 	 */
 	public function add_scripts(): void {
 
+		$screen = function_exists('get_current_screen') ? get_current_screen() : null;
+
+		if ( ! $screen || ! method_exists($screen, 'is_block_editor') || ! $screen->is_block_editor()) {
+			return;
+		}
+
 		wp_register_script('wu-gutenberg-support', wu_get_asset('gutenberg-support.js', 'js'), ['jquery'], wu_get_version(), true);
 
 		// translators: the placeholder is replaced with the network name.
