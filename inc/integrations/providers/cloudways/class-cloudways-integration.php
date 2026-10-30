@@ -220,6 +220,31 @@ class Cloudways_Integration extends Integration {
 			return new \WP_Error('cloudways-permissions', __('The Cloudways access token does not have permission for this operation. Review its Limited Access endpoints.', 'ultimate-multisite'));
 		}
 
+		if (422 === $status_code) {
+			$body     = json_decode(wp_remote_retrieve_body($response), true);
+			$errors   = $body['errors'] ?? $body;
+			$messages = [];
+
+			foreach (is_array($errors) ? $errors : [] as $field => $field_errors) {
+				if ( ! is_array($field_errors)) {
+					continue;
+				}
+
+				foreach ($field_errors as $error) {
+					$message = is_array($error) ? ($error['message'] ?? '') : $error;
+
+					if (is_string($message) && '' !== trim($message)) {
+						$messages[] = sanitize_text_field($field . ': ' . $message);
+					}
+				}
+			}
+
+			if ($messages) {
+				/* translators: %s: Field-level validation messages returned by Cloudways. */
+				return new \WP_Error('cloudways-error', sprintf(__('Cloudways API validation failed (HTTP 422): %s', 'ultimate-multisite'), implode('; ', $messages)));
+			}
+		}
+
 		if (200 > $status_code || 300 <= $status_code) {
 			/* translators: %d: HTTP response status code. */
 			return new \WP_Error('cloudways-error', sprintf(__('Cloudways API request failed (HTTP %d). Check the server and application IDs and try again.', 'ultimate-multisite'), $status_code));
