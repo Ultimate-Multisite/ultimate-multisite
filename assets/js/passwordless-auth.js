@@ -198,6 +198,11 @@
 		container.wuPasswordlessState = state;
 		container.dataset.wuPasswordlessReady = '1';
 
+		if (container.dataset.success === 'stay' && ! supportsWebAuthn()) {
+			container.hidden = true; // Enrollment-only prompt: nothing to offer without WebAuthn.
+			return;
+		}
+
 		const status = container.querySelector('.wu-passwordless-status');
 		const emailInput = container.querySelector('.wu-passwordless-email');
 		const codeInput = container.querySelector('.wu-passwordless-code');
@@ -291,6 +296,22 @@
 				state.registrationOptions = data.registration_options;
 				showStatus(data.message || '', 'success');
 				showStep('enroll');
+				return;
+			}
+
+			if (container.dataset.success === 'stay') {
+				// Post-checkout enrollment: the customer is already signed in; never navigate away.
+				container.querySelectorAll('[data-wu-step]').forEach(function (element) {
+					element.hidden = true;
+					element.classList.add('wu-hidden');
+				});
+
+				if (data.passkey_created) {
+					showStatus(i18n.passkey_saved || 'Passkey saved. You can use it the next time you sign in.', 'success');
+				} else {
+					container.hidden = true;
+				}
+
 				return;
 			}
 
@@ -440,7 +461,7 @@
 
 				setBusy(createPasskeyButton, false);
 				showStatus(i18n.passkey_created || 'Passkey created. Redirecting...', 'success');
-				finish({ redirect_url: state.redirectUrl });
+				finish({ redirect_url: state.redirectUrl, passkey_created: true });
 
 			}).catch(function (error) {
 
