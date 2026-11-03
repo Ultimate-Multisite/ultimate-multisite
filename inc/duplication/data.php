@@ -165,7 +165,7 @@ if ( ! class_exists('MUCD_Data') ) {
 
 				// Populate database with data from source table
 				if ($copy_rows) {
-					self::do_sql_query('INSERT IGNORE `' . $table_name . '` SELECT * FROM `' . $table . '`');
+					self::do_sql_query(self::get_copy_rows_query($table, $table_name, $from_site_prefix, $to_site_prefix));
 				}
 
 				$wpdb->get_results('SET foreign_key_checks = 1'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -175,6 +175,59 @@ if ( ! class_exists('MUCD_Data') ) {
 			self::db_restore_data($to_site_id, $saved_options);
 
 			return $saved_options;
+		}
+
+		/**
+		 * Build the query that copies all rows from a source table to its clone.
+		 *
+		 * Generated columns (VIRTUAL / STORED / PERSISTENT) cannot receive explicit
+		 * values, so `INSERT ... SELECT *` fails for tables that contain them (for
+		 * example FluentCRM's `fc_messages.activity_at`). When the source table has
+		 * generated columns, the query lists only the writable columns and lets the
+		 * database compute the generated values on the destination table.
+		 *
+		 * The destination table is created from the source `SHOW CREATE TABLE` with
+		 * the site prefix replaced, which also renames any column whose name contains
+		 * the prefix. Destination column names get the same replacement so they match.
+		 *
+		 * @since 2.18.1
+		 *
+		 * @param string $table       Source table name.
+		 * @param string $table_name  Destination table name.
+		 * @param string $from_prefix Source site table prefix.
+		 * @param string $to_prefix   Destination site table prefix.
+		 * @return string SQL query.
+		 */
+		public static function get_copy_rows_query($table, $table_name, $from_prefix = '', $to_prefix = '') {
+
+			$columns = self::do_sql_query('SHOW COLUMNS FROM `' . $table . '`', 'results', false, false);
+
+			$source_columns      = [];
+			$destination_columns = [];
+			$has_generated       = false;
+
+			foreach ((array) $columns as $column) {
+				$extra = isset($column['Extra']) ? (string) $column['Extra'] : '';
+
+				// Match "VIRTUAL GENERATED", "STORED GENERATED" and MariaDB "PERSISTENT GENERATED",
+				// but not MySQL 8's "DEFAULT_GENERATED", which marks a writable column with an expression default.
+				if (preg_match('/\b(?:VIRTUAL|STORED|PERSISTENT)\s+GENERATED\b/i', $extra)) {
+					$has_generated = true;
+					continue;
+				}
+
+				$field       = (string) $column['Field'];
+				$destination = '' !== $from_prefix ? str_replace($from_prefix, $to_prefix, $field) : $field;
+
+				$source_columns[]      = '`' . str_replace('`', '``', $field) . '`';
+				$destination_columns[] = '`' . str_replace('`', '``', $destination) . '`';
+			}
+
+			if ( ! $has_generated || empty($source_columns)) {
+				return 'INSERT IGNORE `' . $table_name . '` SELECT * FROM `' . $table . '`';
+			}
+
+			return 'INSERT IGNORE `' . $table_name . '` (' . implode(', ', $destination_columns) . ') SELECT ' . implode(', ', $source_columns) . ' FROM `' . $table . '`';
 		}
 
 		/**
