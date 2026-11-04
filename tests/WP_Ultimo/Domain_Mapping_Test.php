@@ -635,6 +635,38 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test mangle_url ignores an inactive primary mapping.
+	 */
+	public function test_mangle_url_ignores_inactive_primary_mapping(): void {
+
+		$domain = $this->create_db_domain('inactive-primary-dm-test.example.com', 1, true, false);
+
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+
+		$result = $this->domain_mapping->mangle_url('http://example.org/', '/', '', 1);
+
+		$this->assertSame('http://example.org/', $result);
+
+		$domain->delete();
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+	}
+
+	/**
+	 * Test deleting a domain clears its site's cached primary mapping.
+	 */
+	public function test_clear_primary_mapping_cache_after_delete(): void {
+
+		$mapping = new Domain();
+		$mapping->set_blog_id(12345);
+
+		wp_cache_set('primary-domain:site-12345', $mapping, 'domain_mappings');
+
+		$this->domain_mapping->clear_primary_mapping_cache(true, $mapping);
+
+		$this->assertFalse(wp_cache_get('primary-domain:site-12345', 'domain_mappings'));
+	}
+
+	/**
 	 * Test mangle_url returns a string.
 	 */
 	public function test_mangle_url_returns_string(): void {
@@ -1028,15 +1060,16 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	 * @param string $domain         Domain string.
 	 * @param int    $blog_id       Site ID.
 	 * @param bool   $primary_domain Whether the domain is primary.
+	 * @param bool   $active         Whether the domain is active.
 	 * @return Domain
 	 */
-	private function create_db_domain(string $domain, int $blog_id = 1, bool $primary_domain = false): Domain {
+	private function create_db_domain(string $domain, int $blog_id = 1, bool $primary_domain = false, bool $active = true): Domain {
 
 		$result = wu_create_domain(
 			[
 				'blog_id'        => $blog_id,
 				'domain'         => $domain,
-				'active'         => true,
+				'active'         => $active,
 				'primary_domain' => $primary_domain,
 				'secure'         => false,
 				'stage'          => \WP_Ultimo\Database\Domains\Domain_Stage::DONE,

@@ -135,6 +135,7 @@ class Domain_Mapping {
 		 * When a site gets delete, clean up the mapped domains
 		 */
 		add_action('wp_delete_site', [$this, 'clear_mappings_on_delete']);
+		add_action('wu_domain_post_delete', [$this, 'clear_primary_mapping_cache'], 10, 2);
 
 		/*
 		 * Adds the filters that will change the URLs when a mapped domains is in use
@@ -509,6 +510,22 @@ class Domain_Mapping {
 	}
 
 	/**
+	 * Clear a site's cached primary mapping after a domain is deleted.
+	 *
+	 * @since 2.19.0
+	 *
+	 * @param bool   $deleted Whether the domain was deleted.
+	 * @param Domain $domain  Deleted domain.
+	 * @return void
+	 */
+	public function clear_primary_mapping_cache($deleted, $domain): void {
+
+		if ($deleted && $domain instanceof Domain) {
+			wp_cache_delete('primary-domain:site-' . $domain->get_blog_id(), 'domain_mappings');
+		}
+	}
+
+	/**
 	 * Register filters for URLs, if we've mapped
 	 *
 	 * @since 2.0.0
@@ -734,6 +751,10 @@ class Domain_Mapping {
 
 		$site    = wu_get_site($site_id);
 		$mapping = $site ? $site->get_primary_mapped_domain() : false;
+
+		if ($mapping && ! $mapping->is_active()) {
+			$mapping = false;
+		}
 
 		wp_cache_set($cache_key, $mapping, 'domain_mappings');
 
