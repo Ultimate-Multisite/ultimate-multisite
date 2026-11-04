@@ -552,12 +552,19 @@ if ( ! class_exists('MUCD_Data') ) {
 			}
 
 			foreach ( $tables as $table => $col) {
-				$results = self::do_sql_query('SHOW COLUMNS FROM `' . $to_blog_prefix . $table . '`', 'col', false);
+				$results = self::do_sql_query('SHOW COLUMNS FROM `' . $to_blog_prefix . $table . '`', 'results', false);
 
 				$columns = [];
 
-				foreach ( $results as $k => $v ) {
-					$columns[] = $v;
+				foreach ( (array) $results as $column ) {
+					$extra = isset($column['Extra']) ? (string) $column['Extra'] : '';
+
+					// Generated columns are computed by the database and cannot be updated.
+					if (preg_match('/\b(?:VIRTUAL|STORED|PERSISTENT)\s+GENERATED\b/i', $extra)) {
+						continue;
+					}
+
+					$columns[] = $column['Field'];
 				}
 
 				$tables[ $table ] = $columns;
