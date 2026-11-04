@@ -73,4 +73,20 @@ class Limit_Customer_User_Role extends Limit {
 
 		return empty($this->limit) || 'default' === $this->limit ? $default_value : $this->limit;
 	}
+
+	/**
+	 * Gets the role stored on this object, without resolving the global default.
+	 *
+	 * Used by edit forms so that "Use Ultimate Multisite default" stays selected
+	 * when no explicit role was saved, instead of showing (and re-saving) the
+	 * role the global default_role setting currently resolves to.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @return string The stored role slug, or "default" when none is stored.
+	 */
+	public function get_stored_limit() {
+
+		return empty($this->limit) || ! is_string($this->limit) ? 'default' : $this->limit;
+	}
 }
