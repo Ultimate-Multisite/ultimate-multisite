@@ -63,6 +63,8 @@ class Broadcast_Manager extends Base_Manager {
 
 		$this->enable_command_palette();
 
+		add_action('wu_send_broadcast_email', [$this, 'send_broadcast_email'], 10, 3);
+
 		/**
 		 * Add unseen broadcast notices to the panel.
 		 */
@@ -168,8 +170,6 @@ class Broadcast_Manager extends Base_Manager {
 		if ('broadcast_email' === $args['type']) {
 			$to = [];
 
-			$bcc = [];
-
 			$targets = [];
 
 			if ($args['target_customers']) {
@@ -231,7 +231,19 @@ class Broadcast_Manager extends Base_Manager {
 			];
 
 			try {
-				$status = Sender::send_mail($from, $to, $send_args);
+				$status = ! empty($to);
+
+				foreach ($to as $recipient) {
+					$action_id = wu_enqueue_async_action(
+						'wu_send_broadcast_email',
+						[$from, $recipient, $send_args],
+						'wu_broadcast_emails'
+					);
+
+					if ( ! $action_id) {
+						wp_send_json_error(new \WP_Error('queue-error', __('Unable to queue all broadcast emails. Some emails may already be queued; check Scheduled Actions before retrying.', 'ultimate-multisite')));
+					}
+				}
 			} catch (\Throwable $e) {
 				$error = new \WP_Error($e->getCode(), $e->getMessage());
 
@@ -244,7 +256,7 @@ class Broadcast_Manager extends Base_Manager {
 					'products'  => $args['target_products'],
 				];
 
-				// then we save with the message status (success, fail)
+				// Record the broadcast once all individual emails have been queued.
 				$this->save_broadcast($args);
 
 				wp_send_json_success(
@@ -258,6 +270,22 @@ class Broadcast_Manager extends Base_Manager {
 		$error = new \WP_Error('mail-error', __('Something wrong happened.', 'ultimate-multisite'));
 
 		wp_send_json_error($error);
+	}
+
+	/**
+	 * Sends one queued broadcast email using the existing mail sender.
+	 *
+	 * @param array $from      Sender name and email address.
+	 * @param array $recipient Recipient name and email address.
+	 * @param array $args      Email subject, content, and template arguments.
+	 * @return void
+	 * @throws \RuntimeException When delivery fails, so Action Scheduler records a failed action.
+	 */
+	public function send_broadcast_email($from, $recipient, $args): void {
+
+		if ( ! Sender::send_mail($from, [$recipient], $args)) {
+			throw new \RuntimeException(esc_html__('Broadcast email delivery failed.', 'ultimate-multisite'));
+		}
 	}
 
 	/**
