@@ -318,11 +318,20 @@ class Broadcast_Manager extends Base_Manager {
 				return new \WP_Error('message-error', __('Unable to store the broadcast email. Please retry.', 'ultimate-multisite'));
 			}
 
+			// Read progress before writes invalidate the shared metadata cache.
+			$queued_customers = [];
+
+			foreach (array_keys($message['recipients']) as $customer_id) {
+				if ($broadcast->get_meta('broadcast_email_action_' . $customer_id)) {
+					$queued_customers[ $customer_id ] = true;
+				}
+			}
+
 			foreach ($message['recipients'] as $customer_id => $recipient) {
 				$progress_key = 'broadcast_email_action_' . $customer_id;
 
 				// Keep progress even after completed scheduler actions are pruned.
-				if ($broadcast->get_meta($progress_key)) {
+				if (isset($queued_customers[ $customer_id ])) {
 					continue;
 				}
 
@@ -343,6 +352,8 @@ class Broadcast_Manager extends Base_Manager {
 				if ( ! $action_id || ! $broadcast->update_meta($progress_key, $action_id)) {
 					return new \WP_Error('queue-error', __('Unable to queue all broadcast emails. Retry this form to queue the remaining recipients without resending those already queued.', 'ultimate-multisite'));
 				}
+
+				$queued_customers[ $customer_id ] = true;
 			}
 
 			return true;
