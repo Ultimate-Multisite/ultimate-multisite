@@ -605,6 +605,36 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test mangle_url uses the target site's primary mapping outside its request context.
+	 */
+	public function test_mangle_url_uses_primary_mapping_for_different_site(): void {
+
+		$domain = $this->create_db_domain('primary-mapped-dm-test.example.com', 1, true);
+
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+
+		$request_mapping = new Domain();
+		$request_mapping->set_domain('request-site.example.com');
+		$request_mapping->set_blog_id(99999);
+
+		$this->domain_mapping->current_mapping = $request_mapping;
+
+		$result = $this->domain_mapping->mangle_url('http://example.org/', '/', '', 1);
+
+		$this->assertSame('http://primary-mapped-dm-test.example.com/', $result);
+
+		$queries_after_first_lookup = get_num_queries();
+
+		$this->domain_mapping->mangle_url('http://example.org/', '/', '', 1);
+
+		$this->assertSame($queries_after_first_lookup, get_num_queries());
+
+		$domain->delete();
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+		$this->domain_mapping->current_mapping = null;
+	}
+
+	/**
 	 * Test mangle_url returns a string.
 	 */
 	public function test_mangle_url_returns_string(): void {
@@ -986,21 +1016,23 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * Create a persisted Domain record for blog_id=1 (always exists in test env).
+	 * Create a persisted Domain record.
 	 *
 	 * Returns the Domain instance, or marks the test skipped if the DB write fails.
 	 *
-	 * @param string $domain Domain string.
+	 * @param string $domain         Domain string.
+	 * @param int    $blog_id       Site ID.
+	 * @param bool   $primary_domain Whether the domain is primary.
 	 * @return Domain
 	 */
-	private function create_db_domain(string $domain): Domain {
+	private function create_db_domain(string $domain, int $blog_id = 1, bool $primary_domain = false): Domain {
 
 		$result = wu_create_domain(
 			[
-				'blog_id'        => 1,
+				'blog_id'        => $blog_id,
 				'domain'         => $domain,
 				'active'         => true,
-				'primary_domain' => false,
+				'primary_domain' => $primary_domain,
 				'secure'         => false,
 				'stage'          => \WP_Ultimo\Database\Domains\Domain_Stage::DONE,
 			]
@@ -1181,10 +1213,13 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 		// Set HTTP_HOST to a domain with no mapping.
 		$_SERVER['HTTP_HOST'] = 'no-mapping-xyz-99999.test';
 
-		// Should not throw — no mapping found, returns early.
+		remove_filter('site_url', [$this->domain_mapping, 'mangle_url'], -10);
+		remove_filter('home_url', [$this->domain_mapping, 'mangle_url'], -10);
+
 		$this->domain_mapping->register_mapped_filters();
 
-		$this->assertTrue(true);
+		$this->assertSame(-10, has_filter('site_url', [$this->domain_mapping, 'mangle_url']));
+		$this->assertSame(-10, has_filter('home_url', [$this->domain_mapping, 'mangle_url']));
 
 		// Restore.
 		unset($_SERVER['HTTP_HOST']);
