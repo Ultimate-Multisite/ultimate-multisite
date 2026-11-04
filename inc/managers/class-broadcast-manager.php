@@ -320,6 +320,7 @@ class Broadcast_Manager extends Base_Manager {
 
 			// Read progress before writes invalidate the shared metadata cache.
 			$queued_customers = [];
+			$meta_type        = (new \WP_Ultimo\Database\Broadcasts\Broadcast_Query())->get_meta_type();
 
 			foreach (array_keys($message['recipients']) as $customer_id) {
 				if ($broadcast->get_meta('broadcast_email_action_' . $customer_id)) {
@@ -349,7 +350,8 @@ class Broadcast_Manager extends Base_Manager {
 				// Recover a job saved before a request stopped or a progress write failed.
 				$action_id = $existing ? reset($existing) : wu_enqueue_async_action('wu_send_broadcast_email', $action_args, 'wu_broadcast_emails');
 
-				if ( ! $action_id || ! $broadcast->update_meta($progress_key, $action_id)) {
+				// Progress keys are new; update_meta() would reload all metadata before inserting.
+				if ( ! $action_id || ! add_metadata($meta_type, $broadcast->get_id(), $progress_key, $action_id, true)) {
 					return new \WP_Error('queue-error', __('Unable to queue all broadcast emails. Retry this form to queue the remaining recipients without resending those already queued.', 'ultimate-multisite'));
 				}
 
