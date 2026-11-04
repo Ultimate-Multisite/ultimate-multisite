@@ -579,7 +579,7 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 
 		$this->domain_mapping->current_mapping = null;
 
-		$result = $this->domain_mapping->mangle_url('http://example.com/');
+		$result = $this->domain_mapping->mangle_url('http://example.com/', '/', '', 99999);
 
 		$this->assertEquals('http://example.com/', $result);
 	}
@@ -587,7 +587,7 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	/**
 	 * Test mangle_url with mapping for different site returns original URL.
 	 *
-	 * Uses a non-existent blog_id (99999) to simulate a mapping for a different site.
+	 * Uses non-existent blog IDs so the target site has no primary mapping.
 	 */
 	public function test_mangle_url_mapping_different_site_returns_original(): void {
 
@@ -597,7 +597,7 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 
 		$this->domain_mapping->current_mapping = $mapping;
 
-		$result = $this->domain_mapping->mangle_url('http://example.org/', '/', '', get_current_blog_id());
+		$result = $this->domain_mapping->mangle_url('http://example.org/', '/', '', 99998);
 
 		$this->assertEquals('http://example.org/', $result);
 
@@ -673,12 +673,17 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	 */
 	public function test_mangle_url_uses_current_blog_id_when_zero(): void {
 
-		$this->domain_mapping->current_mapping = null;
+		$mapping = new Domain();
+		$mapping->set_domain('current-site.example.com');
+		$mapping->set_blog_id(get_current_blog_id());
 
-		// With no mapping, should return original regardless of site_id.
+		$this->domain_mapping->current_mapping = $mapping;
+
 		$result = $this->domain_mapping->mangle_url('http://example.com/', '/', '', 0);
 
-		$this->assertEquals('http://example.com/', $result);
+		$this->assertEquals('http://current-site.example.com/', $result);
+
+		$this->domain_mapping->current_mapping = null;
 	}
 
 	// ----------------------------------------------------------------
@@ -1313,20 +1318,18 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	 * Test mangle_url with empty site_id (0) uses get_current_blog_id.
 	 *
 	 * When site_id is 0, mangle_url calls get_current_blog_id().
-	 * With a mapping for a different blog_id, it returns the original URL.
 	 */
 	public function test_mangle_url_zero_site_id_uses_current_blog(): void {
 
 		$mapping = new Domain();
 		$mapping->set_domain('mapped.example.com');
-		$mapping->set_blog_id(99999); // Different from current blog.
+		$mapping->set_blog_id(get_current_blog_id());
 
 		$this->domain_mapping->current_mapping = $mapping;
 
-		// site_id = 0 → uses get_current_blog_id() which is 1, not 99999.
 		$result = $this->domain_mapping->mangle_url('http://example.org/', '/', '', 0);
 
-		$this->assertEquals('http://example.org/', $result);
+		$this->assertEquals('http://mapped.example.com/', $result);
 
 		$this->domain_mapping->current_mapping = null;
 	}
