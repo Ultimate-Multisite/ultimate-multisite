@@ -63,7 +63,7 @@ class Broadcast_Manager extends Base_Manager {
 
 		$this->enable_command_palette();
 
-		add_action('wu_send_broadcast_email', [$this, 'send_broadcast_email'], 10, 3);
+		add_action('wu_send_broadcast_email', [$this, 'send_broadcast_email'], 10, 2);
 
 		/**
 		 * Add unseen broadcast notices to the panel.
@@ -199,7 +199,7 @@ class Broadcast_Manager extends Base_Manager {
 				$customer = wu_get_customer($target);
 
 				if ($customer) {
-					$to[] = [
+					$to[ $customer->get_id() ] = [
 						'name'  => $customer->get_display_name(),
 						'email' => $customer->get_email_address(),
 					];
@@ -230,41 +230,42 @@ class Broadcast_Manager extends Base_Manager {
 				'content'   => $args['content'],
 			];
 
+			$request_id = wu_request('broadcast_request_id');
+
+			if ( ! wp_is_uuid($request_id)) {
+				wp_send_json_error(new \WP_Error('request-error', __('Please reopen the broadcast form before sending.', 'ultimate-multisite')));
+			}
+
+			$args['targets'] = [
+				'customers' => $target_customers,
+				'products'  => $target_products,
+			];
+
 			try {
-				$status = ! empty($to);
-
-				foreach ($to as $recipient) {
-					$action_id = wu_enqueue_async_action(
-						'wu_send_broadcast_email',
-						[$from, $recipient, $send_args],
-						'wu_broadcast_emails'
+				$status = $this->queue_broadcast_emails(
+					$request_id,
+					$args,
+					[
+						'from'       => $from,
+						'args'       => $send_args,
+						'recipients' => $to,
+					]
 					);
-
-					if ( ! $action_id) {
-						wp_send_json_error(new \WP_Error('queue-error', __('Unable to queue all broadcast emails. Some emails may already be queued; check Scheduled Actions before retrying.', 'ultimate-multisite')));
-					}
-				}
 			} catch (\Throwable $e) {
 				$error = new \WP_Error($e->getCode(), $e->getMessage());
 
 				wp_send_json_error($error);
 			}
 
-			if ($status) {
-				$args['targets'] = [
-					'customers' => $args['target_customers'],
-					'products'  => $args['target_products'],
-				];
-
-				// Record the broadcast once all individual emails have been queued.
-				$this->save_broadcast($args);
-
-				wp_send_json_success(
-					[
-						'redirect_url' => wu_network_admin_url('wp-ultimo-broadcasts'),
-					]
-				);
+			if (is_wp_error($status)) {
+				wp_send_json_error($status);
 			}
+
+			wp_send_json_success(
+				[
+					'redirect_url' => wu_network_admin_url('wp-ultimo-broadcasts'),
+				]
+			);
 		}
 
 		$error = new \WP_Error('mail-error', __('Something wrong happened.', 'ultimate-multisite'));
@@ -273,17 +274,101 @@ class Broadcast_Manager extends Base_Manager {
 	}
 
 	/**
+	 * Stores a message once and resumes queueing recipients on form retries.
+	 *
+	 * @param string $request_id Stable identifier generated when the form opens.
+	 * @param array  $args       Broadcast attributes and targets.
+	 * @param array  $message    Immutable sender, content, and recipient snapshot.
+	 * @return true|\WP_Error
+	 */
+	private function queue_broadcast_emails($request_id, $args, $message) {
+
+		global $wpdb;
+
+		if (empty($message['recipients'])) {
+			return new \WP_Error('recipient-error', __('No customer recipients were found.', 'ultimate-multisite'));
+		}
+
+		$args['slug'] = 'broadcast-' . md5(get_current_network_id() . ':' . get_current_user_id() . ':' . $request_id);
+		$lock         = 'wu_broadcast_' . md5($wpdb->prefix . $args['slug']);
+
+		// Use the same connection-scoped lock pattern as system email setup.
+		if ('1' !== (string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock))) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- named lock, never cached.
+			return new \WP_Error('queue-busy', __('This broadcast is already being queued. Please wait before retrying.', 'ultimate-multisite'));
+		}
+
+		try {
+			$broadcast = wu_get_broadcast_by('slug', $args['slug']);
+
+			if ( ! $broadcast) {
+				$broadcast = $this->save_broadcast($args);
+
+				if (is_wp_error($broadcast)) {
+					return $broadcast;
+				}
+			}
+
+			$stored_message = $broadcast->get_meta('broadcast_email_message');
+
+			if ($stored_message && $stored_message !== $message) {
+				return new \WP_Error('message-changed', __('This broadcast has already started. Reopen the form to send a different message or change its recipients.', 'ultimate-multisite'));
+			}
+
+			if ( ! $stored_message && ! $broadcast->update_meta('broadcast_email_message', wp_slash($message))) {
+				return new \WP_Error('message-error', __('Unable to store the broadcast email. Please retry.', 'ultimate-multisite'));
+			}
+
+			foreach ($message['recipients'] as $customer_id => $recipient) {
+				$progress_key = 'broadcast_email_action_' . $customer_id;
+
+				// Keep progress even after completed scheduler actions are pruned.
+				if ($broadcast->get_meta($progress_key)) {
+					continue;
+				}
+
+				$action_args = [$broadcast->get_id(), $customer_id];
+				$existing    = wu_get_scheduled_actions(
+					[
+						'hook'     => 'wu_send_broadcast_email',
+						'args'     => $action_args,
+						'group'    => 'wu_broadcast_emails',
+						'per_page' => 1,
+					],
+					'ids'
+				);
+
+				// Recover a job saved before a request stopped or a progress write failed.
+				$action_id = $existing ? reset($existing) : wu_enqueue_async_action('wu_send_broadcast_email', $action_args, 'wu_broadcast_emails');
+
+				if ( ! $action_id || ! $broadcast->update_meta($progress_key, $action_id)) {
+					return new \WP_Error('queue-error', __('Unable to queue all broadcast emails. Retry this form to queue the remaining recipients without resending those already queued.', 'ultimate-multisite'));
+				}
+			}
+
+			return true;
+		} finally {
+			$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- named lock, never cached.
+		}
+	}
+
+	/**
 	 * Sends one queued broadcast email using the existing mail sender.
 	 *
-	 * @param array $from      Sender name and email address.
-	 * @param array $recipient Recipient name and email address.
-	 * @param array $args      Email subject, content, and template arguments.
+	 * @param int $broadcast_id Stored broadcast containing the message snapshot.
+	 * @param int $customer_id  Recipient identifier within the snapshot.
 	 * @return void
-	 * @throws \RuntimeException When delivery fails, so Action Scheduler records a failed action.
+	 * @throws \RuntimeException When the message is missing or delivery fails.
 	 */
-	public function send_broadcast_email($from, $recipient, $args): void {
+	public function send_broadcast_email($broadcast_id, $customer_id): void {
 
-		if ( ! Sender::send_mail($from, [$recipient], $args)) {
+		$broadcast = wu_get_broadcast($broadcast_id);
+		$message   = $broadcast ? $broadcast->get_meta('broadcast_email_message') : false;
+
+		if ( ! $message || ! isset($message['recipients'][ $customer_id ])) {
+			throw new \RuntimeException(esc_html__('Queued broadcast message or recipient was not found.', 'ultimate-multisite'));
+		}
+
+		if ( ! Sender::send_mail($message['from'], [$message['recipients'][ $customer_id ]], $message['args'])) {
 			throw new \RuntimeException(esc_html__('Broadcast email delivery failed.', 'ultimate-multisite'));
 		}
 	}
@@ -304,6 +389,10 @@ class Broadcast_Manager extends Base_Manager {
 			'content' => $args['content'],
 			'status'  => 'publish',
 		];
+
+		if ( ! empty($args['slug'])) {
+			$broadcast_data['slug'] = $args['slug'];
+		}
 
 		$broadcast = new Broadcast($broadcast_data);
 
