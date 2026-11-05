@@ -78,3 +78,10 @@ Payment-method changes must return from Stripe Billing Portal to the originating
 account page, using a validated local destination. Show the subscription's card
 override when present; otherwise show the customer's default payment method,
 including after the portal clears an override while replacing the default card.
+
+Native account blocks share shortcode renderers, settings and ownership checks.
+Load widget preview styles inside the block editor canvas, including iframe
+editors. Numeric controls save integers and toggle defaults use booleans. Group
+and Columns layouts must preserve nested element attributes during early setup,
+especially the Checkout form slug. Editor previews use sample data; verify real
+customer actions on the published page rather than treating a preview as proof.

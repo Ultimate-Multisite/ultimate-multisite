@@ -125,6 +125,7 @@ class Block_Editor_Widget_Manager {
 			[
 				'attributes'      => $attributes,
 				'editor_script'   => 'wu-blocks',
+				'editor_style'    => 'wu-admin',
 				'render_callback' => \Closure::fromCallable([$element, 'get_content']),
 			]
 		);
@@ -236,9 +237,21 @@ class Block_Editor_Widget_Manager {
 			}
 
 			$default_value = wu_get_isset($defaults, $field_id, '');
+			$value         = wu_get_isset($field, 'value', $default_value);
+
+			// Block defaults must have the same types as their REST schema.
+			if ( ! is_callable($value)) {
+				if ('boolean' === $type) {
+					$value = (bool) $value;
+				} elseif ('integer' === $type) {
+					$value = (int) $value;
+				} else {
+					$value = (string) $value;
+				}
+			}
 
 			$_fields[ $field_id ] = [
-				'default' => wu_get_isset($field, 'value', $default_value),
+				'default' => $value,
 				'type'    => $type,
 			];
 		}

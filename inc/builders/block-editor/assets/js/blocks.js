@@ -109,7 +109,8 @@
 
 						const obj = {};
 
-						obj[ field_slug ] = value;
+						// NumberControl emits strings; the block REST schema requires integers.
+						obj[ field_slug ] = field.type === 'number' ? Math.trunc(Number(value)) : value;
 
 						props.setAttributes(obj);
 
