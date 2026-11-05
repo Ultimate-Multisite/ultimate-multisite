@@ -523,10 +523,19 @@ class Base_List_Table extends \WP_List_Table {
 	 * @access public
 	 */
 	public function display(): void {
+		$has_active_filter = '' !== (string) wu_request('s', '');
+
+		foreach ($this->get_views() as $view) {
+			if (isset($view['field']) && 'all' !== wu_request($view['field'], 'all')) {
+				$has_active_filter = true;
+				break;
+			}
+		}
+
 		/*
-		 * Any items at all?
+		 * Filtered empty results still need a table shell for live-search recovery.
 		 */
-		if ( ! $this->has_items() && 'page' === $this->context) {
+		if ( ! $this->has_items() && 'page' === $this->context && ! $has_active_filter) {
 			wu_render_empty_state(
 				[
 					// translators: %s name of items in list.

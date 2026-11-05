@@ -72,3 +72,11 @@ status onto separate lines when needed. Preserve the desktop layout and existing
 navigation. See `views/base/filter.php`, `views/base/responsive-table-row.php`,
 `inc/list-tables/class-base-list-table.php`, and the mobile block in
 `assets/css/admin.css`.
+
+Constrain the settings search dropdown to its input width on mobile; unlike the
+desktop max-content menu, long result titles must wrap. Diagnostic tables and job
+hooks wrap long values. The four-column shortcode reference instead keeps its
+column relationships in a labelled, keyboard-scrollable region, never a
+page-wide horizontal scrollbar (`views/shortcodes/shortcodes.php`). Full-screen
+mobile dialogs reserve space for their title bar and scroll only the remaining
+content area so the final form controls stay reachable.

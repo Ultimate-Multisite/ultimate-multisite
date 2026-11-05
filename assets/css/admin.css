@@ -1958,6 +1958,20 @@ body.wu-page-wp-ultimo-settings .selectize-control.single .selectize-input::afte
     left: 0 !important;
     border-radius: 0 !important;
   }
+  #WUB_window {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh !important;
+  }
+  #WUB_title {
+    flex-shrink: 0;
+  }
+  #WUB_window #WUB_ajaxContent {
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+    box-sizing: border-box;
+  }
   /* stylelint-enable */
 }
 #wp-ultimo-log-contents pre {
@@ -4236,7 +4250,8 @@ ul.wu-widget-list > li:first-child {
 .wu-styling .alternate {
   background-color: #fbfcfd;
 }
-.wu-styling .widefat th {
+.wu-styling .widefat thead th,
+.wu-styling .widefat tfoot th {
   text-transform: uppercase;
   font-size: 11px;
   font-weight: bold;
@@ -4994,6 +5009,33 @@ td.column-id {
 
 /* Match WordPress's mobile admin breakpoint without changing desktop tables. */
 @media screen and (max-width: 782px) {
+  .wu-page-wp-ultimo-system-info #wp-ultimo-wrap,
+  .wu-page-wp-ultimo-shortcodes #wp-ultimo-wrap,
+  .wu-page-wp-ultimo-jobs .wp-list-table .column-primary {
+    overflow-wrap: anywhere;
+  }
+
+  .wu-page-wp-ultimo-system-info #wp-ultimo-wrap table {
+    table-layout: fixed;
+  }
+
+  .wu-page-wp-ultimo-shortcodes .wu-shortcode-attributes {
+    overflow-x: auto;
+  }
+
+  .wu-page-wp-ultimo-shortcodes .wu-shortcode-attributes table {
+    min-width: 32rem;
+  }
+
+  .wu-styling #wu-settings-search-box .selectize-dropdown {
+    width: 100% !important;
+  }
+
+  .wu-styling #wu-settings-search-box .selectize-dropdown [data-selectable] {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .wu-styling .wp-filter.wu-filter {
     display: flex;
     flex-wrap: wrap;
@@ -5075,6 +5117,19 @@ td.column-id {
   .wu-styling .wu-list-table .row-actions {
     position: static;
     left: auto;
+  }
+
+  /* Core also supplies a toggle through handle_row_actions(). Keep just that one. */
+  .wu-styling .wu-list-table .row-actions + .toggle-row {
+    display: none;
+  }
+
+  .wu-page-wp-ultimo-addons .wu-wrap .button-primary {
+    box-sizing: border-box;
+    max-width: 100%;
+    height: auto;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .wu-styling .wu-list-table .wp-list-table .column-responsive {
