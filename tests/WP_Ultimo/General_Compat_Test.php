@@ -209,6 +209,48 @@ class General_Compat_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Screens and whether the Gutenberg support script should load on them.
+	 *
+	 * @return array
+	 */
+	public function gutenberg_screen_provider(): array {
+
+		return [
+			'dashboard'     => ['dashboard', false, false],
+			'post editor'   => ['post', true, true],
+			'site editor'   => ['site-editor', true, true],
+			'widget editor' => ['widgets', true, true],
+		];
+	}
+
+	/**
+	 * Test the Gutenberg support script is gated to block editor screens.
+	 *
+	 * @dataProvider gutenberg_screen_provider
+	 *
+	 * @param string $screen_id       Screen to simulate.
+	 * @param bool   $is_block_editor Whether the screen is a block editor.
+	 * @param bool   $expected        Whether the script should be enqueued.
+	 */
+	public function test_gutenberg_support_script_gated_by_screen(string $screen_id, bool $is_block_editor, bool $expected): void {
+
+		wp_dequeue_script('wu-gutenberg-support');
+		wp_deregister_script('wu-gutenberg-support');
+
+		set_current_screen($screen_id);
+
+		get_current_screen()->is_block_editor($is_block_editor);
+
+		Gutenberg_Support::get_instance()->add_scripts();
+
+		$this->assertSame($expected, wp_script_is('wu-gutenberg-support', 'enqueued'));
+
+		wp_dequeue_script('wu-gutenberg-support');
+		wp_deregister_script('wu-gutenberg-support');
+		set_current_screen('front');
+	}
+
+	/**
 	 * Recursively remove a test directory.
 	 *
 	 * @param string $dir Directory path.

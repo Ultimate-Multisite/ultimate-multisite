@@ -105,6 +105,7 @@ class Passwordless_Auth_Manager {
 			'wu_passwordless_start'          => 'ajax_start',
 			'wu_passwordless_verify_otp'     => 'ajax_verify_otp',
 			'wu_passwordless_verify_passkey' => 'ajax_verify_passkey',
+			'wu_passwordless_passkey_options' => 'ajax_passkey_options',
 		];
 
 		$private_actions = [
@@ -181,6 +182,7 @@ class Passwordless_Auth_Manager {
 					'login_failed'        => __('Login failed. Please try again.', 'ultimate-multisite'),
 					'passkey_created'     => __('Passkey created. Redirecting...', 'ultimate-multisite'),
 					'redirecting'         => __('Login successful. Redirecting...', 'ultimate-multisite'),
+					'passkey_no_match'    => __('No passkey was used. Try again, or continue with your email address.', 'ultimate-multisite'),
 				],
 			]
 		);
@@ -290,6 +292,7 @@ class Passwordless_Auth_Manager {
 					<input
 						type="email"
 						class="wu-passwordless-email regular-text wu-w-full"
+						style="box-sizing:border-box;max-width:100%;"
 						id="wu-passwordless-email-<?php echo esc_attr($args['context']); ?>"
 						autocomplete="username webauthn"
 						placeholder="<?php esc_attr_e('you@example.com', 'ultimate-multisite'); ?>"
@@ -300,6 +303,10 @@ class Passwordless_Auth_Manager {
 
 				<button type="button" class="button button-primary wu-passwordless-start wu-w-full wu-mt-3">
 					<?php esc_html_e('Continue', 'ultimate-multisite'); ?>
+				</button>
+				<?php // Shown by passwordless-auth.js only when the browser supports WebAuthn. ?>
+				<button type="button" class="button wu-passwordless-discoverable wu-w-full wu-mt-2" hidden>
+					<?php esc_html_e('Sign in with a passkey', 'ultimate-multisite'); ?>
 				</button>
 			</div>
 
@@ -323,6 +330,7 @@ class Passwordless_Auth_Manager {
 					pattern="[0-9]*"
 					maxlength="8"
 					class="wu-passwordless-code regular-text wu-w-full"
+					style="box-sizing:border-box;max-width:100%;"
 					id="wu-passwordless-code-<?php echo esc_attr($args['context']); ?>"
 					autocomplete="one-time-code"
 				/>
@@ -469,6 +477,29 @@ class Passwordless_Auth_Manager {
 			[
 				'message'      => __('Login successful.', 'ultimate-multisite'),
 				'redirect_url' => $this->login_user($user),
+			]
+		);
+	}
+
+	/**
+	 * Returns usernameless passkey sign-in options.
+	 *
+	 * Unlike ajax_start(), which never reveals whether an address has a
+	 * passkey, these options name no user or credential: the browser offers
+	 * the passkeys it holds for this site and ajax_verify_passkey() resolves
+	 * the user from the signed assertion.
+	 *
+	 * @since 2.19.0
+	 * @return void
+	 */
+	public function ajax_passkey_options() {
+
+		$this->verify_ajax_request();
+		$this->ensure_enabled_for_ajax();
+
+		wp_send_json_success(
+			[
+				'options' => $this->passkeys->get_discoverable_authentication_options(),
 			]
 		);
 	}
