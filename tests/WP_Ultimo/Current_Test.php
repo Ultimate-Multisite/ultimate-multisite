@@ -444,6 +444,9 @@ class Current_Test extends \WP_UnitTestCase {
 	/** URL-selected account objects require the real owner's authentication. */
 	public function test_request_context_requires_ownership(): void {
 
+		$saved_current = clone $this->current;
+		$saved_user_id = get_current_user_id();
+
 		$owner_id    = self::factory()->user->create(['role' => 'subscriber']);
 		$stranger_id = self::factory()->user->create(['role' => 'subscriber']);
 		$admin_id    = self::factory()->user->create(['role' => 'administrator']);
@@ -514,7 +517,15 @@ class Current_Test extends \WP_UnitTestCase {
 		} finally {
 			revoke_super_admin($admin_id);
 			set_query_var('site_hash', '');
-			wp_set_current_user(0);
+			wp_set_current_user($saved_user_id);
+
+			// Do not leave the final synthetic membership in the shared singleton.
+			foreach ((new \ReflectionClass(Current::class))->getProperties() as $property) {
+				if ( ! $property->isStatic()) {
+					$property->setAccessible(true);
+					$property->setValue($this->current, $property->getValue($saved_current));
+				}
+			}
 		}
 	}
 }
