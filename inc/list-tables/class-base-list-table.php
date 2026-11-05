@@ -261,7 +261,7 @@ class Base_List_Table extends \WP_List_Table {
 		if (isset($query_args['search']) && strlen((string) $query_args['search']) === Hash::LENGTH) {
 			$item_id = Hash::decode($query_args['search'], '');
 
-			if ($item_id !== false) {
+			if (false !== $item_id) {
 				unset($query_args['search']);
 
 				$query_args['id'] = $item_id;
@@ -393,6 +393,26 @@ class Base_List_Table extends \WP_List_Table {
 		);
 
 		$this->items = $this->get_items($per_page, $current_page);
+	}
+
+	/**
+	 * Keep an identifying text column visible in WordPress's mobile table layout.
+	 *
+	 * Avatar and thumbnail columns precede the name on several tables, but cannot
+	 * identify a row or expose its actions when all other columns are collapsed.
+	 *
+	 * @since 2.18.0
+	 * @return string
+	 */
+	protected function get_default_primary_column_name() {
+
+		foreach ($this->get_columns() as $column => $label) {
+			if ('cb' !== $column && '' !== trim(wp_strip_all_tags($label))) {
+				return $column;
+			}
+		}
+
+		return parent::get_default_primary_column_name();
 	}
 
 	/**

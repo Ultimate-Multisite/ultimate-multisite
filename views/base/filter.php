@@ -9,7 +9,7 @@ defined('ABSPATH') || exit;
 ?>
 <div 
 	id="<?php echo esc_attr($filters_el_id); ?>" 
-	class="wp-filter wu-filter <?php echo ! $table->has_items() ? 'wu-opacity-50 wu-pointer-events-none' : ''; ?>"
+	class="wp-filter wu-filter"
 >
 
 	<?php if ( ! empty($views)) : ?>
@@ -71,19 +71,22 @@ defined('ABSPATH') || exit;
 
 		<?php if (isset($has_search) && $has_search) : ?>
 
-			<label class="screen-reader-text" for="wp-filter-search-input">
+			<label class="screen-reader-text" for="<?php echo esc_attr($filters_el_id); ?>-search">
 				<?php echo esc_html($search_label); ?>
 			</label>
 
 			<input
-				name='s' id="s"
+				name="s"
 				value="<?php echo esc_attr(sanitize_text_field(wp_unslash($_REQUEST['s'] ?? ''))); // phpcs:ignore WordPress.Security.NonceVerification ?>"
 				placeholder="<?php echo esc_attr($search_label); ?>"
 				type="search"
-				aria-describedby="live-search-desc"
-				id="wp-filter-search-input"
+				aria-describedby="<?php echo esc_attr($filters_el_id); ?>-search-description"
+				id="<?php echo esc_attr($filters_el_id); ?>-search"
 				class="wp-filter-search"
 			>
+			<span class="screen-reader-text" id="<?php echo esc_attr($filters_el_id); ?>-search-description">
+				<?php esc_html_e('Search results update as you type.', 'ultimate-multisite'); ?>
+			</span>
 
 		<?php endif; ?>
 
