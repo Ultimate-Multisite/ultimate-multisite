@@ -1186,10 +1186,10 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 					'confirm_membership'       => [
 						'type'              => 'toggle',
 						'title'             => __('Activate Membership?', 'ultimate-multisite'),
-						'desc'              => __('This payment belongs to a pending membership. If you toggle this option, this change in status will also apply to the membership. If any sites are pending, they are also going to be published automatically.', 'ultimate-multisite'),
+						'desc'              => __('This payment belongs to a pending or on-hold membership. Enable this option to activate or renew the membership when confirming the payment. Any pending sites will also be published automatically.', 'ultimate-multisite'),
 						'value'             => 0,
 						'wrapper_html_attr' => [
-							'v-if'    => 'status !== original_status && status === "completed" && membership_status === "pending"',
+							'v-if'    => 'status !== original_status && status === "completed" && (membership_status === "pending" || membership_status === "on-hold")',
 							'v-cloak' => '1',
 						],
 					],

@@ -7,7 +7,7 @@
 defined('ABSPATH') || exit;
 
 ?>
-<div class="wu-styling <?php echo esc_attr($className); ?>">
+<div id="wu-site-<?php echo esc_attr($current_site->get_hash()); ?>" tabindex="-1" style="scroll-margin-top: 3rem;" class="wu-styling <?php echo esc_attr($className); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase -- Shared block attribute. ?>">
 
 	<div class="<?php echo esc_attr(wu_env_picker('', 'wu-mt-4')); ?>">
 

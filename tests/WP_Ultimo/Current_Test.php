@@ -440,4 +440,81 @@ class Current_Test extends \WP_UnitTestCase {
 
 		remove_filter('wp_doing_ajax', '__return_true');
 	}
+
+	/** URL-selected account objects require the real owner's authentication. */
+	public function test_request_context_requires_ownership(): void {
+
+		$owner_id    = self::factory()->user->create(['role' => 'subscriber']);
+		$stranger_id = self::factory()->user->create(['role' => 'subscriber']);
+		$admin_id    = self::factory()->user->create(['role' => 'administrator']);
+		$customer    = wu_create_customer(['user_id' => $owner_id]);
+		$stranger    = wu_create_customer(['user_id' => $stranger_id]);
+		$this->assertNotWPError($customer);
+		$this->assertNotWPError($stranger);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id'     => $customer->get_id(),
+				'status'          => 'active',
+				'skip_validation' => true,
+			]
+		);
+		$this->assertNotWPError($membership);
+
+		$site = wu_get_site(self::factory()->blog->create(['user_id' => $owner_id]));
+		$site->set_type('customer_owned');
+		$site->set_customer_id($customer->get_id());
+		$site->set_membership_id($membership->get_id());
+		$this->assertNotWPError($site->save());
+
+		$this->go_to(home_url('/'));
+		set_current_screen('front');
+		grant_super_admin($admin_id);
+
+		try {
+			foreach ([$owner_id, $stranger_id, 0, $admin_id] as $viewer_id) {
+				wp_set_current_user($viewer_id);
+
+				foreach (['membership', 'site', 'pretty_site', 'customer', 'spoofed_customer'] as $context_type) {
+					$_GET     = [];
+					$_REQUEST = [];
+					set_query_var('site_hash', '');
+
+					if ('pretty_site' === $context_type) {
+						set_query_var('site_hash', $site->get_hash());
+					} elseif ('spoofed_customer' === $context_type) {
+						$_GET = [
+							'customer'   => $customer->get_id(),
+							'membership' => $membership->get_hash(),
+						];
+					} else {
+						$values = [
+							'membership' => $membership->get_hash(),
+							'site'       => $site->get_hash(),
+							'customer'   => $customer->get_id(),
+						];
+						$_GET   = [$context_type => $values[$context_type]];
+					}
+
+					// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Synthetic request selection; ownership is the boundary under test.
+					$_REQUEST = $_GET;
+					$this->current->load_currents();
+
+					if (in_array($viewer_id, [$owner_id, $admin_id], true)) {
+						$this->assertSame($membership->get_id(), $this->current->get_membership()->get_id(), $context_type);
+					} else {
+						$this->assertFalse($this->current->get_membership(), $context_type);
+						$this->assertFalse($this->current->get_customer(), $context_type);
+						$this->assertFalse($this->current->get_site(), $context_type);
+						$this->assertFalse($this->current->is_site_set_via_request());
+						$this->assertFalse($this->current->is_membership_set_via_request());
+					}
+				}
+			}
+		} finally {
+			revoke_super_admin($admin_id);
+			set_query_var('site_hash', '');
+			wp_set_current_user(0);
+		}
+	}
 }

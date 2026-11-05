@@ -121,7 +121,7 @@ class Account_Summary_Element extends Base_Element {
 	 */
 	public function get_description() {
 
-		return __('Displays a summary of the customer\'s account including membership and site overview.', 'ultimate-multisite');
+		return __('Displays the selected site\'s plan, trial time and disk usage. On the main-site frontend, customers can select a site to view its summary.', 'ultimate-multisite');
 	}
 
 	/**
@@ -220,7 +220,11 @@ class Account_Summary_Element extends Base_Element {
 
 		$this->site = WP_Ultimo()->currents->get_site();
 
-		if ( ! $this->site || ! $this->site->is_customer_allowed()) {
+		if ( ! $this->site) {
+			return;
+		}
+
+		if ( ! $this->site->is_customer_allowed()) {
 			$this->set_display(false);
 
 			return;
@@ -240,8 +244,18 @@ class Account_Summary_Element extends Base_Element {
 
 		is_multisite() && restore_current_blog();
 
+		$trial_days = 0;
+
+		if ($this->membership && 'trialing' === $this->membership->get_status()) {
+			$trial_end = strtotime($this->membership->get_date_trial_end() . ' UTC');
+
+			if ($trial_end) {
+				$trial_days = max(0, (int) ceil(($trial_end - time()) / DAY_IN_SECONDS));
+			}
+		}
+
 		$this->atts = [
-			'site_trial'      => 0, // @todo: fix this
+			'site_trial'      => $trial_days,
 			'space_used'      => $space_used,
 			'space_allowed'   => $space_allowed,
 			'percentage'      => $percentage,
@@ -298,8 +312,15 @@ class Account_Summary_Element extends Base_Element {
 
 		$this->ensure_setup();
 
-		// Return empty if no site available (e.g., during SEO processing)
 		if ( ! $this->site) {
+			if ( ! is_admin()) {
+				$customer = WP_Ultimo()->currents->get_customer();
+
+				$atts['sites'] = $customer ? $customer->get_sites() : [];
+
+				wu_get_template('dashboard-widgets/account-summary-empty', $atts);
+			}
+
 			return;
 		}
 
@@ -310,6 +331,8 @@ class Account_Summary_Element extends Base_Element {
 		$atts['membership'] = $this->membership;
 
 		$atts['product'] = $this->product;
+
+		$atts['hide_manage_link'] = WP_Ultimo()->currents->is_site_set_via_request();
 
 		wu_get_template('dashboard-widgets/account-summary', $atts);
 	}

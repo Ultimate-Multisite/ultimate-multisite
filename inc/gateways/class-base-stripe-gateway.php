@@ -824,6 +824,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 			[
 				'wu-stripe-portal' => true,
 				'membership'       => $membership->get_hash(),
+				'redirect_url'     => wu_request('redirect_url', wu_get_current_url()),
 			],
 			home_url('/')
 		);
@@ -848,10 +849,15 @@ class Base_Stripe_Gateway extends Base_Gateway {
 
 			$subscription = $this->get_stripe_client()->subscriptions->retrieve(
 				$sub_id,
-				['expand' => ['default_payment_method']]
+				['expand' => ['default_payment_method', 'customer.invoice_settings.default_payment_method']]
 			);
 
 			$pm = $subscription->default_payment_method;
+
+			// Portal updates may clear the subscription override to use the customer default.
+			if ( ! $pm) {
+				$pm = $subscription->customer->invoice_settings->default_payment_method ?? null;
+			}
 
 			if ( ! $pm || ! $pm->card) {
 				return null;
@@ -906,12 +912,14 @@ class Base_Stripe_Gateway extends Base_Gateway {
 		$s_customer_id = $membership->get_gateway_customer_id();
 
 		$stored_redirect = get_user_meta(get_current_user_id(), '_wu_change_payment_redirect', true);
+		$redirect_url    = wu_request('redirect_url', $stored_redirect);
+		$fallback_url    = remove_query_arg(['wu-stripe-portal', 'redirect_url'], wu_get_current_url());
 
-		if ($stored_redirect) {
+		if ($redirect_url && is_string($redirect_url)) {
 			delete_user_meta(get_current_user_id(), '_wu_change_payment_redirect');
-			$return_url = add_query_arg('updated', 'payment_method', $stored_redirect);
+			$return_url = add_query_arg('updated', 'payment_method', wp_validate_redirect($redirect_url, $fallback_url));
 		} else {
-			$return_url = remove_query_arg('wu-stripe-portal', wu_get_current_url());
+			$return_url = $fallback_url;
 		}
 
 		try {

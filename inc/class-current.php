@@ -232,20 +232,37 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 		$site_hash = \WP_Ultimo\Helpers\Hash::encode($id, $type);
 
 		if ( ! is_admin()) {
-			$current_url = rtrim((string) wu_get_current_url(), '/');
-
 			$url_param = self::param_key($type);
+			$remove    = 'site' === $type ? [$url_param, self::param_key('membership')] : [$url_param];
+			$url       = remove_query_arg($remove, (string) wu_get_current_url());
+			$parts     = wp_parse_url($url);
+			$suffix    = empty($parts['query']) ? '' : '?' . $parts['query'];
+			$fragment  = empty($parts['fragment']) ? '' : '#' . $parts['fragment'];
+			$post      = get_post();
 
-			/*
-			 * Check if the current URL already has a site parameter and remove it.
-			 */
-			if (str_contains($current_url, '/' . $url_param . '/')) {
-				$current_url = preg_replace('/\/' . $url_param . '\/(.+)/', '/', $current_url);
+			// On combined account pages, land on the controls that actually changed.
+			if ('site' === $type && $post) {
+				if (has_shortcode($post->post_content, 'wu_current_site') || has_block('wp-ultimo/current-site', $post)) {
+					$fragment = '#wu-site-' . $site_hash;
+				} elseif (has_shortcode($post->post_content, 'wu_account_summary') || has_block('wp-ultimo/account-summary', $post)) {
+					$fragment = '#wu-summary-' . $site_hash;
+				}
 			}
 
-			$pretty_url = $current_url . '/' . $url_param . '/' . $site_hash;
+			/*
+			 * Replace the trailing context in the path, not inside the query string.
+			 * Site selection also clears membership context so the site's own
+			 * membership is selected, rather than one left over from another site.
+			 */
+			$current_url = preg_replace('/[?#].*$/', '', $url);
+			$current_url = preg_replace('/\/' . preg_quote($url_param, '/') . '\/[^\/]+\/?$/', '', $current_url);
+			$current_url = rtrim($current_url, '/');
 
-			$manage_site_url = get_option('permalink_structure') ? $pretty_url : add_query_arg($url_param, $site_hash);
+			$pretty_url = $current_url . '/' . $url_param . '/' . $site_hash . $suffix . $fragment;
+
+			$plain_url = add_query_arg($url_param, $site_hash, preg_replace('/#.*$/', '', $url)) . $fragment;
+
+			$manage_site_url = get_option('permalink_structure') ? $pretty_url : $plain_url;
 		} else {
 			$manage_site_url = get_admin_url($id);
 		}
@@ -279,6 +296,17 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 		if (did_action('init') && $this->site && (is_admin() || wp_doing_ajax())) {
 			return;
 		}
+
+		// Never retain an earlier context when a later URL override is rejected.
+		$this->site                       = false;
+		$this->customer                   = false;
+		$this->membership                 = false;
+		$this->site_set_via_request       = false;
+		$this->customer_set_via_request   = false;
+		$this->membership_set_via_request = false;
+		$site_set_via_request             = false;
+		$customer_set_via_request         = false;
+		$membership_set_via_request       = false;
 
 		/*
 		 * `get_query_var()` reads from the global `$wp_query`, which
@@ -322,19 +350,21 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 
 			$site_hash = wu_request($site_url_param, $site_hash_default);
 
-			$site_from_url = wu_get_site_by_hash($site_hash);
+			if ($site_hash) {
+				if ( ! is_string($site_hash)) {
+					return;
+				}
 
-			if ($site_from_url) {
-				$this->site_set_via_request = true;
+				$site = wu_get_site_by_hash($site_hash);
 
-				$site = $site_from_url;
+				if ( ! $this->can_access_context($site)) {
+					return;
+				}
+
+				$site_set_via_request = true;
 			}
 		} else {
 			$site = wu_get_current_site();
-		}
-
-		if ($site) {
-			$this->set_site($site);
 		}
 
 		$customer = wu_get_current_customer();
@@ -348,16 +378,22 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 			 */
 			$customer_url_param = self::param_key('customer');
 
-			$customer_from_url = wu_get_customer(wu_request($customer_url_param, 0));
+			$customer_id = wu_request($customer_url_param, 0);
 
-			if ($customer_from_url) {
-				$this->customer_set_via_request = true;
+			if ($customer_id) {
+				if ( ! is_scalar($customer_id) || ! ctype_digit((string) $customer_id)) {
+					return;
+				}
 
-				$customer = $customer_from_url;
+				$customer = wu_get_customer($customer_id);
+
+				if ( ! $this->can_access_context($customer)) {
+					return;
+				}
+
+				$customer_set_via_request = true;
 			}
 		}
-
-		$this->set_customer($customer);
 
 		$membership = false;
 
@@ -371,9 +407,17 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 		$membership_hash = wu_request($membership_url_param, $membership_hash_default);
 
 		if ($membership_hash) {
-			$this->membership_set_via_request = true;
+			if ( ! is_string($membership_hash)) {
+				return;
+			}
 
 			$membership = wu_get_membership_by_hash($membership_hash);
+
+			if ( ! $this->can_access_context($membership)) {
+				return;
+			}
+
+			$membership_set_via_request = true;
 		} elseif ($site) {
 			$membership = $site->get_membership();
 		}
@@ -384,7 +428,45 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 			$membership = wu_get_isset($memberships, 0, false);
 		}
 
+		if ($membership && ! $this->can_access_context($membership)) {
+			return;
+		}
+
+		$this->site_set_via_request       = $site_set_via_request;
+		$this->customer_set_via_request   = $customer_set_via_request;
+		$this->membership_set_via_request = $membership_set_via_request;
+
+		$this->set_site($site);
+		$this->set_customer($customer);
 		$this->set_membership($membership);
+	}
+
+	/**
+	 * Authorizes account context against the authenticated user, never URL state.
+	 *
+	 * Hashes select objects; they are not access credentials. Pass an explicit
+	 * customer ID to the model checks to avoid resolving this singleton again.
+	 *
+	 * @param \WP_Ultimo\Models\Customer|\WP_Ultimo\Models\Site|\WP_Ultimo\Models\Membership|false $context Requested object.
+	 * @return bool
+	 */
+	private function can_access_context($context): bool {
+
+		if ( ! $context || ! is_user_logged_in()) {
+			return false;
+		}
+
+		if (current_user_can('manage_network')) {
+			return true;
+		}
+
+		if ($context instanceof \WP_Ultimo\Models\Customer) {
+			return (int) $context->get_user_id() === get_current_user_id();
+		}
+
+		$customer = wu_get_current_customer();
+
+		return $customer && $context->is_customer_allowed($customer->get_id());
 	}
 
 	/**

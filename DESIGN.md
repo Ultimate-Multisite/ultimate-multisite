@@ -52,3 +52,29 @@ Keep the existing stacked widget layout on desktop and mobile. List nameservers
 on separate lines and allow long hostnames to wrap without truncation. Hide the
 summary during loading or lookup errors; preserve the existing record table and
 provider-managed editing controls.
+
+## Frontend customer accounts
+
+Keep account-wide membership, billing and invoices separate from site-specific
+summary and limits. Account Summary must offer a sign-in link when logged out,
+an owner-scoped site chooser before site selection, and a neutral no-sites state
+instead of silently rendering nothing. Do not silently select the first site:
+customers may own several. Once a site is selected, omit self-referential
+"See More" links and show remaining trial days from the actual membership date.
+Use the existing stacked widget styles on desktop and mobile, with native links
+and wrapping site names; do not add fixed-width panels or a second design system.
+Frontend account pages belong on the main site; customer-site admin Account
+screens remain an alternative interface to the same membership.
+
+On combined pages, Manage must visibly land on the selected site's controls,
+using a keyboard-focusable native fragment target (Account Summary is the
+fallback). Your Sites clears selected-site context and returns to the page
+permalink. Successful frontend deletion returns to the account landing page,
+unless an explicit destination is configured; never retain a deleted-site URL.
+Sites without a template initialize the selector to numeric zero so their first
+selection exposes the same destructive-action confirmation as template changes.
+
+Payment-method changes must return from Stripe Billing Portal to the originating
+account page, using a validated local destination. Show the subscription's card
+override when present; otherwise show the customer's default payment method,
+including after the portal clears an override while replacing the default card.
