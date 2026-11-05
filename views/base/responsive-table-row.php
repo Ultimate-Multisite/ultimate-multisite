@@ -7,7 +7,7 @@
 defined('ABSPATH') || exit;
 
 ?>
-<div class="wu-block">
+<div class="wu-block wu-responsive-table-row">
 
 	<div class="wu-p-2 wu-flex">
 
@@ -21,9 +21,9 @@ defined('ABSPATH') || exit;
 
 	<?php endif; ?>
 
-	<div class="wu-flex-grow">
+	<div class="wu-flex-grow wu-responsive-table-content">
 
-		<div class="wu-flex wu-items-center wu-justify-between">
+		<div class="wu-flex wu-items-center wu-justify-between wu-responsive-table-heading">
 
 		<span class="wu-font-semibold wu-truncate wu-text-gray-700">
 
@@ -37,7 +37,7 @@ defined('ABSPATH') || exit;
 
 		</span>
 
-		<div class="wu-ml-2 wu-flex-shrink-0 wu-flex">
+		<div class="wu-ml-2 wu-flex-shrink-0 wu-flex wu-responsive-table-status">
 
 			<?php echo wp_kses_post($args['status']); ?>
 
@@ -142,7 +142,7 @@ endforeach;
 
 		<div class="wu-flex wu-ml-5 wu-flex-shrink-0 wu-items-center wu-justify-between">
 
-		<a href="<?php echo esc_attr($args['url']); ?>" title="<?php esc_attr_e('View', 'ultimate-multisite'); ?>">
+		<a class="wu-responsive-table-link" href="<?php echo esc_attr($args['url']); ?>" aria-label="<?php esc_attr_e('View', 'ultimate-multisite'); ?>" title="<?php esc_attr_e('View', 'ultimate-multisite'); ?>">
 			<svg class="wu-h-5 wu-w-5 wu-text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
 			<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
 			</svg>

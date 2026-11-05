@@ -108,3 +108,23 @@ editors. Numeric controls save integers and toggle defaults use booleans. Group
 and Columns layouts must preserve nested element attributes during early setup,
 especially the Checkout form slug. Editor previews use sample data; verify real
 customer actions on the published page rather than treating a preview as proof.
+
+## Mobile admin lists and detail widgets
+
+Use WordPress's 782px mobile admin breakpoint. Keep status filters wrapping in
+normal flow, give live search its own full-width row, and keep view-switch controls
+at least 44px square. Search remains usable when the current query has no results;
+each input has a unique label target and a description of live filtering.
+
+List tables retain WordPress's expandable mobile rows, but their primary column
+must identify the record (customer/product name or site URL), never just an avatar
+or thumbnail. Hide the preceding decorative column on mobile and show row actions
+without requiring hover. Do not apply uppercase column-heading typography to row
+headers. Long identifiers and addresses wrap rather than widen the page.
+
+Embedded detail rows are not desktop data grids: constrain their single responsive
+cell to the widget width, allow its flex content to shrink, and wrap the title and
+status onto separate lines when needed. Preserve the desktop layout and existing
+navigation. See `views/base/filter.php`, `views/base/responsive-table-row.php`,
+`inc/list-tables/class-base-list-table.php`, and the mobile block in
+`assets/css/admin.css`.
