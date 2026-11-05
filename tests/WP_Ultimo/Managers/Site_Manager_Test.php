@@ -3033,12 +3033,8 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 		$manager = $this->get_manager_instance();
 		$user_id = $this->factory()->user->create(['role' => 'administrator']);
 		$method  = new \ReflectionMethod(Site_Manager::class, 'is_frontend_my_sites_toolbar_request');
-		$filter  = function ($value, $setting) {
-			return 'optimize_frontend_my_sites_toolbar' === $setting ? 1 : $value;
-		};
 
 		wp_set_current_user($user_id);
-		add_filter('wu_get_setting', $filter, 10, 2);
 		add_filter('show_admin_bar', '__return_true');
 
 		try {
@@ -3069,7 +3065,6 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 			);
 			$this->assertFalse($method->invoke($manager, []));
 		} finally {
-			remove_filter('wu_get_setting', $filter, 10);
 			remove_filter('show_admin_bar', '__return_true');
 			wp_set_current_user(0);
 		}
@@ -3088,12 +3083,8 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 		$user_id   = $this->factory()->user->create(['role' => 'administrator']);
 		$method    = new \ReflectionMethod(Site_Manager::class, 'is_frontend_my_sites_toolbar_request');
 		$admin_bar = new class() extends \WP_Admin_Bar {};
-		$filter    = function ($value, $setting) {
-			return 'optimize_frontend_my_sites_toolbar' === $setting ? 1 : $value;
-		};
 
 		wp_set_current_user($user_id);
-		add_filter('wu_get_setting', $filter, 10, 2);
 		add_filter('show_admin_bar', '__return_true');
 
 		try {
@@ -3109,16 +3100,15 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 				])
 			);
 		} finally {
-			remove_filter('wu_get_setting', $filter, 10);
 			remove_filter('show_admin_bar', '__return_true');
 			wp_set_current_user(0);
 		}
 	}
 
 	/**
-	 * Test front-end My Sites toolbar optimization remains disabled by default.
+	 * Test My Sites toolbar optimization is enabled without a settings opt-in.
 	 */
-	public function test_frontend_my_sites_toolbar_optimization_is_disabled_by_default(): void {
+	public function test_frontend_my_sites_toolbar_optimization_is_enabled_by_default(): void {
 
 		$manager = $this->get_manager_instance();
 		$user_id = $this->factory()->user->create(['role' => 'administrator']);
@@ -3128,8 +3118,11 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 		add_filter('show_admin_bar', '__return_true');
 
 		try {
-			$this->assertFalse(
+			$this->assertTrue(
 				$method->invoke($manager, [
+					[
+						'function' => 'get_blogs_of_user',
+					],
 					[
 						'class'    => 'WP_Admin_Bar',
 						'function' => 'initialize',
@@ -3175,25 +3168,27 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 			require_once ABSPATH . WPINC . '/class-wp-admin-bar.php';
 		}
 
+		$manager = $this->get_manager_instance();
 		$user_id = $this->factory()->user->create(['role' => 'administrator']);
-		$filter  = function ($value, $setting) {
-			return 'optimize_frontend_my_sites_toolbar' === $setting ? 1 : $value;
-		};
 
 		grant_super_admin($user_id);
 		wp_set_current_user($user_id);
 		set_current_screen('front');
-		add_filter('wu_get_setting', $filter, 10, 2);
 		add_filter('show_admin_bar', '__return_true');
 
 		try {
 			$admin_bar = new \WP_Admin_Bar();
 			$admin_bar->initialize();
+			wp_admin_bar_my_sites_menu($admin_bar);
+			$manager->add_lazy_my_sites_toolbar_controls($admin_bar);
 
 			$this->assertCount(1, $admin_bar->user->blogs);
 			$this->assertArrayHasKey(get_current_blog_id(), $admin_bar->user->blogs);
+			$this->assertSame(
+				$admin_bar->get_node('my-sites')->href,
+				$admin_bar->get_node('wu-my-sites-toolbar-all')->href
+			);
 		} finally {
-			remove_filter('wu_get_setting', $filter, 10);
 			remove_filter('show_admin_bar', '__return_true');
 			revoke_super_admin($user_id);
 			wp_set_current_user(0);
@@ -3222,6 +3217,41 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 			restore_current_blog();
 			update_blog_status($blog_id, 'archived', 0);
 			revoke_super_admin($user_id);
+			wp_set_current_user(0);
+		}
+	}
+
+	/**
+	 * Test the lazy toolbar returns bounded pages without duplicating the current site.
+	 */
+	public function test_my_sites_toolbar_returns_paginated_additional_sites(): void {
+
+		$manager = $this->get_manager_instance();
+		$user_id = $this->factory()->user->create(['role' => 'administrator']);
+		$method  = new \ReflectionMethod(Site_Manager::class, 'get_my_sites_toolbar_page_data');
+
+		for ($index = 0; $index < 41; $index++) {
+			$this->factory()->blog->create(['user_id' => $user_id]);
+		}
+
+		wp_set_current_user($user_id);
+		$current_blog_id = get_current_blog_id();
+
+		try {
+			$page_one = $method->invoke($manager, $user_id, 1);
+			$page_two = $method->invoke($manager, $user_id, 2);
+			$one_ids  = wp_list_pluck($page_one['sites'], 'id');
+			$two_ids  = wp_list_pluck($page_two['sites'], 'id');
+
+			$this->assertLessThanOrEqual(20, count($page_one['sites']));
+			$this->assertTrue($page_one['has_more']);
+			$this->assertSame(2, $page_one['next_page']);
+			$this->assertLessThanOrEqual(20, count($page_two['sites']));
+			$this->assertSame([], array_values(array_intersect($one_ids, $two_ids)));
+			$this->assertNotContains($current_blog_id, $one_ids);
+			$this->assertStringContainsString('wu_admin_bar_magic_link', $page_one['sites'][0]['dashboard_url']);
+			$this->assertSame($current_blog_id, get_current_blog_id());
+		} finally {
 			wp_set_current_user(0);
 		}
 	}
