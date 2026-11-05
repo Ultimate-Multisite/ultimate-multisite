@@ -754,8 +754,8 @@ class Product_Edit_Admin_Page extends Edit_Admin_Page {
 						'title'             => __('Customer Role', 'ultimate-multisite'),
 						'desc'              => __('Select the role Ultimate Multisite should use when adding the user to their newly created site.', 'ultimate-multisite'),
 						'type'              => 'select',
-						'value'             => $this->get_object()->get_customer_role(),
-						'default'           => 'administrator',
+						'value'             => $this->get_object()->get_limitations(false)->customer_user_role->get_stored_limit(),
+						'default'           => 'default',
 						'options'           => fn() => wu_get_roles_as_options(true),
 						'wrapper_html_attr' => [
 							'v-show'  => 'product_type === "plan"',

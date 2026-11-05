@@ -3,13 +3,17 @@
  * Template File: Inline Login Prompt
  *
  * Displays an inline login prompt when a user enters an existing email/username.
+ * With passwordless login enabled, the passkey/email-code form comes first and
+ * the password form stays available behind "Use password instead".
  *
  * @since 2.0.20
+ * @since 2.19.0 Keeps the password form as a fallback in passwordless mode.
  * @param string $field_type The field type ('email' or 'username').
  */
 defined('ABSPATH') || exit;
 
-$passwordless_auth = \WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance();
+$passwordless_auth    = \WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance();
+$passwordless_enabled = $passwordless_auth->is_enabled();
 
 ?>
 
@@ -18,63 +22,79 @@ $passwordless_auth = \WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance();
 		<p class="wu-m-0 wu-font-semibold wu-text-blue-900 wu-text-sm">
 			<?php esc_html_e('Already have an account?', 'ultimate-multisite'); ?>
 		</p>
-		<?php if ($passwordless_auth->is_enabled()) : ?>
+		<?php if ($passwordless_enabled) : ?>
 			<p class="wu-m-0 wu-mt-1 wu-text-blue-900 wu-text-sm">
 				<?php esc_html_e('Continue with a passkey or a one-time email code. No password is required.', 'ultimate-multisite'); ?>
 			</p>
 		<?php endif; ?>
 	</div>
 
-	<?php if ($passwordless_auth->is_enabled()) : ?>
+	<?php if ($passwordless_enabled) : ?>
 		<?php echo $passwordless_auth->get_inline_login_markup($field_type); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-	<?php else : ?>
-		<div class="wu-mb-3">
-			<label for="wu-inline-login-password-<?php echo esc_attr($field_type); ?>" class="wu-block wu-text-sm wu-font-medium wu-text-gray-700 wu-mb-1">
-				<?php esc_html_e('Password', 'ultimate-multisite'); ?>
-			</label>
-			<input
-				type="password"
-				id="wu-inline-login-password-<?php echo esc_attr($field_type); ?>"
-				class="form-control wu-w-full"
-				autocomplete="current-password"
-				placeholder="<?php esc_attr_e('Enter your password', 'ultimate-multisite'); ?>"
-			/>
-		</div>
 
-		<div id="wu-login-error-<?php echo esc_attr($field_type); ?>" class="wu-bg-red-100 wu-text-red-800 wu-p-3 wu-rounded wu-text-sm wu-mb-3 wu-hidden">
-		</div>
+		<?php
+		/** This action is documented below (password mode). */
+		do_action('wu_inline_login_prompt_before_submit', $field_type);
+		?>
+
+		<details class="wu-inline-login-password-fallback wu-mt-3">
+			<summary class="wu-text-sm wu-text-blue-600 wu-cursor-pointer">
+				<?php esc_html_e('Use password instead', 'ultimate-multisite'); ?>
+			</summary>
+			<div class="wu-mt-3">
 	<?php endif; ?>
 
+	<div class="wu-mb-3">
+		<label for="wu-inline-login-password-<?php echo esc_attr($field_type); ?>" class="wu-block wu-text-sm wu-font-medium wu-text-gray-700 wu-mb-1">
+			<?php esc_html_e('Password', 'ultimate-multisite'); ?>
+		</label>
+		<input
+			type="password"
+			id="wu-inline-login-password-<?php echo esc_attr($field_type); ?>"
+			class="form-control wu-w-full"
+			autocomplete="current-password"
+			placeholder="<?php esc_attr_e('Enter your password', 'ultimate-multisite'); ?>"
+		/>
+	</div>
+
+	<div id="wu-login-error-<?php echo esc_attr($field_type); ?>" class="wu-bg-red-100 wu-text-red-800 wu-p-3 wu-rounded wu-text-sm wu-mb-3 wu-hidden">
+	</div>
+
 	<?php
-	/**
-	 * Fires inside the inline login prompt.
-	 *
-	 * Useful for adding captcha widgets or additional fields.
-	 *
-	 * @since 2.5.0
-	 *
-	 * @param string $field_type The field type ('email' or 'username').
-	 */
-	do_action('wu_inline_login_prompt_before_submit', $field_type);
+	if ( ! $passwordless_enabled) {
+		/**
+		 * Fires inside the inline login prompt.
+		 *
+		 * Useful for adding captcha widgets or additional fields.
+		 *
+		 * @since 2.5.0
+		 *
+		 * @param string $field_type The field type ('email' or 'username').
+		 */
+		do_action('wu_inline_login_prompt_before_submit', $field_type);
+	}
 	?>
 
-	<?php if ( ! $passwordless_auth->is_enabled()) : ?>
-		<div class="wu-flex wu-flex-wrap wu-items-center wu-justify-between wu-gap-2">
-			<a
-				href="<?php echo esc_url(wp_lostpassword_url(wu_get_current_url())); ?>"
-				class="wu-text-sm wu-text-blue-600 hover:wu-text-blue-800 wu-no-underline"
-				target="_blank"
-			>
-				<?php esc_html_e('Forgot password?', 'ultimate-multisite'); ?>
-			</a>
+	<div class="wu-flex wu-flex-wrap wu-items-center wu-justify-between wu-gap-2">
+		<a
+			href="<?php echo esc_url(wp_lostpassword_url(wu_get_current_url())); ?>"
+			class="wu-text-sm wu-text-blue-600 hover:wu-text-blue-800 wu-no-underline"
+			target="_blank"
+		>
+			<?php esc_html_e('Forgot password?', 'ultimate-multisite'); ?>
+		</a>
 
-			<button
-				type="button"
-				id="wu-inline-login-submit-<?php echo esc_attr($field_type); ?>"
-				class="wu-bg-blue-600 wu-text-white wu-px-4 wu-py-2 wu-rounded hover:wu-bg-blue-700 disabled:wu-opacity-50 disabled:wu-cursor-not-allowed wu-border-0 wu-text-sm wu-font-medium wu-cursor-pointer"
-			>
-				<?php esc_html_e('Sign in', 'ultimate-multisite'); ?>
-			</button>
-		</div>
+		<button
+			type="button"
+			id="wu-inline-login-submit-<?php echo esc_attr($field_type); ?>"
+			class="wu-bg-blue-600 wu-text-white wu-px-4 wu-py-2 wu-rounded hover:wu-bg-blue-700 disabled:wu-opacity-50 disabled:wu-cursor-not-allowed wu-border-0 wu-text-sm wu-font-medium wu-cursor-pointer"
+		>
+			<?php esc_html_e('Sign in', 'ultimate-multisite'); ?>
+		</button>
+	</div>
+
+	<?php if ($passwordless_enabled) : ?>
+			</div>
+		</details>
 	<?php endif; ?>
 </div>
