@@ -8,4 +8,4 @@ docker run -d \
   -e PMA_USER=root \
   -e PMA_PASSWORD=password \
   --network "$1" \
-  phpmyadmin/phpmyadmin
+  phpmyadmin
