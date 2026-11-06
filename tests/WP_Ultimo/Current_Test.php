@@ -446,35 +446,37 @@ class Current_Test extends \WP_UnitTestCase {
 
 		$saved_current = clone $this->current;
 		$saved_user_id = get_current_user_id();
-
-		$owner_id    = self::factory()->user->create(['role' => 'subscriber']);
-		$stranger_id = self::factory()->user->create(['role' => 'subscriber']);
-		$admin_id    = self::factory()->user->create(['role' => 'administrator']);
-		$customer    = wu_create_customer(['user_id' => $owner_id]);
-		$stranger    = wu_create_customer(['user_id' => $stranger_id]);
-		$this->assertNotWPError($customer);
-		$this->assertNotWPError($stranger);
-
-		$membership = wu_create_membership(
-			[
-				'customer_id'     => $customer->get_id(),
-				'status'          => 'active',
-				'skip_validation' => true,
-			]
-		);
-		$this->assertNotWPError($membership);
-
-		$site = wu_get_site(self::factory()->blog->create(['user_id' => $owner_id]));
-		$site->set_type('customer_owned');
-		$site->set_customer_id($customer->get_id());
-		$site->set_membership_id($membership->get_id());
-		$this->assertNotWPError($site->save());
-
-		$this->go_to(home_url('/'));
-		set_current_screen('front');
-		grant_super_admin($admin_id);
+		$saved_hash    = get_query_var('site_hash', '');
+		$admin_id      = 0;
 
 		try {
+			$owner_id    = self::factory()->user->create(['role' => 'subscriber']);
+			$stranger_id = self::factory()->user->create(['role' => 'subscriber']);
+			$admin_id    = self::factory()->user->create(['role' => 'administrator']);
+			$customer    = wu_create_customer(['user_id' => $owner_id]);
+			$stranger    = wu_create_customer(['user_id' => $stranger_id]);
+			$this->assertNotWPError($customer);
+			$this->assertNotWPError($stranger);
+
+			$membership = wu_create_membership(
+				[
+					'customer_id'     => $customer->get_id(),
+					'status'          => 'active',
+					'skip_validation' => true,
+				]
+			);
+			$this->assertNotWPError($membership);
+
+			$site = wu_get_site(self::factory()->blog->create(['user_id' => $owner_id]));
+			$site->set_type('customer_owned');
+			$site->set_customer_id($customer->get_id());
+			$site->set_membership_id($membership->get_id());
+			$this->assertNotWPError($site->save());
+
+			$this->go_to(home_url('/'));
+			set_current_screen('front');
+			grant_super_admin($admin_id);
+
 			foreach ([$owner_id, $stranger_id, 0, $admin_id] as $viewer_id) {
 				wp_set_current_user($viewer_id);
 
@@ -515,8 +517,11 @@ class Current_Test extends \WP_UnitTestCase {
 				}
 			}
 		} finally {
-			revoke_super_admin($admin_id);
-			set_query_var('site_hash', '');
+			if ($admin_id) {
+				revoke_super_admin($admin_id);
+			}
+
+			set_query_var('site_hash', $saved_hash);
 			wp_set_current_user($saved_user_id);
 
 			// Do not leave the final synthetic membership in the shared singleton.
