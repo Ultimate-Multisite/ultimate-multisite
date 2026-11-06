@@ -1459,19 +1459,25 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 
 		$payment = $this->get_object();
 
-		$should_confirm_membership = wu_request('confirm_membership')
-			&& Payment_Status::PENDING === $payment->get_status()
+		$is_pending_to_completed         = Payment_Status::PENDING === $payment->get_status()
 			&& Payment_Status::COMPLETED === wu_request('status');
+		$should_confirm_membership       = wu_request('confirm_membership') && $is_pending_to_completed;
+		$should_trigger_payment_received = $is_pending_to_completed
+			|| (1 === (int) $payment->get_meta('wu_payment_received_pending') && Payment_Status::COMPLETED === wu_request('status'));
+
+		if ($is_pending_to_completed) {
+			$payment->update_meta('wu_payment_received_pending', 1);
+		}
 
 		$payment->recalculate_totals();
 
 		// Persist the payment first: failed saves and repeat submissions grant nothing.
 		$saved = parent::handle_save();
 
-		if ($saved && $should_confirm_membership && Payment_Status::COMPLETED === $payment->get_status()) {
+		if ($saved && $should_trigger_payment_received && Payment_Status::COMPLETED === $payment->get_status()) {
 			$membership = $payment->get_membership();
 
-			if ($membership) {
+			if ($should_confirm_membership && $membership) {
 				$is_initial_payment = Membership_Status::PENDING === $membership->get_status()
 					&& 0 === $membership->get_times_billed();
 
@@ -1502,6 +1508,8 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 					return false;
 				}
 			}
+
+			\WP_Ultimo\Managers\Payment_Manager::get_instance()->maybe_trigger_payment_received($payment, $membership);
 		}
 
 		return $saved;

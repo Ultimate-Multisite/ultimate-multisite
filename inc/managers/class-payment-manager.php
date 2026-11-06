@@ -217,6 +217,71 @@ class Payment_Manager extends Base_Manager {
 		}
 
 		wu_do_event('payment_received', $payload);
+
+		if ($payment->get_id()) {
+			$marked_sent = $payment->update_meta('wu_payment_received_sent', 1);
+
+			if ($marked_sent) {
+				$payment->delete_meta('wu_payment_received_pending');
+			}
+		}
+	}
+
+	/**
+	 * Sends the payment received notifications once per payment.
+	 *
+	 * Used by flows that confirm a payment outside a gateway callback, such as
+	 * manual payment confirmation and deferred free signups after email verification.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param \WP_Ultimo\Models\Payment         $payment    The payment.
+	 * @param \WP_Ultimo\Models\Membership|null $membership The membership, if known.
+	 * @return bool True when the notification was triggered now.
+	 */
+	public function maybe_trigger_payment_received($payment, $membership = null): bool {
+
+		if ( ! $payment || ! $payment->get_id()) {
+			return false;
+		}
+
+		$gateway = wu_get_gateway($payment->get_gateway() ?: 'manual');
+
+		if ( ! $gateway) {
+			$gateway = wu_get_gateway('free');
+		}
+
+		if ( ! $gateway) {
+			return false;
+		}
+
+		global $wpdb;
+
+		$lock               = sprintf('wu_payment_received_%d_%d', get_current_network_id(), $payment->get_id());
+		static $in_progress = [];
+
+		if (isset($in_progress[ $lock ])) {
+			return false;
+		}
+
+		if ('1' !== (string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock))) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- named lock, never cached.
+			return false;
+		}
+
+		$in_progress[ $lock ] = true;
+
+		try {
+			if ($payment->get_meta('wu_payment_received_sent')) {
+				return false;
+			}
+
+			$gateway->trigger_payment_processed($payment, $membership);
+
+			return true;
+		} finally {
+			unset($in_progress[ $lock ]);
+			$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- named lock, never cached.
+		}
 	}
 
 	/**
