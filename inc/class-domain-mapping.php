@@ -135,6 +135,7 @@ class Domain_Mapping {
 		 * When a site gets delete, clean up the mapped domains
 		 */
 		add_action('wp_delete_site', [$this, 'clear_mappings_on_delete']);
+		add_action('wu_domain_post_delete', [$this, 'clear_primary_mapping_cache'], 10, 2);
 
 		/*
 		 * Adds the filters that will change the URLs when a mapped domains is in use
@@ -509,6 +510,22 @@ class Domain_Mapping {
 	}
 
 	/**
+	 * Clear a site's cached primary mapping after a domain is deleted.
+	 *
+	 * @since 2.19.0
+	 *
+	 * @param bool   $deleted Whether the domain was deleted.
+	 * @param Domain $domain  Deleted domain.
+	 * @return void
+	 */
+	public function clear_primary_mapping_cache($deleted, $domain): void {
+
+		if ($deleted && $domain instanceof Domain) {
+			wp_cache_delete('primary-domain:site-' . $domain->get_blog_id(), 'domain_mappings');
+		}
+	}
+
+	/**
 	 * Register filters for URLs, if we've mapped
 	 *
 	 * @since 2.0.0
@@ -522,6 +539,13 @@ class Domain_Mapping {
 			return;
 		}
 
+		/*
+		 * These filters include the target site ID, so they can apply a site's
+		 * primary mapping even when this request is running on another site.
+		 */
+		add_filter('site_url', [$this, 'mangle_url'], -10, 4);
+		add_filter('home_url', [$this, 'mangle_url'], -10, 4);
+
 		$domain = sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST']?? ''));
 
 		$domains = $this->get_www_and_nowww_versions($domain);
@@ -534,8 +558,6 @@ class Domain_Mapping {
 
 		$this->current_mapping = $mapping;
 
-		add_filter('site_url', [$this, 'mangle_url'], -10, 4);
-		add_filter('home_url', [$this, 'mangle_url'], -10, 4);
 		add_filter('option_siteurl', [$this, 'mangle_url'], 20);
 		add_filter('option_home', [$this, 'mangle_url'], 20);
 
@@ -687,12 +709,56 @@ class Domain_Mapping {
 
 		$current_mapping = $this->current_mapping;
 
-		// Check if we have a valid mapping for this site
-		if (empty($current_mapping) || $current_mapping->get_blog_id() !== $site_id) {
+		/*
+		 * Keep the mapping from the current request when it belongs to the target
+		 * site. This allows wp-admin to remain on an alternate mapped host when
+		 * the force-admin setting permits it.
+		 */
+		if (empty($current_mapping) || (int) $current_mapping->get_blog_id() !== (int) $site_id) {
+			$current_mapping = $this->get_primary_mapping_for_site($site_id);
+		}
+
+		if (empty($current_mapping)) {
 			return $url;
 		}
 
-		return $this->replace_url($url);
+		return $this->replace_url($url, $current_mapping);
+	}
+
+	/**
+	 * Get the active primary mapping for a site.
+	 *
+	 * @since 2.19.0
+	 *
+	 * @param int $site_id Site ID.
+	 * @return Domain|false
+	 */
+	private function get_primary_mapping_for_site($site_id) {
+
+		$site_id = absint($site_id);
+
+		if ( ! $site_id) {
+			return false;
+		}
+
+		$cache_key = 'primary-domain:site-' . $site_id;
+		$found     = false;
+		$mapping   = wp_cache_get($cache_key, 'domain_mappings', false, $found);
+
+		if ($found) {
+			return $mapping;
+		}
+
+		$site    = wu_get_site($site_id);
+		$mapping = $site ? $site->get_primary_mapped_domain() : false;
+
+		if ($mapping && ! $mapping->is_active()) {
+			$mapping = false;
+		}
+
+		wp_cache_set($cache_key, $mapping, 'domain_mappings');
+
+		return $mapping;
 	}
 
 	/**
