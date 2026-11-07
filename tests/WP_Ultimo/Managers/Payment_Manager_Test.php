@@ -6,6 +6,7 @@ use WP_Ultimo\Models\Payment;
 use WP_Ultimo\Models\Customer;
 use WP_Ultimo\Database\Memberships\Membership_Status;
 use WP_Ultimo\Database\Payments\Payment_Status;
+use WP_Ultimo\Gateways\Manual_Gateway;
 use WP_Ultimo\Invoices\Invoice;
 use WP_UnitTestCase;
 
@@ -14,6 +15,7 @@ class Payment_Manager_Test extends WP_UnitTestCase {
 	private static Customer $customer;
 	private static Payment $payment;
 	private Payment_Manager $payment_manager;
+	private $gateway_resolver;
 
 	public static function set_up_before_class() {
 		parent::set_up_before_class();
@@ -65,6 +67,18 @@ class Payment_Manager_Test extends WP_UnitTestCase {
 		$this->payment_manager = Payment_Manager::get_instance();
 		self::$payment->delete_meta('wu_payment_received_sent');
 		self::$payment->delete_meta('wu_payment_received_pending');
+
+		$this->gateway_resolver = static function ($gateway, $gateway_id) {
+			return ! $gateway && 'manual' === $gateway_id ? new Manual_Gateway() : $gateway;
+		};
+
+		add_filter('wu_get_gateway', $this->gateway_resolver, 10, 2);
+	}
+
+	public function tear_down() {
+		remove_filter('wu_get_gateway', $this->gateway_resolver, 10);
+
+		parent::tear_down();
 	}
 
 	/**

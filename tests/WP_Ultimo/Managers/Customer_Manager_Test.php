@@ -9,6 +9,7 @@ namespace WP_Ultimo\Tests\Managers;
 
 use WP_Ultimo\Database\Memberships\Membership_Status;
 use WP_Ultimo\Database\Payments\Payment_Status;
+use WP_Ultimo\Gateways\Free_Gateway;
 use WP_Ultimo\Managers\Customer_Manager;
 
 class Customer_Manager_Test extends \WP_UnitTestCase {
@@ -184,12 +185,16 @@ class Customer_Manager_Test extends \WP_UnitTestCase {
 
 		$this->assertNotWPError($payment);
 
-		$dispatch_count = 0;
-		$count_dispatch = static function () use (&$dispatch_count): void {
+		$dispatch_count  = 0;
+		$count_dispatch  = static function () use (&$dispatch_count): void {
 			++$dispatch_count;
+		};
+		$resolve_gateway = static function ($gateway, $gateway_id) {
+			return ! $gateway && 'free' === $gateway_id ? new Free_Gateway() : $gateway;
 		};
 
 		add_action('wu_gateway_payment_processed', $count_dispatch, PHP_INT_MAX, 0);
+		add_filter('wu_get_gateway', $resolve_gateway, 10, 2);
 
 		try {
 			$this->assert_email_verification_request_succeeds($customer);
@@ -205,6 +210,7 @@ class Customer_Manager_Test extends \WP_UnitTestCase {
 			$method->invoke($this->get_manager_instance(), $payment, $membership);
 		} finally {
 			remove_action('wu_gateway_payment_processed', $count_dispatch, PHP_INT_MAX);
+			remove_filter('wu_get_gateway', $resolve_gateway, 10);
 		}
 
 		$this->assertSame(1, $dispatch_count);
