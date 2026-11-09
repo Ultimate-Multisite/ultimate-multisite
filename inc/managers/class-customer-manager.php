@@ -254,7 +254,19 @@ class Customer_Manager extends Base_Manager {
 			return;
 		}
 
-		Payment_Manager::get_instance()->maybe_trigger_payment_received($payment, $membership);
+		/*
+		 * The customer is already verified at this point, so a failing receipt
+		 * listener must not block the redirect. The pending flag keeps it retryable.
+		 */
+		try {
+			Payment_Manager::get_instance()->maybe_trigger_payment_received($payment, $membership);
+		} catch (\Throwable $exception) {
+			wu_log_add(
+				'payment-received',
+				sprintf('Payment %d receipt dispatch failed after email verification: %s', $payment->get_id(), $exception->getMessage()),
+				\Psr\Log\LogLevel::ERROR
+			);
+		}
 	}
 
 	/**

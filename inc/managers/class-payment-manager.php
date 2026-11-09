@@ -271,6 +271,12 @@ class Payment_Manager extends Base_Manager {
 		$in_progress[ $lock ] = true;
 
 		try {
+			/*
+			 * Another request may have sent the receipt and released the lock after
+			 * this request primed the meta cache, so re-read the flag from the database.
+			 */
+			wp_cache_delete($payment->get_id(), 'wu_payment_meta');
+
 			if ($payment->get_meta('wu_payment_received_sent')) {
 				return false;
 			}

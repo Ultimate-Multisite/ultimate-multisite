@@ -1509,7 +1509,22 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 				}
 			}
 
-			\WP_Ultimo\Managers\Payment_Manager::get_instance()->maybe_trigger_payment_received($payment, $membership);
+			// The payment is already saved; a failing receipt listener stays retryable on the next save.
+			try {
+				\WP_Ultimo\Managers\Payment_Manager::get_instance()->maybe_trigger_payment_received($payment, $membership);
+			} catch (\Throwable $exception) {
+				wu_log_add(
+					'payment-received',
+					sprintf('Payment %d receipt dispatch failed after manual confirmation: %s', $payment->get_id(), $exception->getMessage()),
+					\Psr\Log\LogLevel::ERROR
+				);
+
+				WP_Ultimo()->notices->add(
+					__('The payment was saved, but the payment receipt could not be sent. Save the payment again to retry.', 'ultimate-multisite'),
+					'warning',
+					'network-admin'
+				);
+			}
 		}
 
 		return $saved;
