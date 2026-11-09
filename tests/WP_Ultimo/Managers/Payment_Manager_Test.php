@@ -196,6 +196,28 @@ class Payment_Manager_Test extends WP_UnitTestCase {
 		$this->assertFalse(self::$payment->get_meta('wu_payment_received_pending'));
 	}
 
+	public function test_gateway_confirmation_after_manual_receipt_does_not_resend(): void {
+
+		$event_count = 0;
+		$count_event = static function () use (&$event_count): void {
+			++$event_count;
+		};
+
+		add_action('wu_event_payment_received', $count_event, 10, 0);
+
+		try {
+			// Admin confirms the payment manually first.
+			$this->assertTrue($this->payment_manager->maybe_trigger_payment_received(self::$payment));
+
+			// A late gateway webhook confirms the same payment directly.
+			(new Manual_Gateway())->trigger_payment_processed(self::$payment);
+		} finally {
+			remove_action('wu_event_payment_received', $count_event, 10);
+		}
+
+		$this->assertSame(1, $event_count);
+	}
+
 	public function test_maybe_trigger_payment_received_remains_retryable_after_failure(): void {
 
 		self::$payment->update_meta('wu_payment_received_pending', 1);

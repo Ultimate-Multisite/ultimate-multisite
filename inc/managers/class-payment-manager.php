@@ -52,6 +52,22 @@ class Payment_Manager extends Base_Manager {
 	protected $model_class = \WP_Ultimo\Models\Payment::class;
 
 	/**
+	 * Payment received locks held by this request, keyed by lock name.
+	 *
+	 * @since 2.18.1
+	 * @var array<string, bool>
+	 */
+	private array $receipt_locks = [];
+
+	/**
+	 * Payment received dispatches running in this request, keyed by lock name.
+	 *
+	 * @since 2.18.1
+	 * @var array<string, bool>
+	 */
+	private array $receipt_dispatches = [];
+
+	/**
 	 * Instantiate the necessary hooks.
 	 *
 	 * @since 2.0.0
@@ -99,6 +115,10 @@ class Payment_Manager extends Base_Manager {
 	/**
 	 * Triggers the do_event of the payment successful.
 	 *
+	 * Sends the payment_received event at most once per payment, whichever flow
+	 * confirms it first: gateway webhooks, checkout, manual confirmation or
+	 * email verification.
+	 *
 	 * @since 2.0.0
 	 *
 	 * @param \WP_Ultimo\Models\Payment        $payment The payment.
@@ -107,6 +127,54 @@ class Payment_Manager extends Base_Manager {
 	 * @return void
 	 */
 	public function handle_payment_success($payment, $membership, $gateway): void {
+
+		if ( ! $payment->get_id()) {
+			$this->send_payment_received_event($payment, $membership);
+
+			return;
+		}
+
+		$lock = $this->get_receipt_lock_name($payment);
+
+		// A payment_received listener re-triggered the same payment: it is already being sent.
+		if (isset($this->receipt_dispatches[ $lock ])) {
+			return;
+		}
+
+		/*
+		 * maybe_trigger_payment_received() may already hold the lock. Otherwise wait
+		 * briefly for a concurrent request; if it is still busy, fall back to the
+		 * sent-flag check rather than drop the receipt.
+		 */
+		$acquired_lock = ! isset($this->receipt_locks[ $lock ]) && $this->acquire_receipt_lock($lock, 10);
+
+		$this->receipt_dispatches[ $lock ] = true;
+
+		try {
+			if ($this->is_payment_received_sent($payment)) {
+				return;
+			}
+
+			$this->send_payment_received_event($payment, $membership);
+		} finally {
+			unset($this->receipt_dispatches[ $lock ]);
+
+			if ($acquired_lock) {
+				$this->release_receipt_lock($lock);
+			}
+		}
+	}
+
+	/**
+	 * Builds the payment_received payload, fires the event and marks the receipt as sent.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param \WP_Ultimo\Models\Payment         $payment    The payment.
+	 * @param \WP_Ultimo\Models\Membership|null $membership The membership.
+	 * @return void
+	 */
+	private function send_payment_received_event($payment, $membership): void {
 
 		$payload = wu_generate_event_payload('payment', $payment);
 
@@ -255,29 +323,19 @@ class Payment_Manager extends Base_Manager {
 			return false;
 		}
 
-		global $wpdb;
+		$lock = $this->get_receipt_lock_name($payment);
 
-		$lock               = sprintf('wu_payment_received_%d_%d', get_current_network_id(), $payment->get_id());
-		static $in_progress = [];
-
-		if (isset($in_progress[ $lock ])) {
+		// Re-entered from inside a dispatch for the same payment.
+		if (isset($this->receipt_locks[ $lock ]) || isset($this->receipt_dispatches[ $lock ])) {
 			return false;
 		}
 
-		if ('1' !== (string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock))) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- named lock, never cached.
+		if ( ! $this->acquire_receipt_lock($lock, 0)) {
 			return false;
 		}
-
-		$in_progress[ $lock ] = true;
 
 		try {
-			/*
-			 * Another request may have sent the receipt and released the lock after
-			 * this request primed the meta cache, so re-read the flag from the database.
-			 */
-			wp_cache_delete($payment->get_id(), 'wu_payment_meta');
-
-			if ($payment->get_meta('wu_payment_received_sent')) {
+			if ($this->is_payment_received_sent($payment)) {
 				return false;
 			}
 
@@ -285,9 +343,78 @@ class Payment_Manager extends Base_Manager {
 
 			return true;
 		} finally {
-			unset($in_progress[ $lock ]);
-			$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- named lock, never cached.
+			$this->release_receipt_lock($lock);
 		}
+	}
+
+	/**
+	 * Returns the network-scoped named lock for a payment's receipt.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param \WP_Ultimo\Models\Payment $payment The payment.
+	 * @return string
+	 */
+	private function get_receipt_lock_name($payment): string {
+
+		return sprintf('wu_payment_received_%d_%d', get_current_network_id(), $payment->get_id());
+	}
+
+	/**
+	 * Acquires a receipt lock for this request.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param string $lock    The lock name.
+	 * @param int    $timeout Seconds to wait for the lock.
+	 * @return bool True when the lock was acquired.
+	 */
+	private function acquire_receipt_lock(string $lock, int $timeout): bool {
+
+		global $wpdb;
+
+		if ('1' !== (string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, %d)', $lock, $timeout))) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- named lock, never cached.
+			return false;
+		}
+
+		$this->receipt_locks[ $lock ] = true;
+
+		return true;
+	}
+
+	/**
+	 * Releases a receipt lock held by this request.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param string $lock The lock name.
+	 * @return void
+	 */
+	private function release_receipt_lock(string $lock): void {
+
+		global $wpdb;
+
+		unset($this->receipt_locks[ $lock ]);
+
+		$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- named lock, never cached.
+	}
+
+	/**
+	 * Checks whether the payment's receipt was already sent.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param \WP_Ultimo\Models\Payment $payment The payment.
+	 * @return bool
+	 */
+	private function is_payment_received_sent($payment): bool {
+		/*
+		 * Another request may have sent the receipt and released the lock after
+		 * this request primed the meta cache, so re-read the flag from the database.
+		 */
+		wp_cache_delete($payment->get_id(), 'wu_payment_meta');
+
+		return (bool) $payment->get_meta('wu_payment_received_sent');
 	}
 
 	/**
