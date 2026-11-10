@@ -159,7 +159,7 @@ class Email_OTP_Service {
 		$table = $this->get_table_name();
 
 		if (empty($token) || empty($code)) {
-			return new \WP_Error('invalid_otp', __('Invalid login code.', 'ultimate-multisite'));
+			return new \WP_Error('invalid_otp', __("That code isn't right. Check the code in your most recent email, or send a new code.", 'ultimate-multisite'));
 		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -174,7 +174,7 @@ class Email_OTP_Service {
 		);
 
 		if ( ! $attempt) {
-			return new \WP_Error('invalid_otp', __('Invalid or expired login code.', 'ultimate-multisite'));
+			return new \WP_Error('invalid_otp', __('That code has expired or is no longer valid. Send a new code, and make sure you entered the right email address.', 'ultimate-multisite'));
 		}
 
 		if ((int) $attempt->attempts >= self::MAX_ATTEMPTS) {
@@ -184,17 +184,17 @@ class Email_OTP_Service {
 		if ( ! wp_check_password($code, $attempt->code_hash)) {
 			$this->increment_attempts((int) $attempt->id, (int) $attempt->attempts + 1);
 
-			return new \WP_Error('invalid_otp', __('Invalid login code.', 'ultimate-multisite'));
+			return new \WP_Error('invalid_otp', __("That code isn't right. Check the code in your most recent email, or send a new code.", 'ultimate-multisite'));
 		}
 
 		$user = get_user_by('id', (int) $attempt->user_id);
 
 		if ( ! $user) {
-			return new \WP_Error('invalid_otp_user', __('Invalid login code.', 'ultimate-multisite'));
+			return new \WP_Error('invalid_otp_user', __("That code isn't right. Check the code in your most recent email, or send a new code.", 'ultimate-multisite'));
 		}
 
 		if ( ! $this->consume((int) $attempt->id)) {
-			return new \WP_Error('invalid_otp', __('Invalid or expired login code.', 'ultimate-multisite'));
+			return new \WP_Error('invalid_otp', __('That code has expired or is no longer valid. Send a new code, and make sure you entered the right email address.', 'ultimate-multisite'));
 		}
 
 		return $user;
@@ -259,14 +259,28 @@ class Email_OTP_Service {
 
 		$subject = __('Your Ultimate Multisite login code', 'ultimate-multisite');
 
-		$message = sprintf(
-			/* translators: 1: login code, 2: expiration minutes. */
-			__('Your Ultimate Multisite login code is %1$s. It expires in %2$d minutes.', 'ultimate-multisite'),
-			$code,
-			(int) (self::TTL / MINUTE_IN_SECONDS)
-		);
+		$minutes = (int) (self::TTL / MINUTE_IN_SECONDS);
 
-		return wp_mail($user->user_email, $subject, $message);
+		$lines = [
+			sprintf(
+				/* translators: %s: login code. */
+				__('Your Ultimate Multisite login code is: %s', 'ultimate-multisite'),
+				$code
+			),
+			sprintf(
+				/* translators: %d: expiration minutes. */
+				_n(
+					'Go back to the login page and enter this code to sign in. The code expires in %d minute and can only be used once.',
+					'Go back to the login page and enter this code to sign in. The code expires in %d minutes and can only be used once.',
+					$minutes,
+					'ultimate-multisite'
+				),
+				$minutes
+			),
+			__('If you did not ask to log in, you can safely ignore this email. Nobody can access your account without this code.', 'ultimate-multisite'),
+		];
+
+		return wp_mail($user->user_email, $subject, implode("\n\n", $lines));
 	}
 
 	/**

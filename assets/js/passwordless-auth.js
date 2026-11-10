@@ -206,6 +206,8 @@
 		const emailCodeButton = container.querySelector('.wu-passwordless-email-code');
 		const verifyCodeButton = container.querySelector('.wu-passwordless-verify-code');
 		const resendButton = container.querySelector('.wu-passwordless-resend');
+		const changeEmailButton = container.querySelector('.wu-passwordless-change-email');
+		const otpIntro = container.querySelector('.wu-passwordless-otp-intro');
 		const createPasskeyButton = container.querySelector('.wu-passwordless-create-passkey');
 		const skipPasskeyButton = container.querySelector('.wu-passwordless-skip-passkey');
 
@@ -237,8 +239,17 @@
 
 			if (! message) {
 				status.classList.add('wu-hidden');
+				status.hidden = true;
+				status.removeAttribute('data-state');
 				return;
 			}
+
+			status.hidden = false;
+			status.setAttribute('data-state', type || 'info');
+
+			// Errors interrupt the screen reader; everything else is announced politely.
+			status.setAttribute('role', type === 'error' ? 'alert' : 'status');
+			status.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
 
 			if (type === 'error') {
 				status.classList.add('wu-bg-red-100', 'wu-text-red-800');
@@ -305,7 +316,21 @@
 			window.location.assign(data.redirect_url || state.redirectUrl || window.location.href);
 		}
 
-		function start(forceOtp) {
+		function updateOtpIntro() {
+
+			if (! otpIntro) {
+				return;
+			}
+
+			// textContent keeps the visitor-supplied address inert.
+			if (emailInput && state.identifier && i18n.otp_intro) {
+				otpIntro.textContent = i18n.otp_intro.replace('%s', state.identifier);
+			} else if (i18n.otp_intro_generic) {
+				otpIntro.textContent = i18n.otp_intro_generic;
+			}
+		}
+
+		function start(forceOtp, isResend) {
 
 			state.identifier = getIdentifier();
 
@@ -314,7 +339,9 @@
 				return;
 			}
 
-			setBusy(startButton, true, i18n.sending_code || 'Sending login code...');
+			const busyButton = isResend && resendButton ? resendButton : startButton;
+
+			setBusy(busyButton, true, i18n.sending_code || 'Sending login code...');
 			showStatus(forceOtp ? (i18n.sending_code || 'Sending login code...') : '', 'info');
 
 			request('wu_passwordless_start', {
@@ -325,7 +352,7 @@
 				force_otp: forceOtp ? 1 : 0,
 			}).then(function (data) {
 
-				setBusy(startButton, false);
+				setBusy(busyButton, false);
 
 				if (data.mode === 'passkey') {
 					state.authOptions = data.options;
@@ -336,12 +363,17 @@
 				}
 
 				state.token = data.token || '';
+				if (codeInput) {
+					codeInput.value = '';
+				}
+
+				updateOtpIntro();
 				showStep('otp');
-				showStatus(data.message || '', 'info');
+				showStatus(isResend && i18n.code_resent ? i18n.code_resent : (data.message || ''), 'info');
 
 			}).catch(function (error) {
 
-				setBusy(startButton, false);
+				setBusy(busyButton, false);
 				showStatus(getErrorMessage(error), 'error');
 
 			});
@@ -411,6 +443,12 @@
 				setBusy(verifyCodeButton, false);
 				showStatus(getErrorMessage(error), 'error');
 
+				// Select the wrong code so the next attempt replaces it.
+				if (codeInput) {
+					codeInput.focus();
+					codeInput.select();
+				}
+
 			});
 
 		}
@@ -478,7 +516,24 @@
 		});
 
 		bindOnce(resendButton, 'click', 'wuPasswordlessClick', function () {
-			start(true);
+			start(true, true);
+		});
+
+		bindOnce(changeEmailButton, 'click', 'wuPasswordlessClick', function () {
+
+			state.token = '';
+
+			if (codeInput) {
+				codeInput.value = '';
+			}
+
+			showStatus('');
+			showStep('email');
+
+			if (emailInput) {
+				emailInput.focus();
+				emailInput.select();
+			}
 		});
 
 		bindOnce(createPasskeyButton, 'click', 'wuPasswordlessClick', createPasskey);

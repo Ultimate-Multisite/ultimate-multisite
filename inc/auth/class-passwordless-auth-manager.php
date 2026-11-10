@@ -172,7 +172,11 @@ class Passwordless_Auth_Manager {
 				'nonce'    => wp_create_nonce('wu_passwordless_auth'),
 				'i18n'     => [
 					'email_required'      => __('Enter your email address to continue.', 'ultimate-multisite'),
-					'code_required'       => __('Enter the code from your email.', 'ultimate-multisite'),
+					'code_required'       => __('Enter the 6-digit code from your email.', 'ultimate-multisite'),
+					/* translators: %s: the email address or username the visitor entered. */
+					'otp_intro'           => __('Check %s for your 6-digit login code.', 'ultimate-multisite'),
+					'otp_intro_generic'   => __('Check your email for your 6-digit login code.', 'ultimate-multisite'),
+					'code_resent'         => __("If an account matches, we've sent a new code. Check your inbox (and spam folder) for the newest email.", 'ultimate-multisite'),
 					'passkey_starting'    => __('Follow your browser prompt to continue with your passkey.', 'ultimate-multisite'),
 					'passkey_unavailable' => __('Passkeys are not available in this browser. We can email you a login code instead.', 'ultimate-multisite'),
 					'sending_code'        => __('Sending login code...', 'ultimate-multisite'),
@@ -185,6 +189,12 @@ class Passwordless_Auth_Manager {
 			]
 		);
 
+		if ( ! wp_style_is('wu-passwordless-auth', 'registered')) {
+			wp_register_style('wu-passwordless-auth', false, [], wu_get_version());
+			wp_add_inline_style('wu-passwordless-auth', $this->get_inline_css());
+		}
+
+		wp_enqueue_style('wu-passwordless-auth');
 		wp_enqueue_script('wu-passwordless-auth');
 	}
 
@@ -206,10 +216,62 @@ class Passwordless_Auth_Manager {
 			return;
 		}
 
-		wp_add_inline_style(
-			'login',
-			'body.login #loginform > p, body.login #loginform .user-pass-wrap, body.login #loginform .forgetmenot, body.login #loginform .submit { display: none; } body.login #loginform .wu-passwordless-auth { margin: 0 0 16px; } body.login #loginform .wu-passwordless-auth p { margin: 0 0 12px; }'
-		);
+		wp_add_inline_style('login', $this->get_login_inline_css());
+	}
+
+	/**
+	 * Returns the styles shared by every passwordless surface.
+	 *
+	 * The Ultimate Multisite utility classes (wu-*) are not guaranteed to
+	 * exist on the page (they are absent on wp-login.php and purged from some
+	 * themes), so the status notices, link-style buttons and hidden states are
+	 * styled here instead of relying on them.
+	 *
+	 * @since 2.18.1
+	 * @return string
+	 */
+	protected function get_inline_css() {
+
+		$rules = [
+			'.wu-passwordless-auth [hidden] { display: none !important; }',
+			'.wu-passwordless-auth .wu-passwordless-code { letter-spacing: 0.3em; text-align: center; font-variant-numeric: tabular-nums; }',
+			'.wu-passwordless-auth .wu-passwordless-help { color: #50575e; font-size: 13px; }',
+			'.wu-passwordless-auth .wu-passwordless-otp-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; margin-top: 16px; }',
+			'.wu-passwordless-auth .button-link { display: inline; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; color: #2271b1; font: inherit; text-decoration: underline; cursor: pointer; }',
+			'.wu-passwordless-auth .button-link:hover, .wu-passwordless-auth .button-link:focus { color: #135e96; }',
+			'.wu-passwordless-auth .wu-passwordless-status { margin: 0 0 16px; padding: 12px 14px; border-left: 4px solid #72aee6; border-radius: 2px; background: #f0f6fc; color: #1d2327; font-size: 14px; line-height: 1.5; word-wrap: break-word; }',
+			'.wu-passwordless-auth .wu-passwordless-status[data-state="success"] { border-left-color: #00a32a; background: #edfaef; color: #1d2327; }',
+			'.wu-passwordless-auth .wu-passwordless-status[data-state="error"] { border-left-color: #d63638; background: #fcf0f1; color: #8a2424; }',
+		];
+
+		return implode(' ', $rules);
+	}
+
+	/**
+	 * Returns the wp-login.php specific styles for the passwordless UI.
+	 *
+	 * Hides the legacy password form and sizes the fields and buttons to match
+	 * the WordPress login screen.
+	 *
+	 * @since 2.18.1
+	 * @return string
+	 */
+	protected function get_login_inline_css() {
+
+		$rules = [
+			'body.login #loginform > p, body.login #loginform .user-pass-wrap, body.login #loginform .forgetmenot, body.login #loginform .submit { display: none; }',
+			'body.login #loginform .wu-passwordless-auth { margin: 0 0 16px; }',
+			'body.login #loginform .wu-passwordless-auth p { margin: 0 0 12px; }',
+			'body.login .wu-passwordless-auth label { display: block; margin-bottom: 3px; font-size: 14px; }',
+			'body.login .wu-passwordless-auth input.regular-text { width: 100%; box-sizing: border-box; margin: 0 0 6px; font-size: 24px; line-height: 1.33333333; min-height: 40px; }',
+			'body.login .wu-passwordless-auth .button.button-primary { width: 100%; min-height: 40px; margin-top: 8px; float: none; }',
+			'body.login .wu-passwordless-auth .wu-passwordless-otp-intro { font-size: 14px; font-weight: 600; }',
+			'body.login .wu-passwordless-auth .wu-passwordless-otp-actions { margin-top: 16px; }',
+			'body.login .wu-passwordless-auth .wu-passwordless-status { background: #fff; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04); }',
+			'body.login .wu-passwordless-auth .wu-passwordless-fallback { text-align: center; margin-top: 16px; }',
+		];
+
+		return implode(' ', $rules);
 	}
 
 	/**
@@ -224,11 +286,19 @@ class Passwordless_Auth_Manager {
 			return;
 		}
 
+		$redirect_to = isset($_REQUEST['redirect_to']) ? sanitize_url(wp_unslash($_REQUEST['redirect_to'])) : admin_url(); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
 		if ($this->is_password_fallback()) {
+			// Give password users a way back to the email code login.
+			printf(
+				'<p class="wu-passwordless-switch" style="margin: 0 0 16px;"><a href="%s">%s</a></p>',
+				esc_url(wp_login_url($redirect_to)),
+				esc_html__('Email me a login code instead', 'ultimate-multisite')
+			);
+
 			return;
 		}
 
-		$redirect_to  = isset($_REQUEST['redirect_to']) ? sanitize_url(wp_unslash($_REQUEST['redirect_to'])) : admin_url(); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$fallback_url = add_query_arg('wu_password_fallback', '1', wp_login_url($redirect_to));
 
 		$markup = $this->get_login_form_markup(
@@ -280,7 +350,7 @@ class Passwordless_Auth_Manager {
 			data-success="<?php echo esc_attr($args['success']); ?>"
 			data-identifier-field="<?php echo esc_attr($args['identifier_field']); ?>"
 		>
-			<div class="wu-passwordless-status wu-hidden wu-p-3 wu-rounded wu-mb-3" role="alert" aria-live="polite"></div>
+			<div class="wu-passwordless-status wu-hidden wu-p-3 wu-rounded wu-mb-3" role="status" aria-live="polite" hidden></div>
 
 			<div class="wu-passwordless-step" data-wu-step="email">
 				<?php if ($args['show_email']) : ?>
@@ -293,13 +363,17 @@ class Passwordless_Auth_Manager {
 						id="wu-passwordless-email-<?php echo esc_attr($args['context']); ?>"
 						autocomplete="username webauthn"
 						placeholder="<?php esc_attr_e('you@example.com', 'ultimate-multisite'); ?>"
+						aria-describedby="wu-passwordless-email-help-<?php echo esc_attr($args['context']); ?>"
 					/>
+					<p class="wu-passwordless-help wu-text-gray-600 wu-mt-2" id="wu-passwordless-email-help-<?php echo esc_attr($args['context']); ?>">
+						<?php esc_html_e("We'll email you a 6-digit code to log in. No password needed.", 'ultimate-multisite'); ?>
+					</p>
 				<?php else : ?>
 					<p><?php esc_html_e('Continue securely with your passkey or an email login code.', 'ultimate-multisite'); ?></p>
 				<?php endif; ?>
 
 				<button type="button" class="button button-primary wu-passwordless-start wu-w-full wu-mt-3">
-					<?php esc_html_e('Continue', 'ultimate-multisite'); ?>
+					<?php echo $args['show_email'] ? esc_html__('Email me a login code', 'ultimate-multisite') : esc_html__('Continue', 'ultimate-multisite'); ?>
 				</button>
 			</div>
 
@@ -314,6 +388,9 @@ class Passwordless_Auth_Manager {
 			</div>
 
 			<div class="wu-passwordless-step wu-hidden" data-wu-step="otp" hidden>
+				<p class="wu-passwordless-otp-intro wu-font-medium" id="wu-passwordless-otp-intro-<?php echo esc_attr($args['context']); ?>">
+					<?php esc_html_e('Check your email for your 6-digit login code.', 'ultimate-multisite'); ?>
+				</p>
 				<label class="wu-block wu-font-medium wu-mb-1" for="wu-passwordless-code-<?php echo esc_attr($args['context']); ?>">
 					<?php esc_html_e('Login code', 'ultimate-multisite'); ?>
 				</label>
@@ -325,13 +402,24 @@ class Passwordless_Auth_Manager {
 					class="wu-passwordless-code regular-text wu-w-full"
 					id="wu-passwordless-code-<?php echo esc_attr($args['context']); ?>"
 					autocomplete="one-time-code"
+					aria-describedby="wu-passwordless-otp-intro-<?php echo esc_attr($args['context']); ?> wu-passwordless-otp-help-<?php echo esc_attr($args['context']); ?>"
 				/>
+				<p class="wu-passwordless-help wu-text-gray-600 wu-mt-2" id="wu-passwordless-otp-help-<?php echo esc_attr($args['context']); ?>">
+					<?php esc_html_e("Can't find it? Check your spam or junk folder, or send a new code.", 'ultimate-multisite'); ?>
+				</p>
 				<button type="button" class="button button-primary wu-passwordless-verify-code wu-w-full wu-mt-3">
 					<?php esc_html_e('Verify code', 'ultimate-multisite'); ?>
 				</button>
-				<button type="button" class="button-link wu-passwordless-resend wu-mt-2">
-					<?php esc_html_e('Send a new code', 'ultimate-multisite'); ?>
-				</button>
+				<p class="wu-passwordless-otp-actions wu-mt-2">
+					<button type="button" class="button-link wu-passwordless-resend">
+						<?php esc_html_e('Send a new code', 'ultimate-multisite'); ?>
+					</button>
+					<?php if ($args['show_email']) : ?>
+						<button type="button" class="button-link wu-passwordless-change-email">
+							<?php esc_html_e('Use a different email', 'ultimate-multisite'); ?>
+						</button>
+					<?php endif; ?>
+				</p>
 			</div>
 
 			<div class="wu-passwordless-step wu-hidden" data-wu-step="enroll" hidden>
@@ -401,7 +489,7 @@ class Passwordless_Auth_Manager {
 			[
 				'mode'    => 'otp',
 				'token'   => $otp['token'],
-				'message' => __('If an account exists for that address, we sent a short-lived login code.', 'ultimate-multisite'),
+				'message' => $this->get_code_sent_message(),
 			]
 		);
 	}
@@ -526,6 +614,32 @@ class Passwordless_Auth_Manager {
 			[
 				'message' => __('Passkey created.', 'ultimate-multisite'),
 			]
+		);
+	}
+
+	/**
+	 * Returns the message shown after a login code request.
+	 *
+	 * The wording is identical whether or not an account matched, so it does
+	 * not reveal which addresses are registered. It still tells the visitor
+	 * where the code went, what to do next, and when it expires.
+	 *
+	 * @since 2.18.1
+	 * @return string
+	 */
+	protected function get_code_sent_message() {
+
+		$minutes = (int) (Email_OTP_Service::TTL / MINUTE_IN_SECONDS);
+
+		return sprintf(
+			/* translators: %d: number of minutes before the login code expires. */
+			_n(
+				"If an account matches, we've emailed a 6-digit login code to its email address. Check your inbox (and spam folder), then enter the code below. It expires in %d minute.",
+				"If an account matches, we've emailed a 6-digit login code to its email address. Check your inbox (and spam folder), then enter the code below. It expires in %d minutes.",
+				$minutes,
+				'ultimate-multisite'
+			),
+			$minutes
 		);
 	}
 
