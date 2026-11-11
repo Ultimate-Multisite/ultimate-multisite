@@ -239,6 +239,10 @@ class Passwordless_Auth_Manager {
 			'.wu-passwordless-auth .wu-passwordless-otp-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; margin-top: 16px; }',
 			'.wu-passwordless-auth .button-link { display: inline; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; color: #2271b1; font: inherit; text-decoration: underline; cursor: pointer; }',
 			'.wu-passwordless-auth .button-link:hover, .wu-passwordless-auth .button-link:focus { color: #135e96; }',
+			'.wu-passwordless-auth .wu-passwordless-alt-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; margin: 20px 0 0; font-size: 13px; }',
+			'.wu-styling.wu-login-card { box-sizing: border-box; width: 100%; max-width: 420px; margin: 0 auto; padding: 32px; border: 1px solid rgba(128, 128, 128, 0.35); border-radius: 8px; }',
+			'.wu-styling.wu-login-card .wu-passwordless-auth { margin: 0; }',
+			'@media (max-width: 480px) { .wu-styling.wu-login-card { padding: 20px; } }',
 			'.wu-passwordless-auth .wu-passwordless-status { margin: 0 0 16px; padding: 12px 14px; border-left: 4px solid #72aee6; border-radius: 2px; background: #f0f6fc; color: #1d2327; font-size: 14px; line-height: 1.5; word-wrap: break-word; }',
 			'.wu-passwordless-auth .wu-passwordless-status[data-state="success"] { border-left-color: #00a32a; background: #edfaef; color: #1d2327; }',
 			'.wu-passwordless-auth .wu-passwordless-status[data-state="error"] { border-left-color: #d63638; background: #fcf0f1; color: #8a2424; }',
@@ -268,7 +272,7 @@ class Passwordless_Auth_Manager {
 			'body.login .wu-passwordless-auth .wu-passwordless-otp-intro { font-size: 14px; font-weight: 600; }',
 			'body.login .wu-passwordless-auth .wu-passwordless-otp-actions { margin-top: 16px; }',
 			'body.login .wu-passwordless-auth .wu-passwordless-status { background: #fff; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04); }',
-			'body.login .wu-passwordless-auth .wu-passwordless-fallback { text-align: center; margin-top: 16px; }',
+			'body.login .wu-passwordless-auth .wu-passwordless-alt-links { margin-top: 20px; }',
 		];
 
 		return implode(' ', $rules);
@@ -329,13 +333,14 @@ class Passwordless_Auth_Manager {
 		$args = wp_parse_args(
 			$args,
 			[
-				'context'          => 'login-form',
-				'redirect_to'      => admin_url(),
-				'redirect_type'    => 'default',
-				'success'          => 'redirect',
-				'show_email'       => true,
-				'identifier_field' => '',
-				'fallback_url'     => '',
+				'context'           => 'login-form',
+				'redirect_to'       => admin_url(),
+				'redirect_type'     => 'default',
+				'success'           => 'redirect',
+				'show_email'        => true,
+				'identifier_field'  => '',
+				'fallback_url'      => '',
+				'lost_password_url' => '',
 			]
 		);
 
@@ -420,6 +425,16 @@ class Passwordless_Auth_Manager {
 						</button>
 					<?php endif; ?>
 				</p>
+				<?php if ( ! empty($args['fallback_url']) || ! empty($args['lost_password_url'])) : ?>
+					<p class="wu-passwordless-alt-links">
+						<?php if ( ! empty($args['fallback_url'])) : ?>
+							<a href="<?php echo esc_url($args['fallback_url']); ?>"><?php esc_html_e('Use password instead', 'ultimate-multisite'); ?></a>
+						<?php endif; ?>
+						<?php if ( ! empty($args['lost_password_url'])) : ?>
+							<a href="<?php echo esc_url($args['lost_password_url']); ?>"><?php esc_html_e('Lost your password?', 'ultimate-multisite'); ?></a>
+						<?php endif; ?>
+					</p>
+				<?php endif; ?>
 			</div>
 
 			<div class="wu-passwordless-step wu-hidden" data-wu-step="enroll" hidden>
@@ -432,11 +447,6 @@ class Passwordless_Auth_Manager {
 				</button>
 			</div>
 
-			<?php if ( ! empty($args['fallback_url'])) : ?>
-				<p class="wu-passwordless-fallback wu-text-center wu-mt-3">
-					<a href="<?php echo esc_url($args['fallback_url']); ?>"><?php esc_html_e('Use password instead', 'ultimate-multisite'); ?></a>
-				</p>
-			<?php endif; ?>
 		</div>
 		<?php
 
