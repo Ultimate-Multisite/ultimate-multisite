@@ -6,6 +6,7 @@ use WP_Ultimo\Models\Payment;
 use WP_Ultimo\Models\Customer;
 use WP_Ultimo\Database\Memberships\Membership_Status;
 use WP_Ultimo\Database\Payments\Payment_Status;
+use WP_Ultimo\Gateways\Manual_Gateway;
 use WP_Ultimo\Invoices\Invoice;
 use WP_UnitTestCase;
 
@@ -14,6 +15,7 @@ class Payment_Manager_Test extends WP_UnitTestCase {
 	private static Customer $customer;
 	private static Payment $payment;
 	private Payment_Manager $payment_manager;
+	private $gateway_resolver;
 
 	public static function set_up_before_class() {
 		parent::set_up_before_class();
@@ -63,6 +65,20 @@ class Payment_Manager_Test extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		$this->payment_manager = Payment_Manager::get_instance();
+		self::$payment->delete_meta('wu_payment_received_sent');
+		self::$payment->delete_meta('wu_payment_received_pending');
+
+		$this->gateway_resolver = static function ($gateway, $gateway_id) {
+			return ! $gateway && 'manual' === $gateway_id ? new Manual_Gateway() : $gateway;
+		};
+
+		add_filter('wu_get_gateway', $this->gateway_resolver, 10, 2);
+	}
+
+	public function tear_down() {
+		remove_filter('wu_get_gateway', $this->gateway_resolver, 10);
+
+		parent::tear_down();
 	}
 
 	/**
@@ -155,6 +171,72 @@ class Payment_Manager_Test extends WP_UnitTestCase {
 		$this->assertEmpty($output, 'Method should return early when reference parameter is missing');
 
 		unset($_REQUEST['action']);
+	}
+
+	public function test_maybe_trigger_payment_received_only_dispatches_once(): void {
+
+		self::$payment->update_meta('wu_payment_received_pending', 1);
+
+		$dispatch_count = 0;
+		$count_dispatch = static function () use (&$dispatch_count): void {
+			++$dispatch_count;
+		};
+
+		add_action('wu_gateway_payment_processed', $count_dispatch, PHP_INT_MAX, 0);
+
+		try {
+			$this->assertTrue($this->payment_manager->maybe_trigger_payment_received(self::$payment));
+			$this->assertFalse($this->payment_manager->maybe_trigger_payment_received(self::$payment));
+		} finally {
+			remove_action('wu_gateway_payment_processed', $count_dispatch, PHP_INT_MAX);
+		}
+
+		$this->assertSame(1, $dispatch_count);
+		$this->assertSame(1, (int) self::$payment->get_meta('wu_payment_received_sent'));
+		$this->assertFalse(self::$payment->get_meta('wu_payment_received_pending'));
+	}
+
+	public function test_maybe_trigger_payment_received_remains_retryable_after_failure(): void {
+
+		self::$payment->update_meta('wu_payment_received_pending', 1);
+
+		$fail_dispatch = static function (): void {
+			throw new \RuntimeException('payment received dispatch failed');
+		};
+
+		add_action('wu_gateway_payment_processed', $fail_dispatch, 1, 0);
+
+		try {
+			$this->payment_manager->maybe_trigger_payment_received(self::$payment);
+			$this->fail('The dispatch failure should be propagated.');
+		} catch (\RuntimeException $exception) {
+			$this->assertSame('payment received dispatch failed', $exception->getMessage());
+		} finally {
+			remove_action('wu_gateway_payment_processed', $fail_dispatch, 1);
+		}
+
+		$this->assertFalse(self::$payment->get_meta('wu_payment_received_sent'));
+		$this->assertSame(1, (int) self::$payment->get_meta('wu_payment_received_pending'));
+		$this->assertTrue($this->payment_manager->maybe_trigger_payment_received(self::$payment));
+		$this->assertFalse(self::$payment->get_meta('wu_payment_received_pending'));
+	}
+
+	public function test_maybe_trigger_payment_received_rejects_reentrant_dispatch(): void {
+
+		$reentrant_result = null;
+		$reenter_dispatch = function () use (&$reentrant_result): void {
+			$reentrant_result = $this->payment_manager->maybe_trigger_payment_received(self::$payment);
+		};
+
+		add_action('wu_gateway_payment_processed', $reenter_dispatch, 1, 0);
+
+		try {
+			$this->assertTrue($this->payment_manager->maybe_trigger_payment_received(self::$payment));
+		} finally {
+			remove_action('wu_gateway_payment_processed', $reenter_dispatch, 1);
+		}
+
+		$this->assertFalse($reentrant_result);
 	}
 
 	public static function tear_down_after_class() {

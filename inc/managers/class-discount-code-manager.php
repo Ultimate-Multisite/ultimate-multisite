@@ -97,6 +97,14 @@ class Discount_Code_Manager extends Base_Manager {
 		}
 
 		/*
+		 * The processed event can fire more than once for the same payment,
+		 * e.g. a retried receipt dispatch, so count each payment only once.
+		 */
+		if ($payment->get_meta('wu_discount_use_counted')) {
+			return;
+		}
+
+		/*
 		 * Refetch the object, as the original version
 		 * might be too old and out-of-date by now.
 		 */
@@ -105,7 +113,9 @@ class Discount_Code_Manager extends Base_Manager {
 		if ($discount_code) {
 			$discount_code->add_use();
 
-			$discount_code->save();
+			if (true === $discount_code->save()) {
+				$payment->update_meta('wu_discount_use_counted', 1);
+			}
 		}
 	}
 }
