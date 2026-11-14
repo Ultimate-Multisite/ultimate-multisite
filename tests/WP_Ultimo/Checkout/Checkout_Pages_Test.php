@@ -313,6 +313,35 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 		$this->assertEmpty($this->pages->get_signup_pages()['register']);
 	}
 
+	/**
+	 * Test the lookup follows the global post while no registration page is saved.
+	 *
+	 * With an empty setting the resolver falls back to get_post() with no ID, which
+	 * returns the global post, so a single memoized value would go stale in a loop.
+	 */
+	public function test_registration_page_lookup_follows_global_post_when_setting_is_empty(): void {
+
+		wu_save_setting('default_registration_page', 0);
+
+		$first  = self::factory()->post->create(['post_type' => 'page']);
+		$second = self::factory()->post->create(['post_type' => 'page']);
+
+		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$GLOBALS['post'] = get_post($first);
+		setup_postdata($GLOBALS['post']);
+
+		$this->assertEquals($first, $this->pages->get_signup_pages()['register']);
+
+		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$GLOBALS['post'] = get_post($second);
+		setup_postdata($GLOBALS['post']);
+
+		$this->assertEquals($second, $this->pages->get_signup_pages()['register']);
+
+		wp_reset_postdata();
+		unset($GLOBALS['post']);
+	}
+
 	// -------------------------------------------------------------------------
 	// get_signup_page
 	// -------------------------------------------------------------------------

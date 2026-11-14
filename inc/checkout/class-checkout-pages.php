@@ -160,7 +160,14 @@ class Checkout_Pages {
 	 */
 	protected function get_registration_page_id() {
 
-		$key = get_current_network_id() . ':' . wu_get_main_site_id() . ':' . wu_get_setting('default_registration_page', 0);
+		$saved_page = wu_get_setting('default_registration_page', 0);
+
+		// With no saved page, wu_guess_registration_page() calls get_post() with an
+		// empty ID, which returns the global post. The answer then follows the current
+		// post, so it has to be part of the key.
+		$global_post_key = $saved_page ? '' : (int) get_the_ID();
+
+		$key = get_current_network_id() . ':' . wu_get_main_site_id() . ':' . $saved_page . ':' . $global_post_key;
 
 		if ( ! array_key_exists($key, $this->registration_page_cache)) {
 			$this->registration_page_cache[ $key ] = wu_guess_registration_page();
