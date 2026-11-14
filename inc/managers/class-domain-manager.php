@@ -802,11 +802,28 @@ class Domain_Manager extends Base_Manager {
 
 		wu_register_settings_field(
 			'domain-mapping',
+			'domain_mapping_dns_target',
+			[
+				'title'       => __('Recommended DNS Target', 'ultimate-multisite'),
+				'tooltip'     => __('The hostname customers should point their custom domains to. Leave empty to use the network domain.', 'ultimate-multisite'),
+				'desc'        => __('Available as the <code>%DNS_TARGET%</code> placeholder in the instructions below. Defaults to the network domain.', 'ultimate-multisite'),
+				'type'        => 'text',
+				'placeholder' => '',
+				'default'     => '',
+				'require'     => [
+					'enable_domain_mapping' => true,
+					'custom_domains'        => true,
+				],
+			]
+		);
+
+		wu_register_settings_field(
+			'domain-mapping',
 			'domain_mapping_instructions',
 			[
 				'title'      => __('Add New Domain Instructions', 'ultimate-multisite'),
 				'tooltip'    => __('Display a customized message with instructions for the mapping and alerting the end-user of the risks of mapping a misconfigured domain.', 'ultimate-multisite'),
-				'desc'       => __('You can use the placeholder <code>%NETWORK_DOMAIN%</code> and <code>%NETWORK_IP%.</code> HTML is allowed.', 'ultimate-multisite'),
+				'desc'       => __('You can use the placeholders <code>%NETWORK_DOMAIN%</code>, <code>%NETWORK_IP%</code> and <code>%DNS_TARGET%</code>. HTML is allowed.', 'ultimate-multisite'),
 				'type'       => 'textarea',
 				'default'    => [$this, 'default_domain_mapping_instructions'],
 				'html_attr'  => [
@@ -973,9 +990,14 @@ class Domain_Manager extends Base_Manager {
 
 		$instructions[] = __("Cool! You're about to make this site accessible using your own domain name!", 'ultimate-multisite');
 
-		$instructions[] = __("For that to work, you'll need to create a new CNAME record pointing to <code>%NETWORK_DOMAIN%</code> on your DNS manager.", 'ultimate-multisite');
+		$instructions[] = __("For that to work, you'll need to update the DNS records of your domain at your DNS provider (usually where you bought the domain):", 'ultimate-multisite');
 
-		$instructions[] = __('After you finish that step, come back to this screen and click the button below.', 'ultimate-multisite');
+		$instructions[] = __('1. Root domain (e.g. <code>example.com</code>): create a CNAME record pointing to <code>%DNS_TARGET%</code>. If your provider does not allow a CNAME on the root domain, create an A record pointing to <code>%NETWORK_IP%</code> instead.', 'ultimate-multisite') . '<br>'
+			. __('2. <code>www</code> subdomain: create a CNAME record for <code>www</code> pointing to <code>%DNS_TARGET%</code>.', 'ultimate-multisite') . '<br>'
+			. __('3. Remove any other A, AAAA or CNAME records for the same names, as conflicting records will prevent the domain from working.', 'ultimate-multisite') . '<br>'
+			. __('4. Using Cloudflare? Set the record to "DNS only" (grey cloud) until the domain is verified, and use SSL/TLS mode "Full (strict)" if you enable the proxy afterwards.', 'ultimate-multisite');
+
+		$instructions[] = __('After you finish that step, come back to this screen and click the button below. DNS changes can take a while to propagate, and the first HTTPS visit may take a minute while the SSL certificate is issued.', 'ultimate-multisite');
 
 		return implode(PHP_EOL . PHP_EOL, $instructions);
 	}
@@ -996,14 +1018,20 @@ class Domain_Manager extends Base_Manager {
 			$instructions = $this->default_domain_mapping_instructions();
 		}
 
-		$domain = $current_site->domain;
-		$ip     = Helper::get_network_public_ip();
+		$domain     = $current_site->domain;
+		$ip         = Helper::get_network_public_ip();
+		$dns_target = trim((string) wu_get_setting('domain_mapping_dns_target', ''));
+
+		if ('' === $dns_target) {
+			$dns_target = $domain;
+		}
 
 		/*
 		 * Replace placeholders
 		 */
 		$instructions = str_replace('%NETWORK_DOMAIN%', $domain, (string) $instructions);
 		$instructions = str_replace('%NETWORK_IP%', $ip, $instructions);
+		$instructions = str_replace('%DNS_TARGET%', esc_html($dns_target), $instructions);
 
 		return apply_filters('wu_get_domain_mapping_instructions', $instructions, $domain, $ip);
 	}
