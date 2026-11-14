@@ -22,12 +22,32 @@ class Checkout_Pages {
 	use \WP_Ultimo\Traits\Singleton;
 
 	/**
+	 * Request-local registration page IDs.
+	 *
+	 * Resolving the registration page switches to the main site and queries
+	 * posts. The permalink filters run once per generated link, so a page with
+	 * hundreds of links would otherwise repeat that work for every one of them.
+	 * Keys combine the network, the main site and the saved page setting, so a
+	 * changed setting or network context never reads a stale entry.
+	 *
+	 * @since 2.19.0
+	 * @var array<string, int|false>
+	 */
+	protected $registration_page_cache = [];
+
+	/**
 	 * Initializes the Checkout_Pages singleton and adds hooks.
 	 *
 	 * @since 2.0.0
 	 * @return void
 	 */
 	public function init(): void {
+
+		// Creating, updating, trashing or deleting a post cleans its cache, which is when
+		// the registration page (or its fallback) can change. Registered before any early
+		// return below: get_signup_pages() is used on every request, whether or not the
+		// permalink filters are added.
+		add_action('clean_post_cache', [$this, 'flush_registration_page_cache']);
 
 		add_filter('display_post_states', [$this, 'add_wp_ultimo_status_annotation'], 10, 2);
 
@@ -119,6 +139,34 @@ class Checkout_Pages {
 
 		add_filter('post_type_link', [$this, 'filter_checkout_urls'], 10, 2);
 		add_filter('page_link', [$this, 'filter_checkout_urls'], 10, 2);
+	}
+
+	/**
+	 * Forgets the request-local registration page lookup.
+	 *
+	 * @since 2.19.0
+	 * @return void
+	 */
+	public function flush_registration_page_cache() {
+
+		$this->registration_page_cache = [];
+	}
+
+	/**
+	 * Returns the registration page ID, resolving it once per request.
+	 *
+	 * @since 2.19.0
+	 * @return int|false
+	 */
+	protected function get_registration_page_id() {
+
+		$key = get_current_network_id() . ':' . wu_get_main_site_id() . ':' . wu_get_setting('default_registration_page', 0);
+
+		if ( ! array_key_exists($key, $this->registration_page_cache)) {
+			$this->registration_page_cache[ $key ] = wu_guess_registration_page();
+		}
+
+		return $this->registration_page_cache[ $key ];
 	}
 
 	/**
@@ -1078,7 +1126,7 @@ class Checkout_Pages {
 	public function get_signup_pages() {
 
 		return [
-			'register'       => wu_guess_registration_page(),
+			'register'       => $this->get_registration_page_id(),
 			'update'         => wu_get_setting('default_update_page', false),
 			'login'          => wu_get_setting('default_login_page', false),
 			'block_frontend' => wu_get_setting('default_block_frontend_page', false),

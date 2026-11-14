@@ -29,6 +29,9 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 		parent::set_up();
 
 		$this->pages = Checkout_Pages::get_instance();
+
+		// The registration page lookup is memoized on the singleton for the request.
+		$this->pages->flush_registration_page_cache();
 	}
 
 	// -------------------------------------------------------------------------
@@ -133,6 +136,12 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 			has_filter('lostpassword_redirect', [$this->pages, 'filter_lost_password_redirect']),
 			'lostpassword_redirect filter not registered'
 		);
+
+		$this->assertGreaterThan(
+			0,
+			has_action('clean_post_cache', [$this->pages, 'flush_registration_page_cache']),
+			'clean_post_cache action not registered'
+		);
 	}
 
 	/**
@@ -195,6 +204,113 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 
 		$this->assertEquals($page_id, $pages['login']);
 		$this->assertEquals($page_id, $pages['update']);
+	}
+
+	// -------------------------------------------------------------------------
+	// filter_checkout_urls — registration page lookup is memoized per request
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Test the registration page is resolved once, not once per generated permalink.
+	 */
+	public function test_filter_checkout_urls_resolves_registration_page_once(): void {
+
+		$page_id = self::factory()->post->create(['post_type' => 'page']);
+		$post    = get_post(self::factory()->post->create(['post_type' => 'page']));
+
+		wu_save_setting('default_registration_page', $page_id);
+
+		// Warm the lookup, then count blog switches made by further permalinks.
+		$this->pages->filter_checkout_urls('https://example.com/a', $post);
+
+		$switches = 0;
+		$counter  = function () use (&$switches) {
+			++$switches;
+		};
+
+		add_action('switch_blog', $counter);
+
+		for ($i = 0; $i < 25; $i++) {
+			$this->pages->filter_checkout_urls('https://example.com/a', $post);
+		}
+
+		remove_action('switch_blog', $counter);
+
+		$this->assertSame(0, $switches, 'Repeated permalinks must not re-resolve the registration page.');
+	}
+
+	/**
+	 * Test the registration URL is still filtered for the registration page only.
+	 */
+	public function test_filter_checkout_urls_still_filters_registration_page(): void {
+
+		$register_id = self::factory()->post->create(['post_type' => 'page']);
+		$other       = get_post(self::factory()->post->create(['post_type' => 'page']));
+
+		wu_save_setting('default_registration_page', $register_id);
+
+		$rewrite = fn() => 'https://example.com/rewritten';
+
+		add_filter('wu_checkout_pages_checkout_url', $rewrite);
+
+		$this->assertSame('https://example.com/rewritten', $this->pages->filter_checkout_urls('https://example.com/orig', get_post($register_id)));
+		$this->assertSame('https://example.com/orig', $this->pages->filter_checkout_urls('https://example.com/orig', $other));
+
+		remove_filter('wu_checkout_pages_checkout_url', $rewrite);
+	}
+
+	/**
+	 * Test a changed registration page setting is not served from a stale entry.
+	 */
+	public function test_registration_page_lookup_follows_setting_changes(): void {
+
+		$first  = self::factory()->post->create(['post_type' => 'page']);
+		$second = self::factory()->post->create(['post_type' => 'page']);
+
+		wu_save_setting('default_registration_page', $first);
+
+		$this->assertEquals($first, $this->pages->get_signup_pages()['register']);
+
+		wu_save_setting('default_registration_page', $second);
+
+		$this->assertEquals($second, $this->pages->get_signup_pages()['register']);
+	}
+
+	/**
+	 * Test creating the fallback "register" page is picked up after a cached miss.
+	 */
+	public function test_registration_page_lookup_refreshes_when_register_page_is_created(): void {
+
+		wu_save_setting('default_registration_page', 0);
+
+		$this->assertEmpty($this->pages->get_signup_pages()['register']);
+
+		$register_id = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_name'    => 'register',
+				'post_status'  => 'publish',
+				'post_content' => '[wu_checkout]',
+			]
+		);
+
+		$this->assertEquals($register_id, $this->pages->get_signup_pages()['register']);
+	}
+
+	/**
+	 * Test trashing the registration page invalidates the cached lookup.
+	 */
+	public function test_registration_page_lookup_refreshes_when_page_is_deleted(): void {
+
+		$page_id = self::factory()->post->create(['post_type' => 'page']);
+
+		wu_save_setting('default_registration_page', $page_id);
+
+		$this->assertEquals($page_id, $this->pages->get_signup_pages()['register']);
+
+		wp_delete_post($page_id, true);
+
+		$this->assertEmpty($this->pages->get_signup_pages()['register']);
 	}
 
 	// -------------------------------------------------------------------------
