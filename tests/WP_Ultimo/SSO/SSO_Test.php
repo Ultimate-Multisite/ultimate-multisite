@@ -1240,11 +1240,21 @@ class SSO_Test extends \WP_UnitTestCase {
 			'handle_server() not-logged-in non-JSONP branch must call wp_safe_redirect( $denial_url, 303, \'WP-Ultimo-SSO\' ); exit; after building the denial URL.'
 		);
 
-		// Must NOT force wp-login.php on anonymous visitors — broker
+		// Must NOT force wp-login.php on anonymous broker visitors — broker
 		// pages may legitimately be anonymous (free-checkout, landing).
+		// Scope the check to the ordinary denial branch (from $denial_args
+		// onwards). The earlier empty-return_url branch is deliberately
+		// excluded: it redirects bounced ?sso_verify= requests that carry no
+		// return_url to the login form instead of returning a blank page.
+		$denial_start = strpos( $body, '$denial_args' );
+
+		$this->assertNotFalse( $denial_start, 'handle_server() must build $denial_args for the ordinary denial branch' );
+
+		$denial_branch = substr( $body, $denial_start );
+
 		$this->assertDoesNotMatchRegularExpression(
 			'/wp_safe_redirect\s*\(\s*wp_login_url\s*\(/s',
-			$body,
+			$denial_branch,
 			'handle_server() must NOT redirect anonymous visitors to wp_login_url() — that would break free-checkout and other intentionally-anonymous broker pages. Use the sso_verify=invalid denial signal instead.'
 		);
 
