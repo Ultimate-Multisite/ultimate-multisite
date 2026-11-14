@@ -416,15 +416,23 @@ class SSO {
 		}
 
 		/**
-		 * If we are on the wp-admin, we check for three criteria
+		 * If we are on the wp-admin, we check for four criteria
 		 * to decide if we need to try to perform a SSO redirect
 		 * or not:
 		 *
-		 * 1. If the current domain is the same domain as the main site's;
-		 * 2. If the user is logged in or not;
-		 * 3. If we should skip the redirect, based on previous attempts.
+		 * 1. If the current site is the network's main site (the SSO server);
+		 * 2. If the current domain is the same domain as the main site's;
+		 * 3. If the user is logged in or not;
+		 * 4. If we should skip the redirect, based on previous attempts.
+		 *
+		 * The main site is the SSO server, so it can never be a broker for
+		 * itself. A main site served from a mapped domain (stored domain
+		 * differs from the request host) fails the same-domain check, and
+		 * would otherwise redirect to itself: the request is then routed to
+		 * the server handler, which denies SSO and bounces the visitor to
+		 * `?sso_verify=invalid`, leaving a blank page instead of the login form.
 		 */
-		if ( ! wu_is_same_domain() && ! is_user_logged_in() && ! $should_skip_redirect) {
+		if ( ! is_main_site() && ! wu_is_same_domain() && ! is_user_logged_in() && ! $should_skip_redirect) {
 			nocache_headers();
 
 			$redirect_after = 'index.php' === $pagenow ? '' : $this->get_current_url();
@@ -638,10 +646,26 @@ class SSO {
 		 * If the broker URL is missing (malformed grant request) we
 		 * just exit; the request was malformed so an empty response
 		 * is preferable to either a 404 or a forced login.
+		 *
+		 * The exception is a bounced denial (`?sso_verify=...` without a
+		 * `return_url`) landing on this site: the visitor was sent here by a
+		 * denial that nothing on this site can consume, so an empty response
+		 * is a blank page. Send them to the regular login form instead,
+		 * preserving an admin `redirect_to` target.
 		 */
 		$broker_url = $this->input('return_url', '');
 
 		if (empty($broker_url)) {
+			if ('' !== (string) $this->input('sso_verify', '')) {
+				$bounced_redirect_to = (string) $this->input('redirect_to', '');
+
+				if ('' === $bounced_redirect_to || ! $this->is_admin_redirect_url($bounced_redirect_to)) {
+					$bounced_redirect_to = '';
+				}
+
+				wp_safe_redirect(wp_login_url($bounced_redirect_to), 302, 'WP-Ultimo-SSO');
+			}
+
 			exit;
 		}
 
