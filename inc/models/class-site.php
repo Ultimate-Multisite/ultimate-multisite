@@ -1325,14 +1325,16 @@ class Site extends Base_Model implements Limitable, Notable {
 		/*
 		 * The clone replaces the destination's blog meta with the template's, so
 		 * without this the site would come back as a Site Template detached from
-		 * its customer and membership, whether or not the retry succeeds.
+		 * its customer and membership, whether or not the retry succeeds. Absent
+		 * keys are restored as absent so the template's associations never leak in.
 		 */
-		$ownership = [
-			self::META_TYPE          => $this->get_type(),
-			self::META_CUSTOMER_ID   => $this->get_customer_id(),
-			self::META_MEMBERSHIP_ID => $this->get_membership_id(),
-			self::META_TEMPLATE_ID   => $template_id,
-		];
+		$ownership = [];
+
+		foreach ([self::META_TYPE, self::META_CUSTOMER_ID, self::META_MEMBERSHIP_ID] as $meta_key) {
+			$ownership[ $meta_key ] = get_site_meta($site_id, $meta_key, true);
+		}
+
+		$ownership[ self::META_TEMPLATE_ID ] = $template_id;
 
 		$retry = \WP_Ultimo\Helpers\Site_Duplicator::duplicate_site(
 			$template_id,
@@ -1349,7 +1351,9 @@ class Site extends Base_Model implements Limitable, Notable {
 		);
 
 		foreach ($ownership as $meta_key => $meta_value) {
-			if ($meta_value) {
+			if ('' === $meta_value) {
+				$this->delete_meta($meta_key);
+			} else {
 				$this->update_meta($meta_key, $meta_value);
 			}
 		}
