@@ -128,6 +128,20 @@ class Site_Edit_Admin_Page extends Edit_Admin_Page {
 		);
 
 		/*
+		 * Retry a failed template copy - Confirmation modal
+		 */
+		wu_register_form(
+			'retry_site_clone',
+			[
+				'render'     => [$this, 'render_retry_site_clone_modal'],
+				'handler'    => [$this, 'handle_retry_site_clone_modal'],
+				'capability' => 'wu_edit_sites',
+			]
+		);
+
+		add_action("wu_page_{$this->id}_load", [$this, 'add_failed_clone_notice']);
+
+		/*
 		 * Delete Site - Confirmation modal
 		 */
 
@@ -181,6 +195,149 @@ class Site_Edit_Admin_Page extends Edit_Admin_Page {
 				]
 			);
 		}
+	}
+
+	/**
+	 * Warns the admin that the template copy of this site failed.
+	 *
+	 * A site whose template copy failed is left archived and half copied. The
+	 * notice tells the admin so they do not build on it, and offers the
+	 * explicit retry, which is never run implicitly by a save.
+	 *
+	 * @since 2.18.1
+	 * @return void
+	 */
+	public function add_failed_clone_notice(): void {
+
+		$site = $this->get_object();
+
+		if ( ! $site || ! $this->edit || ! $site->get_id() || ! \WP_Ultimo\Helpers\Site_Duplicator::is_clone_failed($site->get_id())) {
+			return;
+		}
+
+		$message = esc_html__('The template copy of this site failed, so it is incomplete and has been archived. Fix the cause, then retry the template copy. Retrying overwrites the site with the template, and any content added since will be lost. Saving this site does not retry the copy.', 'ultimate-multisite');
+
+		$actions = [];
+
+		if ($site->get_template_id()) {
+			$actions['retry'] = [
+				'title'   => esc_html__('Retry Template Copy', 'ultimate-multisite'),
+				'url'     => wu_get_form_url(
+					'retry_site_clone',
+					[
+						'id' => $site->get_id(),
+					]
+				),
+				'classes' => 'wubox',
+			];
+		}
+
+		WP_Ultimo()->notices->add($message, 'error', 'network-admin', false, $actions);
+	}
+
+	/**
+	 * Renders the confirmation form to retry a failed template copy.
+	 *
+	 * @since 2.18.1
+	 * @return void
+	 */
+	public function render_retry_site_clone_modal(): void {
+
+		$site = wu_get_site(wu_request('id'));
+
+		if ( ! $site) {
+			return;
+		}
+
+		$fields = [
+			'confirm'       => [
+				'type'      => 'toggle',
+				'title'     => __('Confirm Overwrite', 'ultimate-multisite'),
+				'desc'      => __('This replaces the site with a fresh copy of its template. Any content created on the site since the failed copy will be permanently deleted.', 'ultimate-multisite'),
+				'html_attr' => [
+					'v-model' => 'confirmed',
+				],
+			],
+			'submit_button' => [
+				'type'            => 'submit',
+				'title'           => __('Retry Template Copy', 'ultimate-multisite'),
+				'placeholder'     => __('Retry Template Copy', 'ultimate-multisite'),
+				'value'           => 'save',
+				'classes'         => 'button button-primary wu-w-full',
+				'wrapper_classes' => 'wu-items-end',
+				'html_attr'       => [
+					'v-bind:disabled' => '!confirmed',
+				],
+			],
+			'id'            => [
+				'type'  => 'hidden',
+				'value' => $site->get_id(),
+			],
+		];
+
+		$form = new \WP_Ultimo\UI\Form(
+			'retry-site-clone',
+			$fields,
+			[
+				'views'                 => 'admin-pages/fields',
+				'classes'               => 'wu-modal-form wu-widget-list wu-striped wu-m-0 wu-mt-0',
+				'field_wrapper_classes' => 'wu-w-full wu-box-border wu-items-center wu-flex wu-justify-between wu-p-4 wu-m-0 wu-border-t wu-border-l-0 wu-border-r-0 wu-border-b-0 wu-border-gray-300 wu-border-solid',
+				'html_attr'             => [
+					'data-wu-app' => 'retry_site_clone',
+					'data-state'  => wp_json_encode(
+						[
+							'confirmed' => false,
+						]
+					),
+				],
+			]
+		);
+
+		$form->render();
+	}
+
+	/**
+	 * Handles the explicit retry of a failed template copy.
+	 *
+	 * @since 2.18.1
+	 * @return void
+	 */
+	public function handle_retry_site_clone_modal(): void {
+
+		if ( ! wu_request('confirm')) {
+			wp_send_json_error(new \WP_Error('not-confirmed', __('Please confirm that the site will be overwritten.', 'ultimate-multisite')));
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification happens in the form handler
+		$site = wu_get_site(wu_request('id'));
+
+		if ( ! $site) {
+			wp_send_json_error(new \WP_Error('not-found', __('Site not found.', 'ultimate-multisite')));
+		}
+
+		$retried = $site->retry_failed_clone();
+
+		if (is_wp_error($retried)) {
+			wp_send_json_error($retried);
+		}
+
+		$saved = $site->save();
+
+		if (is_wp_error($saved)) {
+			wp_send_json_error($saved);
+		}
+
+		wp_send_json_success(
+			[
+				'redirect_url' => wu_network_admin_url(
+					'wp-ultimo-edit-site',
+					[
+						'id'      => $site->get_id(),
+						'updated' => 1,
+					]
+				),
+			]
+		);
 	}
 
 	/**
