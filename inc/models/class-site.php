@@ -1316,6 +1316,12 @@ class Site extends Base_Model implements Limitable, Notable {
 			return new \WP_Error('site_clone_no_template', __('This site has no template to copy from.', 'ultimate-multisite'));
 		}
 
+		/*
+		 * Register the signup placeholder substitutions, as save() does before
+		 * duplicating; a no-op when the site has no signup transient.
+		 */
+		$this->handles_existing_search_and_replace();
+
 		$retry = \WP_Ultimo\Helpers\Site_Duplicator::duplicate_site(
 			$template_id,
 			$this->get_title(),
