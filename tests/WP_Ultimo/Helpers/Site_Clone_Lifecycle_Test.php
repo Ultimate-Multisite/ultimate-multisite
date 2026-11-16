@@ -74,6 +74,91 @@ class Site_Clone_Lifecycle_Test extends \WP_UnitTestCase {
 		$this->assertSame('0', (string) get_blog_status($target, 'archived'));
 	}
 
+	/**
+	 * Create a destination whose clone failed, as left by a failed initializer.
+	 *
+	 * @param string $domain Destination domain.
+	 * @return array{0:int,1:int} Source and destination blog IDs.
+	 */
+	private function create_failed_clone($domain) {
+		$source      = self::factory()->blog->create();
+		$initializer = static fn() => new \WP_Error('initialization_failed', 'Controlled test failure');
+		add_filter('wu_initialize_cloned_site', $initializer);
+		try {
+			$result = Site_Duplicator::duplicate_site($source, 'Failed customer', [
+				'user_id'    => 1,
+				'domain'     => $domain,
+				'copy_files' => false,
+				'keep_users' => false,
+			]);
+		} finally {
+			remove_filter('wu_initialize_cloned_site', $initializer);
+		}
+		$this->assertWPError($result);
+		$target = get_blog_id_from_url($domain, '/');
+		$this->assertGreaterThan(0, $target);
+		$this->assertTrue(Site_Duplicator::is_clone_failed($target));
+
+		return [$source, $target];
+	}
+
+	public function test_saving_site_with_failed_clone_does_not_recopy_template() {
+		[, $target] = $this->create_failed_clone('save-failed-clone.example.org');
+
+		switch_to_blog($target);
+		$post_id = wp_insert_post(
+			[
+				'post_title'  => 'Built after the failure',
+				'post_status' => 'publish',
+			]
+		);
+		restore_current_blog();
+		$this->assertGreaterThan(0, $post_id);
+
+		$clones = 0;
+		$count  = static function () use (&$clones) {
+			++$clones;
+		};
+		add_action('wu_before_site_clone', $count);
+		try {
+			$site = wu_get_site($target);
+			$this->assertNotEmpty($site->get_template_id());
+			$saved = $site->save();
+		} finally {
+			remove_action('wu_before_site_clone', $count);
+		}
+
+		$this->assertNotWPError($saved);
+		$this->assertSame(0, $clones, 'A model save must never re-run the template clone.');
+		switch_to_blog($target);
+		$still_there = get_post($post_id);
+		restore_current_blog();
+		$this->assertNotNull($still_there);
+		$this->assertSame('Built after the failure', $still_there->post_title);
+		$this->assertTrue(Site_Duplicator::is_clone_failed($target));
+		$this->assertSame('1', (string) get_blog_status($target, 'archived'));
+	}
+
+	public function test_retry_failed_clone_recopies_template_and_clears_archived() {
+		[, $target] = $this->create_failed_clone('retry-failed-clone.example.org');
+
+		$site = wu_get_site($target);
+		$this->assertTrue($site->retry_failed_clone());
+
+		$this->assertTrue(Site_Duplicator::is_site_ready($target));
+		$this->assertSame('0', (string) get_blog_status($target, 'archived'));
+	}
+
+	public function test_retry_failed_clone_refuses_sites_that_did_not_fail() {
+		$target = self::factory()->blog->create();
+		update_site_meta($target, Site_Duplicator::CLONE_STATUS_META, 'complete');
+
+		$result = wu_get_site($target)->retry_failed_clone();
+
+		$this->assertWPError($result);
+		$this->assertSame('site_clone_not_failed', $result->get_error_code());
+	}
+
 	public function test_source_completion_and_tenant_identity_are_not_inherited() {
 		$source = self::factory()->blog->create();
 		$target = self::factory()->blog->create();
