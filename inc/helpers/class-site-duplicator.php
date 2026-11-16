@@ -50,6 +50,12 @@ class Site_Duplicator {
 	/** Seconds a clone may remain in copying before it is considered failed. */
 	private const CLONE_STATUS_TIMEOUT = 300;
 
+	/**
+	 * Non-fatal database-copy errors of the last clone, keyed by table name.
+	 * The wu_clone_ prefix keeps it destination-owned: never copied from a template.
+	 */
+	public const CLONE_WARNINGS_META = 'wu_clone_warnings';
+
 	/** Destination URLs retained outside the copied options table until success. */
 	private const CLONE_DESTINATION_URLS_META = 'wu_clone_destination_urls';
 
@@ -120,6 +126,50 @@ class Site_Duplicator {
 
 		update_site_meta($site_id, self::CLONE_STATUS_META, $status);
 		delete_site_meta($site_id, self::CLONE_STATUS_STARTED_AT_META);
+	}
+
+	/**
+	 * Non-fatal database-copy errors recorded by the last clone of a site.
+	 *
+	 * The clone completed, but these tables may be missing or incomplete.
+	 *
+	 * @since 2.18.1
+	 * @param int $site_id Destination blog ID.
+	 * @return array<string,string> MySQL error keyed by table name.
+	 */
+	public static function get_clone_warnings($site_id) {
+
+		$warnings = get_site_meta($site_id, self::CLONE_WARNINGS_META, true);
+
+		return is_array($warnings) ? $warnings : [];
+	}
+
+	/**
+	 * Persist and log the non-fatal database-copy errors of a clone.
+	 *
+	 * Clears warnings from an earlier clone of the same site when this one had none.
+	 *
+	 * @param int                  $site_id      Destination blog ID.
+	 * @param int                  $from_site_id Template blog ID.
+	 * @param array<string,string> $warnings     MySQL error keyed by table name.
+	 * @return void
+	 */
+	private static function record_copy_warnings(int $site_id, int $from_site_id, array $warnings): void {
+
+		if ( ! $warnings) {
+			delete_site_meta($site_id, self::CLONE_WARNINGS_META);
+			return;
+		}
+
+		update_site_meta($site_id, self::CLONE_WARNINGS_META, $warnings);
+
+		foreach ($warnings as $table => $error) {
+			wu_log_add(
+				'site-duplication',
+				sprintf('Site %d: copying template %d continued after a non-fatal error on %s: %s', $site_id, $from_site_id, $table, $error),
+				LogLevel::WARNING
+			);
+		}
 	}
 
 	/**
@@ -624,8 +674,31 @@ class Site_Duplicator {
 			update_site_meta($args->to_site_id, 'wu_template_id', (int) $args->from_site_id);
 			if (\MUCD_Data::get_copy_error()) {
 				self::set_clone_status($args->to_site_id, 'failed');
-				return new \WP_Error('site_clone_database_failed', __('Could not copy the complete template database.', 'ultimate-multisite'));
+
+				$failed_table = \MUCD_Data::get_copy_error_table();
+
+				// The MySQL error stays in the log; the message can reach customers at checkout.
+				wu_log_add(
+					'site-duplication',
+					sprintf(
+						'Site %d: copying template %d failed on %s: %s',
+						(int) $args->to_site_id,
+						(int) $args->from_site_id,
+						'' !== $failed_table ? $failed_table : 'the template table list',
+						\MUCD_Data::get_copy_error()
+					),
+					LogLevel::ERROR
+				);
+
+				if ('' === $failed_table) {
+					return new \WP_Error('site_clone_database_failed', __('Could not copy the complete template database.', 'ultimate-multisite'));
+				}
+
+				// translators: %s is the database table that could not be copied.
+				return new \WP_Error('site_clone_database_failed', sprintf(__('Could not copy the complete template database: the required table %s could not be copied.', 'ultimate-multisite'), $failed_table));
 			}
+
+			self::record_copy_warnings((int) $args->to_site_id, (int) $args->from_site_id, \MUCD_Data::get_copy_warnings());
 			self::profile_sovereign_provisioning_stage(
 			(int) $args->to_site_id,
 			'um_duplicator.copy_data',
