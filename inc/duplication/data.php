@@ -700,6 +700,8 @@ if ( ! class_exists('MUCD_Data') ) {
 			}
 
 			foreach ( $tables as $table => $col) {
+				self::set_error_context('update', $to_blog_prefix . $table, (string) $table);
+
 				$results = self::do_sql_query('SHOW COLUMNS FROM `' . $to_blog_prefix . $table . '`', 'results', false);
 
 				$columns = [];
@@ -816,6 +818,31 @@ if ( ! class_exists('MUCD_Data') ) {
 			$cache[ $table ] = $row ? $row->Column_name : null; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Column_name is returned by SHOW KEYS.
 
 			return $cache[ $table ];
+		}
+
+		/**
+		 * Run a URL replacement on a cloned table after copy_data() has finished.
+		 *
+		 * Failures are classified like the copy's own replacement pass: they are
+		 * added to get_copy_warnings() for the table and never fail the clone.
+		 *
+		 * @since 2.18.1
+		 * @param string $table       Full table name.
+		 * @param array  $fields      Fields to update.
+		 * @param string $from_string Original string to replace.
+		 * @param string $to_string   New string.
+		 * @return void
+		 */
+		public static function update_as_warning($table, $fields, $from_string, $to_string): void {
+			$previous = self::$error_context;
+
+			self::set_error_context('update', (string) $table);
+
+			try {
+				self::update($table, $fields, $from_string, $to_string);
+			} finally {
+				self::$error_context = $previous;
+			}
 		}
 
 		/**

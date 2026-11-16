@@ -698,7 +698,6 @@ class Site_Duplicator {
 				return new \WP_Error('site_clone_database_failed', sprintf(__('Could not copy the complete template database: the required table %s could not be copied.', 'ultimate-multisite'), $failed_table));
 			}
 
-			self::record_copy_warnings((int) $args->to_site_id, (int) $args->from_site_id, \MUCD_Data::get_copy_warnings());
 			self::profile_sovereign_provisioning_stage(
 			(int) $args->to_site_id,
 			'um_duplicator.copy_data',
@@ -776,6 +775,9 @@ class Site_Duplicator {
 			microtime(true) - $profile_stage,
 			array('template_site_id' => (int) $template_site_id)
 			);
+
+			// Includes failures of the URL rewrite above, which are warnings too.
+			self::record_copy_warnings((int) $args->to_site_id, (int) $args->from_site_id, \MUCD_Data::get_copy_warnings());
 
 			/*
 			* Verify Kit integrity after backfill.
@@ -1089,9 +1091,10 @@ class Site_Duplicator {
 				 * Serialize-aware, primary-key based replacement — the same
 				 * pass MUCD_Data::db_update_data() runs on the copied rows.
 				 * Rows that do not contain $from are never selected, and rows
-				 * whose value does not change are skipped by update().
+				 * whose value does not change are skipped by update(). Failures
+				 * are copy warnings, like those of MUCD's own replacement pass.
 				 */
-				\MUCD_Data::update($table, [$column], $from, $to);
+				\MUCD_Data::update_as_warning($table, [$column], $from, $to);
 			}
 		}
 		// phpcs:enable

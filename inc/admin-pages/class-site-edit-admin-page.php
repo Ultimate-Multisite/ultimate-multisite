@@ -146,8 +146,9 @@ class Site_Edit_Admin_Page extends Edit_Admin_Page {
 	/**
 	 * Lists tables that hit a non-fatal error during the site's template copy.
 	 *
-	 * The copy completed and the site is live, but these tables may be missing
-	 * or incomplete, so the admin can check them before handing the site over.
+	 * These tables may be missing or incomplete, so the admin can check them
+	 * before handing the site over. Worded neutrally: initialization can still
+	 * fail after the warnings are recorded, which the failed-clone state reports.
 	 *
 	 * @since 2.18.1
 	 * @return void
@@ -168,7 +169,7 @@ class Site_Edit_Admin_Page extends Edit_Admin_Page {
 
 		$message = sprintf(
 			// translators: %s is a comma-separated list of database table names.
-			esc_html__('The template copy of this site completed, but these database tables could not be fully copied: %s. The site works, but data in those tables may be missing. The full errors are in the site-duplication log.', 'ultimate-multisite'),
+			esc_html__('During the template copy of this site, these database tables could not be fully copied: %s. Data in those tables may be missing. The full errors are in the site-duplication log.', 'ultimate-multisite'),
 			esc_html(implode(', ', array_keys($warnings)))
 		);
 

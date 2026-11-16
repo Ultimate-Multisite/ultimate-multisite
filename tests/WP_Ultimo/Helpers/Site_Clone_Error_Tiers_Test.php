@@ -123,6 +123,27 @@ class Site_Clone_Error_Tiers_Test extends \WP_UnitTestCase {
 		$this->assertArrayHasKey($GLOBALS['wpdb']->get_blog_prefix($target) . 'posts', Site_Duplicator::get_clone_warnings($target));
 	}
 
+	public function test_post_copy_url_rewrite_failure_is_a_warning_not_a_silent_fatal() {
+		$target = self::factory()->blog->create();
+		$table  = $GLOBALS['wpdb']->get_blog_prefix($target) . 'posts';
+		switch_to_blog($target);
+		self::factory()->post->create(['post_content' => 'https://old.example.org/page']);
+		restore_current_blog();
+
+		$fatal_before = \MUCD_Data::get_copy_error();
+		$break        = static fn($query) => preg_match('/^SELECT `ID`, `post_content` FROM `' . preg_quote($table, '/') . '` WHERE/', $query) ? 'SELECT * FROM `wu_definitely_missing_table`' : $query;
+
+		add_filter('query', $break);
+		try {
+			\MUCD_Data::update_as_warning($table, ['post_content'], 'https://old.example.org', 'https://new.example.org');
+		} finally {
+			remove_filter('query', $break);
+		}
+
+		$this->assertSame($fatal_before, \MUCD_Data::get_copy_error(), 'A post-copy rewrite failure must not become a fatal error.');
+		$this->assertArrayHasKey($table, \MUCD_Data::get_copy_warnings());
+	}
+
 	public function test_clean_clone_records_no_warnings() {
 		$source = self::factory()->blog->create();
 
