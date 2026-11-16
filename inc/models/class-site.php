@@ -1322,6 +1322,18 @@ class Site extends Base_Model implements Limitable, Notable {
 		 */
 		$this->handles_existing_search_and_replace();
 
+		/*
+		 * The clone replaces the destination's blog meta with the template's, so
+		 * without this the site would come back as a Site Template detached from
+		 * its customer and membership, whether or not the retry succeeds.
+		 */
+		$ownership = [
+			self::META_TYPE          => $this->get_type(),
+			self::META_CUSTOMER_ID   => $this->get_customer_id(),
+			self::META_MEMBERSHIP_ID => $this->get_membership_id(),
+			self::META_TEMPLATE_ID   => $template_id,
+		];
+
 		$retry = \WP_Ultimo\Helpers\Site_Duplicator::duplicate_site(
 			$template_id,
 			$this->get_title(),
@@ -1335,6 +1347,12 @@ class Site extends Base_Model implements Limitable, Notable {
 				]
 			)
 		);
+
+		foreach ($ownership as $meta_key => $meta_value) {
+			if ($meta_value) {
+				$this->update_meta($meta_key, $meta_value);
+			}
+		}
 
 		if (is_wp_error($retry)) {
 			return $retry;

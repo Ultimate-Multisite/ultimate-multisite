@@ -149,6 +149,34 @@ class Site_Clone_Lifecycle_Test extends \WP_UnitTestCase {
 		$this->assertSame('0', (string) get_blog_status($target, 'archived'));
 	}
 
+	public function test_retry_failed_clone_keeps_site_type_and_ownership() {
+		[$source, $target] = $this->create_failed_clone('retry-ownership.example.org');
+		update_site_meta($source, 'wu_type', 'site_template');
+		update_site_meta($target, 'wu_type', 'customer_owned');
+		update_site_meta($target, 'wu_customer_id', 77);
+		update_site_meta($target, 'wu_membership_id', 88);
+
+		// A retry that fails again must not leave the template's ownership behind either.
+		$initializer = static fn() => new \WP_Error('initialization_failed', 'Controlled test failure');
+		add_filter('wu_initialize_cloned_site', $initializer);
+		try {
+			$failed = wu_get_site($target)->retry_failed_clone();
+		} finally {
+			remove_filter('wu_initialize_cloned_site', $initializer);
+		}
+		$this->assertWPError($failed);
+		$this->assertSame('customer_owned', get_site_meta($target, 'wu_type', true));
+		$this->assertSame(77, (int) get_site_meta($target, 'wu_customer_id', true));
+		$this->assertSame(88, (int) get_site_meta($target, 'wu_membership_id', true));
+
+		$this->assertTrue(wu_get_site($target)->retry_failed_clone());
+		$site = wu_get_site($target);
+		$this->assertSame('customer_owned', $site->get_type());
+		$this->assertSame(77, (int) $site->get_customer_id());
+		$this->assertSame(88, (int) $site->get_membership_id());
+		$this->assertSame($source, (int) $site->get_template_id());
+	}
+
 	public function test_retry_failed_clone_refuses_sites_that_did_not_fail() {
 		$target = self::factory()->blog->create();
 		update_site_meta($target, Site_Duplicator::CLONE_STATUS_META, 'complete');
