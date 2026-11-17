@@ -41,6 +41,19 @@ class SSO {
 	const LOG_FILE_NAME = 'sso';
 
 	/**
+	 * Case-insensitive user-agent pattern for crawlers and link-preview fetchers.
+	 *
+	 * Shared by PHP (PCRE) and sso.js (JavaScript RegExp), so it must stay in
+	 * syntax both engines accept. `(?:^|[^u])bot` matches Applebot, Googlebot,
+	 * GPTBot and similar while leaving the "Cubot" phone brand alone. Headless
+	 * browsers are deliberately not listed: automated QA relies on SSO.
+	 *
+	 * @since 2.18.1
+	 * @var string
+	 */
+	const CRAWLER_USER_AGENT_PATTERN = '(?:^|[^u])bot|crawl|spider|slurp|facebookexternalhit|meta-externalagent|meta-webindexer|mediapartners-google|google-inspectiontool|chrome-lighthouse|bingpreview';
+
+	/**
 	 * The logger class to be used.
 	 *
 	 * @since 2.0.11
@@ -1450,9 +1463,29 @@ class SSO {
 
 		nocache_headers();
 
-		$broker = $this->get_broker();
-
 		$verify_code = $this->input('sso_verify');
+
+		/*
+		 * Crawlers never hold a main-site session, and most drop cookies, so
+		 * the denial cookie cannot stop them from repeating the full
+		 * broker -> server -> broker round trip on every page they render.
+		 * Answer with the same denial the server would give, without the
+		 * cross-domain hops: a JSONP probe gets a code-0 callback (no
+		 * navigation), a top-level request goes straight back to its page.
+		 */
+		if ($this->is_crawler_request()) {
+			if ('jsonp' === $response_type) {
+				header('Content-Type: application/javascript; charset=utf-8');
+
+				printf('wu.sso(%s, %d);', wp_json_encode(['code' => 0]), 200);
+
+				exit;
+			}
+
+			$verify_code = 'invalid';
+		}
+
+		$broker = $this->get_broker();
 
 		if ($verify_code) {
 			if ('invalid' === $verify_code) {
@@ -1768,11 +1801,59 @@ class SSO {
 			'filtered_url'       => remove_query_arg($removable_query_args, $this->get_current_url()),
 			'img_folder'         => dirname((string) wu_get_asset('img', 'img')),
 			'use_overlay'        => $this->get_setting('enable_sso_loading_overlay', false),
+			// Checked in the browser, not here: page caches do not vary by user agent.
+			'crawler_pattern'    => $this->get_crawler_user_agent_pattern(),
 		];
 
 		wp_localize_script('wu-sso', 'wu_sso_config', $options);
 
 		wp_enqueue_script('wu-sso');
+	}
+
+	/**
+	 * Gets the user-agent pattern that identifies crawlers.
+	 *
+	 * The pattern is used without delimiters, case-insensitively, by both PHP
+	 * and sso.js. Return an empty string to treat every visitor as a browser.
+	 *
+	 * @since 2.18.1
+	 * @return string
+	 */
+	public function get_crawler_user_agent_pattern() {
+
+		/**
+		 * Filters the crawler user-agent pattern used to skip passive SSO.
+		 *
+		 * @since 2.18.1
+		 * @param string $pattern Pattern without delimiters; must be valid in PCRE and JavaScript.
+		 * @param SSO    $sso     The SSO instance.
+		 */
+		return (string) apply_filters('wu_sso_crawler_user_agent_pattern', self::CRAWLER_USER_AGENT_PATTERN, $this);
+	}
+
+	/**
+	 * Checks whether the current request comes from a crawler.
+	 *
+	 * @since 2.18.1
+	 * @return bool
+	 */
+	public function is_crawler_request() {
+
+		$user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : '';
+
+		$pattern = $this->get_crawler_user_agent_pattern();
+
+		$is_crawler = '' !== $user_agent && '' !== $pattern && 1 === preg_match('{' . $pattern . '}i', $user_agent);
+
+		/**
+		 * Filters whether the current request is treated as a crawler for SSO.
+		 *
+		 * @since 2.18.1
+		 * @param bool   $is_crawler Whether the request matched the crawler pattern.
+		 * @param string $user_agent The request user agent.
+		 * @param SSO    $sso        The SSO instance.
+		 */
+		return (bool) apply_filters('wu_sso_is_crawler_request', $is_crawler, $user_agent, $this);
 	}
 
 	/**
