@@ -128,7 +128,8 @@ jobs:
       - name: Run addon PHPUnit tests
         working-directory: addon
         run: |
-          if [[ -f phpunit.xml.dist ]] || [[ -f phpunit.xml ]]; then
+          # Container steps run under sh -e, so use POSIX test syntax (no [[ ]]).
+          if [ -f phpunit.xml.dist ] || [ -f phpunit.xml ]; then
             vendor/bin/phpunit
           else
             echo "No phpunit.xml.dist found — skipping PHPUnit"
