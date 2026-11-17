@@ -132,16 +132,59 @@ class Site_Clone_Error_Tiers_Test extends \WP_UnitTestCase {
 
 		$fatal_before = \MUCD_Data::get_copy_error();
 		$break        = static fn($query) => preg_match('/^SELECT `ID`, `post_content` FROM `' . preg_quote($table, '/') . '` WHERE/', $query) ? 'SELECT * FROM `wu_definitely_missing_table`' : $query;
+		$bases        = [];
+		$spy          = static function ($fatal, $table, $base) use (&$bases) {
+			$bases[] = $base;
+			return $fatal;
+		};
 
 		add_filter('query', $break);
+		add_filter('wu_mucd_copy_error_is_fatal', $spy, 10, 3);
 		try {
-			\MUCD_Data::update_as_warning($table, ['post_content'], 'https://old.example.org', 'https://new.example.org');
+			\MUCD_Data::update_as_warning($table, ['post_content'], 'https://old.example.org', 'https://new.example.org', 'posts');
 		} finally {
 			remove_filter('query', $break);
+			remove_filter('wu_mucd_copy_error_is_fatal', $spy, 10);
 		}
 
 		$this->assertSame($fatal_before, \MUCD_Data::get_copy_error(), 'A post-copy rewrite failure must not become a fatal error.');
 		$this->assertArrayHasKey($table, \MUCD_Data::get_copy_warnings());
+		$this->assertSame(['posts'], array_unique($bases), 'The fatal-error filter must receive the table base name.');
+	}
+
+	public function test_filter_can_make_post_copy_rewrite_failure_fail_the_clone() {
+		$source = self::factory()->blog->create();
+		$prefix = $GLOBALS['wpdb']->get_blog_prefix($source);
+		$armed  = false;
+
+		// Only the post-copy rewrite DESCRIBEs destination tables; fail its postmeta queries from then on.
+		$break    = static function ($query) use (&$armed, $prefix) {
+			if (preg_match('/^DESCRIBE `(\w+)_postmeta`$/', $query, $match) && $match[1] . '_' !== $prefix) {
+				$armed = true;
+			}
+			return $armed && preg_match('/^SELECT `meta_id`, `meta_value` FROM `\w+_postmeta` WHERE/', $query) ? 'SELECT * FROM `wu_definitely_missing_table`' : $query;
+		};
+		$required = static fn($fatal, $table, $base, $phase) => ('update' === $phase && 'postmeta' === $base) ? true : $fatal;
+
+		add_filter('query', $break);
+		add_filter('wu_mucd_copy_error_is_fatal', $required, 10, 4);
+		try {
+			$result = Site_Duplicator::duplicate_site($source, 'Rewrite required', [
+				'user_id'    => 1,
+				'domain'     => 'rewrite-required.example.org',
+				'copy_files' => false,
+				'keep_users' => false,
+			]);
+		} finally {
+			remove_filter('query', $break);
+			remove_filter('wu_mucd_copy_error_is_fatal', $required, 10);
+		}
+
+		$target = (int) get_blog_id_from_url('rewrite-required.example.org', '/');
+		$this->assertTrue($armed, 'The post-copy rewrite must have run.');
+		$this->assertWPError($result);
+		$this->assertStringContainsString($GLOBALS['wpdb']->get_blog_prefix($target) . 'postmeta', $result->get_error_message());
+		$this->assertTrue(Site_Duplicator::is_clone_failed($target));
 	}
 
 	public function test_clean_clone_records_no_warnings() {

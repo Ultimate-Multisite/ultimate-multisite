@@ -823,20 +823,23 @@ if ( ! class_exists('MUCD_Data') ) {
 		/**
 		 * Run a URL replacement on a cloned table after copy_data() has finished.
 		 *
-		 * Failures are classified like the copy's own replacement pass: they are
-		 * added to get_copy_warnings() for the table and never fail the clone.
+		 * Failures are classified like the copy's own replacement pass: by default
+		 * they are added to get_copy_warnings() for the table. A
+		 * wu_mucd_copy_error_is_fatal override records them in get_copy_error()
+		 * instead, which the caller must check afterwards.
 		 *
 		 * @since 2.18.1
-		 * @param string $table       Full table name.
-		 * @param array  $fields      Fields to update.
-		 * @param string $from_string Original string to replace.
-		 * @param string $to_string   New string.
+		 * @param string $table           Full table name.
+		 * @param array  $fields          Fields to update.
+		 * @param string $from_string     Original string to replace.
+		 * @param string $to_string       New string.
+		 * @param string $table_base_name Table name without the blog prefix, passed to the fatal-error filter.
 		 * @return void
 		 */
-		public static function update_as_warning($table, $fields, $from_string, $to_string): void {
+		public static function update_as_warning($table, $fields, $from_string, $to_string, $table_base_name = ''): void {
 			$previous = self::$error_context;
 
-			self::set_error_context('update', (string) $table);
+			self::set_error_context('update', (string) $table, (string) $table_base_name);
 
 			try {
 				self::update($table, $fields, $from_string, $to_string);
