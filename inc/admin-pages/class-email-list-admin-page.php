@@ -284,7 +284,7 @@ class Email_List_Admin_Page extends List_Admin_Page {
 
 			$file_name = 'invoice-' . $invoice_payment->get_hash() . '.pdf';
 
-			\WP_Ultimo\Managers\Email_Manager::get_instance()->attach_invoice_pdf($invoice_payment, $file_name, $args['subject']);
+			\WP_Ultimo\Managers\Email_Manager::get_instance()->attach_invoice_pdf($invoice_payment, $file_name);
 		}
 
 		$mail_error = null;
@@ -295,7 +295,12 @@ class Email_List_Admin_Page extends List_Admin_Page {
 
 		add_action('wp_mail_failed', $capture_error);
 
-		$send_mail = wu_send_mail($from, $to, $args);
+		try {
+			$send_mail = wu_send_mail($from, $to, $args);
+		} finally {
+			// The invoice belongs to this email only.
+			\WP_Ultimo\Managers\Email_Manager::get_instance()->detach_invoice_pdfs();
+		}
 
 		remove_action('wp_mail_failed', $capture_error);
 

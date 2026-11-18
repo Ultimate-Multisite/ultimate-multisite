@@ -32,6 +32,17 @@ class Invoice {
 	const KEY = 'invoice_settings';
 
 	/**
+	 * The image size embedded for the logo.
+	 *
+	 * The logo prints about 100px wide, so the multi-megapixel original that
+	 * a customer uploaded would only make every invoice PDF much larger.
+	 * WordPress falls back to the original when it is smaller than this size.
+	 *
+	 * @since 2.18.1
+	 */
+	const LOGO_IMAGE_SIZE = 'medium_large';
+
+	/**
 	 * Names of mPDF's built-in Adobe CJK fonts (gb, big5, sjis, uhc).
 	 *
 	 * They are not font files and are never embedded, so they are always available.
@@ -735,7 +746,8 @@ class Invoice {
 				'company_address' => wu_get_setting('company_address', ''),
 				'primary_color'   => '#675645',
 				'font'            => 'DejaVuSansCondensed',
-				'logo_url'        => wu_get_network_logo(),
+				// The logo prints about 100px wide; embedding the full-size upload only bloats the PDF.
+				'logo_url'        => wu_get_network_logo(self::LOGO_IMAGE_SIZE),
 				'use_custom_logo' => false,
 				'custom_logo'     => false,
 				'footer_message'  => '',
