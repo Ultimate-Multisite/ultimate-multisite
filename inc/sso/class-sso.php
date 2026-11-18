@@ -1472,8 +1472,11 @@ class SSO {
 		 * Answer with the same denial the server would give, without the
 		 * cross-domain hops: a JSONP probe gets a code-0 callback (no
 		 * navigation), a top-level request goes straight back to its page.
+		 * Explicit logins (`?sso=login`, from auth_redirect or with_sso()
+		 * links) keep the normal attach redirect, so a misdetected visitor
+		 * can still sign in.
 		 */
-		if ($this->is_crawler_request()) {
+		if ('login' !== $this->input($this->get_url_path()) && $this->is_crawler_request()) {
 			if ('jsonp' === $response_type) {
 				header('Content-Type: application/javascript; charset=utf-8');
 
@@ -1847,6 +1850,11 @@ class SSO {
 
 		/**
 		 * Filters whether the current request is treated as a crawler for SSO.
+		 *
+		 * Server-side only: it changes how the broker answers SSO requests,
+		 * not the check sso.js runs in the browser. To change which visitors
+		 * the browser skips, filter `wu_sso_crawler_user_agent_pattern`
+		 * (an empty pattern disables both checks).
 		 *
 		 * @since 2.18.1
 		 * @param bool   $is_crawler Whether the request matched the crawler pattern.
