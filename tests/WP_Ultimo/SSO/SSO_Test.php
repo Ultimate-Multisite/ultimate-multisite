@@ -1271,28 +1271,29 @@ class SSO_Test extends \WP_UnitTestCase {
 	 * Verify that all JSONP branches set the
 	 * Content-Type: application/javascript header.
 	 *
-	 * There are five JSONP response paths:
+	 * There are six JSONP response paths:
 	 * 1. handle_server JSONP success/error response
-	 * 2. handle_broker JSONP error for unattached broker
-	 * 3. handle_broker JSONP "nothing to see here" for attached broker
-	 * 4. handle_main_site_logged_in_user JSONP success response
-	 * 5. send_sso_logout_response background logout response
+	 * 2. handle_broker JSONP denial for crawlers
+	 * 3. handle_broker JSONP error for unattached broker
+	 * 4. handle_broker JSONP "nothing to see here" for attached broker
+	 * 5. handle_main_site_logged_in_user JSONP success response
+	 * 6. send_sso_logout_response background logout response
 	 */
 	public function test_handle_broker_source_sets_javascript_content_type_for_jsonp(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
-		// There should be five JSONP blocks with the header.
+		// There should be six JSONP blocks with the header.
 		$count = preg_match_all(
 			"/header\(\s*'Content-Type:\s*application\/javascript;\s*charset=utf-8'\s*\)/",
 			$source
 		);
 
 		$this->assertSame(
-			5,
+			6,
 			$count,
-			'All five JSONP response paths must set the Content-Type header'
+			'All six JSONP response paths must set the Content-Type header'
 		);
 	}
 
