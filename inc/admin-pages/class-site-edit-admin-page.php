@@ -153,6 +153,41 @@ class Site_Edit_Admin_Page extends Edit_Admin_Page {
 		);
 
 		add_action("wu_page_{$this->id}_load", [$this, 'add_new_site_template_warning_message']);
+
+		add_action("wu_page_{$this->id}_load", [$this, 'add_clone_warnings_notice']);
+	}
+
+	/**
+	 * Lists tables that hit a non-fatal error during the site's template copy.
+	 *
+	 * These tables may be missing or incomplete, so the admin can check them
+	 * before handing the site over. Worded neutrally: initialization can still
+	 * fail after the warnings are recorded, which the failed-clone state reports.
+	 *
+	 * @since 2.18.1
+	 * @return void
+	 */
+	public function add_clone_warnings_notice(): void {
+
+		$site = $this->get_object();
+
+		if ( ! $site || ! $this->edit || ! $site->get_id()) {
+			return;
+		}
+
+		$warnings = \WP_Ultimo\Helpers\Site_Duplicator::get_clone_warnings($site->get_id());
+
+		if ( ! $warnings) {
+			return;
+		}
+
+		$message = sprintf(
+			// translators: %s is a comma-separated list of database table names.
+			esc_html__('During the template copy of this site, these database tables could not be fully copied: %s. Data in those tables may be missing. The full errors are in the site-duplication log.', 'ultimate-multisite'),
+			esc_html(implode(', ', array_keys($warnings)))
+		);
+
+		WP_Ultimo()->notices->add($message, 'warning', 'network-admin');
 	}
 
 	/**
