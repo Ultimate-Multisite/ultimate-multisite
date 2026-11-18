@@ -36,6 +36,23 @@
 
 	const denied = wu_read_cookie('wu_sso_denied');
 
+	/*
+	 * Crawlers have no main-site session and usually drop cookies, so the
+	 * denial cookie never stops them: each rendered page would navigate
+	 * through the full cross-domain SSO round trip again.
+	 */
+	let is_crawler = false;
+
+	try {
+
+		is_crawler = !! o.crawler_pattern && new RegExp(o.crawler_pattern, 'i').test(window.navigator.userAgent || '');
+
+	} catch {
+
+		is_crawler = false;
+
+	}
+
 	document.head.insertAdjacentHTML('beforeend', `
     <style>
       @keyframes fade_in {
@@ -74,7 +91,7 @@
     </style>
   `);
 
-	if (! o.is_user_logged_in && ! denied) {
+	if (! o.is_user_logged_in && ! denied && ! is_crawler) {
 
 		const s = document.getElementsByTagName('script')[ 0 ];
 
@@ -88,7 +105,8 @@
 
 		const encodedLocation = encodeURIComponent(window.location.href);
 
-		if (payload.code === 200) {
+		/* Also covers a probe response a crawler kept in its own cache. */
+		if (payload.code === 200 && ! is_crawler) {
 
 			if (o.use_overlay) {
 
