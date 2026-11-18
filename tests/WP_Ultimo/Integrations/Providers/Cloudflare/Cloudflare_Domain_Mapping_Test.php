@@ -71,16 +71,70 @@ class Cloudflare_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->module->on_add_domain('example.com', 1);
 	}
 
-	public function test_on_add_domain_calls_api_when_saas_zone_id_set(): void {
+	private function with_saas_zone(): void {
 
 		$this->integration->method('get_credential')
 			->willReturnCallback(function (string $key) {
-				if ('WU_CLOUDFLARE_SAAS_ZONE_ID' === $key) {
-					return 'zone123';
-				}
-
-				return '';
+				return 'WU_CLOUDFLARE_SAAS_ZONE_ID' === $key ? 'zone123' : '';
 			});
+	}
+
+	public function test_on_add_domain_also_posts_www_hostname_by_default(): void {
+
+		$this->with_saas_zone();
+		wu_save_setting('auto_create_www_subdomain', 'always');
+
+		$hostnames = [];
+
+		$this->integration->expects($this->exactly(2))
+			->method('cloudflare_api_call')
+			->willReturnCallback(function ($endpoint, $method, $data) use (&$hostnames) {
+				$hostnames[] = $data['hostname'];
+
+				return (object) ['result' => (object) ['id' => 'ch']];
+			});
+
+		$this->module->on_add_domain('example.com', 1);
+
+		$this->assertSame(['example.com', 'www.example.com'], $hostnames);
+	}
+
+	public function test_on_add_domain_skips_www_when_saved_domain_is_www(): void {
+
+		$this->with_saas_zone();
+		wu_save_setting('auto_create_www_subdomain', 'always');
+
+		$this->integration->expects($this->once())
+			->method('cloudflare_api_call')
+			->willReturn((object) ['result' => (object) ['id' => 'ch']]);
+
+		$this->module->on_add_domain('www.example.com', 1);
+	}
+
+	public function test_on_remove_domain_deletes_both_hostnames(): void {
+
+		$this->with_saas_zone();
+
+		$calls = [];
+
+		$this->integration->expects($this->exactly(4))
+			->method('cloudflare_api_call')
+			->willReturnCallback(function ($endpoint, $method, $data = []) use (&$calls) {
+				$calls[] = $method . ' ' . ($data['hostname'] ?? $endpoint);
+
+				return (object) ['result' => [(object) ['id' => 'ch']]];
+			});
+
+		$this->module->on_remove_domain('example.com', 1);
+
+		$this->assertSame('GET example.com', $calls[0]);
+		$this->assertSame('GET www.example.com', $calls[2]);
+	}
+
+	public function test_on_add_domain_calls_api_when_saas_zone_id_set(): void {
+
+		$this->with_saas_zone();
+		wu_save_setting('auto_create_www_subdomain', 'never');
 
 		$this->integration->expects($this->once())
 			->method('cloudflare_api_call')
