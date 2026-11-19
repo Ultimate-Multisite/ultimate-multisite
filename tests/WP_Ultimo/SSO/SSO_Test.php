@@ -1240,11 +1240,21 @@ class SSO_Test extends \WP_UnitTestCase {
 			'handle_server() not-logged-in non-JSONP branch must call wp_safe_redirect( $denial_url, 303, \'WP-Ultimo-SSO\' ); exit; after building the denial URL.'
 		);
 
-		// Must NOT force wp-login.php on anonymous visitors — broker
+		// Must NOT force wp-login.php on anonymous broker visitors — broker
 		// pages may legitimately be anonymous (free-checkout, landing).
+		// Scope the check to the ordinary denial branch (from $denial_args
+		// onwards). The earlier empty-return_url branch is deliberately
+		// excluded: it redirects bounced ?sso_verify= requests that carry no
+		// return_url to the login form instead of returning a blank page.
+		$denial_start = strpos( $body, '$denial_args' );
+
+		$this->assertNotFalse( $denial_start, 'handle_server() must build $denial_args for the ordinary denial branch' );
+
+		$denial_branch = substr( $body, $denial_start );
+
 		$this->assertDoesNotMatchRegularExpression(
 			'/wp_safe_redirect\s*\(\s*wp_login_url\s*\(/s',
-			$body,
+			$denial_branch,
 			'handle_server() must NOT redirect anonymous visitors to wp_login_url() — that would break free-checkout and other intentionally-anonymous broker pages. Use the sso_verify=invalid denial signal instead.'
 		);
 
@@ -1261,28 +1271,29 @@ class SSO_Test extends \WP_UnitTestCase {
 	 * Verify that all JSONP branches set the
 	 * Content-Type: application/javascript header.
 	 *
-	 * There are five JSONP response paths:
+	 * There are six JSONP response paths:
 	 * 1. handle_server JSONP success/error response
-	 * 2. handle_broker JSONP error for unattached broker
-	 * 3. handle_broker JSONP "nothing to see here" for attached broker
-	 * 4. handle_main_site_logged_in_user JSONP success response
-	 * 5. send_sso_logout_response background logout response
+	 * 2. handle_broker JSONP denial for crawlers
+	 * 3. handle_broker JSONP error for unattached broker
+	 * 4. handle_broker JSONP "nothing to see here" for attached broker
+	 * 5. handle_main_site_logged_in_user JSONP success response
+	 * 6. send_sso_logout_response background logout response
 	 */
 	public function test_handle_broker_source_sets_javascript_content_type_for_jsonp(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
-		// There should be five JSONP blocks with the header.
+		// There should be six JSONP blocks with the header.
 		$count = preg_match_all(
 			"/header\(\s*'Content-Type:\s*application\/javascript;\s*charset=utf-8'\s*\)/",
 			$source
 		);
 
 		$this->assertSame(
-			5,
+			6,
 			$count,
-			'All five JSONP response paths must set the Content-Type header'
+			'All six JSONP response paths must set the Content-Type header'
 		);
 	}
 
