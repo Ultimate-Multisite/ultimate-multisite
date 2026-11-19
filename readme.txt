@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 8.2
 Tested up to: 7.1
-Stable tag: 2.18.0
+Stable tag: 2.19.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -251,6 +251,24 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+
+= 2.19.0 =
+Version [2.19.0] - Released on 2026-11-19
+- New: Checkout supports passwordless onboarding, and account email links stay on the signup site.
+- New: Customers can sign in with usernameless passkeys, and the passwordless input no longer overflows.
+- Fix: Forwarding headers such as client IP are only trusted when they come from trusted proxies.
+- Fix: Cookie-less SSO tokens are no longer exposed on customer-controlled domains to network admins and non-members.
+- Fix: Final checkout submission requires a plan and every step's required fields.
+- Fix: A main site served from a mapped domain no longer shows a blank SSO verification page, and crawlers skip passive SSO round trips.
+- Fix: Invoice PDFs no longer pile up on later emails, avoiding the 10 MB limit on Amazon SES.
+- Fix: Deferred payment receipts are now sent, and broadcast emails are queued individually.
+- Fix: Template cloning only fails on errors that break the site, and saving a site no longer re-clones failed templates over existing content.
+- Fix: Site duplication skips generated database columns when copying and replacing rows.
+- Fix: Cloudflare Custom Hostnames honour the automatic www subdomain setting, and the Cloudflare explainer is corrected.
+- Fix: The Cloudways integration uses API v2 access tokens.
+- Fix: The plan editor shows the stored customer role instead of the resolved default.
+- Fix: The Current Membership block's coupon strings are translatable.
+- Improved: The registration page is resolved once per request, and the Gutenberg support script loads only on block editor screens.
 
 = 2.18.0 =
 Version [2.18.0] - Released on 2026-10-27
