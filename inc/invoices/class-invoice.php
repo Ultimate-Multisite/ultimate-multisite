@@ -32,15 +32,16 @@ class Invoice {
 	const KEY = 'invoice_settings';
 
 	/**
-	 * The image size embedded for the logo.
+	 * The image size embedded for the logo: [width, height], 0 meaning any height.
 	 *
-	 * The logo prints about 100px wide, so the multi-megapixel original that
-	 * a customer uploaded would only make every invoice PDF much larger.
-	 * WordPress falls back to the original when it is smaller than this size.
+	 * The logo prints 100px wide (about 26mm), so 300px is roughly 290 dpi on
+	 * paper. The multi-megapixel original a customer uploaded would only make
+	 * every invoice PDF larger. WordPress picks the smallest generated size at
+	 * least this wide, and falls back to the original when none is.
 	 *
 	 * @since 2.18.1
 	 */
-	const LOGO_IMAGE_SIZE = 'medium_large';
+	const LOGO_IMAGE_SIZE = [300, 0];
 
 	/**
 	 * Names of mPDF's built-in Adobe CJK fonts (gb, big5, sjis, uhc).
