@@ -2186,20 +2186,149 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	 * Uses wp_redirect filter to throw an exception before exit().
 	 */
 	public function test_handle_server_redirects_logged_in_user_with_cookie_less_token(): void {
-		$sso = SSO::get_instance();
-
 		$user_id = self::factory()->user->create();
-		wp_set_current_user($user_id);
 
-		$_REQUEST['return_url'] = 'https://customer.example.net/page';
+		[$blog_id, $domain] = $this->create_customer_mapped_site('sso-member-customer.example.net');
+
+		add_user_to_blog($blog_id, $user_id, 'administrator');
+
+		try {
+			$redirect_url = $this->capture_logged_in_server_redirect($user_id, 'https://sso-member-customer.example.net/page');
+		} finally {
+			$this->delete_customer_mapped_site($domain);
+		}
+
+		$this->assertNotNull($redirect_url, 'handle_server() must redirect logged-in users back to the broker');
+		$this->assertStringContainsString('wu_sso_token=', $redirect_url);
+	}
+
+	/**
+	 * GHSA-qh2w-5cww-9wxr: a crafted /sso-grant link must not hand a network
+	 * admin's session token to a customer-controlled mapped domain.
+	 */
+	public function test_handle_server_denies_super_admin_token_for_customer_mapped_domain(): void {
+		$user_id = self::factory()->user->create();
+		grant_super_admin($user_id);
+
+		[$blog_id, $domain] = $this->create_customer_mapped_site('sso-capture-customer.example.net');
+
+		// Membership must not re-enable the token: the site owner can add members.
+		add_user_to_blog($blog_id, $user_id, 'subscriber');
+
+		try {
+			$redirect_url = $this->capture_logged_in_server_redirect($user_id, 'https://sso-capture-customer.example.net/capture');
+		} finally {
+			revoke_super_admin($user_id);
+			$this->delete_customer_mapped_site($domain);
+		}
+
+		$this->assertNotNull($redirect_url);
+		$this->assertStringNotContainsString('wu_sso_token=', $redirect_url);
+		$this->assertStringContainsString('sso_verify=invalid', $redirect_url);
+	}
+
+	/**
+	 * Users who are not members of a customer-mapped site get no token for it.
+	 */
+	public function test_handle_server_denies_non_member_token_for_customer_mapped_domain(): void {
+		$user_id = self::factory()->user->create();
+
+		[, $domain] = $this->create_customer_mapped_site('sso-nonmember-customer.example.net');
+
+		try {
+			$redirect_url = $this->capture_logged_in_server_redirect($user_id, 'https://sso-nonmember-customer.example.net/capture');
+		} finally {
+			$this->delete_customer_mapped_site($domain);
+		}
+
+		$this->assertNotNull($redirect_url);
+		$this->assertStringNotContainsString('wu_sso_token=', $redirect_url);
+		$this->assertStringContainsString('sso_verify=invalid', $redirect_url);
+	}
+
+	/**
+	 * Network admins keep cookie-less SSO on network-controlled subdomains.
+	 */
+	public function test_handle_server_keeps_super_admin_token_for_network_subdomain(): void {
+		$user_id = self::factory()->user->create();
+		grant_super_admin($user_id);
+
+		$host = 'tenant.' . get_network()->domain;
 
 		add_filter(
 			'allowed_redirect_hosts',
-			function ($hosts) {
-				$hosts[] = 'customer.example.net';
+			function ($hosts) use ($host) {
+				$hosts[] = $host;
 				return $hosts;
 			}
 		);
+
+		try {
+			$redirect_url = $this->capture_logged_in_server_redirect($user_id, 'https://' . $host . '/page');
+		} finally {
+			revoke_super_admin($user_id);
+		}
+
+		$this->assertNotNull($redirect_url);
+		$this->assertStringContainsString('wu_sso_token=', $redirect_url);
+	}
+
+	/**
+	 * Creates a subsite with an active customer mapped domain.
+	 *
+	 * @param string $domain_name Mapped domain.
+	 * @return array{0: int, 1: \WP_Ultimo\Models\Domain}
+	 */
+	private function create_customer_mapped_site(string $domain_name): array {
+		$blog_id = self::factory()->blog->create();
+		$domain  = wu_create_domain(
+			[
+				'blog_id'        => $blog_id,
+				'domain'         => $domain_name,
+				'active'         => true,
+				'primary_domain' => true,
+				'secure'         => true,
+				'stage'          => \WP_Ultimo\Database\Domains\Domain_Stage::DONE,
+			]
+		);
+
+		if (is_wp_error($domain) || ! $domain instanceof \WP_Ultimo\Models\Domain) {
+			$this->markTestSkipped('Could not create mapped domain fixture.');
+		}
+
+		wp_cache_delete('domain:' . $domain_name, 'domain_mappings');
+		wp_cache_delete('domain:www.' . $domain_name, 'domain_mappings');
+
+		return [$blog_id, $domain];
+	}
+
+	/**
+	 * Deletes a mapped domain fixture and its lookup cache.
+	 *
+	 * @param \WP_Ultimo\Models\Domain $domain Domain fixture.
+	 */
+	private function delete_customer_mapped_site(\WP_Ultimo\Models\Domain $domain): void {
+		$domain_name = $domain->get_domain();
+
+		$domain->delete();
+
+		wp_cache_delete('domain:' . $domain_name, 'domain_mappings');
+		wp_cache_delete('domain:www.' . $domain_name, 'domain_mappings');
+	}
+
+	/**
+	 * Runs handle_server() for a logged-in user and captures the redirect.
+	 *
+	 * @param int    $user_id    Logged-in user.
+	 * @param string $return_url Requested return URL.
+	 * @return string|null
+	 */
+	private function capture_logged_in_server_redirect(int $user_id, string $return_url): ?string {
+		$sso = SSO::get_instance();
+
+		wp_set_current_user($user_id);
+
+		$_REQUEST['return_url'] = $return_url;
 
 		$redirect_url = null;
 		add_filter(
@@ -2215,13 +2344,13 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 			$sso->handle_server('redirect');
 		} catch (\RuntimeException $e) {
 			$this->assertSame('redirect_intercepted', $e->getMessage());
+		} finally {
+			wp_set_current_user(0);
+			unset($_REQUEST['return_url']);
+			remove_all_filters('wp_redirect');
 		}
 
-		wp_set_current_user(0);
-		unset($_REQUEST['return_url']);
-
-		$this->assertNotNull($redirect_url, 'handle_server() must redirect logged-in users back to the broker');
-		$this->assertStringContainsString('wu_sso_token=', $redirect_url);
+		return $redirect_url;
 	}
 
 	/**
