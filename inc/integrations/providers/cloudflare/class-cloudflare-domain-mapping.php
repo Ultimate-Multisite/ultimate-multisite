@@ -59,7 +59,7 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 
 		if (is_subdomain_install()) {
 			$explainer_lines['will']['send_sub_domains'] = __('Add a new proxied subdomain to the configured CloudFlare zone whenever a new site gets created', 'ultimate-multisite');
-		} else {
+		} elseif ( ! $this->get_cloudflare()->get_credential('WU_CLOUDFLARE_SAAS_ZONE_ID')) {
 			$explainer_lines['will']['subdirectory'] = __('Do nothing! The CloudFlare integration has no effect in subdirectory multisite installs such as this one', 'ultimate-multisite');
 		}
 
@@ -614,36 +614,58 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 			return;
 		}
 
-		$data = apply_filters(
-			'wu_cloudflare_custom_hostname_data',
-			[
-				'hostname' => $domain,
-				'ssl'      => [
-					'method' => 'http',
-					'type'   => 'dv',
-				],
-			],
+		$hostnames = [$domain];
+
+		$should_add_www = apply_filters(
+			'wu_cloudflare_should_add_www',
+			\WP_Ultimo\Managers\Domain_Manager::get_instance()->should_create_www_subdomain($domain),
 			$domain,
 			$site_id
 		);
 
-		$result = $this->get_cloudflare()->cloudflare_api_call(
-			"client/v4/zones/$saas_zone_id/custom_hostnames",
-			'POST',
-			$data
-		);
-
-		if (is_wp_error($result)) {
-			wu_log_add(
-				'integration-cloudflare',
-				sprintf('Failed to create Custom Hostname for "%s". Reason: %s', $domain, $result->get_error_message()),
-				LogLevel::ERROR
-			);
-
-			return;
+		if ( ! str_starts_with($domain, 'www.') && $should_add_www) {
+			$hostnames[] = 'www.' . $domain;
 		}
 
-		wu_log_add('integration-cloudflare', sprintf('Created Custom Hostname for "%s" in Cloudflare SaaS zone.', $domain));
+		foreach ($hostnames as $hostname) {
+			/**
+			 * Filters the Custom Hostname payload. Runs once per hostname (apex and www.).
+			 *
+			 * @param array  $data     The payload.
+			 * @param string $hostname The hostname being registered.
+			 * @param int    $site_id  The site ID.
+			 */
+			$data = apply_filters(
+				'wu_cloudflare_custom_hostname_data',
+				[
+					'hostname' => $hostname,
+					'ssl'      => [
+						'method' => 'http',
+						'type'   => 'dv',
+					],
+				],
+				$hostname,
+				$site_id
+			);
+
+			$result = $this->get_cloudflare()->cloudflare_api_call(
+				"client/v4/zones/$saas_zone_id/custom_hostnames",
+				'POST',
+				$data
+			);
+
+			if (is_wp_error($result)) {
+				wu_log_add(
+					'integration-cloudflare',
+					sprintf('Failed to create Custom Hostname for "%s". Reason: %s', $hostname, $result->get_error_message()),
+					LogLevel::ERROR
+				);
+
+				continue;
+			}
+
+			wu_log_add('integration-cloudflare', sprintf('Created Custom Hostname for "%s" in Cloudflare SaaS zone.', $hostname));
+		}
 	}
 
 	/**
@@ -667,17 +689,47 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 			return;
 		}
 
+		$this->delete_custom_hostname($saas_zone_id, $domain, true);
+
+		if ( ! str_starts_with($domain, 'www.')) {
+			$www_domain      = 'www.' . $domain;
+			$active_mappings = wu_get_domains(
+				[
+					'domain' => $www_domain,
+					'active' => 1,
+					'number' => 1,
+				]
+			);
+
+			if (empty($active_mappings)) {
+				$this->delete_custom_hostname($saas_zone_id, $www_domain, false);
+			}
+		}
+	}
+
+	/**
+	 * Looks up and deletes one Custom Hostname from the SaaS zone.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param string $saas_zone_id   The SaaS zone ID.
+	 * @param string $hostname       The hostname to delete.
+	 * @param bool   $warn_if_absent Whether a missing hostname is logged as a warning.
+	 * @return void
+	 */
+	private function delete_custom_hostname(string $saas_zone_id, string $hostname, bool $warn_if_absent): void {
+
 		// Look up the Custom Hostname ID by hostname value.
 		$list_result = $this->get_cloudflare()->cloudflare_api_call(
 			"client/v4/zones/$saas_zone_id/custom_hostnames",
 			'GET',
-			['hostname' => $domain]
+			['hostname' => $hostname]
 		);
 
 		if (is_wp_error($list_result)) {
 			wu_log_add(
 				'integration-cloudflare',
-				sprintf('Failed to look up Custom Hostname for "%s". Reason: %s', $domain, $list_result->get_error_message()),
+				sprintf('Failed to look up Custom Hostname for "%s". Reason: %s', $hostname, $list_result->get_error_message()),
 				LogLevel::ERROR
 			);
 
@@ -687,8 +739,8 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 		if (empty($list_result->result)) {
 			wu_log_add(
 				'integration-cloudflare',
-				sprintf('Could not find Custom Hostname for "%s" to delete. Skipping.', $domain),
-				LogLevel::WARNING
+				sprintf('Could not find Custom Hostname for "%s" to delete. Skipping.', $hostname),
+				$warn_if_absent ? LogLevel::WARNING : LogLevel::INFO
 			);
 
 			return;
@@ -704,14 +756,14 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 		if (is_wp_error($delete_result)) {
 			wu_log_add(
 				'integration-cloudflare',
-				sprintf('Failed to delete Custom Hostname for "%s". Reason: %s', $domain, $delete_result->get_error_message()),
+				sprintf('Failed to delete Custom Hostname for "%s". Reason: %s', $hostname, $delete_result->get_error_message()),
 				LogLevel::ERROR
 			);
 
 			return;
 		}
 
-		wu_log_add('integration-cloudflare', sprintf('Deleted Custom Hostname for "%s" from Cloudflare SaaS zone.', $domain));
+		wu_log_add('integration-cloudflare', sprintf('Deleted Custom Hostname for "%s" from Cloudflare SaaS zone.', $hostname));
 	}
 
 	/**

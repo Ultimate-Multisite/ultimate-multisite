@@ -431,6 +431,11 @@ class Broadcast_List_Admin_Page extends List_Admin_Page {
 			],
 		];
 
+		$fields['broadcast_request_id'] = [
+			'type'  => 'hidden',
+			'value' => wp_generate_uuid4(),
+		];
+
 		$form = new \WP_Ultimo\UI\Form(
 			'add_new_broadcast',
 			$fields,

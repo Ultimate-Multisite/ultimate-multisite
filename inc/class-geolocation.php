@@ -48,6 +48,29 @@ class Geolocation {
 	private static ?string $cached_ip = null;
 
 	/**
+	 * Request values the cached IP was resolved from.
+	 *
+	 * The cache is reused only while these values are unchanged, so code that
+	 * alters $_SERVER (long-running processes, tests) never gets a stale IP.
+	 *
+	 * @var string|null
+	 */
+	private static ?string $cached_ip_source = null;
+
+	/**
+	 * $_SERVER keys that influence client IP resolution.
+	 *
+	 * @since 2.18.1
+	 */
+	const IP_SOURCE_KEYS = [
+		'REMOTE_ADDR',
+		'HTTP_CF_CONNECTING_IP',
+		'HTTP_X_FORWARDED_FOR',
+		'HTTP_X_REAL_IP',
+		'HTTP_TRUE_CLIENT_IP',
+	];
+
+	/**
 	 * MaxMind database reader instance.
 	 *
 	 * @var \MaxMind\Db\Reader|null
@@ -89,50 +112,345 @@ class Geolocation {
 	}
 
 	/**
-	 * Get current user IP Address with comprehensive proxy/CDN support.
+	 * Cloudflare edge network ranges.
 	 *
-	 * Checks headers in order of trust:
-	 * 1. CF-Connecting-IP (Cloudflare)
-	 * 2. True-Client-IP (Cloudflare Enterprise / Akamai)
-	 * 3. X-Real-IP (Nginx proxy)
-	 * 4. X-Forwarded-For (Standard proxy header - first IP only)
-	 * 5. REMOTE_ADDR (Direct connection)
+	 * The CF-Connecting-IP header is only honoured when the connecting peer
+	 * (REMOTE_ADDR) is inside one of these ranges. Source: Cloudflare's
+	 * published IP list. Extend with the `wu_cloudflare_ip_ranges` filter.
+	 *
+	 * @since 2.18.1
+	 */
+	const CLOUDFLARE_IP_RANGES = [
+		'173.245.48.0/20',
+		'103.21.244.0/22',
+		'103.22.200.0/22',
+		'103.31.4.0/22',
+		'141.101.64.0/18',
+		'108.162.192.0/18',
+		'190.93.240.0/20',
+		'188.114.96.0/20',
+		'197.234.240.0/22',
+		'198.41.128.0/17',
+		'162.158.0.0/15',
+		'104.16.0.0/13',
+		'104.24.0.0/14',
+		'172.64.0.0/13',
+		'131.0.72.0/22',
+		'2400:cb00::/32',
+		'2606:4700::/32',
+		'2803:f800::/32',
+		'2405:b500::/32',
+		'2405:8100::/32',
+		'2a06:98c0::/29',
+		'2c0f:f248::/32',
+	];
+
+	/**
+	 * Loopback and private network ranges trusted as reverse proxies by default.
+	 *
+	 * A peer address in these ranges cannot be forged from the public internet,
+	 * so it identifies a local/internal reverse proxy or load balancer.
+	 *
+	 * @since 2.18.1
+	 */
+	const PRIVATE_PROXY_RANGES = [
+		'127.0.0.0/8',
+		'10.0.0.0/8',
+		'172.16.0.0/12',
+		'192.168.0.0/16',
+		'::1/128',
+		'fc00::/7',
+	];
+
+	/**
+	 * Get the current visitor's IP address.
+	 *
+	 * REMOTE_ADDR is the only value that cannot be forged by the client, so it
+	 * is used unless the connecting peer is a trusted reverse proxy. Forwarding
+	 * headers are only read in that case:
+	 *
+	 * 1. CF-Connecting-IP, when the peer is a Cloudflare edge address.
+	 * 2. X-Forwarded-For, walked right-to-left, skipping trusted proxy hops.
+	 * 3. X-Real-IP / True-Client-IP, set by the trusted proxy.
+	 *
+	 * Trusted proxies are loopback/private ranges, Cloudflare ranges, the
+	 * WU_TRUSTED_PROXIES constant (comma-separated IPs/CIDRs or an array) and
+	 * the `wu_trusted_proxies` filter.
 	 *
 	 * @return string The client IP address.
 	 */
 	public static function get_ip_address(): string {
+		$source = self::get_ip_source();
+
 		// Return cached IP if available (same request optimization)
-		if (null !== self::$cached_ip) {
+		if (null !== self::$cached_ip && $source === self::$cached_ip_source) {
 			return self::$cached_ip;
 		}
 
-		$ip = '';
+		$remote_addr = self::get_server_ip('REMOTE_ADDR');
+		$ip          = $remote_addr;
 
-		// Cloudflare (most trusted when using CF)
-		if (! empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
-			$ip = \sanitize_text_field(\wp_unslash($_SERVER['HTTP_CF_CONNECTING_IP']));
-		} elseif (! empty($_SERVER['HTTP_TRUE_CLIENT_IP'])) {
-			// Cloudflare Enterprise / Akamai
-			$ip = \sanitize_text_field(\wp_unslash($_SERVER['HTTP_TRUE_CLIENT_IP']));
-		} elseif (! empty($_SERVER['HTTP_X_REAL_IP'])) {
-			// Nginx proxy
-			$ip = \sanitize_text_field(\wp_unslash($_SERVER['HTTP_X_REAL_IP']));
-		} elseif (! empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-			// Standard proxy header (take first IP - the client)
-			$forwarded = \sanitize_text_field(\wp_unslash($_SERVER['HTTP_X_FORWARDED_FOR']));
-			// X-Forwarded-For: client, proxy1, proxy2
-			$ips = array_map('trim', explode(',', $forwarded));
-			$ip  = self::validate_ip($ips[0]);
-		} elseif (! empty($_SERVER['REMOTE_ADDR'])) {
-			// Direct connection
-			$ip = \sanitize_text_field(\wp_unslash($_SERVER['REMOTE_ADDR']));
+		if ('' !== $remote_addr) {
+			$trusted_proxies = self::get_trusted_proxies();
+
+			if (self::ip_in_ranges($remote_addr, $trusted_proxies)) {
+				$ip = self::get_forwarded_client_ip($remote_addr, $trusted_proxies);
+			}
 		}
 
-		// Validate and cache
-		$validated_ip    = self::validate_ip($ip);
-		self::$cached_ip = $validated_ip;
+		self::$cached_ip        = $ip;
+		self::$cached_ip_source = $source;
 
-		return $validated_ip;
+		return $ip;
+	}
+
+	/**
+	 * Build an opaque fingerprint of the request values used for IP resolution.
+	 *
+	 * @since 2.18.1
+	 * @return string
+	 */
+	private static function get_ip_source(): string {
+
+		$parts = [];
+
+		foreach (self::IP_SOURCE_KEYS as $key) {
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- Compared as an opaque cache key only, never output or stored.
+			$parts[] = isset($_SERVER[ $key ]) && is_string($_SERVER[ $key ]) ? $_SERVER[ $key ] : '';
+		}
+
+		return implode("\n", $parts);
+	}
+
+	/**
+	 * Resolve the client IP from forwarding headers set by a trusted proxy.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param string   $remote_addr     The (trusted) connecting peer address.
+	 * @param string[] $trusted_proxies Trusted proxy IPs/CIDRs.
+	 * @return string The client IP address.
+	 */
+	private static function get_forwarded_client_ip(string $remote_addr, array $trusted_proxies): string {
+
+		// Cloudflare overwrites this header, so it is reliable only from a Cloudflare edge.
+		if (self::ip_in_ranges($remote_addr, self::get_cloudflare_ip_ranges())) {
+			$cf_ip = self::get_server_ip('HTTP_CF_CONNECTING_IP');
+
+			if ('' !== $cf_ip) {
+				return $cf_ip;
+			}
+		}
+
+		if (! empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+			$forwarded = \sanitize_text_field(\wp_unslash($_SERVER['HTTP_X_FORWARDED_FOR']));
+			$hops      = array_reverse(array_map('trim', explode(',', $forwarded)));
+			$client_ip = '';
+
+			/*
+			 * Each proxy appends the address it received the request from, so only
+			 * the right-most entries are trustworthy. Walk from the right and stop at
+			 * the first address that is not a trusted proxy: anything further left
+			 * may have been supplied by the client.
+			 */
+			foreach ($hops as $hop) {
+				$hop = self::validate_ip($hop);
+
+				if ('' === $hop) {
+					break;
+				}
+
+				$client_ip = $hop;
+
+				if (! self::ip_in_ranges($hop, $trusted_proxies)) {
+					break;
+				}
+			}
+
+			if ('' !== $client_ip) {
+				return $client_ip;
+			}
+		}
+
+		foreach (['HTTP_X_REAL_IP', 'HTTP_TRUE_CLIENT_IP'] as $header) {
+			$header_ip = self::get_server_ip($header);
+
+			if ('' !== $header_ip) {
+				return $header_ip;
+			}
+		}
+
+		return $remote_addr;
+	}
+
+	/**
+	 * Read and validate a single IP address from $_SERVER.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param string $key The $_SERVER key.
+	 * @return string The validated IP or empty string.
+	 */
+	private static function get_server_ip(string $key): string {
+
+		if (empty($_SERVER[ $key ]) || ! is_string($_SERVER[ $key ])) {
+			return '';
+		}
+
+		return self::validate_ip(trim(\sanitize_text_field(\wp_unslash($_SERVER[ $key ]))));
+	}
+
+	/**
+	 * Get the list of trusted reverse proxy IPs/CIDR ranges.
+	 *
+	 * @since 2.18.1
+	 * @return string[]
+	 */
+	public static function get_trusted_proxies(): array {
+
+		$proxies = array_merge(self::PRIVATE_PROXY_RANGES, self::get_cloudflare_ip_ranges());
+
+		if (defined('WU_TRUSTED_PROXIES')) {
+			$configured = constant('WU_TRUSTED_PROXIES');
+
+			if (is_string($configured)) {
+				$configured = explode(',', $configured);
+			}
+
+			if (is_array($configured)) {
+				$proxies = array_merge($proxies, $configured);
+			}
+		}
+
+		/**
+		 * Filters the reverse proxies whose forwarding headers are trusted.
+		 *
+		 * Return an empty array to always use REMOTE_ADDR.
+		 *
+		 * @since 2.18.1
+		 *
+		 * @param string[] $proxies IP addresses or CIDR ranges.
+		 */
+		$proxies = (array) \apply_filters('wu_trusted_proxies', $proxies);
+
+		return self::normalize_ranges($proxies);
+	}
+
+	/**
+	 * Get the Cloudflare edge IP ranges.
+	 *
+	 * @since 2.18.1
+	 * @return string[]
+	 */
+	public static function get_cloudflare_ip_ranges(): array {
+
+		/**
+		 * Filters the Cloudflare edge ranges allowed to set CF-Connecting-IP.
+		 *
+		 * @since 2.18.1
+		 *
+		 * @param string[] $ranges CIDR ranges.
+		 */
+		return self::normalize_ranges((array) \apply_filters('wu_cloudflare_ip_ranges', self::CLOUDFLARE_IP_RANGES));
+	}
+
+	/**
+	 * Normalize a list of IP/CIDR strings.
+	 *
+	 * @param array $ranges Raw list.
+	 * @return string[]
+	 */
+	private static function normalize_ranges(array $ranges): array {
+
+		$ranges = array_filter($ranges, 'is_string');
+
+		return array_values(array_unique(array_filter(array_map('trim', $ranges))));
+	}
+
+	/**
+	 * Check whether an IP address is inside any of the given IPs/CIDR ranges.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param string   $ip     The IP address.
+	 * @param string[] $ranges IP addresses or CIDR ranges.
+	 * @return bool
+	 */
+	public static function ip_in_ranges(string $ip, array $ranges): bool {
+
+		foreach ($ranges as $range) {
+			if (self::ip_in_range($ip, (string) $range)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check whether an IP address is inside an IP/CIDR range.
+	 *
+	 * Supports IPv4 and IPv6. IPv4-mapped IPv6 addresses match IPv4 ranges.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param string $ip    The IP address.
+	 * @param string $range A single IP or a CIDR range (e.g. 10.0.0.0/8).
+	 * @return bool
+	 */
+	public static function ip_in_range(string $ip, string $range): bool {
+
+		$parts  = explode('/', trim($range), 2);
+		$subnet = $parts[0];
+
+		if (! filter_var($ip, FILTER_VALIDATE_IP) || ! filter_var($subnet, FILTER_VALIDATE_IP)) {
+			return false;
+		}
+
+		$ip_bin     = inet_pton($ip);
+		$subnet_bin = inet_pton($subnet);
+
+		if (false === $ip_bin || false === $subnet_bin) {
+			return false;
+		}
+
+		// Match IPv4-mapped IPv6 addresses (::ffff:a.b.c.d) against IPv4 ranges.
+		if (16 === strlen($ip_bin) && 4 === strlen($subnet_bin) && str_repeat("\0", 10) . "\xff\xff" === substr($ip_bin, 0, 12)) {
+			$ip_bin = substr($ip_bin, 12);
+		}
+
+		if (strlen($ip_bin) !== strlen($subnet_bin)) {
+			return false;
+		}
+
+		$max_bits = strlen($ip_bin) * 8;
+
+		if (! isset($parts[1])) {
+			$bits = $max_bits;
+		} elseif (ctype_digit($parts[1])) {
+			$bits = (int) $parts[1];
+		} else {
+			return false;
+		}
+
+		if ($bits > $max_bits) {
+			return false;
+		}
+
+		$whole_bytes = intdiv($bits, 8);
+		$extra_bits  = $bits % 8;
+
+		if (substr($ip_bin, 0, $whole_bytes) !== substr($subnet_bin, 0, $whole_bytes)) {
+			return false;
+		}
+
+		if (0 === $extra_bits) {
+			return true;
+		}
+
+		$mask = (0xFF << (8 - $extra_bits)) & 0xFF;
+
+		return (ord($ip_bin[ $whole_bytes ]) & $mask) === (ord($subnet_bin[ $whole_bytes ]) & $mask);
 	}
 
 	/**
@@ -404,8 +722,9 @@ class Geolocation {
 	 * @return void
 	 */
 	public static function clear_cache(): void {
-		self::$memory_cache = [];
-		self::$cached_ip    = null;
+		self::$memory_cache     = [];
+		self::$cached_ip        = null;
+		self::$cached_ip_source = null;
 
 		// Note: Object cache group deletion depends on cache implementation
 		// Most object caches don't support group deletion

@@ -41,6 +41,19 @@ class SSO {
 	const LOG_FILE_NAME = 'sso';
 
 	/**
+	 * Case-insensitive user-agent pattern for crawlers and link-preview fetchers.
+	 *
+	 * Shared by PHP (PCRE) and sso.js (JavaScript RegExp), so it must stay in
+	 * syntax both engines accept. `(?:^|[^u])bot` matches Applebot, Googlebot,
+	 * GPTBot and similar while leaving the "Cubot" phone brand alone. Headless
+	 * browsers are deliberately not listed: automated QA relies on SSO.
+	 *
+	 * @since 2.18.1
+	 * @var string
+	 */
+	const CRAWLER_USER_AGENT_PATTERN = '(?:^|[^u])bot|crawl|spider|slurp|facebookexternalhit|meta-externalagent|meta-webindexer|mediapartners-google|google-inspectiontool|chrome-lighthouse|bingpreview';
+
+	/**
 	 * The logger class to be used.
 	 *
 	 * @since 2.0.11
@@ -416,15 +429,23 @@ class SSO {
 		}
 
 		/**
-		 * If we are on the wp-admin, we check for three criteria
+		 * If we are on the wp-admin, we check for four criteria
 		 * to decide if we need to try to perform a SSO redirect
 		 * or not:
 		 *
-		 * 1. If the current domain is the same domain as the main site's;
-		 * 2. If the user is logged in or not;
-		 * 3. If we should skip the redirect, based on previous attempts.
+		 * 1. If the current site is the network's main site (the SSO server);
+		 * 2. If the current domain is the same domain as the main site's;
+		 * 3. If the user is logged in or not;
+		 * 4. If we should skip the redirect, based on previous attempts.
+		 *
+		 * The main site is the SSO server, so it can never be a broker for
+		 * itself. A main site served from a mapped domain (stored domain
+		 * differs from the request host) fails the same-domain check, and
+		 * would otherwise redirect to itself: the request is then routed to
+		 * the server handler, which denies SSO and bounces the visitor to
+		 * `?sso_verify=invalid`, leaving a blank page instead of the login form.
 		 */
-		if ( ! wu_is_same_domain() && ! is_user_logged_in() && ! $should_skip_redirect) {
+		if ( ! is_main_site() && ! wu_is_same_domain() && ! is_user_logged_in() && ! $should_skip_redirect) {
 			nocache_headers();
 
 			$redirect_after = 'index.php' === $pagenow ? '' : $this->get_current_url();
@@ -638,12 +659,44 @@ class SSO {
 		 * If the broker URL is missing (malformed grant request) we
 		 * just exit; the request was malformed so an empty response
 		 * is preferable to either a 404 or a forced login.
+		 *
+		 * The exception is a bounced denial (`?sso_verify=...` without a
+		 * `return_url`) landing on this site: the visitor was sent here by a
+		 * denial that nothing on this site can consume, so an empty response
+		 * is a blank page. Send them to the regular login form instead,
+		 * preserving an admin `redirect_to` target.
 		 */
 		$broker_url = $this->input('return_url', '');
 
 		if (empty($broker_url)) {
+			if ('' !== (string) $this->input('sso_verify', '')) {
+				$bounced_redirect_to = (string) $this->input('redirect_to', '');
+
+				if ('' === $bounced_redirect_to || ! $this->is_admin_redirect_url($bounced_redirect_to)) {
+					$bounced_redirect_to = '';
+				}
+
+				wp_safe_redirect(wp_login_url($bounced_redirect_to), 302, 'WP-Ultimo-SSO');
+			}
+
 			exit;
 		}
+
+		$this->redirect_with_sso_denial($broker_url);
+	}
+
+	/**
+	 * Sends the visitor back to the broker with the SSO denial signal.
+	 *
+	 * The broker sets the `wu_sso_denied` cookie and returns the visitor to
+	 * the original page, so sso.js does not restart the SSO round trip.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param string $broker_url Broker URL to return to.
+	 * @return void
+	 */
+	private function redirect_with_sso_denial(string $broker_url): void {
 
 		$denial_args = [
 			'sso_verify' => 'invalid',
@@ -697,6 +750,16 @@ class SSO {
 		}
 
 		$url = $this->add_cookie_less_sso_token($return_url, get_current_user_id());
+
+		/*
+		 * No token was attached to a cross-domain target: the SSO policy
+		 * refused this user on that host. Deny like an anonymous visitor so
+		 * the broker stops retrying, instead of looping back here.
+		 */
+		if ($url === $return_url && $this->is_cross_domain_url($return_url)) {
+			$this->redirect_with_sso_denial((string) ($this->input('return_url', '') ?: $return_url));
+		}
+
 		$url = add_query_arg('redirect_to', $redirect_to, $url);
 
 		wp_safe_redirect($url, 303, 'WP-Ultimo-SSO');
@@ -1095,7 +1158,141 @@ class SSO {
 			return $url;
 		}
 
+		if ( ! $this->can_use_cookie_less_sso_token($user_id, (string) wp_parse_url($url, PHP_URL_HOST)) ) {
+			return $url;
+		}
+
 		return add_query_arg('wu_sso_token', $this->generate_sso_token($user_id, $url), $url);
+	}
+
+	/**
+	 * Checks whether a cookie-less SSO token may be issued to, or redeemed on, a host.
+	 *
+	 * A cookie-less token is a bearer for the user's network-wide WordPress
+	 * session, carried in the URL. Hosts outside the network domain (custom
+	 * domains mapped by customers) may have DNS controlled by the customer,
+	 * who can then capture the token from the request and redeem it. On those
+	 * hosts the token is restricted to members of the site the host belongs
+	 * to, and never issued to network administrators: a crafted
+	 * `/sso-grant?return_url=<customer domain>` link must not hand a customer
+	 * a network admin session (GHSA-qh2w-5cww-9wxr).
+	 *
+	 * Hosts on the network domain, its subdomains, and the main site's own
+	 * mapped domains are operated by the network owner and keep the previous
+	 * behaviour.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param int    $user_id User ID the token is for.
+	 * @param string $host    Token audience host.
+	 * @return bool
+	 */
+	private function can_use_cookie_less_sso_token(int $user_id, string $host): bool {
+
+		$host = strtolower(trim((string) preg_replace('/:\d+$/', '', $host)));
+
+		if ($user_id <= 0 || '' === $host) {
+			return false;
+		}
+
+		$site_id = $this->get_site_id_for_sso_host($host);
+		$allowed = true;
+
+		if ( ! $this->is_network_controlled_sso_host($host, $site_id)) {
+			$allowed = $site_id > 0
+				&& ! $this->is_privileged_sso_user($user_id)
+				&& is_user_member_of_blog($user_id, $site_id);
+		}
+
+		/**
+		 * Filters whether a cookie-less SSO token may be issued to, or redeemed on, a host.
+		 *
+		 * Security-sensitive: the token grants the user's network-wide session to
+		 * whoever receives the URL. Only allow hosts whose DNS and web server the
+		 * network owner controls.
+		 *
+		 * @since 2.18.1
+		 *
+		 * @param bool   $allowed Whether the token is allowed.
+		 * @param int    $user_id User ID the token is for.
+		 * @param string $host    Token audience host.
+		 * @param int    $site_id Site the host resolves to, or 0 when unknown.
+		 * @param SSO    $sso     The SSO instance.
+		 */
+		$allowed = (bool) apply_filters('wu_sso_allow_cookie_less_token', $allowed, $user_id, $host, $site_id, $this);
+
+		if ( ! $allowed) {
+			wu_log_add(self::LOG_FILE_NAME, sprintf('Cookie-less SSO token refused for user %d on host %s.', $user_id, $host), LogLevel::WARNING);
+		}
+
+		return $allowed;
+	}
+
+	/**
+	 * Resolves the site a host belongs to, via domain mappings or site domains.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param string $host Lower-case host without port.
+	 * @return int Site ID, or 0 when the host is unknown.
+	 */
+	private function get_site_id_for_sso_host(string $host): int {
+
+		$candidates = str_starts_with($host, 'www.') ? [$host, substr($host, 4)] : [$host, 'www.' . $host];
+
+		$mapping = \WP_Ultimo\Models\Domain::get_by_domain($candidates);
+
+		if ($mapping instanceof \WP_Ultimo\Models\Domain) {
+			return (int) $mapping->get_blog_id();
+		}
+
+		foreach ($candidates as $candidate) {
+			$site = get_site_by_path($candidate, '/');
+
+			if ($site instanceof \WP_Site && strtolower($site->domain) === $candidate) {
+				return (int) $site->blog_id;
+			}
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Checks whether a host is operated by the network owner rather than a customer.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param string $host    Lower-case host without port.
+	 * @param int    $site_id Site the host resolves to, or 0 when unknown.
+	 * @return bool
+	 */
+	private function is_network_controlled_sso_host(string $host, int $site_id): bool {
+
+		if ($site_id > 0 && is_main_site($site_id)) {
+			return true;
+		}
+
+		$network      = get_network();
+		$network_host = $network ? strtolower((string) preg_replace('/:\d+$/', '', (string) $network->domain)) : '';
+
+		if ('' === $network_host) {
+			return false;
+		}
+
+		return $host === $network_host || str_ends_with($host, '.' . $network_host);
+	}
+
+	/**
+	 * Checks whether a user holds network-wide administrative privileges.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param int $user_id User ID.
+	 * @return bool
+	 */
+	private function is_privileged_sso_user(int $user_id): bool {
+
+		return is_super_admin($user_id) || user_can($user_id, 'manage_network');
 	}
 
 	/**
@@ -1271,6 +1468,15 @@ class SSO {
 			return new \WP_Error('user_not_found', __('User not found.', 'ultimate-multisite'));
 		}
 
+		/*
+		 * Re-check the issuing policy on redemption, so tokens issued before
+		 * the policy existed (or through another issuer) cannot sign a
+		 * network admin, or a non-member, into a customer-controlled host.
+		 */
+		if ( ! $this->can_use_cookie_less_sso_token((int) $user->ID, $current_host) ) {
+			return new \WP_Error('user_not_allowed', __('This account cannot use single sign-on on this domain.', 'ultimate-multisite'));
+		}
+
 		return [
 			'user_id' => $user->ID,
 		];
@@ -1426,9 +1632,32 @@ class SSO {
 
 		nocache_headers();
 
-		$broker = $this->get_broker();
-
 		$verify_code = $this->input('sso_verify');
+
+		/*
+		 * Crawlers never hold a main-site session, and most drop cookies, so
+		 * the denial cookie cannot stop them from repeating the full
+		 * broker -> server -> broker round trip on every page they render.
+		 * Answer with the same denial the server would give, without the
+		 * cross-domain hops: a JSONP probe gets a code-0 callback (no
+		 * navigation), a top-level request goes straight back to its page.
+		 * Explicit logins (`?sso=login`, from auth_redirect or with_sso()
+		 * links) keep the normal attach redirect, so a misdetected visitor
+		 * can still sign in.
+		 */
+		if ('login' !== $this->input($this->get_url_path()) && $this->is_crawler_request()) {
+			if ('jsonp' === $response_type) {
+				header('Content-Type: application/javascript; charset=utf-8');
+
+				printf('wu.sso(%s, %d);', wp_json_encode(['code' => 0]), 200);
+
+				exit;
+			}
+
+			$verify_code = 'invalid';
+		}
+
+		$broker = $this->get_broker();
 
 		if ($verify_code) {
 			if ('invalid' === $verify_code) {
@@ -1744,11 +1973,64 @@ class SSO {
 			'filtered_url'       => remove_query_arg($removable_query_args, $this->get_current_url()),
 			'img_folder'         => dirname((string) wu_get_asset('img', 'img')),
 			'use_overlay'        => $this->get_setting('enable_sso_loading_overlay', false),
+			// Checked in the browser, not here: page caches do not vary by user agent.
+			'crawler_pattern'    => $this->get_crawler_user_agent_pattern(),
 		];
 
 		wp_localize_script('wu-sso', 'wu_sso_config', $options);
 
 		wp_enqueue_script('wu-sso');
+	}
+
+	/**
+	 * Gets the user-agent pattern that identifies crawlers.
+	 *
+	 * The pattern is used without delimiters, case-insensitively, by both PHP
+	 * and sso.js. Return an empty string to treat every visitor as a browser.
+	 *
+	 * @since 2.18.1
+	 * @return string
+	 */
+	public function get_crawler_user_agent_pattern() {
+
+		/**
+		 * Filters the crawler user-agent pattern used to skip passive SSO.
+		 *
+		 * @since 2.18.1
+		 * @param string $pattern Pattern without delimiters; must be valid in PCRE and JavaScript.
+		 * @param SSO    $sso     The SSO instance.
+		 */
+		return (string) apply_filters('wu_sso_crawler_user_agent_pattern', self::CRAWLER_USER_AGENT_PATTERN, $this);
+	}
+
+	/**
+	 * Checks whether the current request comes from a crawler.
+	 *
+	 * @since 2.18.1
+	 * @return bool
+	 */
+	public function is_crawler_request() {
+
+		$user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : '';
+
+		$pattern = $this->get_crawler_user_agent_pattern();
+
+		$is_crawler = '' !== $user_agent && '' !== $pattern && 1 === preg_match('{' . $pattern . '}i', $user_agent);
+
+		/**
+		 * Filters whether the current request is treated as a crawler for SSO.
+		 *
+		 * Server-side only: it changes how the broker answers SSO requests,
+		 * not the check sso.js runs in the browser. To change which visitors
+		 * the browser skips, filter `wu_sso_crawler_user_agent_pattern`
+		 * (an empty pattern disables both checks).
+		 *
+		 * @since 2.18.1
+		 * @param bool   $is_crawler Whether the request matched the crawler pattern.
+		 * @param string $user_agent The request user agent.
+		 * @param SSO    $sso        The SSO instance.
+		 */
+		return (bool) apply_filters('wu_sso_is_crawler_request', $is_crawler, $user_agent, $this);
 	}
 
 	/**

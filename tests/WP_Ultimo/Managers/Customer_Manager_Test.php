@@ -7,6 +7,9 @@
 
 namespace WP_Ultimo\Tests\Managers;
 
+use WP_Ultimo\Database\Memberships\Membership_Status;
+use WP_Ultimo\Database\Payments\Payment_Status;
+use WP_Ultimo\Gateways\Free_Gateway;
 use WP_Ultimo\Managers\Customer_Manager;
 
 class Customer_Manager_Test extends \WP_UnitTestCase {
@@ -138,6 +141,79 @@ class Customer_Manager_Test extends \WP_UnitTestCase {
 		wp_set_current_user($admin_id);
 
 		$this->assert_email_verification_request_succeeds($customer);
+	}
+
+	public function test_email_verification_dispatches_free_signup_receipt_once(): void {
+
+		$customer = $this->create_pending_customer_with_verification_key('free-signup-verification@example.com');
+		$product  = wu_create_product(
+			[
+				'name'         => 'Verified Free Plan',
+				'slug'         => 'verified-free-plan-' . wp_generate_uuid4(),
+				'pricing_type' => 'free',
+				'amount'       => 0,
+				'type'         => 'plan',
+			]
+		);
+
+		$this->assertNotWPError($product);
+
+		$membership = wu_create_membership(
+			[
+				'customer_id'     => $customer->get_id(),
+				'plan_id'         => $product->get_id(),
+				'status'          => Membership_Status::PENDING,
+				'date_trial_end'  => gmdate('Y-m-d H:i:s', time() - HOUR_IN_SECONDS),
+				'skip_validation' => true,
+			]
+		);
+
+		$this->assertNotWPError($membership);
+
+		$payment = wu_create_payment(
+			[
+				'customer_id'   => $customer->get_id(),
+				'membership_id' => $membership->get_id(),
+				'product_id'    => $product->get_id(),
+				'currency'      => 'USD',
+				'subtotal'      => 0,
+				'total'         => 0,
+				'status'        => Payment_Status::COMPLETED,
+				'gateway'       => 'free',
+			]
+		);
+
+		$this->assertNotWPError($payment);
+
+		$dispatch_count  = 0;
+		$count_dispatch  = static function () use (&$dispatch_count): void {
+			++$dispatch_count;
+		};
+		$resolve_gateway = static function ($gateway, $gateway_id) {
+			return ! $gateway && 'free' === $gateway_id ? new Free_Gateway() : $gateway;
+		};
+
+		add_action('wu_gateway_payment_processed', $count_dispatch, PHP_INT_MAX, 0);
+		add_filter('wu_get_gateway', $resolve_gateway, 10, 2);
+
+		try {
+			$this->assert_email_verification_request_succeeds($customer);
+
+			$membership = wu_get_membership($membership->get_id());
+			$payment    = wu_get_payment($payment->get_id());
+
+			$this->assertSame(Membership_Status::ACTIVE, $membership->get_status());
+			$this->assertSame(1, (int) $payment->get_meta('wu_payment_received_sent'));
+
+			$reflection = new \ReflectionClass($this->get_manager_instance());
+			$method     = $reflection->getMethod('maybe_send_payment_received');
+			$method->invoke($this->get_manager_instance(), $payment, $membership);
+		} finally {
+			remove_action('wu_gateway_payment_processed', $count_dispatch, PHP_INT_MAX);
+			remove_filter('wu_get_gateway', $resolve_gateway, 10);
+		}
+
+		$this->assertSame(1, $dispatch_count);
 	}
 
 	/**

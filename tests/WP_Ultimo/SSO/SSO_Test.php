@@ -295,6 +295,65 @@ class SSO_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * GHSA-qh2w-5cww-9wxr: a captured network admin token cannot be redeemed
+	 * on a customer-controlled mapped domain, even with a valid signature.
+	 */
+	public function test_cookie_less_sso_token_redemption_rejects_super_admin_on_customer_domain(): void {
+		$user_id     = self::factory()->user->create();
+		$blog_id     = self::factory()->blog->create();
+		$domain_name = 'sso-redeem-customer.example.net';
+		$domain      = wu_create_domain(
+			[
+				'blog_id'        => $blog_id,
+				'domain'         => $domain_name,
+				'active'         => true,
+				'primary_domain' => true,
+				'secure'         => true,
+				'stage'          => \WP_Ultimo\Database\Domains\Domain_Stage::DONE,
+			]
+		);
+
+		if (is_wp_error($domain) || ! $domain instanceof \WP_Ultimo\Models\Domain) {
+			$this->markTestSkipped('Could not create mapped domain fixture.');
+		}
+
+		wp_cache_delete('domain:' . $domain_name, 'domain_mappings');
+		wp_cache_delete('domain:www.' . $domain_name, 'domain_mappings');
+
+		grant_super_admin($user_id);
+		add_user_to_blog($blog_id, $user_id, 'subscriber');
+
+		$sso = SSO::get_instance();
+
+		$generate = new \ReflectionMethod($sso, 'generate_sso_token');
+		$generate->setAccessible(true);
+
+		$validate = new \ReflectionMethod($sso, 'validate_sso_token');
+		$validate->setAccessible(true);
+
+		$home_url = function () use ($domain_name) {
+			return 'https://' . $domain_name;
+		};
+
+		add_filter('home_url', $home_url);
+
+		try {
+			// Minted directly, as a pre-fix issuer would have done.
+			$signed = $generate->invoke($sso, $user_id, 'https://' . $domain_name . '/capture');
+			$result = $validate->invoke($sso, $signed);
+		} finally {
+			remove_filter('home_url', $home_url);
+			revoke_super_admin($user_id);
+			$domain->delete();
+			wp_cache_delete('domain:' . $domain_name, 'domain_mappings');
+			wp_cache_delete('domain:www.' . $domain_name, 'domain_mappings');
+		}
+
+		$this->assertWPError($result);
+		$this->assertSame('user_not_allowed', $result->get_error_code());
+	}
+
+	/**
 	 * Test cross-domain redirect targets survive the token handoff.
 	 */
 	public function test_get_sso_redirect_to_preserves_cross_domain_redirect_to(): void {
@@ -1240,11 +1299,21 @@ class SSO_Test extends \WP_UnitTestCase {
 			'handle_server() not-logged-in non-JSONP branch must call wp_safe_redirect( $denial_url, 303, \'WP-Ultimo-SSO\' ); exit; after building the denial URL.'
 		);
 
-		// Must NOT force wp-login.php on anonymous visitors — broker
+		// Must NOT force wp-login.php on anonymous broker visitors — broker
 		// pages may legitimately be anonymous (free-checkout, landing).
+		// Scope the check to the ordinary denial branch (from $denial_args
+		// onwards). The earlier empty-return_url branch is deliberately
+		// excluded: it redirects bounced ?sso_verify= requests that carry no
+		// return_url to the login form instead of returning a blank page.
+		$denial_start = strpos( $body, '$denial_args' );
+
+		$this->assertNotFalse( $denial_start, 'handle_server() must build $denial_args for the ordinary denial branch' );
+
+		$denial_branch = substr( $body, $denial_start );
+
 		$this->assertDoesNotMatchRegularExpression(
 			'/wp_safe_redirect\s*\(\s*wp_login_url\s*\(/s',
-			$body,
+			$denial_branch,
 			'handle_server() must NOT redirect anonymous visitors to wp_login_url() — that would break free-checkout and other intentionally-anonymous broker pages. Use the sso_verify=invalid denial signal instead.'
 		);
 
@@ -1261,28 +1330,29 @@ class SSO_Test extends \WP_UnitTestCase {
 	 * Verify that all JSONP branches set the
 	 * Content-Type: application/javascript header.
 	 *
-	 * There are five JSONP response paths:
+	 * There are six JSONP response paths:
 	 * 1. handle_server JSONP success/error response
-	 * 2. handle_broker JSONP error for unattached broker
-	 * 3. handle_broker JSONP "nothing to see here" for attached broker
-	 * 4. handle_main_site_logged_in_user JSONP success response
-	 * 5. send_sso_logout_response background logout response
+	 * 2. handle_broker JSONP denial for crawlers
+	 * 3. handle_broker JSONP error for unattached broker
+	 * 4. handle_broker JSONP "nothing to see here" for attached broker
+	 * 5. handle_main_site_logged_in_user JSONP success response
+	 * 6. send_sso_logout_response background logout response
 	 */
 	public function test_handle_broker_source_sets_javascript_content_type_for_jsonp(): void {
 		$source = file_get_contents(
 			dirname(__DIR__, 3) . '/inc/sso/class-sso.php'
 		);
 
-		// There should be five JSONP blocks with the header.
+		// There should be six JSONP blocks with the header.
 		$count = preg_match_all(
 			"/header\(\s*'Content-Type:\s*application\/javascript;\s*charset=utf-8'\s*\)/",
 			$source
 		);
 
 		$this->assertSame(
-			5,
+			6,
 			$count,
-			'All five JSONP response paths must set the Content-Type header'
+			'All six JSONP response paths must set the Content-Type header'
 		);
 	}
 

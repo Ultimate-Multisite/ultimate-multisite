@@ -228,6 +228,24 @@ class Site_List_Table extends Base_List_Table {
 			),
 		];
 
+		if ($item->get_id() && $item->get_template_id() && \WP_Ultimo\Helpers\Site_Duplicator::is_clone_failed($item->get_id())) {
+			$actions = array_merge(
+				[
+					'edit'  => $actions['edit'],
+					'retry' => sprintf(
+						'<a title="%s" class="wubox" href="%s">%s</a>',
+						__('Retry Template Copy', 'ultimate-multisite'),
+						wu_get_form_url(
+							'retry_site_clone',
+							$url_atts
+						),
+						__('Retry template copy', 'ultimate-multisite')
+					),
+				],
+				array_diff_key($actions, ['edit' => true])
+			);
+		}
+
 		if ($item->get_type() === 'pending') {
 			$actions = [
 				'duplicate' => sprintf(

@@ -3220,6 +3220,123 @@ class Checkout_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A new checkout without a plan must be rejected before any record is created.
+	 *
+	 * Submitting the final step with account fields but no products must not
+	 * create a user, customer, plan-less membership or zero payment.
+	 */
+	public function test_process_order_rejects_new_cart_without_plan(): void {
+
+		$checkout = Checkout::get_instance();
+
+		$reflection = new \ReflectionClass($checkout);
+		$setup_prop = $reflection->getProperty('already_setup');
+		if (PHP_VERSION_ID < 80100) {
+			$setup_prop->setAccessible(true);
+		}
+		$setup_prop->setValue($checkout, true);
+
+		$this->ensure_session($checkout);
+
+		$email = 'no-plan-' . wp_generate_password(6, false) . '@example.com';
+
+		unset($_REQUEST['products']);
+		$_REQUEST['gateway']       = 'free';
+		$_REQUEST['email_address'] = $email;
+		$_REQUEST['username']      = 'noplan' . strtolower(wp_generate_password(6, false));
+		$_REQUEST['password']      = wp_generate_password(16);
+
+		$memberships_before = wu_get_memberships(['count' => true]);
+
+		$result = $checkout->process_order();
+
+		$this->assertInstanceOf(\WP_Error::class, $result);
+		$this->assertSame('no-plan', $result->get_error_code());
+		$this->assertFalse(get_user_by('email', $email));
+		$this->assertSame($memberships_before, wu_get_memberships(['count' => true]));
+
+		$setup_prop->setValue($checkout, false);
+		unset($_REQUEST['gateway'], $_REQUEST['email_address'], $_REQUEST['username'], $_REQUEST['password']);
+	}
+
+	/**
+	 * The final step must enforce required fields of every step, including the plan.
+	 *
+	 * The submitted step name is client controlled, so naming the last step
+	 * must not skip earlier required fields.
+	 */
+	public function test_get_validation_rules_final_step_requires_earlier_step_fields(): void {
+
+		$plan = wu_create_product(
+			[
+				'name'          => 'Free Plan',
+				'slug'          => 'free-plan-' . wp_generate_password(6, false),
+				'amount'        => 0,
+				'type'          => 'plan',
+				'active'        => true,
+				'pricing_type'  => 'free',
+				'recurring'     => false,
+				'duration'      => 1,
+				'duration_unit' => 'month',
+			]
+		);
+
+		$this->assertNotWPError($plan);
+
+		$form = new \WP_Ultimo\Models\Checkout_Form(
+			[
+				'name'     => 'Plan Multi-step',
+				'slug'     => 'plan-multi-step-' . wp_generate_password(6, false),
+				'settings' => [
+					[
+						'id'     => 'plan-step',
+						'name'   => 'Plan',
+						'fields' => [
+							[
+								'id'                     => 'pricing_table',
+								'type'                   => 'pricing_table',
+								'name'                   => 'Plan',
+								'pricing_table_products' => (string) $plan->get_id(),
+								'pricing_table_template' => 'list',
+							],
+						],
+					],
+					[
+						'id'     => 'final-step',
+						'name'   => 'Final Step',
+						'fields' => [
+							[
+								'id'       => 'site_title',
+								'type'     => 'text',
+								'name'     => 'Site Title',
+								'required' => false,
+							],
+						],
+					],
+				],
+			]
+		);
+
+		$checkout                = Checkout::get_instance();
+		$checkout->checkout_form = $form;
+		$checkout->steps         = $form->get_steps_to_show();
+		$checkout->step          = $form->get_step('final-step', true);
+		$checkout->step_name     = 'final-step';
+
+		$this->ensure_session($checkout);
+
+		unset($_REQUEST['pre-flight'], $_REQUEST['checkout_form'], $_REQUEST['products']);
+
+		$rules = $checkout->get_validation_rules();
+
+		$this->assertArrayHasKey('products', $rules);
+		$this->assertStringContainsString('required', $rules['products']);
+
+		$checkout->checkout_form = null;
+		$checkout->steps         = null;
+	}
+
+	/**
 	 * Test process_order returns WP_Error when no gateway for paid cart.
 	 */
 	public function test_process_order_returns_error_for_missing_gateway(): void {

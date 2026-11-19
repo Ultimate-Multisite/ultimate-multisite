@@ -60,6 +60,18 @@ The WordPress My Sites toolbar keeps the current site and the full My Sites
 administration link available without JavaScript. Additional sites load only
 when the menu is opened, in bounded pages, with an explicit load-more action.
 Loading, empty, and failed states stay in the menu; failed requests provide a
-retry link. Keyboard, hover, and touch can request the first page, while Escape
-returns focus to the menu trigger. Lazy dashboard links retain the existing
-same-origin magic-link handoff.
+retry link that runs only when activated. Keyboard, hover, and touch can request
+the first page, while Escape returns focus to the menu trigger. Lazily loaded
+site entries open their Dashboard, New Post, Comments and Visit flyouts by
+hover, focus, Enter or first tap, matching core toolbar items. A keyboard
+load-more moves focus to the first newly loaded site. Lazy dashboard links
+retain the existing same-origin magic-link handoff.
+
+## Cloudways integration setup
+
+Show the API v2 access-token checklist on the credentials step using the same
+configuration-instructions component as BigScoots, not a separate instructions
+screen. Explain token permissions, legacy-key migration, SSL contact email,
+resource IDs, extra domains and wildcard limitations beside the relevant form.
+Reuse the existing stacked, wrapping layout on desktop and mobile; no new styles
+or wizard steps are needed. Keep the access token in a password field.

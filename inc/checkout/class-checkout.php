@@ -799,6 +799,29 @@ class Checkout {
 		$this->type = $cart->get_cart_type();
 
 		/*
+		 * A new membership must have a plan.
+		 *
+		 * Without this guard, a request submitted straight to the final
+		 * step with no products creates a user, customer, membership
+		 * (plan_id 0) and a zero payment through the free gateway.
+		 *
+		 * @since 2.18.1
+		 */
+		if ('new' === $this->type && ! $cart->has_plan()) {
+			/**
+			 * Filters whether a new checkout may proceed without a plan.
+			 *
+			 * @since 2.18.1
+			 * @param bool     $allow    Whether to allow the plan-less checkout. Default false.
+			 * @param Cart     $cart     The cart being processed.
+			 * @param Checkout $checkout The checkout instance.
+			 */
+			if ( ! apply_filters('wu_checkout_allow_new_cart_without_plan', false, $cart, $this)) {
+				return new \WP_Error('no-plan', __('Please select a plan to continue.', 'ultimate-multisite'));
+			}
+		}
+
+		/*
 		 * Block duplicate signup for logged-in users with active memberships.
 		 *
 		 * When a customer with an active subscription goes through the
@@ -2107,6 +2130,18 @@ class Checkout {
 			$username = $username_or_email;
 		}
 
+		// Per-account limit: 10 failed attempts per account with 15-minute lockout, independent of client IP.
+		$account_transient_key = 'wu_login_account_attempt_' . md5(strtolower($username));
+		$account_attempt_count = (int) get_transient($account_transient_key);
+
+		if ($account_attempt_count >= 10) {
+			wp_send_json_error(
+				[
+					'message' => __('Too many login attempts. Please try again in a few minutes.', 'ultimate-multisite'),
+				]
+			);
+		}
+
 		/**
 		 * Filters inline login before authentication.
 		 *
@@ -2135,8 +2170,9 @@ class Checkout {
 
 		if (is_wp_error($user)) {
 
-			// Increment failed attempt counter
+			// Increment failed attempt counters
 			set_transient($transient_key, ($attempt_count ? $attempt_count + 1 : 1), 5 * MINUTE_IN_SECONDS);
+			set_transient($account_transient_key, $account_attempt_count + 1, 15 * MINUTE_IN_SECONDS);
 
 			$error_message = $user->get_error_message();
 
@@ -2157,6 +2193,7 @@ class Checkout {
 
 		// Clear rate limiting on successful login
 		delete_transient($transient_key);
+		delete_transient($account_transient_key);
 
 		// Log the user in
 		wp_clear_auth_cookie();
@@ -2780,6 +2817,48 @@ class Checkout {
 	}
 
 	/**
+	 * Returns the checkout fields whose `required` flags must be enforced.
+	 *
+	 * Intermediate step submissions only validate the submitted step. The
+	 * submitted step name comes from the client, though, so the final step
+	 * must enforce the required fields of every visible step; otherwise a
+	 * request naming the last step directly skips earlier required fields,
+	 * such as the plan selection. Values from earlier steps are read from
+	 * the signup session by validate().
+	 *
+	 * Other steps are built with wu_create_checkout_fields(), as
+	 * setup_checkout() does for the submitted step, so each step keeps the
+	 * same required semantics it has when submitted on its own.
+	 *
+	 * @since 2.18.1
+	 * @return array
+	 */
+	protected function get_required_rule_fields() {
+
+		$fields = array_values((array) $this->step['fields']);
+
+		if ( ! $this->checkout_form || ! $this->is_last_step()) {
+			return $fields;
+		}
+
+		foreach ($this->get_steps_or_empty_array() as $step) {
+			if (wu_get_isset($step, 'id') === $this->step_name) {
+				continue;
+			}
+
+			$step_fields = wu_get_isset($step, 'fields', []);
+
+			if ( ! is_array($step_fields) || empty($step_fields)) {
+				continue;
+			}
+
+			$fields = array_merge($fields, array_values(wu_create_checkout_fields($step_fields)));
+		}
+
+		return $fields;
+	}
+
+	/**
 	 * Returns the list of validation rules.
 	 *
 	 * If we are dealing with a step submission, we will return
@@ -2835,8 +2914,12 @@ class Checkout {
 
 		/**
 		 * Add the additional required fields.
+		 *
+		 * On the final step this covers the fields of every visible step,
+		 * not only the submitted one, so a request cannot skip required
+		 * earlier-step fields (e.g. the plan) by naming the last step.
 		 */
-		foreach ($this->step['fields'] as $field) {
+		foreach ($this->get_required_rule_fields() as $field) {
 			/*
 			 * General required fields
 			 */
