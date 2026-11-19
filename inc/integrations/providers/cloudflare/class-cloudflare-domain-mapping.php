@@ -59,7 +59,7 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 
 		if (is_subdomain_install()) {
 			$explainer_lines['will']['send_sub_domains'] = __('Add a new proxied subdomain to the configured CloudFlare zone whenever a new site gets created', 'ultimate-multisite');
-		} else {
+		} elseif ( ! $this->get_cloudflare()->get_credential('WU_CLOUDFLARE_SAAS_ZONE_ID')) {
 			$explainer_lines['will']['subdirectory'] = __('Do nothing! The CloudFlare integration has no effect in subdirectory multisite installs such as this one', 'ultimate-multisite');
 		}
 
