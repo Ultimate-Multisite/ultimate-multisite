@@ -779,25 +779,25 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 	 */
 	public function on_add_subdomain(string $subdomain, int $site_id): void {
 
-		global $current_site;
-
 		$zone_id = $this->get_cloudflare()->get_credential('WU_CLOUDFLARE_ZONE_ID');
 
 		if ( ! $zone_id) {
 			return;
 		}
 
-		if ( ! str_contains($subdomain, (string) $current_site->domain)) {
+		$base_domain = $this->get_subdomain_base_domain();
+
+		if ( ! $base_domain || ! str_contains($subdomain, $base_domain)) {
 			return;
 		}
 
-		$subdomain = rtrim(str_replace($current_site->domain, '', $subdomain), '.');
+		$subdomain = rtrim(str_replace($base_domain, '', $subdomain), '.');
 
 		if ( ! $subdomain) {
 			return;
 		}
 
-		$full_domain    = $subdomain . '.' . $current_site->domain;
+		$full_domain    = $subdomain . '.' . $base_domain;
 		$should_add_www = apply_filters(
 			'wu_cloudflare_should_add_www',
 			\WP_Ultimo\Managers\Domain_Manager::get_instance()->should_create_www_subdomain($full_domain),
@@ -852,21 +852,21 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 	 */
 	public function on_remove_subdomain(string $subdomain, int $site_id): void {
 
-		global $current_site;
-
 		$zone_id = $this->get_cloudflare()->get_credential('WU_CLOUDFLARE_ZONE_ID');
 
 		if ( ! $zone_id) {
 			return;
 		}
 
-		if ( ! str_contains($subdomain, (string) $current_site->domain)) {
+		$base_domain = $this->get_subdomain_base_domain();
+
+		if ( ! $base_domain || ! str_contains($subdomain, $base_domain)) {
 			return;
 		}
 
 		$original_subdomain = $subdomain;
 
-		$subdomain = rtrim(str_replace($current_site->domain, '', $subdomain), '.');
+		$subdomain = rtrim(str_replace($base_domain, '', $subdomain), '.');
 
 		if ( ! $subdomain) {
 			return;
@@ -903,6 +903,25 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 
 			wu_log_add('integration-cloudflare', sprintf('Removed sub-domain "%s" from Cloudflare.', $subdomain));
 		}
+	}
+
+	/**
+	 * Returns the domain that network subdomain sites are created under.
+	 *
+	 * A network whose main site is www.example.com creates subdomain sites
+	 * as sub.example.com, so the leading "www." is dropped before matching.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @return string
+	 */
+	private function get_subdomain_base_domain(): string {
+
+		global $current_site;
+
+		$domain = strtolower((string) ($current_site->domain ?? ''));
+
+		return str_starts_with($domain, 'www.') ? substr($domain, 4) : $domain;
 	}
 
 	/**
