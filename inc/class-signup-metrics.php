@@ -302,34 +302,20 @@ class Signup_Metrics {
 	}
 
 	/**
-	 * Returns the client IP address, respecting common proxy headers.
+	 * Returns the client IP address.
+	 *
+	 * Forwarding headers are only honoured from trusted proxies; see
+	 * \WP_Ultimo\Geolocation::get_ip_address().
 	 *
 	 * @since 2.5.0
 	 * @return string
 	 */
 	protected function get_client_ip(): string {
 
-		$headers = [
-			'HTTP_CF_CONNECTING_IP',
-			'HTTP_X_FORWARDED_FOR',
-			'HTTP_X_REAL_IP',
-			'REMOTE_ADDR',
-		];
-
-		foreach ($headers as $header) {
-			if ( ! empty($_SERVER[ $header ])) {
-				$ip = sanitize_text_field(wp_unslash($_SERVER[ $header ]));
-
-				// X-Forwarded-For can be a comma-separated list; take the first.
-				$ip = explode(',', $ip)[0];
-				$ip = trim($ip);
-
-				if (filter_var($ip, FILTER_VALIDATE_IP)) {
-					return $ip;
-				}
-			}
+		if (function_exists('wu_get_ip')) {
+			return (string) wu_get_ip();
 		}
 
-		return '';
+		return \WP_Ultimo\Geolocation::get_ip_address();
 	}
 }
