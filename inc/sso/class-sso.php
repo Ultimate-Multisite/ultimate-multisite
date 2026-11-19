@@ -682,6 +682,22 @@ class SSO {
 			exit;
 		}
 
+		$this->redirect_with_sso_denial($broker_url);
+	}
+
+	/**
+	 * Sends the visitor back to the broker with the SSO denial signal.
+	 *
+	 * The broker sets the `wu_sso_denied` cookie and returns the visitor to
+	 * the original page, so sso.js does not restart the SSO round trip.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param string $broker_url Broker URL to return to.
+	 * @return void
+	 */
+	private function redirect_with_sso_denial(string $broker_url): void {
+
 		$denial_args = [
 			'sso_verify' => 'invalid',
 		];
@@ -734,6 +750,16 @@ class SSO {
 		}
 
 		$url = $this->add_cookie_less_sso_token($return_url, get_current_user_id());
+
+		/*
+		 * No token was attached to a cross-domain target: the SSO policy
+		 * refused this user on that host. Deny like an anonymous visitor so
+		 * the broker stops retrying, instead of looping back here.
+		 */
+		if ($url === $return_url && $this->is_cross_domain_url($return_url)) {
+			$this->redirect_with_sso_denial((string) ($this->input('return_url', '') ?: $return_url));
+		}
+
 		$url = add_query_arg('redirect_to', $redirect_to, $url);
 
 		wp_safe_redirect($url, 303, 'WP-Ultimo-SSO');
@@ -1132,7 +1158,141 @@ class SSO {
 			return $url;
 		}
 
+		if ( ! $this->can_use_cookie_less_sso_token($user_id, (string) wp_parse_url($url, PHP_URL_HOST)) ) {
+			return $url;
+		}
+
 		return add_query_arg('wu_sso_token', $this->generate_sso_token($user_id, $url), $url);
+	}
+
+	/**
+	 * Checks whether a cookie-less SSO token may be issued to, or redeemed on, a host.
+	 *
+	 * A cookie-less token is a bearer for the user's network-wide WordPress
+	 * session, carried in the URL. Hosts outside the network domain (custom
+	 * domains mapped by customers) may have DNS controlled by the customer,
+	 * who can then capture the token from the request and redeem it. On those
+	 * hosts the token is restricted to members of the site the host belongs
+	 * to, and never issued to network administrators: a crafted
+	 * `/sso-grant?return_url=<customer domain>` link must not hand a customer
+	 * a network admin session (GHSA-qh2w-5cww-9wxr).
+	 *
+	 * Hosts on the network domain, its subdomains, and the main site's own
+	 * mapped domains are operated by the network owner and keep the previous
+	 * behaviour.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param int    $user_id User ID the token is for.
+	 * @param string $host    Token audience host.
+	 * @return bool
+	 */
+	private function can_use_cookie_less_sso_token(int $user_id, string $host): bool {
+
+		$host = strtolower(trim((string) preg_replace('/:\d+$/', '', $host)));
+
+		if ($user_id <= 0 || '' === $host) {
+			return false;
+		}
+
+		$site_id = $this->get_site_id_for_sso_host($host);
+		$allowed = true;
+
+		if ( ! $this->is_network_controlled_sso_host($host, $site_id)) {
+			$allowed = $site_id > 0
+				&& ! $this->is_privileged_sso_user($user_id)
+				&& is_user_member_of_blog($user_id, $site_id);
+		}
+
+		/**
+		 * Filters whether a cookie-less SSO token may be issued to, or redeemed on, a host.
+		 *
+		 * Security-sensitive: the token grants the user's network-wide session to
+		 * whoever receives the URL. Only allow hosts whose DNS and web server the
+		 * network owner controls.
+		 *
+		 * @since 2.18.1
+		 *
+		 * @param bool   $allowed Whether the token is allowed.
+		 * @param int    $user_id User ID the token is for.
+		 * @param string $host    Token audience host.
+		 * @param int    $site_id Site the host resolves to, or 0 when unknown.
+		 * @param SSO    $sso     The SSO instance.
+		 */
+		$allowed = (bool) apply_filters('wu_sso_allow_cookie_less_token', $allowed, $user_id, $host, $site_id, $this);
+
+		if ( ! $allowed) {
+			wu_log_add(self::LOG_FILE_NAME, sprintf('Cookie-less SSO token refused for user %d on host %s.', $user_id, $host), LogLevel::WARNING);
+		}
+
+		return $allowed;
+	}
+
+	/**
+	 * Resolves the site a host belongs to, via domain mappings or site domains.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param string $host Lower-case host without port.
+	 * @return int Site ID, or 0 when the host is unknown.
+	 */
+	private function get_site_id_for_sso_host(string $host): int {
+
+		$candidates = str_starts_with($host, 'www.') ? [$host, substr($host, 4)] : [$host, 'www.' . $host];
+
+		$mapping = \WP_Ultimo\Models\Domain::get_by_domain($candidates);
+
+		if ($mapping instanceof \WP_Ultimo\Models\Domain) {
+			return (int) $mapping->get_blog_id();
+		}
+
+		foreach ($candidates as $candidate) {
+			$site = get_site_by_path($candidate, '/');
+
+			if ($site instanceof \WP_Site && strtolower($site->domain) === $candidate) {
+				return (int) $site->blog_id;
+			}
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Checks whether a host is operated by the network owner rather than a customer.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param string $host    Lower-case host without port.
+	 * @param int    $site_id Site the host resolves to, or 0 when unknown.
+	 * @return bool
+	 */
+	private function is_network_controlled_sso_host(string $host, int $site_id): bool {
+
+		if ($site_id > 0 && is_main_site($site_id)) {
+			return true;
+		}
+
+		$network      = get_network();
+		$network_host = $network ? strtolower((string) preg_replace('/:\d+$/', '', (string) $network->domain)) : '';
+
+		if ('' === $network_host) {
+			return false;
+		}
+
+		return $host === $network_host || str_ends_with($host, '.' . $network_host);
+	}
+
+	/**
+	 * Checks whether a user holds network-wide administrative privileges.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param int $user_id User ID.
+	 * @return bool
+	 */
+	private function is_privileged_sso_user(int $user_id): bool {
+
+		return is_super_admin($user_id) || user_can($user_id, 'manage_network');
 	}
 
 	/**
@@ -1306,6 +1466,15 @@ class SSO {
 
 		if ( ! $user ) {
 			return new \WP_Error('user_not_found', __('User not found.', 'ultimate-multisite'));
+		}
+
+		/*
+		 * Re-check the issuing policy on redemption, so tokens issued before
+		 * the policy existed (or through another issuer) cannot sign a
+		 * network admin, or a non-member, into a customer-controlled host.
+		 */
+		if ( ! $this->can_use_cookie_less_sso_token((int) $user->ID, $current_host) ) {
+			return new \WP_Error('user_not_allowed', __('This account cannot use single sign-on on this domain.', 'ultimate-multisite'));
 		}
 
 		return [
