@@ -216,6 +216,92 @@ class Geolocation_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Forwarding headers from an untrusted (direct) peer must be ignored.
+	 */
+	public function test_get_ip_address_ignores_spoofed_headers_from_untrusted_peer() {
+		$_SERVER['REMOTE_ADDR']           = '203.0.113.9';
+		$_SERVER['HTTP_CF_CONNECTING_IP'] = '198.51.100.1';
+		$_SERVER['HTTP_TRUE_CLIENT_IP']   = '198.51.100.2';
+		$_SERVER['HTTP_X_REAL_IP']        = '198.51.100.3';
+		$_SERVER['HTTP_X_FORWARDED_FOR']  = '198.51.100.4';
+
+		$this->assertSame('203.0.113.9', Geolocation::get_ip_address());
+
+		// Changing a header must not produce a new identity either.
+		$_SERVER['HTTP_X_FORWARDED_FOR'] = '198.51.100.5';
+		$this->assertSame('203.0.113.9', Geolocation::get_ip_address());
+	}
+
+	/**
+	 * CF-Connecting-IP is honoured only from Cloudflare edge addresses.
+	 */
+	public function test_get_ip_address_trusts_cloudflare_header_from_cloudflare_edge() {
+		$_SERVER['REMOTE_ADDR']           = '2606:4700::1';
+		$_SERVER['HTTP_CF_CONNECTING_IP'] = '198.51.100.1';
+		unset($_SERVER['HTTP_X_FORWARDED_FOR'], $_SERVER['HTTP_X_REAL_IP'], $_SERVER['HTTP_TRUE_CLIENT_IP']);
+
+		$this->assertSame('198.51.100.1', Geolocation::get_ip_address());
+
+		// A private proxy cannot vouch for CF-Connecting-IP.
+		$_SERVER['REMOTE_ADDR'] = '10.0.0.5';
+		$this->assertSame('10.0.0.5', Geolocation::get_ip_address());
+	}
+
+	/**
+	 * X-Forwarded-For is walked right-to-left, skipping trusted hops.
+	 */
+	public function test_get_ip_address_walks_forwarded_for_from_trusted_proxy() {
+		unset($_SERVER['HTTP_CF_CONNECTING_IP'], $_SERVER['HTTP_X_REAL_IP'], $_SERVER['HTTP_TRUE_CLIENT_IP']);
+		$_SERVER['REMOTE_ADDR']          = '127.0.0.1';
+		$_SERVER['HTTP_X_FORWARDED_FOR'] = '198.51.100.99, 203.0.113.20, 162.158.1.1, 10.1.2.3';
+
+		// 10.1.2.3 (private) and 162.158.1.1 (Cloudflare) are trusted hops; spoofed left-most value is ignored.
+		$this->assertSame('203.0.113.20', Geolocation::get_ip_address());
+	}
+
+	/**
+	 * Trusted proxies can be configured with the filter, or disabled entirely.
+	 */
+	public function test_get_ip_address_respects_trusted_proxies_filter() {
+		unset($_SERVER['HTTP_CF_CONNECTING_IP'], $_SERVER['HTTP_TRUE_CLIENT_IP']);
+		$_SERVER['REMOTE_ADDR']          = '192.0.2.10';
+		$_SERVER['HTTP_X_FORWARDED_FOR'] = '198.51.100.7';
+		$_SERVER['HTTP_X_REAL_IP']       = '198.51.100.8';
+
+		$this->assertSame('192.0.2.10', Geolocation::get_ip_address());
+
+		$add_proxy = fn($proxies) => array_merge($proxies, ['192.0.2.0/24']);
+		add_filter('wu_trusted_proxies', $add_proxy);
+		Geolocation::clear_cache();
+		$this->assertSame('198.51.100.7', Geolocation::get_ip_address());
+		remove_filter('wu_trusted_proxies', $add_proxy);
+
+		$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+		add_filter('wu_trusted_proxies', '__return_empty_array');
+		Geolocation::clear_cache();
+		$this->assertSame('127.0.0.1', Geolocation::get_ip_address());
+		remove_filter('wu_trusted_proxies', '__return_empty_array');
+	}
+
+	/**
+	 * Test CIDR matching for IPv4, IPv6 and IPv4-mapped IPv6.
+	 */
+	public function test_ip_in_range() {
+		$this->assertTrue(Geolocation::ip_in_range('10.20.30.40', '10.0.0.0/8'));
+		$this->assertTrue(Geolocation::ip_in_range('172.31.255.255', '172.16.0.0/12'));
+		$this->assertFalse(Geolocation::ip_in_range('172.32.0.1', '172.16.0.0/12'));
+		$this->assertTrue(Geolocation::ip_in_range('192.0.2.1', '192.0.2.1'));
+		$this->assertFalse(Geolocation::ip_in_range('192.0.2.2', '192.0.2.1'));
+		$this->assertTrue(Geolocation::ip_in_range('2a06:98c7::1', '2a06:98c0::/29'));
+		$this->assertFalse(Geolocation::ip_in_range('2a06:98c8::1', '2a06:98c0::/29'));
+		$this->assertTrue(Geolocation::ip_in_range('::ffff:127.0.0.1', '127.0.0.0/8'));
+		$this->assertFalse(Geolocation::ip_in_range('10.0.0.1', '::1/128'));
+		$this->assertFalse(Geolocation::ip_in_range('10.0.0.1', '10.0.0.0/33'));
+		$this->assertFalse(Geolocation::ip_in_range('not-an-ip', '10.0.0.0/8'));
+		$this->assertTrue(Geolocation::ip_in_range('8.8.8.8', '0.0.0.0/0'));
+	}
+
+	/**
 	 * Test get_local_database_path returns expected path structure.
 	 */
 	public function test_get_local_database_path_structure() {

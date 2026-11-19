@@ -1179,41 +1179,19 @@ class Magic_Link {
 	/**
 	 * Get the client's IP address.
 	 *
-	 * Checks for proxies and load balancers.
+	 * Forwarding headers are only honoured from trusted proxies; see
+	 * \WP_Ultimo\Geolocation::get_ip_address().
 	 *
 	 * @since 2.0.0
 	 * @return string The client IP address.
 	 */
 	protected function get_client_ip() {
 
-		$ip = '';
-
-		// Check for proxied IP addresses.
-		$headers = array(
-			'HTTP_CF_CONNECTING_IP', // Cloudflare.
-			'HTTP_X_FORWARDED_FOR',  // Common proxy header.
-			'HTTP_X_REAL_IP',        // Nginx proxy.
-			'REMOTE_ADDR',           // Direct connection.
-		);
-
-		foreach ( $headers as $header ) {
-			if ( ! empty($_SERVER[ $header ]) ) {
-				$ip = sanitize_text_field(wp_unslash($_SERVER[ $header ]));
-
-				// X-Forwarded-For may contain multiple IPs, take the first one.
-				if ( strpos($ip, ',') !== false ) {
-					$ip_list = explode(',', $ip);
-					$ip      = trim($ip_list[0]);
-				}
-
-				// Validate IP address.
-				if ( filter_var($ip, FILTER_VALIDATE_IP) ) {
-					break;
-				}
-			}
+		if (function_exists('wu_get_ip')) {
+			return (string) wu_get_ip();
 		}
 
-		return $ip;
+		return \WP_Ultimo\Geolocation::get_ip_address();
 	}
 
 	/**

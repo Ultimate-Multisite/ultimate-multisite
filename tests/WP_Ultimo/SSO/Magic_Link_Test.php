@@ -588,7 +588,7 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 	}
 
 	/**
-	 * Test get_client_ip with Cloudflare header.
+	 * Test get_client_ip only honours CF-Connecting-IP from a Cloudflare edge.
 	 */
 	public function test_get_client_ip_cloudflare() {
 
@@ -600,17 +600,22 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 			$ref->setAccessible(true);
 		}
 
-		$_SERVER['HTTP_CF_CONNECTING_IP'] = '10.0.0.1';
+		$_SERVER['HTTP_CF_CONNECTING_IP'] = '198.51.100.7';
 
-		$ip = $ref->invoke($instance);
+		// Spoofed header sent directly by a client is ignored.
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+		$this->assertSame('203.0.113.9', $ref->invoke($instance));
 
-		$this->assertSame('10.0.0.1', $ip);
+		// Header set by a Cloudflare edge is trusted.
+		$_SERVER['REMOTE_ADDR'] = '173.245.48.10';
+		$this->assertSame('198.51.100.7', $ref->invoke($instance));
 
 		unset($_SERVER['HTTP_CF_CONNECTING_IP']);
+		$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
 	}
 
 	/**
-	 * Test get_client_ip with X-Forwarded-For multiple IPs.
+	 * Test get_client_ip only honours X-Forwarded-For from a trusted proxy.
 	 */
 	public function test_get_client_ip_forwarded_for_multiple() {
 
@@ -626,9 +631,13 @@ class Magic_Link_Test extends \WP_UnitTestCase {
 		unset($_SERVER['HTTP_CF_CONNECTING_IP']);
 		$_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.50, 70.41.3.18, 150.172.238.178';
 
-		$ip = $ref->invoke($instance);
+		// Untrusted peer: header ignored.
+		$_SERVER['REMOTE_ADDR'] = '192.0.2.44';
+		$this->assertSame('192.0.2.44', $ref->invoke($instance));
 
-		$this->assertSame('203.0.113.50', $ip);
+		// Trusted local proxy: right-most untrusted hop is the client.
+		$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+		$this->assertSame('150.172.238.178', $ref->invoke($instance));
 
 		unset($_SERVER['HTTP_X_FORWARDED_FOR']);
 	}

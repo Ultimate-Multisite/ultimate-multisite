@@ -192,13 +192,13 @@ defined('ABSPATH') || exit;
 
 				<span class="wu-font-medium wu-text-gray-700 wu-block">
 
-				Coupon Code
+				<?php esc_html_e('Coupon Code', 'ultimate-multisite'); ?>
 
 				</span>
 
 				<span class="wu-text-sm wu-text-gray-600 wu-block">
 
-				None applied.
+				<?php esc_html_e('None applied.', 'ultimate-multisite'); ?>
 
 				</span>
 
@@ -208,7 +208,7 @@ defined('ABSPATH') || exit;
 
 				<a href="#" class="wu-no-underline">
 
-				Add Coupon
+				<?php esc_html_e('Add Coupon', 'ultimate-multisite'); ?>
 
 				</a>
 

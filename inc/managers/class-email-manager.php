@@ -80,6 +80,27 @@ class Email_Manager extends Base_Manager {
 	const SCHEDULED_ARGS_MAX_LENGTH = 8000;
 
 	/**
+	 * Largest invoice PDF, in bytes, that is attached to an email.
+	 *
+	 * Mail services cap the whole raw message (Amazon SES: 10 MB) and base64
+	 * encoding adds about a third to every attachment, so the email is sent
+	 * without a bigger PDF instead of the provider rejecting the whole message.
+	 * Filter with `wu_invoice_pdf_max_attachment_size`.
+	 *
+	 * @since 2.18.1
+	 * @var int
+	 */
+	const INVOICE_PDF_MAX_BYTES = 5242880;
+
+	/**
+	 * The `phpmailer_init` callbacks that are waiting to attach an invoice.
+	 *
+	 * @since 2.18.1
+	 * @var callable[]
+	 */
+	protected $pending_invoice_attachments = [];
+
+	/**
 	 * Key in a secondary network's setup state marking its default system emails as created.
 	 *
 	 * Stored in Table::NETWORK_TABLE_VERSIONS_OPTION, which is already loaded on
@@ -395,6 +416,12 @@ class Email_Manager extends Base_Manager {
 
 		/*
 		 * Add the invoice attachment, if need be.
+		 *
+		 * The attachment is only meant for the email sent right below, so it
+		 * is always detached afterwards. Left registered, it would be added to
+		 * every later email sent in the same request or process (for example
+		 * a batch of Action Scheduler actions), attaching other customers'
+		 * invoices and growing the message until the mail service rejects it.
 		 */
 		if (wu_get_isset($payload, 'payment_id') && wu_get_setting('attach_invoice_pdf', true) && (! isset($payload['payment_is_paid']) || $payload['payment_is_paid'])) {
 			$invoice_payment = wu_get_payment($payload['payment_id']);
@@ -402,60 +429,140 @@ class Email_Manager extends Base_Manager {
 			if ($invoice_payment) {
 				$file_name = 'invoice-' . $invoice_payment->get_hash() . '.pdf';
 
-				$this->attach_invoice_pdf($invoice_payment, $file_name, $args['subject']);
+				$this->attach_invoice_pdf($invoice_payment, $file_name);
 			}
 		}
 
-		return (bool) Sender::send_mail($from, $to, $args);
+		try {
+			return (bool) Sender::send_mail($from, $to, $args);
+		} finally {
+			$this->detach_invoice_pdfs();
+		}
 	}
 
 	/**
 	 * Attach an invoice PDF generated directly from the payment model.
 	 *
+	 * The attachment is added to the next email only: the callback removes
+	 * itself once it attaches the file. Callers should also call
+	 * detach_invoice_pdfs() after sending, so an email that never reaches
+	 * PHPMailer (or does not match the subject) cannot leave it behind.
+	 *
 	 * @since 2.3.0
 	 *
 	 * @param \WP_Ultimo\Models\Payment $payment The payment to generate the invoice for.
 	 * @param string                    $file_name The name to save the file with.
-	 * @param string                    $email_subject The email subject, to avoid attaching a file to the wrong email.
+	 * @param string                    $email_subject Optional. Only attach to an email with this exact subject.
 	 * @return void
 	 */
 	public function attach_invoice_pdf($payment, string $file_name, string $email_subject = ''): void {
 
-		add_action(
-			'phpmailer_init',
-			function ($mail) use ($payment, $file_name, $email_subject) {
+		$callback = null;
 
-				if ($email_subject && $mail->Subject !== $email_subject) { // phpcs:ignore
-					return;
-				}
+		$callback = function ($mail) use ($payment, $file_name, $email_subject, &$callback) {
 
-				/*
-				 * A PDF failure (e.g. a font that mPDF cannot parse) must not
-				 * abort wp_mail(). Log it and send the email without the attachment.
-				 * Only the exception class and a path-stripped message are logged,
-				 * never invoice content or customer data.
-				 */
-				try {
-					$invoice = new \WP_Ultimo\Invoices\Invoice($payment);
-
-					$content = $invoice->get_content();
-				} catch (\Throwable $e) {
-					wu_log_add(
-						'mailer',
-						sprintf(
-							/* translators: %s: exception class and sanitized message. */
-							__('Could not attach the invoice PDF to the email, sending it without the attachment: %s', 'ultimate-multisite'),
-							\WP_Ultimo\Invoices\Invoice::get_loggable_error($e)
-						),
-						LogLevel::ERROR
-					);
-
-					return;
-				}
-
-				$mail->addStringAttachment($content, $file_name);
+			if ($email_subject && $mail->Subject !== $email_subject) { // phpcs:ignore
+				return;
 			}
+
+			/*
+			 * One email gets one invoice. Stop listening before the PDF is
+			 * built, so a failure or a later email cannot trigger it again.
+			 */
+			$this->detach_invoice_pdf_callback($callback);
+
+			/*
+			 * A PDF failure (e.g. a font that mPDF cannot parse) must not
+			 * abort wp_mail(). Log it and send the email without the attachment.
+			 * Only the exception class and a path-stripped message are logged,
+			 * never invoice content or customer data.
+			 */
+			try {
+				$invoice = new \WP_Ultimo\Invoices\Invoice($payment);
+
+				$content = $invoice->get_content();
+			} catch (\Throwable $e) {
+				wu_log_add(
+					'mailer',
+					sprintf(
+						/* translators: %s: exception class and sanitized message. */
+						__('Could not attach the invoice PDF to the email, sending it without the attachment: %s', 'ultimate-multisite'),
+						\WP_Ultimo\Invoices\Invoice::get_loggable_error($e)
+					),
+					LogLevel::ERROR
+				);
+
+				return;
+			}
+
+			/**
+			 * Filters the largest invoice PDF, in bytes, that is attached to an email.
+			 *
+			 * @since 2.18.1
+			 *
+			 * @param int                       $max_bytes Maximum PDF size in bytes.
+			 * @param \WP_Ultimo\Models\Payment $payment   The payment the invoice belongs to.
+			 */
+			$max_bytes = (int) apply_filters('wu_invoice_pdf_max_attachment_size', self::INVOICE_PDF_MAX_BYTES, $payment);
+
+			if ($max_bytes > 0 && strlen($content) > $max_bytes) {
+				wu_log_add(
+					'mailer',
+					sprintf(
+						/* translators: 1: PDF size in bytes, 2: maximum size in bytes. */
+						__('The invoice PDF (%1$d bytes) is over the %2$d byte attachment limit, sending the email without the attachment.', 'ultimate-multisite'),
+						strlen($content),
+						$max_bytes
+					),
+					LogLevel::WARNING
+				);
+
+				return;
+			}
+
+			$mail->addStringAttachment($content, $file_name);
+		};
+
+		$this->pending_invoice_attachments[] = $callback;
+
+		add_action('phpmailer_init', $callback);
+	}
+
+	/**
+	 * Removes one pending invoice attachment callback.
+	 *
+	 * @since 2.18.1
+	 *
+	 * @param callable $callback The callback registered by attach_invoice_pdf().
+	 * @return void
+	 */
+	protected function detach_invoice_pdf_callback($callback): void {
+
+		remove_action('phpmailer_init', $callback);
+
+		$this->pending_invoice_attachments = array_values(
+			array_filter(
+				$this->pending_invoice_attachments,
+				fn($pending) => $pending !== $callback
+			)
 		);
+	}
+
+	/**
+	 * Removes every invoice attachment that has not been added to an email yet.
+	 *
+	 * Call it after sending, so an invoice never reaches an unrelated email.
+	 *
+	 * @since 2.18.1
+	 * @return void
+	 */
+	public function detach_invoice_pdfs(): void {
+
+		foreach ($this->pending_invoice_attachments as $callback) {
+			remove_action('phpmailer_init', $callback);
+		}
+
+		$this->pending_invoice_attachments = [];
 	}
 
 	/**
