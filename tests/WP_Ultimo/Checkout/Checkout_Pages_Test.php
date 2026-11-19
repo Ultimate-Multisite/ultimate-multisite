@@ -29,6 +29,9 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 		parent::set_up();
 
 		$this->pages = Checkout_Pages::get_instance();
+
+		// The registration page lookup is memoized on the singleton for the request.
+		$this->pages->flush_registration_page_cache();
 	}
 
 	// -------------------------------------------------------------------------
@@ -133,6 +136,12 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 			has_filter('lostpassword_redirect', [$this->pages, 'filter_lost_password_redirect']),
 			'lostpassword_redirect filter not registered'
 		);
+
+		$this->assertGreaterThan(
+			0,
+			has_action('clean_post_cache', [$this->pages, 'flush_registration_page_cache']),
+			'clean_post_cache action not registered'
+		);
 	}
 
 	/**
@@ -195,6 +204,142 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 
 		$this->assertEquals($page_id, $pages['login']);
 		$this->assertEquals($page_id, $pages['update']);
+	}
+
+	// -------------------------------------------------------------------------
+	// filter_checkout_urls — registration page lookup is memoized per request
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Test the registration page is resolved once, not once per generated permalink.
+	 */
+	public function test_filter_checkout_urls_resolves_registration_page_once(): void {
+
+		$page_id = self::factory()->post->create(['post_type' => 'page']);
+		$post    = get_post(self::factory()->post->create(['post_type' => 'page']));
+
+		wu_save_setting('default_registration_page', $page_id);
+
+		// Warm the lookup, then count blog switches made by further permalinks.
+		$this->pages->filter_checkout_urls('https://example.com/a', $post);
+
+		$switches = 0;
+		$counter  = function () use (&$switches) {
+			++$switches;
+		};
+
+		add_action('switch_blog', $counter);
+
+		for ($i = 0; $i < 25; $i++) {
+			$this->pages->filter_checkout_urls('https://example.com/a', $post);
+		}
+
+		remove_action('switch_blog', $counter);
+
+		$this->assertSame(0, $switches, 'Repeated permalinks must not re-resolve the registration page.');
+	}
+
+	/**
+	 * Test the registration URL is still filtered for the registration page only.
+	 */
+	public function test_filter_checkout_urls_still_filters_registration_page(): void {
+
+		$register_id = self::factory()->post->create(['post_type' => 'page']);
+		$other       = get_post(self::factory()->post->create(['post_type' => 'page']));
+
+		wu_save_setting('default_registration_page', $register_id);
+
+		$rewrite = fn() => 'https://example.com/rewritten';
+
+		add_filter('wu_checkout_pages_checkout_url', $rewrite);
+
+		$this->assertSame('https://example.com/rewritten', $this->pages->filter_checkout_urls('https://example.com/orig', get_post($register_id)));
+		$this->assertSame('https://example.com/orig', $this->pages->filter_checkout_urls('https://example.com/orig', $other));
+
+		remove_filter('wu_checkout_pages_checkout_url', $rewrite);
+	}
+
+	/**
+	 * Test a changed registration page setting is not served from a stale entry.
+	 */
+	public function test_registration_page_lookup_follows_setting_changes(): void {
+
+		$first  = self::factory()->post->create(['post_type' => 'page']);
+		$second = self::factory()->post->create(['post_type' => 'page']);
+
+		wu_save_setting('default_registration_page', $first);
+
+		$this->assertEquals($first, $this->pages->get_signup_pages()['register']);
+
+		wu_save_setting('default_registration_page', $second);
+
+		$this->assertEquals($second, $this->pages->get_signup_pages()['register']);
+	}
+
+	/**
+	 * Test creating the fallback "register" page is picked up after a cached miss.
+	 */
+	public function test_registration_page_lookup_refreshes_when_register_page_is_created(): void {
+
+		wu_save_setting('default_registration_page', 0);
+
+		$this->assertEmpty($this->pages->get_signup_pages()['register']);
+
+		$register_id = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_name'    => 'register',
+				'post_status'  => 'publish',
+				'post_content' => '[wu_checkout]',
+			]
+		);
+
+		$this->assertEquals($register_id, $this->pages->get_signup_pages()['register']);
+	}
+
+	/**
+	 * Test trashing the registration page invalidates the cached lookup.
+	 */
+	public function test_registration_page_lookup_refreshes_when_page_is_deleted(): void {
+
+		$page_id = self::factory()->post->create(['post_type' => 'page']);
+
+		wu_save_setting('default_registration_page', $page_id);
+
+		$this->assertEquals($page_id, $this->pages->get_signup_pages()['register']);
+
+		wp_delete_post($page_id, true);
+
+		$this->assertEmpty($this->pages->get_signup_pages()['register']);
+	}
+
+	/**
+	 * Test the lookup follows the global post while no registration page is saved.
+	 *
+	 * With an empty setting the resolver falls back to get_post() with no ID, which
+	 * returns the global post, so a single memoized value would go stale in a loop.
+	 */
+	public function test_registration_page_lookup_follows_global_post_when_setting_is_empty(): void {
+
+		wu_save_setting('default_registration_page', 0);
+
+		$first  = self::factory()->post->create(['post_type' => 'page']);
+		$second = self::factory()->post->create(['post_type' => 'page']);
+
+		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$GLOBALS['post'] = get_post($first);
+		setup_postdata($GLOBALS['post']);
+
+		$this->assertEquals($first, $this->pages->get_signup_pages()['register']);
+
+		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$GLOBALS['post'] = get_post($second);
+		setup_postdata($GLOBALS['post']);
+
+		$this->assertEquals($second, $this->pages->get_signup_pages()['register']);
+
+		wp_reset_postdata();
+		unset($GLOBALS['post']);
 	}
 
 	// -------------------------------------------------------------------------
@@ -1130,6 +1275,9 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 	 */
 	public function test_replace_reset_password_link_on_subsite_keeps_url_on_subsite(): void {
 
+		// Custom login page: subsite links go to the subsite home URL.
+		wu_save_setting('enable_custom_login_page', true);
+
 		$blog_id = self::factory()->blog->create();
 
 		switch_to_blog($blog_id);
@@ -1239,6 +1387,9 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 	 */
 	public function test_rewrite_new_user_notification_email_on_subsite(): void {
 
+		// Custom login page: subsite links go to the subsite home URL.
+		wu_save_setting('enable_custom_login_page', true);
+
 		$blog_id = self::factory()->blog->create();
 
 		switch_to_blog($blog_id);
@@ -1294,6 +1445,9 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 	 */
 	public function test_rewrite_password_notification_email_on_subsite(): void {
 
+		// Custom login page: subsite links go to the subsite home URL.
+		wu_save_setting('enable_custom_login_page', true);
+
 		$blog_id = self::factory()->blog->create();
 
 		switch_to_blog($blog_id);
@@ -1327,6 +1481,9 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 	 * Email-change confirmation URLs must stay on the subsite host.
 	 */
 	public function test_rewrite_email_change_content_on_subsite(): void {
+
+		// Custom login page: subsite links go to the subsite home URL.
+		wu_save_setting('enable_custom_login_page', true);
 
 		$blog_id = self::factory()->blog->create();
 
@@ -2182,6 +2339,9 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 	 */
 	public function test_replace_reset_password_link_rewrites_on_subsite(): void {
 
+		// Custom login page: subsite links go to the subsite home URL.
+		wu_save_setting('enable_custom_login_page', true);
+
 		$blog_id = self::factory()->blog->create();
 
 		switch_to_blog($blog_id);
@@ -2421,6 +2581,180 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 	}
 
 	// -------------------------------------------------------------------------
+	// Account emails without a custom login page / passwordless onboarding
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Account-email filters run on subsites even without a custom login page:
+	 * otherwise WordPress points their links at the main network domain.
+	 */
+	public function test_account_email_filters_registered_without_custom_login(): void {
+
+		wu_save_setting('enable_custom_login_page', false);
+
+		$blog_id = self::factory()->blog->create();
+
+		switch_to_blog($blog_id);
+
+		$this->pages->init();
+
+		$hooks = [
+			has_filter('retrieve_password_message', [$this->pages, 'replace_reset_password_link']),
+			has_filter('wp_new_user_notification_email', [$this->pages, 'rewrite_new_user_notification_email']),
+			has_filter('retrieve_password_notification_email', [$this->pages, 'rewrite_password_notification_email']),
+			has_filter('new_user_email_content', [$this->pages, 'rewrite_email_change_content']),
+			has_action('wu_thank_you_before_info_blocks', [$this->pages, 'render_checkout_passkey_prompt']),
+		];
+
+		restore_current_blog();
+
+		foreach ($hooks as $priority) {
+			$this->assertNotFalse($priority);
+		}
+	}
+
+	/**
+	 * Without a custom login page, a subsite's "set your password" link uses
+	 * the subsite's own wp-login.php, which can process the reset request.
+	 */
+	public function test_new_user_email_uses_subsite_wp_login_without_custom_login(): void {
+
+		wu_save_setting('enable_custom_login_page', false);
+
+		$blog_id = self::factory()->blog->create();
+
+		switch_to_blog($blog_id);
+
+		$user  = get_userdata(self::factory()->user->create());
+		$email = [
+			'to'      => $user->user_email,
+			'subject' => 'Welcome',
+			'message' => "Set your password:\n" . network_site_url('wp-login.php?login=u&key=k&action=rp', 'login') . "\n",
+			'headers' => '',
+		];
+
+		$result         = $this->pages->rewrite_new_user_notification_email($email, $user, 'Blogname');
+		$subsite_login  = site_url('wp-login.php', 'login');
+		$network_login  = network_site_url('wp-login.php', 'login');
+
+		restore_current_blog();
+
+		$this->assertStringContainsString($subsite_login . '?login=u&key=k&action=rp', $result['message']);
+
+		if ($subsite_login !== $network_login) {
+			$this->assertStringNotContainsString($network_login, $result['message']);
+		}
+	}
+
+	/**
+	 * Without a custom login page, the subsite reset link targets the
+	 * subsite's own wp-login.php with the reset arguments.
+	 */
+	public function test_reset_link_uses_subsite_wp_login_without_custom_login(): void {
+
+		wu_save_setting('enable_custom_login_page', false);
+
+		$blog_id = self::factory()->blog->create();
+
+		switch_to_blog($blog_id);
+
+		$user    = get_userdata(self::factory()->user->create());
+		$message = 'Reset: ' . network_site_url('wp-login.php?action=rp&key=abc&login=user', 'login');
+		$result  = $this->pages->replace_reset_password_link($message, 'abc', 'user', $user);
+		$base    = site_url('wp-login.php', 'login');
+
+		restore_current_blog();
+
+		$this->assertStringContainsString($base . '?action=rp', $result);
+		$this->assertStringContainsString('key=abc', $result);
+		$this->assertStringContainsString('login=user', $result);
+	}
+
+	/**
+	 * With passwordless login on, the welcome email explains how to sign in
+	 * without a password and still offers the set-password link.
+	 */
+	public function test_new_user_email_explains_passwordless_sign_in(): void {
+
+		wu_save_setting('use_passwordless_login', 1);
+
+		$user  = get_userdata(self::factory()->user->create());
+		$link  = network_site_url('wp-login.php?login=u&key=k&action=rp', 'login');
+		$email = [
+			'to'      => $user->user_email,
+			'subject' => 'Welcome',
+			'message' => "Set your password:\n" . $link . "\n",
+			'headers' => '',
+		];
+
+		$result = $this->pages->rewrite_new_user_notification_email($email, $user, 'Blogname');
+
+		$this->assertStringContainsString('one-time login code', $result['message']);
+		$this->assertStringContainsString(wp_login_url(), $result['message']);
+		$this->assertStringContainsString('action=rp', $result['message']);
+	}
+
+	/**
+	 * The welcome email is unchanged by passwordless wording when it is off.
+	 */
+	public function test_new_user_email_has_no_passwordless_wording_when_disabled(): void {
+
+		wu_save_setting('use_passwordless_login', 0);
+
+		$user  = get_userdata(self::factory()->user->create());
+		$email = [
+			'to'      => $user->user_email,
+			'subject' => 'Welcome',
+			'message' => "Set your password:\n" . network_site_url('wp-login.php?login=u&key=k&action=rp', 'login') . "\n",
+			'headers' => '',
+		];
+
+		$result = $this->pages->rewrite_new_user_notification_email($email, $user, 'Blogname');
+
+		$this->assertStringNotContainsString('one-time login code', $result['message']);
+	}
+
+	/**
+	 * The thank-you passkey prompt is offered only to the signed-in customer
+	 * without a passkey, and only when passwordless login is enabled.
+	 */
+	public function test_checkout_passkey_prompt_is_offered_only_to_the_signed_in_customer(): void {
+
+		$customer = wu_create_customer([
+			'username' => 'passkey_prompt_' . wp_rand(1000, 9999),
+			'email'    => 'passkeyprompt_' . wp_rand(1000, 9999) . '@example.com',
+			'password' => 'password123',
+		]);
+
+		$this->assertNotWPError($customer);
+
+		wu_save_setting('use_passwordless_login', 0);
+		wp_set_current_user($customer->get_user_id());
+		$this->assertFalse($this->pages->should_offer_checkout_passkey($customer), 'Disabled: no prompt');
+
+		wu_save_setting('use_passwordless_login', 1);
+		$this->assertTrue($this->pages->should_offer_checkout_passkey($customer), 'Owner without passkey: prompt');
+
+		wp_set_current_user(self::factory()->user->create());
+		$this->assertFalse($this->pages->should_offer_checkout_passkey($customer), 'Another user: no prompt');
+
+		wp_set_current_user(0);
+		$this->assertFalse($this->pages->should_offer_checkout_passkey($customer), 'Logged out: no prompt');
+		$this->assertFalse($this->pages->should_offer_checkout_passkey(false), 'No customer: no prompt');
+
+		wp_set_current_user($customer->get_user_id());
+		ob_start();
+		$this->pages->render_checkout_passkey_prompt(false, false, $customer);
+		$html = ob_get_clean();
+
+		$this->assertStringContainsString('wu-passwordless-create-passkey', $html);
+		$this->assertStringContainsString('data-success="stay"', $html);
+
+		wp_set_current_user(0);
+		$customer->delete();
+	}
+
+	// -------------------------------------------------------------------------
 	// Tear down
 	// -------------------------------------------------------------------------
 
@@ -2436,6 +2770,7 @@ class Checkout_Pages_Test extends \WP_UnitTestCase {
 		wu_save_setting('default_new_site_page', 0);
 		wu_save_setting('enable_custom_login_page', false);
 		wu_save_setting('obfuscate_original_login_url', 1);
+		wu_save_setting('use_passwordless_login', 0);
 
 		// Clean up request globals.
 		unset(

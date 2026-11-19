@@ -31,7 +31,7 @@ foreach ($notices as $key => $notice) : ?>
 		<?php foreach ($notice['actions'] as $action) : ?>
 
 		<li class="wu-inline-block wu-p-0 wu-m-0 wu-flex-shrink">
-			<a class="wu-bg-white wu-uppercase wu-no-underline wu-font-bold wu-text-gray-600 hover:wu-text-gray-700 wu-text-xs wu-inline-block wu-px-4 wu-py-2 wu-border wu-border-solid wu-border-gray-300 wu-border-r-0 wu-border-t-0 wu-border-b-0 wu-transition-all wu-mr-px" title="<?php echo esc_attr($action['title']); ?>" href="<?php echo esc_attr($action['url']); ?>"><?php echo wp_kses_post($action['title']); ?></a>
+			<a class="wu-bg-white wu-uppercase wu-no-underline wu-font-bold wu-text-gray-600 hover:wu-text-gray-700 wu-text-xs wu-inline-block wu-px-4 wu-py-2 wu-border wu-border-solid wu-border-gray-300 wu-border-r-0 wu-border-t-0 wu-border-b-0 wu-transition-all wu-mr-px <?php echo esc_attr($action['classes'] ?? ''); ?>" title="<?php echo esc_attr($action['title']); ?>" href="<?php echo esc_attr($action['url']); ?>"><?php echo wp_kses_post($action['title']); ?></a>
 		</li>
 
 		<?php endforeach; ?>

@@ -1288,6 +1288,87 @@ class Site extends Base_Model implements Limitable, Notable {
 	}
 
 	/**
+	 * Explicitly re-run the template clone of a site whose clone failed.
+	 *
+	 * This overwrites the site with the template: every destination table is
+	 * dropped and recreated, so anything built on the site since the failure is
+	 * lost. {@see Site::save()} never does this implicitly; call this method only
+	 * from a deliberate, confirmed action.
+	 *
+	 * @since 2.18.1
+	 * @return true|\WP_Error True when the template was copied again, error otherwise.
+	 */
+	public function retry_failed_clone() {
+
+		$site_id = (int) $this->get_id();
+
+		if ( ! $site_id) {
+			return new \WP_Error('site_not_found', __('The site does not exist yet, so there is no template copy to retry.', 'ultimate-multisite'));
+		}
+
+		if ( ! \WP_Ultimo\Helpers\Site_Duplicator::is_clone_failed($site_id)) {
+			return new \WP_Error('site_clone_not_failed', __('The template copy of this site did not fail, so it cannot be retried.', 'ultimate-multisite'));
+		}
+
+		$template_id = (int) $this->get_template_id();
+
+		if ( ! $template_id) {
+			return new \WP_Error('site_clone_no_template', __('This site has no template to copy from.', 'ultimate-multisite'));
+		}
+
+		/*
+		 * Register the signup placeholder substitutions, as save() does before
+		 * duplicating; a no-op when the site has no signup transient.
+		 */
+		$this->handles_existing_search_and_replace();
+
+		/*
+		 * The clone replaces the destination's blog meta with the template's, so
+		 * without this the site would come back as a Site Template detached from
+		 * its customer and membership, whether or not the retry succeeds. Absent
+		 * keys are restored as absent so the template's associations never leak in.
+		 */
+		$ownership = [];
+
+		foreach ([self::META_TYPE, self::META_CUSTOMER_ID, self::META_MEMBERSHIP_ID] as $meta_key) {
+			$ownership[ $meta_key ] = get_site_meta($site_id, $meta_key, true);
+		}
+
+		$ownership[ self::META_TEMPLATE_ID ] = $template_id;
+
+		$retry = \WP_Ultimo\Helpers\Site_Duplicator::duplicate_site(
+			$template_id,
+			$this->get_title(),
+			array_merge(
+				$this->get_duplication_arguments(),
+				[
+					'to_site_id' => $site_id,
+					'domain'     => $this->get_domain(),
+					'path'       => $this->get_path(),
+					'email'      => get_blog_option($site_id, 'admin_email'),
+				]
+			)
+		);
+
+		foreach ($ownership as $meta_key => $meta_value) {
+			if ('' === $meta_value) {
+				$this->delete_meta($meta_key);
+			} else {
+				$this->update_meta($meta_key, $meta_value);
+			}
+		}
+
+		if (is_wp_error($retry)) {
+			return $retry;
+		}
+
+		$this->archived = (int) get_blog_status($site_id, 'archived');
+		$this->public   = (int) get_blog_status($site_id, 'public');
+
+		return true;
+	}
+
+	/**
 	 * Get the site type of this particular site..
 	 *
 	 * @since 2.0.0
@@ -2097,26 +2178,13 @@ class Site extends Base_Model implements Limitable, Notable {
 			if ('copying' === $clone_status) {
 				return new \WP_Error('site_clone_in_progress', __('The template clone is still running.', 'ultimate-multisite'));
 			}
-			if ('failed' === $clone_status && $this->get_template_id()) {
-				$retry = \WP_Ultimo\Helpers\Site_Duplicator::duplicate_site(
-					$this->get_template_id(),
-					$this->get_title(),
-					array_merge(
-						$this->get_duplication_arguments(),
-						[
-							'to_site_id' => $this->get_id(),
-							'domain'     => $this->get_domain(),
-							'path'       => $this->get_path(),
-							'email'      => get_blog_option($this->get_id(), 'admin_email'),
-						]
-						)
-				);
-				if (is_wp_error($retry)) {
-					return $retry;
-				}
-				$this->archived = (int) get_blog_status($this->get_id(), 'archived');
-				$this->public   = (int) get_blog_status($this->get_id(), 'public');
-			}
+
+			/*
+			 * A failed clone is never re-run implicitly. Re-cloning drops and
+			 * recreates every destination table, which would erase any content
+			 * created on the site since the failure. Use retry_failed_clone()
+			 * from a deliberate, confirmed admin action instead.
+			 */
 			$saved = wp_update_site($this->get_id(), $this->to_array());
 		}
 

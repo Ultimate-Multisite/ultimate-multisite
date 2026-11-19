@@ -198,6 +198,11 @@
 		container.wuPasswordlessState = state;
 		container.dataset.wuPasswordlessReady = '1';
 
+		if (container.dataset.success === 'stay' && ! supportsWebAuthn()) {
+			container.hidden = true; // Enrollment-only prompt: nothing to offer without WebAuthn.
+			return;
+		}
+
 		const status = container.querySelector('.wu-passwordless-status');
 		const emailInput = container.querySelector('.wu-passwordless-email');
 		const codeInput = container.querySelector('.wu-passwordless-code');
@@ -208,6 +213,11 @@
 		const resendButton = container.querySelector('.wu-passwordless-resend');
 		const createPasskeyButton = container.querySelector('.wu-passwordless-create-passkey');
 		const skipPasskeyButton = container.querySelector('.wu-passwordless-skip-passkey');
+		const discoverableButton = container.querySelector('.wu-passwordless-discoverable');
+
+		if (discoverableButton && supportsWebAuthn()) {
+			discoverableButton.hidden = false;
+		}
 
 		function getIdentifier() {
 
@@ -291,6 +301,22 @@
 				state.registrationOptions = data.registration_options;
 				showStatus(data.message || '', 'success');
 				showStep('enroll');
+				return;
+			}
+
+			if (container.dataset.success === 'stay') {
+				// Post-checkout enrollment: the customer is already signed in; never navigate away.
+				container.querySelectorAll('[data-wu-step]').forEach(function (element) {
+					element.hidden = true;
+					element.classList.add('wu-hidden');
+				});
+
+				if (data.passkey_created) {
+					showStatus(i18n.passkey_saved || 'Passkey saved. You can use it the next time you sign in.', 'success');
+				} else {
+					container.hidden = true;
+				}
+
 				return;
 			}
 
@@ -385,6 +411,45 @@
 
 		}
 
+		// Usernameless sign-in: the browser offers this site's passkeys; no email is sent or revealed.
+		function useDiscoverablePasskey() {
+
+			if (! supportsWebAuthn()) {
+				showStatus(i18n.passkey_unavailable || 'Passkeys are not available in this browser.', 'error');
+				return;
+			}
+
+			setBusy(discoverableButton, true, i18n.passkey_starting || 'Follow your browser prompt...');
+			showStatus('', 'info');
+
+			request('wu_passwordless_passkey_options', {}).then(function (data) {
+
+				return window.navigator.credentials.get(prepareRequestOptions(data.options || data));
+
+			}).then(function (credential) {
+
+				return request('wu_passwordless_verify_passkey', {
+					credential: JSON.stringify(serializeCredential(credential)),
+					redirect_to: state.redirectUrl,
+					redirect_type: container.dataset.redirectType || 'default',
+				});
+
+			}).then(function (data) {
+
+				setBusy(discoverableButton, false);
+				finish(data);
+
+			}).catch(function (error) {
+
+				setBusy(discoverableButton, false);
+				showStatus(error && error.name === 'NotAllowedError'
+					? (i18n.passkey_no_match || 'No passkey was used. Try again, or continue with your email address.')
+					: getErrorMessage(error), 'error');
+
+			});
+
+		}
+
 		function verifyCode() {
 
 			const code = codeInput ? codeInput.value.trim() : '';
@@ -440,7 +505,7 @@
 
 				setBusy(createPasskeyButton, false);
 				showStatus(i18n.passkey_created || 'Passkey created. Redirecting...', 'success');
-				finish({ redirect_url: state.redirectUrl });
+				finish({ redirect_url: state.redirectUrl, passkey_created: true });
 
 			}).catch(function (error) {
 
@@ -463,6 +528,8 @@
 		});
 
 		bindOnce(passkeyButton, 'click', 'wuPasswordlessClick', usePasskey);
+
+		bindOnce(discoverableButton, 'click', 'wuPasswordlessClick', useDiscoverablePasskey);
 
 		bindOnce(emailCodeButton, 'click', 'wuPasswordlessClick', function () {
 			start(true);

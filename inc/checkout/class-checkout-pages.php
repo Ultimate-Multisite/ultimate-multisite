@@ -22,12 +22,32 @@ class Checkout_Pages {
 	use \WP_Ultimo\Traits\Singleton;
 
 	/**
+	 * Request-local registration page IDs.
+	 *
+	 * Resolving the registration page switches to the main site and queries
+	 * posts. The permalink filters run once per generated link, so a page with
+	 * hundreds of links would otherwise repeat that work for every one of them.
+	 * Keys combine the network, the main site and the saved page setting, so a
+	 * changed setting or network context never reads a stale entry.
+	 *
+	 * @since 2.19.0
+	 * @var array<string, int|false>
+	 */
+	protected $registration_page_cache = [];
+
+	/**
 	 * Initializes the Checkout_Pages singleton and adds hooks.
 	 *
 	 * @since 2.0.0
 	 * @return void
 	 */
 	public function init(): void {
+
+		// Creating, updating, trashing or deleting a post cleans its cache, which is when
+		// the registration page (or its fallback) can change. Registered before any early
+		// return below: get_signup_pages() is used on every request, whether or not the
+		// permalink filters are added.
+		add_action('clean_post_cache', [$this, 'flush_registration_page_cache']);
 
 		add_filter('display_post_states', [$this, 'add_wp_ultimo_status_annotation'], 10, 2);
 
@@ -62,44 +82,30 @@ class Checkout_Pages {
 			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/291
 			 */
 			add_filter('lostpassword_url', [$this, 'filter_lostpassword_url'], 10, 2);
-
-			/*
-			 * Rewrite the reset password link inside the email body on ALL
-			 * sites (main + subsites). On the main site the URL points to
-			 * the custom login page; on subsites it stays on the subsite
-			 * domain so users never leave the site they signed up on.
-			 *
-			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/1168
-			 */
-			add_filter('retrieve_password_message', [$this, 'replace_reset_password_link'], 10, 4);
-
-			/*
-			 * Rewrite the "set your password" link in the new-user
-			 * notification email so users created on a subsite get a link
-			 * to that subsite (not to the main network site).
-			 *
-			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/1168
-			 */
-			add_filter('wp_new_user_notification_email', [$this, 'rewrite_new_user_notification_email'], 10, 3);
-
-			/*
-			 * Rewrite the URL inside the admin notification that fires
-			 * when a user requests a password reset, so subsite admins
-			 * receive links to their own subsite.
-			 *
-			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/1168
-			 */
-			add_filter('retrieve_password_notification_email', [$this, 'rewrite_password_notification_email'], 10, 4);
-
-			/*
-			 * Rewrite the URL inside the email-change confirmation message
-			 * so the confirmation link stays on the subsite the user is
-			 * editing their profile on.
-			 *
-			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/1168
-			 */
-			add_filter('new_user_email_content', [$this, 'rewrite_email_change_content'], 10, 2);
 		}
+
+		/*
+		 * Keep account emails on the site the user signed up on, on ALL
+		 * sites (main + subsites), whether or not a custom login page is
+		 * enabled. Without these filters WordPress builds the links with
+		 * network_site_url('wp-login.php'), which always points at the main
+		 * network domain: a customer who signed up on a mapped storefront
+		 * domain received a "set your password" link for a different site.
+		 * With a custom login page, links use it (main site) or the subsite
+		 * home URL; without one, they use the subsite's own wp-login.php.
+		 *
+		 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/1168
+		 */
+		add_filter('retrieve_password_message', [$this, 'replace_reset_password_link'], 10, 4);
+		add_filter('wp_new_user_notification_email', [$this, 'rewrite_new_user_notification_email'], 10, 3);
+		add_filter('retrieve_password_notification_email', [$this, 'rewrite_password_notification_email'], 10, 4);
+		add_filter('new_user_email_content', [$this, 'rewrite_email_change_content'], 10, 2);
+
+		/*
+		 * Offer a passkey right after checkout, while the new customer is
+		 * signed in, so they never depend on a password they did not choose.
+		 */
+		add_action('wu_thank_you_before_info_blocks', [$this, 'render_checkout_passkey_prompt'], 5, 3);
 
 		if (is_main_site()) {
 			add_action('before_signup_header', [$this, 'redirect_to_registration_page']);
@@ -133,6 +139,41 @@ class Checkout_Pages {
 
 		add_filter('post_type_link', [$this, 'filter_checkout_urls'], 10, 2);
 		add_filter('page_link', [$this, 'filter_checkout_urls'], 10, 2);
+	}
+
+	/**
+	 * Forgets the request-local registration page lookup.
+	 *
+	 * @since 2.19.0
+	 * @return void
+	 */
+	public function flush_registration_page_cache() {
+
+		$this->registration_page_cache = [];
+	}
+
+	/**
+	 * Returns the registration page ID, resolving it once per request.
+	 *
+	 * @since 2.19.0
+	 * @return int|false
+	 */
+	protected function get_registration_page_id() {
+
+		$saved_page = wu_get_setting('default_registration_page', 0);
+
+		// With no saved page, wu_guess_registration_page() calls get_post() with an
+		// empty ID, which returns the global post. The answer then follows the current
+		// post, so it has to be part of the key.
+		$global_post_key = $saved_page ? '' : (int) get_the_ID();
+
+		$key = get_current_network_id() . ':' . wu_get_main_site_id() . ':' . $saved_page . ':' . $global_post_key;
+
+		if ( ! array_key_exists($key, $this->registration_page_cache)) {
+			$this->registration_page_cache[ $key ] = wu_guess_registration_page();
+		}
+
+		return $this->registration_page_cache[ $key ];
 	}
 
 	/**
@@ -472,7 +513,7 @@ class Checkout_Pages {
 			 * the URL at a specific page on the subsite (e.g. the
 			 * WooCommerce reset-password endpoint).
 			 */
-			$subsite_base = home_url('/');
+			$subsite_base = $this->uses_custom_login_page() ? home_url('/') : site_url('wp-login.php', 'login');
 
 			$new_url = add_query_arg(
 				[
@@ -544,16 +585,29 @@ class Checkout_Pages {
 		}
 
 		/*
-		 * On a subsite, replace the host (and the wp-login.php path) with
-		 * the subsite's own home URL so the request stays on the subsite.
+		 * On a subsite, keep the request on the subsite's own domain. With a
+		 * custom login page, its handlers read the query from the home URL;
+		 * without one, only the subsite's own wp-login.php can process it.
 		 */
 		$parts = wp_parse_url($url);
+		$base  = $this->uses_custom_login_page() ? home_url('/') : site_url('wp-login.php', 'login');
 
 		if (empty($parts['query'])) {
-			return home_url('/');
+			return $base;
 		}
 
-		return home_url('/?' . $parts['query']);
+		return $base . (str_contains($base, '?') ? '&' : '?') . $parts['query'];
+	}
+
+	/**
+	 * Whether the network's custom login page handles login and reset requests.
+	 *
+	 * @since 2.19.0
+	 * @return bool
+	 */
+	protected function uses_custom_login_page() {
+
+		return (bool) wu_get_setting('enable_custom_login_page', false);
 	}
 
 	/**
@@ -587,7 +641,108 @@ class Checkout_Pages {
 			$email['message']
 		);
 
+		if (\WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance()->is_enabled()) {
+			$email['message'] = $this->get_passwordless_sign_in_instructions() . "\r\n\r\n"
+				. __('Prefer a password? You can also set one:', 'ultimate-multisite') . "\r\n\r\n"
+				. $email['message'];
+		}
+
 		return $email;
+	}
+
+	/**
+	 * Plain-text sign-in instructions for passwordless accounts.
+	 *
+	 * New customers usually never choose a password (it is generated at
+	 * checkout), so the account email must explain how they get back in.
+	 *
+	 * @since 2.19.0
+	 * @return string
+	 */
+	protected function get_passwordless_sign_in_instructions() {
+
+		return sprintf(
+			/* translators: %s: login URL. */
+			__("To sign in, go to %s and enter your email address. We'll email you a one-time login code, or you can use a passkey if you created one. You don't need a password.", 'ultimate-multisite'),
+			wp_login_url()
+		);
+	}
+
+	/**
+	 * Render the "create a passkey" prompt on the thank-you page.
+	 *
+	 * Shown only to the signed-in customer the payment belongs to, when
+	 * passwordless login is enabled and they have no passkey yet. Creating
+	 * the passkey uses the passwordless registration endpoints; browsers
+	 * without WebAuthn hide the prompt.
+	 *
+	 * @since 2.19.0
+	 *
+	 * @param \WP_Ultimo\Models\Payment|false    $payment    The payment.
+	 * @param \WP_Ultimo\Models\Membership|false $membership The membership.
+	 * @param \WP_Ultimo\Models\Customer|false   $customer   The customer.
+	 * @return void
+	 */
+	public function render_checkout_passkey_prompt($payment, $membership, $customer): void {
+		unset($payment, $membership);
+
+		if ( ! $this->should_offer_checkout_passkey($customer)) {
+			return;
+		}
+
+		\WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance()->enqueue_assets();
+
+		wp_add_inline_script(
+			'wu-passwordless-auth',
+			sprintf(
+				'window.wu_passwordless_auth = window.wu_passwordless_auth || {}; window.wu_passwordless_auth.i18n = Object.assign(window.wu_passwordless_auth.i18n || {}, %s);',
+				wp_json_encode(['passkey_saved' => __('Passkey saved. You can use it the next time you sign in.', 'ultimate-multisite')])
+			),
+			'before'
+		);
+
+		wu_get_template(
+			'checkout/partials/passkey-prompt',
+			[
+				'email'     => wp_get_current_user()->user_email,
+				'login_url' => wp_login_url(),
+			]
+		);
+	}
+
+	/**
+	 * Whether the thank-you page should offer passkey creation.
+	 *
+	 * @since 2.19.0
+	 *
+	 * @param \WP_Ultimo\Models\Customer|false $customer The customer.
+	 * @return bool
+	 */
+	public function should_offer_checkout_passkey($customer): bool {
+
+		$passwordless = \WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance();
+
+		if ( ! $passwordless->is_enabled() || ! is_user_logged_in() || ! $customer) {
+			return false;
+		}
+
+		$user_id = get_current_user_id();
+
+		if ((int) $customer->get_user_id() !== $user_id) {
+			return false;
+		}
+
+		$offer = ! $passwordless->passkeys()->credentials()->user_has_credentials($user_id);
+
+		/**
+		 * Filters whether the thank-you page offers passkey creation.
+		 *
+		 * @since 2.19.0
+		 *
+		 * @param bool                       $offer    Whether to show the prompt.
+		 * @param \WP_Ultimo\Models\Customer $customer The customer.
+		 */
+		return (bool) apply_filters('wu_checkout_offer_passkey', $offer, $customer);
 	}
 
 	/**
@@ -978,7 +1133,7 @@ class Checkout_Pages {
 	public function get_signup_pages() {
 
 		return [
-			'register'       => wu_guess_registration_page(),
+			'register'       => $this->get_registration_page_id(),
 			'update'         => wu_get_setting('default_update_page', false),
 			'login'          => wu_get_setting('default_login_page', false),
 			'block_frontend' => wu_get_setting('default_block_frontend_page', false),

@@ -23,12 +23,48 @@ if ( ! class_exists('MUCD_Data') ) {
 
 		private static $to_site_id;
 
-		/** @var string First SQL failure in the current copy, retained across later successful queries. */
+		/** @var string First fatal SQL failure in the current copy, retained across later successful queries. */
 		private static $copy_error = '';
 
-		/** @return string First database-copy error, or an empty string. */
+		/** @var array<string,string> Non-fatal SQL failures in the current copy, first error per table. */
+		private static $copy_warnings = [];
+
+		/** @var array{phase:string,table:string,base:string} What the copy is doing, used to classify SQL failures. */
+		private static $error_context = [
+			'phase' => '',
+			'table' => '',
+			'base'  => '',
+		];
+
+		/** @var string Table of the first fatal SQL failure, empty when not table-specific. */
+		private static $copy_error_table = '';
+
+		/** @return string First fatal database-copy error, or an empty string. */
 		public static function get_copy_error() {
 			return self::$copy_error;
+		}
+
+		/**
+		 * Table whose failure made the last copy fatal.
+		 *
+		 * @since 2.18.1
+		 * @return string Full table name, or an empty string when the failure was not table-specific.
+		 */
+		public static function get_copy_error_table() {
+			return self::$copy_error_table;
+		}
+
+		/**
+		 * Non-fatal database-copy errors of the last copy.
+		 *
+		 * The clone completes despite these, so the site is usable, but the named
+		 * tables may be missing or incomplete on the destination.
+		 *
+		 * @since 2.18.1
+		 * @return array<string,string> MySQL error keyed by table name.
+		 */
+		public static function get_copy_warnings() {
+			return self::$copy_warnings;
 		}
 
 		/**
@@ -39,14 +75,113 @@ if ( ! class_exists('MUCD_Data') ) {
 		 * @param  int $to_site_id   New site id.
 		 */
 		public static function copy_data($from_site_id, $to_site_id): void {
-			self::$to_site_id = $to_site_id;
-			self::$copy_error = '';
+			self::$to_site_id       = $to_site_id;
+			self::$copy_error       = '';
+			self::$copy_error_table = '';
+			self::$copy_warnings    = [];
 
-			// Copy
-			$saved_options = self::db_copy_tables($from_site_id, $to_site_id);
-			self::db_copy_blog_meta($from_site_id, $to_site_id);
-			// Update
-			self::db_update_data($from_site_id, $to_site_id, $saved_options);
+			try {
+				// Copy
+				$saved_options = self::db_copy_tables($from_site_id, $to_site_id);
+				self::db_copy_blog_meta($from_site_id, $to_site_id);
+				// Update
+				self::db_update_data($from_site_id, $to_site_id, $saved_options);
+			} finally {
+				self::set_error_context('');
+			}
+		}
+
+		/**
+		 * Record what the copy is doing so SQL failures can be classified.
+		 *
+		 * @since 2.18.1
+		 * @param string $phase           'list' (reading the template's tables), 'copy' (creating and filling a table), 'update' (URL replacement) or '' (outside a copy).
+		 * @param string $table           Full table name.
+		 * @param string $table_base_name Table name without the blog prefix.
+		 * @return void
+		 */
+		private static function set_error_context(string $phase, string $table = '', string $table_base_name = ''): void {
+			self::$error_context = [
+				'phase' => $phase,
+				'table' => $table,
+				'base'  => $table_base_name,
+			];
+		}
+
+		/**
+		 * Decide whether a SQL failure must fail the whole clone.
+		 *
+		 * A clone fails only when the site would be broken without the data:
+		 * the template's table list could not be read, or a core WordPress site
+		 * table could not be created or filled. Failures on plugin tables and in
+		 * the URL replacement pass are recorded as warnings and the clone completes.
+		 * Failures outside a classified phase stay fatal, as before.
+		 *
+		 * @since 2.18.1
+		 * @param string $sql_error MySQL error message.
+		 * @return bool Whether the failure is fatal.
+		 */
+		private static function is_fatal_copy_error(string $sql_error): bool {
+
+			global $wpdb;
+
+			$context = self::$error_context;
+
+			switch ($context['phase']) {
+				case 'copy':
+					// $wpdb->tables lists the core per-site tables: posts, postmeta, options, terms, comments...
+					$fatal = in_array($context['base'], (array) $wpdb->tables, true);
+					break;
+				case 'update':
+					$fatal = false;
+					break;
+				default:
+					$fatal = true;
+					break;
+			}
+
+			/**
+			 * Filter whether a SQL failure during site duplication fails the clone.
+			 *
+			 * Return true to make a plugin table required (the clone fails and the
+			 * site stays archived), or false to let the clone complete with a warning.
+			 *
+			 * @since 2.18.1
+			 *
+			 * @param bool   $fatal           Whether the failure is fatal.
+			 * @param string $table           Full table name, empty when not table-specific.
+			 * @param string $table_base_name Table name without the blog prefix.
+			 * @param string $phase           'list', 'copy', 'update' or ''.
+			 * @param string $sql_error       MySQL error message.
+			 */
+			return (bool) apply_filters('wu_mucd_copy_error_is_fatal', $fatal, $context['table'], $context['base'], $context['phase'], $sql_error);
+		}
+
+		/**
+		 * Record a SQL failure of the current copy as fatal or as a warning.
+		 *
+		 * @since 2.18.1
+		 * @param string $sql_error MySQL error message.
+		 * @return void
+		 */
+		private static function record_copy_error(string $sql_error): void {
+
+			$table = self::$error_context['table'];
+
+			if (self::is_fatal_copy_error($sql_error)) {
+				if ('' === self::$copy_error) {
+					self::$copy_error       = $sql_error;
+					self::$copy_error_table = $table;
+				}
+
+				return;
+			}
+
+			$key = '' !== $table ? $table : 'unknown';
+
+			if ( ! isset(self::$copy_warnings[ $key ])) {
+				self::$copy_warnings[ $key ] = $sql_error;
+			}
 		}
 
 		/**
@@ -125,6 +260,8 @@ if ( ! class_exists('MUCD_Data') ) {
 			$schema = DB_NAME;
 
 			// Get sources Tables
+			self::set_error_context('list');
+
 			if ((int) MUCD_PRIMARY_SITE_ID === (int) $from_site_id) {
 				$from_site_table = self::get_primary_tables($from_site_prefix);
 			} else {
@@ -149,6 +286,8 @@ if ( ! class_exists('MUCD_Data') ) {
 
 				$table_name = $to_site_prefix . $table_base_name;
 
+				self::set_error_context('copy', $table_name, $table_base_name);
+
 				$wpdb->get_results('SET foreign_key_checks = 0'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 				// Drop table if exists
@@ -159,13 +298,19 @@ if ( ! class_exists('MUCD_Data') ) {
 
 				$create_statement = self::do_sql_query('SHOW CREATE TABLE `' . $table . '`', 'row_array');
 
+				// A non-fatal failure lets the clone go on; skip the rest of this table.
+				if (empty($create_statement[1])) {
+					$wpdb->get_results('SET foreign_key_checks = 1'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+					continue;
+				}
+
 				$create_statement_sql = str_replace($from_site_prefix, $to_site_prefix, (string) $create_statement[1]);
 
-				self::do_sql_query($create_statement_sql);
+				$created = self::do_sql_query($create_statement_sql);
 
 				// Populate database with data from source table
-				if ($copy_rows) {
-					self::do_sql_query('INSERT IGNORE `' . $table_name . '` SELECT * FROM `' . $table . '`');
+				if ($copy_rows && false !== $created) {
+					self::do_sql_query(self::get_copy_rows_query($table, $table_name, $from_site_prefix, $to_site_prefix));
 				}
 
 				$wpdb->get_results('SET foreign_key_checks = 1'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -175,6 +320,59 @@ if ( ! class_exists('MUCD_Data') ) {
 			self::db_restore_data($to_site_id, $saved_options);
 
 			return $saved_options;
+		}
+
+		/**
+		 * Build the query that copies all rows from a source table to its clone.
+		 *
+		 * Generated columns (VIRTUAL / STORED / PERSISTENT) cannot receive explicit
+		 * values, so `INSERT ... SELECT *` fails for tables that contain them (for
+		 * example FluentCRM's `fc_messages.activity_at`). When the source table has
+		 * generated columns, the query lists only the writable columns and lets the
+		 * database compute the generated values on the destination table.
+		 *
+		 * The destination table is created from the source `SHOW CREATE TABLE` with
+		 * the site prefix replaced, which also renames any column whose name contains
+		 * the prefix. Destination column names get the same replacement so they match.
+		 *
+		 * @since 2.18.1
+		 *
+		 * @param string $table       Source table name.
+		 * @param string $table_name  Destination table name.
+		 * @param string $from_prefix Source site table prefix.
+		 * @param string $to_prefix   Destination site table prefix.
+		 * @return string SQL query.
+		 */
+		public static function get_copy_rows_query($table, $table_name, $from_prefix = '', $to_prefix = '') {
+
+			$columns = self::do_sql_query('SHOW COLUMNS FROM `' . $table . '`', 'results', false, false);
+
+			$source_columns      = [];
+			$destination_columns = [];
+			$has_generated       = false;
+
+			foreach ((array) $columns as $column) {
+				$extra = isset($column['Extra']) ? (string) $column['Extra'] : '';
+
+				// Match "VIRTUAL GENERATED", "STORED GENERATED" and MariaDB "PERSISTENT GENERATED",
+				// but not MySQL 8's "DEFAULT_GENERATED", which marks a writable column with an expression default.
+				if (preg_match('/\b(?:VIRTUAL|STORED|PERSISTENT)\s+GENERATED\b/i', $extra)) {
+					$has_generated = true;
+					continue;
+				}
+
+				$field       = (string) $column['Field'];
+				$destination = '' !== $from_prefix ? str_replace($from_prefix, $to_prefix, $field) : $field;
+
+				$source_columns[]      = '`' . str_replace('`', '``', $field) . '`';
+				$destination_columns[] = '`' . str_replace('`', '``', $destination) . '`';
+			}
+
+			if ( ! $has_generated || empty($source_columns)) {
+				return 'INSERT IGNORE `' . $table_name . '` SELECT * FROM `' . $table . '`';
+			}
+
+			return 'INSERT IGNORE `' . $table_name . '` (' . implode(', ', $destination_columns) . ') SELECT ' . implode(', ', $source_columns) . ' FROM `' . $table . '`';
 		}
 
 		/**
@@ -466,6 +664,9 @@ if ( ! class_exists('MUCD_Data') ) {
 
 			global $wpdb;
 
+			// URL replacement failures leave old URLs behind but never a broken site.
+			self::set_error_context('update');
+
 			$to_blog_prefix = $wpdb->get_blog_prefix($to_site_id);
 
 			// Looking for uploads dirs
@@ -499,12 +700,21 @@ if ( ! class_exists('MUCD_Data') ) {
 			}
 
 			foreach ( $tables as $table => $col) {
-				$results = self::do_sql_query('SHOW COLUMNS FROM `' . $to_blog_prefix . $table . '`', 'col', false);
+				self::set_error_context('update', $to_blog_prefix . $table, (string) $table);
+
+				$results = self::do_sql_query('SHOW COLUMNS FROM `' . $to_blog_prefix . $table . '`', 'results', false);
 
 				$columns = [];
 
-				foreach ( $results as $k => $v ) {
-					$columns[] = $v;
+				foreach ( (array) $results as $column ) {
+					$extra = isset($column['Extra']) ? (string) $column['Extra'] : '';
+
+					// Generated columns are computed by the database and cannot be updated.
+					if (preg_match('/\b(?:VIRTUAL|STORED|PERSISTENT)\s+GENERATED\b/i', $extra)) {
+						continue;
+					}
+
+					$columns[] = $column['Field'];
 				}
 
 				$tables[ $table ] = $columns;
@@ -550,6 +760,8 @@ if ( ! class_exists('MUCD_Data') ) {
 			$string_to_replace = apply_filters('mucd_string_to_replace', $string_to_replace, $from_site_id, $to_site_id);
 
 			foreach ( $tables as $table => $field) {
+				self::set_error_context('update', $to_blog_prefix . $table, (string) $table);
+
 				foreach ( $string_to_replace as $from_string => $to_string) {
 					self::update($to_blog_prefix . $table, $field, $from_string, $to_string);
 				}
@@ -606,6 +818,34 @@ if ( ! class_exists('MUCD_Data') ) {
 			$cache[ $table ] = $row ? $row->Column_name : null; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Column_name is returned by SHOW KEYS.
 
 			return $cache[ $table ];
+		}
+
+		/**
+		 * Run a URL replacement on a cloned table after copy_data() has finished.
+		 *
+		 * Failures are classified like the copy's own replacement pass: by default
+		 * they are added to get_copy_warnings() for the table. A
+		 * wu_mucd_copy_error_is_fatal override records them in get_copy_error()
+		 * instead, which the caller must check afterwards.
+		 *
+		 * @since 2.18.1
+		 * @param string $table           Full table name.
+		 * @param array  $fields          Fields to update.
+		 * @param string $from_string     Original string to replace.
+		 * @param string $to_string       New string.
+		 * @param string $table_base_name Table name without the blog prefix, passed to the fatal-error filter.
+		 * @return void
+		 */
+		public static function update_as_warning($table, $fields, $from_string, $to_string, $table_base_name = ''): void {
+			$previous = self::$error_context;
+
+			self::set_error_context('update', (string) $table, (string) $table_base_name);
+
+			try {
+				self::update($table, $fields, $from_string, $to_string);
+			} finally {
+				self::$error_context = $previous;
+			}
 		}
 
 		/**
@@ -883,8 +1123,8 @@ if ( ! class_exists('MUCD_Data') ) {
 
 			if ('' !== $wpdb->last_error) {
 				$last_error = $wpdb->last_error;
-				if ($capture_copy_error && '' === self::$copy_error) {
-					self::$copy_error = $last_error;
+				if ($capture_copy_error) {
+					self::record_copy_error($last_error);
 				}
 
 				self::sql_error($sql_query, $last_error);

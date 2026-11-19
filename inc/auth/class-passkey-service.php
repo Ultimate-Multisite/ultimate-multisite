@@ -155,6 +155,34 @@ class Passkey_Service {
 	}
 
 	/**
+	 * Generates usernameless (discoverable credential) authentication options.
+	 *
+	 * The challenge is bound to no user and no credentials are listed, so the
+	 * response never reveals whether an account or a passkey exists: the
+	 * browser offers the passkeys it holds for this site, and the signed
+	 * assertion identifies the user.
+	 *
+	 * @since 2.19.0
+	 * @return array
+	 */
+	public function get_discoverable_authentication_options() {
+
+		$rp_id     = $this->helper->get_rp_id();
+		$origin    = $this->helper->get_origin();
+		$challenge = $this->challenges->create('authentication', 0, $rp_id, $origin);
+
+		return [
+			'publicKey' => [
+				'challenge'        => $challenge,
+				'timeout'          => 60000,
+				'rpId'             => $rp_id,
+				'allowCredentials' => [],
+				'userVerification' => 'preferred',
+			],
+		];
+	}
+
+	/**
 	 * Verifies and stores a registration response.
 	 *
 	 * @since 2.13.2
@@ -242,8 +270,17 @@ class Passkey_Service {
 
 		$challenge = $this->challenges->get_valid($client_data['challenge'], 'authentication');
 
-		if ( ! $challenge || (int) $challenge->user_id !== (int) $credential->user_id) {
+		// A user-bound challenge must match the credential's owner; a discoverable
+		// (user 0) challenge is bound to the user by the verified signature below.
+		if ( ! $challenge || (0 !== (int) $challenge->user_id && (int) $challenge->user_id !== (int) $credential->user_id)) {
 			return new \WP_Error('invalid_challenge', __('Invalid or expired passkey challenge.', 'ultimate-multisite'));
+		}
+
+		// Discoverable assertions carry the user handle set at registration; it must name the same user.
+		$user_handle = (string) ($payload['response']['userHandle'] ?? '');
+
+		if ('' !== $user_handle && $this->helper->base64url_decode($user_handle) !== (string) $credential->user_id) {
+			return new \WP_Error('invalid_user_handle', __('This passkey does not belong to this account.', 'ultimate-multisite'));
 		}
 
 		if ( ! $this->helper->is_origin_allowed($client_data['origin'], $challenge->origin, $challenge->rp_id)) {

@@ -291,6 +291,155 @@ class Passwordless_Auth_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Tests usernameless options bind no user and list no credentials.
+	 */
+	public function test_discoverable_options_name_no_user_or_credentials() {
+
+		$store = new Passkey_Credential_Store();
+		$store->create(321, 'listed-credential', "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----\n", 1, str_repeat('a', 32), ['internal']);
+
+		$options = (new Passkey_Service())->get_discoverable_authentication_options();
+
+		$this->assertSame([], $options['publicKey']['allowCredentials']);
+		$this->assertNotEmpty($options['publicKey']['challenge']);
+
+		$row = (new WebAuthn_Challenge_Store())->get_valid($options['publicKey']['challenge'], 'authentication');
+
+		$this->assertNotNull($row);
+		$this->assertSame(0, (int) $row->user_id);
+	}
+
+	/**
+	 * Tests an unbound (discoverable) challenge authenticates the credential owner.
+	 */
+	public function test_discoverable_challenge_authenticates_the_credential_owner() {
+
+		$user    = self::factory()->user->create_and_get();
+		$service = $this->passkey_service_for_assertion($user->ID, 0, true);
+		$result  = $service->verify_authentication($this->assertion_payload((string) $user->ID));
+
+		$this->assertInstanceOf(\WP_User::class, $result);
+		$this->assertSame($user->ID, $result->ID);
+	}
+
+	/**
+	 * Tests a challenge bound to a different user is still rejected.
+	 */
+	public function test_challenge_bound_to_another_user_is_rejected() {
+
+		$user    = self::factory()->user->create_and_get();
+		$service = $this->passkey_service_for_assertion($user->ID, $user->ID + 1000, false);
+		$result  = $service->verify_authentication($this->assertion_payload(''));
+
+		$this->assertWPError($result);
+		$this->assertSame('invalid_challenge', $result->get_error_code());
+	}
+
+	/**
+	 * Tests a user handle naming a different account is rejected.
+	 */
+	public function test_user_handle_for_another_account_is_rejected() {
+
+		$user    = self::factory()->user->create_and_get();
+		$service = $this->passkey_service_for_assertion($user->ID, 0, false);
+		$result  = $service->verify_authentication($this->assertion_payload((string) ($user->ID + 1000)));
+
+		$this->assertWPError($result);
+		$this->assertSame('invalid_user_handle', $result->get_error_code());
+	}
+
+	/**
+	 * Builds a passkey service whose cryptographic checks pass for one credential.
+	 *
+	 * @param int  $owner_id          Credential owner.
+	 * @param int  $challenge_user_id User the challenge is bound to (0 = discoverable).
+	 * @param bool $expect_success    Whether the challenge and usage must be persisted.
+	 * @return Passkey_Service
+	 */
+	protected function passkey_service_for_assertion($owner_id, $challenge_user_id, $expect_success) {
+
+		$credential = (object) [
+			'id'         => 789,
+			'user_id'    => $owner_id,
+			'sign_count' => 1,
+			'public_key' => 'public-key',
+		];
+
+		$challenge = (object) [
+			'id'      => 456,
+			'user_id' => $challenge_user_id,
+			'rp_id'   => 'example.test',
+			'origin'  => 'https://example.test',
+		];
+
+		$helper = $this->getMockBuilder(WebAuthn_Helper::class)
+			->onlyMethods(['parse_client_data', 'is_origin_allowed', 'parse_assertion_authenticator_data', 'verify_assertion_signature'])
+			->getMock();
+
+		$helper->method('parse_client_data')->willReturn(
+			[
+				'challenge' => 'challenge',
+				'origin'    => 'https://example.test',
+				'_raw'      => 'client-data',
+			]
+		);
+		$helper->method('is_origin_allowed')->willReturn(true);
+		$helper->method('parse_assertion_authenticator_data')->willReturn(
+			[
+				'rp_id_hash' => hash('sha256', 'example.test', true),
+				'sign_count' => 2,
+			]
+		);
+		$helper->method('verify_assertion_signature')->willReturn(true);
+
+		$credentials = $this->getMockBuilder(Passkey_Credential_Store::class)
+			->onlyMethods(['find_by_credential_id', 'update_usage'])
+			->getMock();
+
+		$credentials->method('find_by_credential_id')->willReturn($credential);
+		$credentials->expects($expect_success ? $this->once() : $this->never())->method('update_usage')->willReturn(true);
+
+		$challenges = $this->getMockBuilder(WebAuthn_Challenge_Store::class)
+			->onlyMethods(['get_valid', 'mark_used'])
+			->getMock();
+
+		$challenges->method('get_valid')->willReturn($challenge);
+		$challenges->expects($expect_success ? $this->once() : $this->never())->method('mark_used')->willReturn(true);
+
+		$service = new Passkey_Service();
+
+		$this->set_protected_property($service, 'helper', $helper);
+		$this->set_protected_property($service, 'credentials', $credentials);
+		$this->set_protected_property($service, 'challenges', $challenges);
+
+		return $service;
+	}
+
+	/**
+	 * Builds an assertion payload, optionally with a user handle.
+	 *
+	 * @param string $user_id User ID to encode as the user handle ('' = none).
+	 * @return array
+	 */
+	protected function assertion_payload($user_id) {
+
+		$response = [
+			'authenticatorData' => 'authenticator-data',
+			'clientDataJSON'    => 'client-data',
+			'signature'         => 'signature',
+		];
+
+		if ('' !== $user_id) {
+			$response['userHandle'] = (new WebAuthn_Helper())->base64url_encode($user_id);
+		}
+
+		return [
+			'rawId'    => 'credential-id',
+			'response' => $response,
+		];
+	}
+
+	/**
 	 * Tests starting login always returns the generic OTP challenge first.
 	 */
 	public function test_ajax_start_does_not_expose_passkey_options_before_otp_verification() {

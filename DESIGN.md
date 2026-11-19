@@ -52,3 +52,12 @@ Keep the existing stacked widget layout on desktop and mobile. List nameservers
 on separate lines and allow long hostnames to wrap without truncation. Hide the
 summary during loading or lookup errors; preserve the existing record table and
 provider-managed editing controls.
+
+## Cloudways integration setup
+
+Show the API v2 access-token checklist on the credentials step using the same
+configuration-instructions component as BigScoots, not a separate instructions
+screen. Explain token permissions, legacy-key migration, SSL contact email,
+resource IDs, extra domains and wildcard limitations beside the relevant form.
+Reuse the existing stacked, wrapping layout on desktop and mobile; no new styles
+or wizard steps are needed. Keep the access token in a password field.
