@@ -24,7 +24,7 @@ $wp_styles->do_item('wu-invoice');
 								<?php
 								echo (wp_get_attachment_image(
 									$custom_logo,
-									'full',
+									\WP_Ultimo\Invoices\Invoice::LOGO_IMAGE_SIZE,
 									false,
 									array(
 										'loading'  => false,

@@ -2107,6 +2107,18 @@ class Checkout {
 			$username = $username_or_email;
 		}
 
+		// Per-account limit: 10 failed attempts per account with 15-minute lockout, independent of client IP.
+		$account_transient_key = 'wu_login_account_attempt_' . md5(strtolower($username));
+		$account_attempt_count = (int) get_transient($account_transient_key);
+
+		if ($account_attempt_count >= 10) {
+			wp_send_json_error(
+				[
+					'message' => __('Too many login attempts. Please try again in a few minutes.', 'ultimate-multisite'),
+				]
+			);
+		}
+
 		/**
 		 * Filters inline login before authentication.
 		 *
@@ -2135,8 +2147,9 @@ class Checkout {
 
 		if (is_wp_error($user)) {
 
-			// Increment failed attempt counter
+			// Increment failed attempt counters
 			set_transient($transient_key, ($attempt_count ? $attempt_count + 1 : 1), 5 * MINUTE_IN_SECONDS);
+			set_transient($account_transient_key, $account_attempt_count + 1, 15 * MINUTE_IN_SECONDS);
 
 			$error_message = $user->get_error_message();
 
@@ -2157,6 +2170,7 @@ class Checkout {
 
 		// Clear rate limiting on successful login
 		delete_transient($transient_key);
+		delete_transient($account_transient_key);
 
 		// Log the user in
 		wp_clear_auth_cookie();
