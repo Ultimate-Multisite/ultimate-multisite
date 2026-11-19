@@ -159,6 +159,7 @@ class Domain_Manager extends Base_Manager {
 		add_action('wu_transition_domain_stage', [$this, 'maybe_auto_promote_primary_domain'], 10, 3);
 
 		add_action('wu_settings_domain_mapping', [$this, 'add_domain_mapping_settings']);
+		add_filter('wu_pre_save_settings', [$this, 'do_not_store_default_domain_mapping_instructions']);
 
 		add_action('wu_settings_sso', [$this, 'add_sso_settings']);
 
@@ -806,7 +807,7 @@ class Domain_Manager extends Base_Manager {
 			[
 				'title'       => __('Recommended DNS Target', 'ultimate-multisite'),
 				'tooltip'     => __('The hostname customers should point their custom domains to. Leave empty to use the network domain.', 'ultimate-multisite'),
-				'desc'        => __('Available as the <code>%DNS_TARGET%</code> placeholder in the instructions below. Defaults to the network domain.', 'ultimate-multisite'),
+				'desc'        => __('Available as the <code>%DNS_TARGET%</code> placeholder in the instructions below. Defaults to the network domain. If this target uses a load balancer, make sure the <code>wu_get_network_public_ip</code> filter returns its public ingress IP for the A-record fallback.', 'ultimate-multisite'),
 				'type'        => 'text',
 				'placeholder' => '',
 				'default'     => '',
@@ -987,19 +988,89 @@ class Domain_Manager extends Base_Manager {
 	public function default_domain_mapping_instructions(): string {
 
 		$instructions = [];
+		$dns_steps    = [];
 
 		$instructions[] = __("Cool! You're about to make this site accessible using your own domain name!", 'ultimate-multisite');
 
 		$instructions[] = __("For that to work, you'll need to update the DNS records of your domain at your DNS provider (usually where you bought the domain):", 'ultimate-multisite');
 
-		$instructions[] = __('1. Root domain (e.g. <code>example.com</code>): create a CNAME record pointing to <code>%DNS_TARGET%</code>. If your provider does not allow a CNAME on the root domain, create an A record pointing to <code>%NETWORK_IP%</code> instead.', 'ultimate-multisite') . '<br>'
-			. __('2. <code>www</code> subdomain: create a CNAME record for <code>www</code> pointing to <code>%DNS_TARGET%</code>.', 'ultimate-multisite') . '<br>'
-			. __('3. Remove any other A, AAAA or CNAME records for the same names, as conflicting records will prevent the domain from working.', 'ultimate-multisite') . '<br>'
-			. __('4. Using Cloudflare? Set the record to "DNS only" (grey cloud) until the domain is verified, and use SSL/TLS mode "Full (strict)" if you enable the proxy afterwards.', 'ultimate-multisite');
+		$dns_steps[] = __('If you are mapping a root domain (for example, <code>example.com</code>), create a CNAME record pointing to <code>%DNS_TARGET%</code>. If your provider does not allow a CNAME on the root domain, create an A record pointing to the network ingress address <code>%NETWORK_IP%</code> instead.', 'ultimate-multisite');
+		$dns_steps[] = __('If you are mapping a subdomain, create a CNAME record for the exact hostname you entered (for example, <code>shop.example.com</code>) pointing to <code>%DNS_TARGET%</code>. Do not change the parent root or <code>www</code> records for this mapping.', 'ultimate-multisite');
+
+		$www_setting = wu_get_setting('auto_create_www_subdomain', 'always');
+
+		if ('always' === $www_setting) {
+			$dns_steps[] = __('Only if you want a <code>www</code> alias for the mapped hostname and it does not already serve another site, create a CNAME record for that alias pointing to <code>%DNS_TARGET%</code>. Check its existing records before making changes.', 'ultimate-multisite');
+		} elseif ('main_only' === $www_setting) {
+			$dns_steps[] = __('For a root-domain mapping, only if you want to use <code>www</code> and it does not already serve another site, create a CNAME record for <code>www</code> pointing to <code>%DNS_TARGET%</code>. Check its existing records before making changes.', 'ultimate-multisite');
+		}
+
+		$dns_steps[] = __('Remove or replace only A, AAAA or CNAME records for the same hostname that point to the wrong service. Keep valid records, including valid IPv6 (AAAA) records.', 'ultimate-multisite');
+		$dns_steps[] = __('Using Cloudflare? Set the record to "DNS only" (grey cloud) until the domain is verified, and use SSL/TLS mode "Full (strict)" if you enable the proxy afterwards.', 'ultimate-multisite');
+
+		foreach ($dns_steps as $index => $dns_step) {
+			$dns_steps[ $index ] = ($index + 1) . '. ' . $dns_step;
+		}
+
+		$instructions[] = implode('<br>', $dns_steps);
 
 		$instructions[] = __('After you finish that step, come back to this screen and click the button below. DNS changes can take a while to propagate, and the first HTTPS visit may take a minute while the SSL certificate is issued.', 'ultimate-multisite');
 
 		return implode(PHP_EOL . PHP_EOL, $instructions);
+	}
+
+	/**
+	 * Prevent generated defaults from becoming persistent custom instructions.
+	 *
+	 * @since 2.19.0
+	 *
+	 * @param array $settings Settings about to be saved.
+	 * @return array
+	 */
+	public function do_not_store_default_domain_mapping_instructions($settings) {
+
+		if (isset($settings['domain_mapping_instructions']) && $this->is_default_domain_mapping_instructions($settings['domain_mapping_instructions'])) {
+			$settings['domain_mapping_instructions'] = '';
+		}
+
+		return $settings;
+	}
+
+	/**
+	 * Checks whether stored instructions are a generated current or legacy default.
+	 *
+	 * @since 2.19.0
+	 *
+	 * @param mixed $instructions Instructions to inspect.
+	 * @return bool
+	 */
+	private function is_default_domain_mapping_instructions($instructions): bool {
+
+		$known_defaults = [
+			$this->default_domain_mapping_instructions(),
+			implode(
+				PHP_EOL . PHP_EOL,
+				[
+					__("Cool! You're about to make this site accessible using your own domain name!", 'ultimate-multisite'),
+					__("For that to work, you'll need to create a new CNAME record pointing to <code>%NETWORK_DOMAIN%</code> on your DNS manager.", 'ultimate-multisite'),
+					__('After you finish that step, come back to this screen and click the button below.', 'ultimate-multisite'),
+				]
+			),
+			implode(
+				PHP_EOL . PHP_EOL,
+				[
+					__("Cool! You're about to make this site accessible using your own domain name!", 'ultimate-multisite'),
+					__("For that to work, you'll need to update the DNS records of your domain at your DNS provider (usually where you bought the domain):", 'ultimate-multisite'),
+					__('1. Root domain (e.g. <code>example.com</code>): create a CNAME record pointing to <code>%DNS_TARGET%</code>. If your provider does not allow a CNAME on the root domain, create an A record pointing to <code>%NETWORK_IP%</code> instead.', 'ultimate-multisite') . '<br>'
+						. __('2. <code>www</code> subdomain: create a CNAME record for <code>www</code> pointing to <code>%DNS_TARGET%</code>.', 'ultimate-multisite') . '<br>'
+						. __('3. Remove any other A, AAAA or CNAME records for the same names, as conflicting records will prevent the domain from working.', 'ultimate-multisite') . '<br>'
+						. __('4. Using Cloudflare? Set the record to "DNS only" (grey cloud) until the domain is verified, and use SSL/TLS mode "Full (strict)" if you enable the proxy afterwards.', 'ultimate-multisite'),
+					__('After you finish that step, come back to this screen and click the button below. DNS changes can take a while to propagate, and the first HTTPS visit may take a minute while the SSL certificate is issued.', 'ultimate-multisite'),
+				]
+			),
+		];
+
+		return in_array((string) $instructions, $known_defaults, true);
 	}
 
 	/**
@@ -1014,7 +1085,7 @@ class Domain_Manager extends Base_Manager {
 
 		$instructions = wu_get_setting('domain_mapping_instructions', '');
 
-		if ( ! $instructions) {
+		if ( ! $instructions || $this->is_default_domain_mapping_instructions($instructions)) {
 			$instructions = $this->default_domain_mapping_instructions();
 		}
 
