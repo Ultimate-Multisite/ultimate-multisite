@@ -643,12 +643,197 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 
 		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
 
+		$this->domain_mapping->current_mapping = $this->make_request_mapping(99999);
+
 		$result = $this->domain_mapping->mangle_url('http://example.org/', '/', '', 1);
 
 		$this->assertSame('http://example.org/', $result);
 
 		$domain->delete();
 		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+		$this->domain_mapping->current_mapping = null;
+	}
+
+	/**
+	 * The requested site on an unmapped host keeps its own URLs.
+	 *
+	 * Mapping them would move wp-admin, AJAX, REST and login requests off the
+	 * network host, which breaks force_network.
+	 */
+	public function test_mangle_url_keeps_requested_site_on_unmapped_host(): void {
+
+		$domain = $this->create_db_domain('requested-site-dm-test.example.com', 1, true);
+
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+
+		$this->domain_mapping->current_mapping = null;
+
+		$result = $this->domain_mapping->mangle_url('http://example.org/wp-admin/', 'wp-admin/', 'admin', 1);
+
+		$this->assertSame('http://example.org/wp-admin/', $result);
+
+		$domain->delete();
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+	}
+
+	/**
+	 * Option and asset filters pass only the URL and must not map other sites.
+	 */
+	public function test_mangle_url_without_site_id_does_not_map_other_sites(): void {
+
+		$domain = $this->create_db_domain('option-read-dm-test.example.com', 1, true);
+
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+
+		$this->domain_mapping->current_mapping = $this->make_request_mapping(99999);
+
+		$this->assertSame('http://example.org', $this->domain_mapping->mangle_url('http://example.org'));
+
+		$domain->delete();
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+		$this->domain_mapping->current_mapping = null;
+	}
+
+	/**
+	 * An explicitly requested HTTPS URL is not downgraded by an insecure mapping.
+	 */
+	public function test_mangle_url_preserves_explicit_https_for_other_site(): void {
+
+		$domain = $this->create_db_domain('https-request-dm-test.example.com', 1, true);
+
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+
+		$this->domain_mapping->current_mapping = $this->make_request_mapping(99999);
+
+		$this->assertSame(
+			'https://https-request-dm-test.example.com/wp-admin/',
+			$this->domain_mapping->mangle_url('https://example.org/wp-admin/', 'wp-admin/', 'https', 1)
+		);
+
+		$this->assertSame(
+			'http://https-request-dm-test.example.com/',
+			$this->domain_mapping->mangle_url('https://example.org/', '/', null, 1)
+		);
+
+		$domain->delete();
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+		$this->domain_mapping->current_mapping = null;
+	}
+
+	/**
+	 * With force_network, admin and login links to other sites stay on the network host.
+	 */
+	public function test_mangle_url_force_network_keeps_admin_urls_for_other_sites(): void {
+
+		$domain = $this->create_db_domain('force-network-dm-test.example.com', 1, true);
+
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+
+		$previous = wu_get_setting('force_admin_redirect', 'both');
+		wu_save_setting('force_admin_redirect', 'force_network');
+
+		$this->domain_mapping->current_mapping = $this->make_request_mapping(99999);
+
+		$this->assertSame('http://example.org/wp-admin/', $this->domain_mapping->mangle_url('http://example.org/wp-admin/', 'wp-admin/', 'admin', 1));
+		$this->assertSame('http://example.org/wp-login.php', $this->domain_mapping->mangle_url('http://example.org/wp-login.php', 'wp-login.php', 'login', 1));
+		$this->assertSame('http://force-network-dm-test.example.com/', $this->domain_mapping->mangle_url('http://example.org/', '/', null, 1));
+
+		wu_save_setting('force_admin_redirect', $previous);
+		$domain->delete();
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+		$this->domain_mapping->current_mapping = null;
+	}
+
+	/**
+	 * Network URLs use the main site's mapping even while another blog is switched in.
+	 */
+	public function test_mangle_network_url_uses_main_site_mapping_when_switched(): void {
+
+		$blog_id = self::factory()->blog->create(['path' => '/network-switch-dm/']);
+
+		$mapping = new Domain();
+		$mapping->set_domain('main-network-dm-test.example.com');
+		$mapping->set_blog_id(get_main_site_id());
+
+		$this->domain_mapping->current_mapping = $mapping;
+
+		switch_to_blog($blog_id);
+		$result = $this->domain_mapping->mangle_network_url('http://example.org/', '/', null);
+		restore_current_blog();
+
+		$this->assertSame('http://main-network-dm-test.example.com/', $result);
+
+		$this->domain_mapping->current_mapping = null;
+	}
+
+	/**
+	 * The site path is only stripped as a whole segment.
+	 */
+	public function test_replace_url_matches_site_path_as_whole_segment(): void {
+
+		$blog_id = self::factory()->blog->create(['path' => '/shop/']);
+
+		$mapping = new Domain();
+		$mapping->set_domain('shop-segment-dm-test.example.com');
+		$mapping->set_blog_id($blog_id);
+
+		$this->assertSame('http://shop-segment-dm-test.example.com/shopping-list/', $this->domain_mapping->replace_url('http://example.org/shop/shopping-list/', $mapping));
+		$this->assertSame('http://shop-segment-dm-test.example.com', $this->domain_mapping->replace_url('http://example.org/shop', $mapping));
+		$this->assertSame('http://shop-segment-dm-test.example.com/?p=1', $this->domain_mapping->replace_url('http://example.org/shop/?p=1', $mapping));
+	}
+
+	/**
+	 * A URL already on the mapped host keeps its full path.
+	 */
+	public function test_replace_url_is_idempotent_for_mapped_host(): void {
+
+		$blog_id = self::factory()->blog->create(['path' => '/shop/']);
+
+		$mapping = new Domain();
+		$mapping->set_domain('shop-idempotent-dm-test.example.com');
+		$mapping->set_blog_id($blog_id);
+
+		$once = $this->domain_mapping->replace_url('http://example.org/shop/shop/cart', $mapping);
+
+		$this->assertSame('http://shop-idempotent-dm-test.example.com/shop/cart', $once);
+		$this->assertSame($once, $this->domain_mapping->replace_url($once, $mapping));
+	}
+
+	/**
+	 * Saving a new primary domain is picked up by the cross-site lookup.
+	 */
+	public function test_mangle_url_picks_up_new_and_deleted_primary_domains(): void {
+
+		$this->domain_mapping->current_mapping = $this->make_request_mapping(99999);
+
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+
+		$this->assertSame('http://example.org/', $this->domain_mapping->mangle_url('http://example.org/', '/', null, 1));
+
+		$domain = $this->create_db_domain('lifecycle-dm-test.example.com', 1, true);
+
+		$this->assertSame('http://lifecycle-dm-test.example.com/', $this->domain_mapping->mangle_url('http://example.org/', '/', null, 1));
+
+		$domain->delete();
+
+		$this->assertSame('http://example.org/', $this->domain_mapping->mangle_url('http://example.org/', '/', null, 1));
+
+		$this->domain_mapping->current_mapping = null;
+	}
+
+	/**
+	 * Build an unsaved mapping that represents the current request's host.
+	 *
+	 * @param int $blog_id Site ID the request resolved to.
+	 * @return Domain
+	 */
+	private function make_request_mapping(int $blog_id): Domain {
+
+		$mapping = new Domain();
+		$mapping->set_domain('request-site.example.com');
+		$mapping->set_blog_id($blog_id);
+
+		return $mapping;
 	}
 
 	/**

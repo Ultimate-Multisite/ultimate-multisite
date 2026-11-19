@@ -540,8 +540,8 @@ class Domain_Mapping {
 		}
 
 		/*
-		 * These filters include the target site ID, so they can apply a site's
-		 * primary mapping even when this request is running on another site.
+		 * These filters include the target site ID, so they can apply another
+		 * site's primary mapping even when this request has no mapped host.
 		 */
 		add_filter('site_url', [$this, 'mangle_url'], -10, 4);
 		add_filter('home_url', [$this, 'mangle_url'], -10, 4);
@@ -573,8 +573,8 @@ class Domain_Mapping {
 
 		// If on network site, also filter network urls
 		if (is_main_site()) {
-			add_filter('network_site_url', [$this, 'mangle_url'], -10, 3);
-			add_filter('network_home_url', [$this, 'mangle_url'], -10, 3);
+			add_filter('network_site_url', [$this, 'mangle_network_url'], -10, 3);
+			add_filter('network_home_url', [$this, 'mangle_network_url'], -10, 3);
 		}
 
 		add_filter('jetpack_sync_home_url', [$this, 'mangle_url']);
@@ -669,19 +669,26 @@ class Domain_Mapping {
 			return $url;
 		}
 
+		/*
+		 * A URL that is already on the mapped host must not lose the site path
+		 * again. Otherwise /shop/cart on shop.example.com would become /cart.
+		 */
+		$already_mapped = strtolower($domain_base) === strtolower((string) $current_mapping->get_domain());
+
 		$domain = preg_quote($domain_base, '#') . '(?::\d+)?';
 
 		if ('/' !== $path) {
-			$domain = rtrim($domain . '/' . preg_quote(ltrim($path, '/'), '#'), '/');
+			// Match the site path only as a whole segment, so /shop does not match /shopping.
+			$domain .= '/' . preg_quote(trim($path, '/'), '#') . '(?=[/?\#]|$)';
 		}
 
 		$regex   = '#^(\w+://)' . $domain . '#i';
-		$mangled = preg_replace($regex, '${1}' . $current_mapping->get_domain(), $url);
+		$mangled = $already_mapped ? $url : preg_replace($regex, '${1}' . $current_mapping->get_domain(), $url);
 
 		/*
 		 * Another try if we don't need to deal with subdirectory.
 		 */
-		if ($mangled === $url && $this->current_mapping !== $current_mapping) {
+		if ( ! $already_mapped && $mangled === $url && $this->current_mapping !== $current_mapping) {
 			$domain  = preg_quote($domain_base, '#') . '(?::\d+)?';
 			$regex   = '#^(\w+://)' . $domain . '#i';
 			$mangled = preg_replace($regex, '${1}' . $current_mapping->get_domain(), $url);
@@ -695,6 +702,13 @@ class Domain_Mapping {
 	/**
 	 * Mangle the home URL to give our primary domain
 	 *
+	 * The current request's mapping is applied when it belongs to the target
+	 * site. When the caller passes a target site ID (as the `site_url` and
+	 * `home_url` filters do) and that site is not the site being requested,
+	 * the target site's active primary mapping is applied instead. Callers
+	 * that pass only a URL (option and asset filters) keep the current-request
+	 * behaviour, so raw option reads for other sites stay unchanged.
+	 *
 	 * @param string      $url The complete home URL including scheme and path.
 	 * @param string      $path Path relative to the home URL. Blank string if no path is specified.
 	 * @param string|null $orig_scheme Scheme to give the home URL context. Accepts 'http', 'https', 'relative' or null.
@@ -703,9 +717,11 @@ class Domain_Mapping {
 	 */
 	public function mangle_url($url, $path = '/', $orig_scheme = '', $site_id = 0) {
 
-		if (empty($site_id)) {
-			$site_id = get_current_blog_id();
-		}
+		$site_id_passed = func_num_args() >= 4;
+
+		$site_id = empty($site_id) ? get_current_blog_id() : (int) $site_id;
+
+		$orig_scheme = is_string($orig_scheme) ? $orig_scheme : '';
 
 		$current_mapping = $this->current_mapping;
 
@@ -714,19 +730,126 @@ class Domain_Mapping {
 		 * site. This allows wp-admin to remain on an alternate mapped host when
 		 * the force-admin setting permits it.
 		 */
-		if (empty($current_mapping) || (int) $current_mapping->get_blog_id() !== (int) $site_id) {
-			$current_mapping = $this->get_primary_mapping_for_site($site_id);
+		if ($current_mapping && $current_mapping->get_blog_id() === $site_id) {
+			return $this->preserve_requested_https($this->replace_url($url, $current_mapping), $url, $orig_scheme);
 		}
 
-		if (empty($current_mapping)) {
+		/*
+		 * The requested site on an unmapped host (for example wp-admin on the
+		 * network domain with force_network) keeps its own URLs. Mapping them
+		 * would send admin, AJAX, REST and login requests to another host.
+		 */
+		if ( ! $site_id_passed || $this->get_request_site_id() === $site_id) {
 			return $url;
 		}
 
-		return $this->replace_url($url, $current_mapping);
+		/*
+		 * When admin access is forced to the network domain, admin and login
+		 * links to other sites must stay on the network domain as well.
+		 */
+		if (in_array($orig_scheme, ['admin', 'login', 'login_post'], true) && 'force_network' === $this->get_admin_redirect_setting()) {
+			return $url;
+		}
+
+		$primary_mapping = $this->get_primary_mapping_for_site($site_id);
+
+		if ( ! $primary_mapping) {
+			return $url;
+		}
+
+		return $this->preserve_requested_https($this->replace_url($url, $primary_mapping), $url, $orig_scheme);
+	}
+
+	/**
+	 * Mangle network URLs using the main site's mapping.
+	 *
+	 * Network URLs belong to the main site even while another blog is switched in.
+	 *
+	 * @since 2.19.0
+	 *
+	 * @param string      $url    The complete network URL including scheme and path.
+	 * @param string      $path   Path relative to the network URL.
+	 * @param string|null $scheme Scheme to give the URL context.
+	 * @return string
+	 */
+	public function mangle_network_url($url, $path = '', $scheme = null) {
+
+		return $this->mangle_url($url, $path, $scheme, get_main_site_id());
+	}
+
+	/**
+	 * Get the ID of the site that the current request resolved to.
+	 *
+	 * Unlike get_current_blog_id(), this does not change after switch_to_blog().
+	 *
+	 * @since 2.19.0
+	 * @return int
+	 */
+	private function get_request_site_id(): int {
+
+		if ($this->current_mapping) {
+			return $this->current_mapping->get_blog_id();
+		}
+
+		if (isset($GLOBALS['current_blog']->blog_id)) {
+			return (int) $GLOBALS['current_blog']->blog_id;
+		}
+
+		return get_current_blog_id();
+	}
+
+	/**
+	 * Get the admin redirect setting, even before the settings API is loaded.
+	 *
+	 * @since 2.19.0
+	 * @return string
+	 */
+	private function get_admin_redirect_setting(): string {
+
+		if (did_action('wp_ultimo_load') && function_exists('wu_get_setting')) {
+			return (string) wu_get_setting('force_admin_redirect', 'both');
+		}
+
+		if (function_exists('wu_get_setting_early')) {
+			return (string) wu_get_setting_early('force_admin_redirect', 'both');
+		}
+
+		return 'both';
+	}
+
+	/**
+	 * Keep HTTPS when WordPress resolved it from an explicit scheme request.
+	 *
+	 * The replace_url() method derives the scheme from the mapping and the current
+	 * request. That must not downgrade URLs requested with 'https', or admin/login URLs
+	 * that WordPress made secure because force_ssl_admin() is on.
+	 *
+	 * @since 2.19.0
+	 *
+	 * @param string $mangled     URL after the mapping was applied.
+	 * @param string $url         URL before the mapping was applied.
+	 * @param string $orig_scheme Scheme context passed to the URL filter.
+	 * @return string
+	 */
+	private function preserve_requested_https($mangled, $url, string $orig_scheme) {
+
+		if ( ! is_string($mangled) || ! is_string($url) || 0 !== stripos($url, 'https://')) {
+			return $mangled;
+		}
+
+		$https_required = 'https' === $orig_scheme
+			|| (in_array($orig_scheme, ['admin', 'login', 'login_post', 'rpc'], true) && force_ssl_admin());
+
+		return $https_required ? wu_replace_scheme($mangled, 'https://') : $mangled;
 	}
 
 	/**
 	 * Get the active primary mapping for a site.
+	 *
+	 * Queries the mappings table directly instead of building a Site model.
+	 * Building a Site reads the site's options, which run the URL filters
+	 * again and recurse. The direct query also works during sunrise, before
+	 * the BerlinDB query classes are loaded.
 	 *
 	 * @since 2.19.0
 	 *
@@ -734,6 +857,8 @@ class Domain_Mapping {
 	 * @return Domain|false
 	 */
 	private function get_primary_mapping_for_site($site_id) {
+
+		global $wpdb;
 
 		$site_id = absint($site_id);
 
@@ -749,14 +874,37 @@ class Domain_Mapping {
 			return $mapping;
 		}
 
-		$site    = wu_get_site($site_id);
-		$mapping = $site ? $site->get_primary_mapped_domain() : false;
+		$inactive_stages = Domain::INACTIVE_STAGES;
+		$placeholders    = implode(',', array_fill(0, count($inactive_stages), '%s'));
+		$table           = $wpdb->base_prefix . 'wu_domain_mappings';
 
-		if ($mapping && ! $mapping->is_active()) {
-			$mapping = false;
+		// Suppress errors in case the table doesn't exist yet.
+		$suppress = $wpdb->suppress_errors();
+
+		// Match the newest-first order used by Site::get_primary_mapped_domain().
+		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE blog_id = %d AND primary_domain = 1 AND active = 1 AND stage NOT IN ($placeholders) ORDER BY id DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+				array_merge([$site_id], $inactive_stages)
+			)
+		);
+
+		$query_error = $wpdb->last_error;
+
+		$wpdb->suppress_errors($suppress);
+
+		// Don't cache a miss caused by a failed query.
+		if ( ! empty($query_error)) {
+			return false;
 		}
 
-		wp_cache_set($cache_key, $mapping, 'domain_mappings');
+		$mapping = $row ? new Domain($row) : false;
+
+		/*
+		 * Domain::save() flushes the cache and deletions clear this key. The
+		 * expiry bounds a stale entry written by a lookup that raced a change.
+		 */
+		wp_cache_set($cache_key, $mapping, 'domain_mappings', HOUR_IN_SECONDS);
 
 		return $mapping;
 	}
