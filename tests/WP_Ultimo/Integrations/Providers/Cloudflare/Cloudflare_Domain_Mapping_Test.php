@@ -143,6 +143,34 @@ class Cloudflare_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->assertSame('GET www.example.com', $calls[2]);
 	}
 
+	public function test_on_remove_domain_preserves_separately_mapped_www_hostname(): void {
+
+		$this->with_saas_zone();
+
+		$www_domain = wu_create_domain(
+			[
+				'blog_id' => 1,
+				'domain'  => 'www.example.com',
+				'active'  => true,
+			]
+		);
+
+		$this->assertNotWPError($www_domain);
+
+		$this->integration->expects($this->exactly(2))
+			->method('cloudflare_api_call')
+			->withConsecutive(
+				[$this->stringContains('custom_hostnames'), 'GET', ['hostname' => 'example.com']],
+				[$this->stringContains('custom_hostnames/ch'), 'DELETE']
+			)
+			->willReturnOnConsecutiveCalls(
+				(object) ['result' => [(object) ['id' => 'ch']]],
+				(object) ['result' => (object) ['id' => 'ch']]
+			);
+
+		$this->module->on_remove_domain('example.com', 1);
+	}
+
 	public function test_on_add_domain_calls_api_when_saas_zone_id_set(): void {
 
 		$this->with_saas_zone();

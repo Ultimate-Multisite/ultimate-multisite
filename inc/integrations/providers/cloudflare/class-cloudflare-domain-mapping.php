@@ -692,7 +692,18 @@ class Cloudflare_Domain_Mapping extends Base_Capability_Module implements Domain
 		$this->delete_custom_hostname($saas_zone_id, $domain, true);
 
 		if ( ! str_starts_with($domain, 'www.')) {
-			$this->delete_custom_hostname($saas_zone_id, 'www.' . $domain, false);
+			$www_domain      = 'www.' . $domain;
+			$active_mappings = wu_get_domains(
+				[
+					'domain' => $www_domain,
+					'active' => 1,
+					'number' => 1,
+				]
+			);
+
+			if (empty($active_mappings)) {
+				$this->delete_custom_hostname($saas_zone_id, $www_domain, false);
+			}
 		}
 	}
 
