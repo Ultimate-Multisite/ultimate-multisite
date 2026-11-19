@@ -1551,17 +1551,6 @@ class Settings implements \WP_Ultimo\Interfaces\Singleton {
 
 		$this->add_field(
 			'sites',
-			'optimize_frontend_my_sites_toolbar',
-			[
-				'title'   => __('Optimize the front-end My Sites toolbar', 'ultimate-multisite'),
-				'desc'    => __('Show only the current site in the front-end toolbar to reduce processing on large networks. The complete site list remains available from the My Sites administration page.', 'ultimate-multisite'),
-				'type'    => 'toggle',
-				'default' => 0,
-			]
-		);
-
-		$this->add_field(
-			'sites',
 			'wordpress_features_heading',
 			[
 				'title' => __('WordPress Features', 'ultimate-multisite'),

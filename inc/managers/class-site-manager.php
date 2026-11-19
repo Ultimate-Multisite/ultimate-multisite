@@ -1172,7 +1172,24 @@ class Site_Manager extends Base_Manager {
 		if ($this->is_frontend_my_sites_toolbar_request()) {
 			$sites = $this->get_current_site_for_frontend_my_sites_toolbar($user_id, $all);
 
+			/*
+			 * WordPress hides My Sites when this list is empty. A user viewing a
+			 * site they do not belong to still needs the menu and its lazy list,
+			 * so supply one authorized membership instead.
+			 */
+			if (empty($sites) && ! $all) {
+				$sites = $this->get_primary_site_for_my_sites_toolbar($user_id);
+			}
+
 			return apply_filters('get_blogs_of_user', $sites, $user_id, $all); // phpcs:ignore
+		}
+
+		if ( ! $all && $this->is_my_sites_toolbar_active_blog_request()) {
+			$primary_sites = $this->get_primary_site_for_my_sites_toolbar($user_id, true);
+
+			if ( ! empty($primary_sites)) {
+				return apply_filters('get_blogs_of_user', $primary_sites, $user_id, $all); // phpcs:ignore
+			}
 		}
 
 		if ( ! is_super_admin()) {
@@ -1301,14 +1318,7 @@ class Site_Manager extends Base_Manager {
 	 */
 	protected function is_frontend_my_sites_toolbar_request($backtrace = null) {
 
-		if (
-			wp_doing_ajax()
-			|| wp_doing_cron()
-			|| (defined('REST_REQUEST') && REST_REQUEST)
-			|| (defined('WP_CLI') && WP_CLI)
-			|| ! is_user_logged_in()
-			|| ! is_admin_bar_showing()
-		) {
+		if ( ! $this->is_my_sites_toolbar_render_context()) {
 			return false;
 		}
 
@@ -1319,18 +1329,156 @@ class Site_Manager extends Base_Manager {
 				continue;
 			}
 
-			$caller       = $backtrace[ $index + 1 ] ?? [];
-			$caller_class = $caller['class'] ?? '';
-
-			return 'initialize' === ($caller['function'] ?? '')
-				&& $caller_class
-				&& (
-					\WP_Admin_Bar::class === $caller_class
-					|| is_subclass_of($caller_class, \WP_Admin_Bar::class, true)
-				);
+			return $this->is_admin_bar_initialize_frame($backtrace[ $index + 1 ] ?? []);
 		}
 
 		return false;
+	}
+
+	/**
+	 * Determines whether get_active_blog_for_user() is resolving the toolbar's primary site.
+	 *
+	 * WP_Admin_Bar::initialize() calls get_active_blog_for_user(), which calls
+	 * get_blogs_of_user() for the complete list only to confirm the primary site.
+	 * When that site is a valid, active membership, the primary site alone gives the
+	 * same result without enumerating every site.
+	 *
+	 * @since 2.18.1
+	 * @param array|null $backtrace Call stack override used by tests.
+	 * @return bool
+	 */
+	protected function is_my_sites_toolbar_active_blog_request($backtrace = null) {
+
+		if ( ! $this->is_my_sites_toolbar_render_context()) {
+			return false;
+		}
+
+		$backtrace = $backtrace ?? debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 12); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace
+
+		foreach ($backtrace as $index => $call) {
+			if ('get_blogs_of_user' !== ($call['function'] ?? '')) {
+				continue;
+			}
+
+			return 'get_active_blog_for_user' === ($backtrace[ $index + 1 ]['function'] ?? '')
+				&& $this->is_admin_bar_initialize_frame($backtrace[ $index + 2 ] ?? []);
+		}
+
+		return false;
+	}
+
+	/**
+	 * Checks whether the request can render an authenticated toolbar.
+	 *
+	 * @since 2.18.1
+	 * @return bool
+	 */
+	protected function is_my_sites_toolbar_render_context() {
+
+		return ! (
+			wp_doing_ajax()
+			|| wp_doing_cron()
+			|| (defined('REST_REQUEST') && REST_REQUEST)
+			|| (defined('WP_CLI') && WP_CLI)
+			|| ! is_user_logged_in()
+			|| ! is_admin_bar_showing()
+		);
+	}
+
+	/**
+	 * Checks whether a backtrace frame is WP_Admin_Bar::initialize().
+	 *
+	 * @since 2.18.1
+	 * @param array $frame Backtrace frame.
+	 * @return bool
+	 */
+	protected function is_admin_bar_initialize_frame($frame) {
+
+		$frame_class = $frame['class'] ?? '';
+
+		return 'initialize' === ($frame['function'] ?? '')
+			&& $frame_class
+			&& (
+				\WP_Admin_Bar::class === $frame_class
+				|| is_subclass_of($frame_class, \WP_Admin_Bar::class, true)
+			);
+	}
+
+	/**
+	 * Returns one authorized, active membership for the toolbar.
+	 *
+	 * Prefers the user's primary site. With $primary_only, returns an empty list
+	 * unless the primary site is a valid, active membership, so WordPress can still
+	 * repair an invalid primary_blog value from the complete list.
+	 *
+	 * @since 2.18.1
+	 * @param int  $user_id User ID.
+	 * @param bool $primary_only Whether to use only the primary site.
+	 * @return object[]
+	 */
+	protected function get_primary_site_for_my_sites_toolbar($user_id, $primary_only = false) {
+
+		$primary_id = (int) get_user_meta($user_id, 'primary_blog', true);
+
+		if ($primary_id && is_user_member_of_blog($user_id, $primary_id)) {
+			$primary = get_site($primary_id);
+
+			if ($primary && ! $primary->archived && ! $primary->spam && ! $primary->deleted) {
+				return [$primary->id => $this->get_my_sites_toolbar_site_entry($primary)];
+			}
+		}
+
+		if ($primary_only) {
+			return [];
+		}
+
+		$site_ids = $this->get_my_sites_toolbar_site_ids($user_id);
+
+		if (empty($site_ids)) {
+			return [];
+		}
+
+		$sites = get_sites(
+			[
+				'site__in'               => $site_ids,
+				'number'                 => 1,
+				'orderby'                => 'id',
+				'order'                  => 'ASC',
+				'update_site_meta_cache' => false,
+				'archived'               => 0,
+				'spam'                   => 0,
+				'deleted'                => 0,
+			]
+		);
+
+		if (empty($sites)) {
+			return [];
+		}
+
+		return [$sites[0]->id => $this->get_my_sites_toolbar_site_entry($sites[0])];
+	}
+
+	/**
+	 * Formats a site like an entry returned by get_blogs_of_user().
+	 *
+	 * @since 2.18.1
+	 * @param \WP_Site $site Site object.
+	 * @return object
+	 */
+	protected function get_my_sites_toolbar_site_entry($site) {
+
+		return (object) [
+			'userblog_id' => $site->id,
+			'blogname'    => $site->blogname,
+			'domain'      => $site->domain,
+			'path'        => $site->path,
+			'site_id'     => $site->network_id,
+			'siteurl'     => $site->siteurl,
+			'archived'    => $site->archived,
+			'mature'      => $site->mature,
+			'spam'        => $site->spam,
+			'deleted'     => $site->deleted,
+		];
 	}
 
 	/**
@@ -1340,7 +1488,7 @@ class Site_Manager extends Base_Manager {
 	 * This retains its current-site navigation while the controller fetches bounded
 	 * pages only after the user opens the menu.
 	 *
-	 * @since 2.17.2
+	 * @since 2.18.1
 	 * @param \WP_Admin_Bar $wp_admin_bar The admin bar instance.
 	 * @return void
 	 */
@@ -1369,7 +1517,7 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Enqueue the controller only on requests which render an authenticated toolbar.
 	 *
-	 * @since 2.17.2
+	 * @since 2.18.1
 	 * @return void
 	 */
 	public function enqueue_my_sites_toolbar_script(): void {
@@ -1411,7 +1559,7 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Returns a bounded, authorized page of My Sites toolbar entries.
 	 *
-	 * @since 2.17.2
+	 * @since 2.18.1
 	 * @return void
 	 */
 	public function get_my_sites_toolbar_page(): void {
@@ -1432,7 +1580,7 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Gets a bounded page of sites and the toolbar links allowed for each site.
 	 *
-	 * @since 2.17.2
+	 * @since 2.18.1
 	 * @param int $user_id The authenticated user ID.
 	 * @param int $page The one-based page number.
 	 * @return array{sites: array<int, array<string, mixed>>, has_more: bool, next_page: int}
@@ -1482,18 +1630,7 @@ class Site_Manager extends Base_Manager {
 		$sites         = [];
 
 		foreach (array_slice($queried_sites, 0, $per_page) as $site) {
-			$sites[ $site->id ] = (object) [
-				'userblog_id' => $site->id,
-				'blogname'    => $site->blogname,
-				'domain'      => $site->domain,
-				'path'        => $site->path,
-				'site_id'     => $site->network_id,
-				'siteurl'     => $site->siteurl,
-				'archived'    => $site->archived,
-				'mature'      => $site->mature,
-				'spam'        => $site->spam,
-				'deleted'     => $site->deleted,
-			];
+			$sites[ $site->id ] = $this->get_my_sites_toolbar_site_entry($site);
 		}
 
 		$sites = apply_filters('get_blogs_of_user', $sites, $user_id, false); // phpcs:ignore
@@ -1521,7 +1658,7 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Extracts the site IDs from the user's multisite capability metadata.
 	 *
-	 * @since 2.17.2
+	 * @since 2.18.1
 	 * @param int $user_id User ID.
 	 * @return int[]
 	 */
@@ -1559,7 +1696,7 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Builds the links which WordPress normally creates after switching to a site.
 	 *
-	 * @since 2.17.2
+	 * @since 2.18.1
 	 * @param int $site_id Site ID.
 	 * @return array<string, mixed>|false
 	 */
@@ -1591,10 +1728,6 @@ class Site_Manager extends Base_Manager {
 				'visit_url'     => home_url('/'),
 			];
 
-			if ($can_read) {
-				$item['dashboard_url'] = \WP_Ultimo\SSO\Admin_Bar_Magic_Links::get_instance()->get_admin_bar_action_url($site_id);
-			}
-
 			$post_type = get_post_type_object('post');
 
 			if ($post_type && current_user_can($post_type->cap->create_posts)) {
@@ -1604,11 +1737,20 @@ class Site_Manager extends Base_Manager {
 			if (current_user_can('edit_posts')) {
 				$item['comments_url'] = admin_url('edit-comments.php');
 			}
-
-			return $item;
 		} finally {
 			restore_current_blog();
 		}
+
+		/*
+		 * Build the magic-link action URL on the authenticated origin, after
+		 * restoring the original blog. While switched, admin_url() would point
+		 * at the destination domain, where the user may have no session yet.
+		 */
+		if ($can_read) {
+			$item['dashboard_url'] = \WP_Ultimo\SSO\Admin_Bar_Magic_Links::get_instance()->get_admin_bar_action_url($site_id);
+		}
+
+		return $item;
 	}
 
 	/**

@@ -3250,8 +3250,74 @@ class Site_Manager_Test extends \WP_UnitTestCase {
 			$this->assertSame([], array_values(array_intersect($one_ids, $two_ids)));
 			$this->assertNotContains($current_blog_id, $one_ids);
 			$this->assertStringContainsString('wu_admin_bar_magic_link', $page_one['sites'][0]['dashboard_url']);
+			// The handoff must start on the authenticated origin, not the destination site.
+			$this->assertStringStartsWith(admin_url('admin-post.php'), $page_one['sites'][0]['dashboard_url']);
 			$this->assertSame($current_blog_id, get_current_blog_id());
 		} finally {
+			wp_set_current_user(0);
+		}
+	}
+
+	/**
+	 * Test a user viewing a site they do not belong to keeps a My Sites entry.
+	 */
+	public function test_my_sites_toolbar_falls_back_to_primary_site_for_non_members(): void {
+
+		$reflection = new \ReflectionClass(Frontend_My_Sites_Toolbar_Test_Manager::class);
+		$manager    = $reflection->newInstanceWithoutConstructor();
+		$user_id    = $this->factory()->user->create(['role' => 'administrator']);
+		$blog_id    = $this->factory()->blog->create(['user_id' => $user_id]);
+
+		remove_user_from_blog($user_id, get_current_blog_id());
+		update_user_meta($user_id, 'primary_blog', $blog_id);
+		wp_set_current_user($user_id);
+
+		try {
+			$this->assertFalse(is_user_member_of_blog($user_id, get_current_blog_id()));
+
+			$sites = $manager->hide_customer_sites_from_super_admin_list(null, $user_id, false);
+
+			$this->assertSame([$blog_id], array_keys($sites));
+		} finally {
+			wp_set_current_user(0);
+		}
+	}
+
+	/**
+	 * Test the nested primary-site lookup is bounded only when the primary site is valid.
+	 */
+	public function test_my_sites_toolbar_bounds_active_blog_lookup_to_valid_primary_site(): void {
+
+		$manager  = $this->get_manager_instance();
+		$detector = new \ReflectionMethod(Site_Manager::class, 'is_my_sites_toolbar_active_blog_request');
+		$primary  = new \ReflectionMethod(Site_Manager::class, 'get_primary_site_for_my_sites_toolbar');
+		$user_id  = $this->factory()->user->create(['role' => 'administrator']);
+		$blog_id  = $this->factory()->blog->create(['user_id' => $user_id]);
+		$other_id = $this->factory()->blog->create();
+		$trace    = [
+			['function' => 'get_blogs_of_user'],
+			['function' => 'get_active_blog_for_user'],
+			[
+				'class'    => 'WP_Admin_Bar',
+				'function' => 'initialize',
+			],
+		];
+
+		wp_set_current_user($user_id);
+		add_filter('show_admin_bar', '__return_true');
+
+		try {
+			$this->assertTrue($detector->invoke($manager, $trace));
+			$this->assertFalse($detector->invoke($manager, array_slice($trace, 0, 2)));
+
+			update_user_meta($user_id, 'primary_blog', $blog_id);
+			$this->assertSame([$blog_id], array_keys($primary->invoke($manager, $user_id, true)));
+
+			// A primary site the user does not belong to must fall through to core.
+			update_user_meta($user_id, 'primary_blog', $other_id);
+			$this->assertSame([], $primary->invoke($manager, $user_id, true));
+		} finally {
+			remove_filter('show_admin_bar', '__return_true');
 			wp_set_current_user(0);
 		}
 	}
