@@ -42,6 +42,18 @@ class Cloudflare_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->assertArrayHasKey('will_not', $lines);
 	}
 
+	public function test_get_explainer_lines_omits_subdirectory_when_saas_zone_id_set(): void {
+
+		$this->integration->method('get_credential')
+			->with('WU_CLOUDFLARE_SAAS_ZONE_ID')
+			->willReturn('zone123');
+
+		$lines = $this->module->get_explainer_lines();
+
+		$this->assertArrayHasKey('custom_hostnames', $lines['will']);
+		$this->assertArrayNotHasKey('subdirectory', $lines['will']);
+	}
+
 	public function test_register_hooks_adds_actions(): void {
 
 		$this->module->register_hooks();
