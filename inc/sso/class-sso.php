@@ -1187,7 +1187,7 @@ class SSO {
 	 * @param string $host    Token audience host.
 	 * @return bool
 	 */
-	private function can_use_cookie_less_sso_token(int $user_id, string $host): bool {
+	public function can_use_cookie_less_sso_token(int $user_id, string $host): bool {
 
 		$host = strtolower(trim((string) preg_replace('/:\d+$/', '', $host)));
 

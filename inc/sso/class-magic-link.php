@@ -805,7 +805,7 @@ class Magic_Link {
 			return false;
 		}
 
-		if (is_super_admin($user_id) || is_user_member_of_blog($user_id, $site_id)) {
+		if ((is_super_admin($user_id) || is_user_member_of_blog($user_id, $site_id)) && $this->is_site_host_token_allowed($user_id, $site_id)) {
 			return true;
 		}
 		// Check if the site is the dashboard site in WP Frontend Admin which the user would not be a member of.
@@ -813,6 +813,32 @@ class Magic_Link {
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Apply the SSO host token policy to a site's host.
+	 *
+	 * Login tokens must not be minted for, or redeemed on, customer-controlled
+	 * mapped domains for network administrators: whoever controls the domain's
+	 * DNS could capture the token (GHSA-qh2w-5cww-9wxr).
+	 *
+	 * @since n.e.x.t
+	 *
+	 * @param int $user_id User ID.
+	 * @param int $site_id Site ID.
+	 * @return bool True when a token may be used for the site's host.
+	 */
+	protected function is_site_host_token_allowed($user_id, $site_id) {
+
+		$site = wu_get_site($site_id);
+
+		if ( ! $site) {
+			return false;
+		}
+
+		$host = (string) wp_parse_url($site->get_active_site_url(), PHP_URL_HOST);
+
+		return SSO::get_instance()->can_use_cookie_less_sso_token((int) $user_id, $host);
 	}
 
 	/**
