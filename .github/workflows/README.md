@@ -11,29 +11,36 @@ The `release.yml` workflow automatically builds and releases the plugin when a n
 1. When a new tag is pushed (in the format `v*.*.*`), the workflow is triggered
 2. The workflow checks out the code, sets up PHP and Node.js
 3. It verifies that the version in the tag matches the version in the plugin files
-4. It runs the build process using `pnpm run build`
-5. It creates a ZIP file of the plugin
-6. It creates a GitHub release with the ZIP file attached
+4. For stable releases, it fails if any `n.e.x.t` version placeholders remain (`bin/replace-next-version.sh --check`)
+5. It runs the build process using `pnpm run build`
+6. It creates a ZIP file of the plugin
+7. It creates a GitHub release with the ZIP file attached
 
 ### Usage
 
-To create a new release:
+To create a new release (`bin/deploy.sh <version>` automates steps 1–4):
 
 1. Update the version number in:
-   - `wp-multisite-waas.php` (the `Version:` header)
+   - `ultimate-multisite.php` (the `Version:` header)
    - `inc/class-wp-ultimo.php` (the `VERSION` class constant)
    - `readme.txt` (the `Stable tag:` field)
    - `package.json` (the `version` field)
+   - `VERSION`
 
-2. Commit these changes
+2. Replace `n.e.x.t` placeholders (`@since n.e.x.t`, `@deprecated n.e.x.t`, `'n.e.x.t'`) with the version:
+   ```
+   pnpm run since 1.2.3
+   ```
 
-3. Create and push a new tag:
+3. Commit these changes
+
+4. Create and push a new tag:
    ```
    git tag v1.2.3
    git push origin v1.2.3
    ```
 
-4. The workflow will automatically create a release with the built plugin
+5. The workflow will automatically create a release with the built plugin
 
 ### Requirements
 

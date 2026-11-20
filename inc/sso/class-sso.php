@@ -48,7 +48,7 @@ class SSO {
 	 * GPTBot and similar while leaving the "Cubot" phone brand alone. Headless
 	 * browsers are deliberately not listed: automated QA relies on SSO.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @var string
 	 */
 	const CRAWLER_USER_AGENT_PATTERN = '(?:^|[^u])bot|crawl|spider|slurp|facebookexternalhit|meta-externalagent|meta-webindexer|mediapartners-google|google-inspectiontool|chrome-lighthouse|bingpreview';
@@ -691,7 +691,7 @@ class SSO {
 	 * The broker sets the `wu_sso_denied` cookie and returns the visitor to
 	 * the original page, so sso.js does not restart the SSO round trip.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 *
 	 * @param string $broker_url Broker URL to return to.
 	 * @return void
@@ -1181,7 +1181,7 @@ class SSO {
 	 * mapped domains are operated by the network owner and keep the previous
 	 * behaviour.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 *
 	 * @param int    $user_id User ID the token is for.
 	 * @param string $host    Token audience host.
@@ -1211,7 +1211,7 @@ class SSO {
 		 * whoever receives the URL. Only allow hosts whose DNS and web server the
 		 * network owner controls.
 		 *
-		 * @since 2.18.1
+		 * @since 2.19.0
 		 *
 		 * @param bool   $allowed Whether the token is allowed.
 		 * @param int    $user_id User ID the token is for.
@@ -1231,7 +1231,7 @@ class SSO {
 	/**
 	 * Resolves the site a host belongs to, via domain mappings or site domains.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 *
 	 * @param string $host Lower-case host without port.
 	 * @return int Site ID, or 0 when the host is unknown.
@@ -1260,7 +1260,7 @@ class SSO {
 	/**
 	 * Checks whether a host is operated by the network owner rather than a customer.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 *
 	 * @param string $host    Lower-case host without port.
 	 * @param int    $site_id Site the host resolves to, or 0 when unknown.
@@ -1285,7 +1285,7 @@ class SSO {
 	/**
 	 * Checks whether a user holds network-wide administrative privileges.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 *
 	 * @param int $user_id User ID.
 	 * @return bool
@@ -1988,7 +1988,7 @@ class SSO {
 	 * The pattern is used without delimiters, case-insensitively, by both PHP
 	 * and sso.js. Return an empty string to treat every visitor as a browser.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @return string
 	 */
 	public function get_crawler_user_agent_pattern() {
@@ -1996,7 +1996,7 @@ class SSO {
 		/**
 		 * Filters the crawler user-agent pattern used to skip passive SSO.
 		 *
-		 * @since 2.18.1
+		 * @since 2.19.0
 		 * @param string $pattern Pattern without delimiters; must be valid in PCRE and JavaScript.
 		 * @param SSO    $sso     The SSO instance.
 		 */
@@ -2006,7 +2006,7 @@ class SSO {
 	/**
 	 * Checks whether the current request comes from a crawler.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @return bool
 	 */
 	public function is_crawler_request() {
@@ -2025,7 +2025,7 @@ class SSO {
 		 * the browser skips, filter `wu_sso_crawler_user_agent_pattern`
 		 * (an empty pattern disables both checks).
 		 *
-		 * @since 2.18.1
+		 * @since 2.19.0
 		 * @param bool   $is_crawler Whether the request matched the crawler pattern.
 		 * @param string $user_agent The request user agent.
 		 * @param SSO    $sso        The SSO instance.

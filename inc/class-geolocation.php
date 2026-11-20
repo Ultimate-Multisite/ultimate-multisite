@@ -60,7 +60,7 @@ class Geolocation {
 	/**
 	 * $_SERVER keys that influence client IP resolution.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 */
 	const IP_SOURCE_KEYS = [
 		'REMOTE_ADDR',
@@ -118,7 +118,7 @@ class Geolocation {
 	 * (REMOTE_ADDR) is inside one of these ranges. Source: Cloudflare's
 	 * published IP list. Extend with the `wu_cloudflare_ip_ranges` filter.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 */
 	const CLOUDFLARE_IP_RANGES = [
 		'173.245.48.0/20',
@@ -151,7 +151,7 @@ class Geolocation {
 	 * A peer address in these ranges cannot be forged from the public internet,
 	 * so it identifies a local/internal reverse proxy or load balancer.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 */
 	const PRIVATE_PROXY_RANGES = [
 		'127.0.0.0/8',
@@ -207,7 +207,7 @@ class Geolocation {
 	/**
 	 * Build an opaque fingerprint of the request values used for IP resolution.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @return string
 	 */
 	private static function get_ip_source(): string {
@@ -225,7 +225,7 @@ class Geolocation {
 	/**
 	 * Resolve the client IP from forwarding headers set by a trusted proxy.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 *
 	 * @param string   $remote_addr     The (trusted) connecting peer address.
 	 * @param string[] $trusted_proxies Trusted proxy IPs/CIDRs.
@@ -286,7 +286,7 @@ class Geolocation {
 	/**
 	 * Read and validate a single IP address from $_SERVER.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 *
 	 * @param string $key The $_SERVER key.
 	 * @return string The validated IP or empty string.
@@ -303,7 +303,7 @@ class Geolocation {
 	/**
 	 * Get the list of trusted reverse proxy IPs/CIDR ranges.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @return string[]
 	 */
 	public static function get_trusted_proxies(): array {
@@ -327,7 +327,7 @@ class Geolocation {
 		 *
 		 * Return an empty array to always use REMOTE_ADDR.
 		 *
-		 * @since 2.18.1
+		 * @since 2.19.0
 		 *
 		 * @param string[] $proxies IP addresses or CIDR ranges.
 		 */
@@ -339,7 +339,7 @@ class Geolocation {
 	/**
 	 * Get the Cloudflare edge IP ranges.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @return string[]
 	 */
 	public static function get_cloudflare_ip_ranges(): array {
@@ -347,7 +347,7 @@ class Geolocation {
 		/**
 		 * Filters the Cloudflare edge ranges allowed to set CF-Connecting-IP.
 		 *
-		 * @since 2.18.1
+		 * @since 2.19.0
 		 *
 		 * @param string[] $ranges CIDR ranges.
 		 */
@@ -370,7 +370,7 @@ class Geolocation {
 	/**
 	 * Check whether an IP address is inside any of the given IPs/CIDR ranges.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 *
 	 * @param string   $ip     The IP address.
 	 * @param string[] $ranges IP addresses or CIDR ranges.
@@ -392,7 +392,7 @@ class Geolocation {
 	 *
 	 * Supports IPv4 and IPv6. IPv4-mapped IPv6 addresses match IPv4 ranges.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 *
 	 * @param string $ip    The IP address.
 	 * @param string $range A single IP or a CIDR range (e.g. 10.0.0.0/8).

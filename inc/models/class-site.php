@@ -1295,7 +1295,7 @@ class Site extends Base_Model implements Limitable, Notable {
 	 * lost. {@see Site::save()} never does this implicitly; call this method only
 	 * from a deliberate, confirmed action.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @return true|\WP_Error True when the template was copied again, error otherwise.
 	 */
 	public function retry_failed_clone() {

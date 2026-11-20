@@ -81,7 +81,7 @@ class Limit_Customer_User_Role extends Limit {
 	 * when no explicit role was saved, instead of showing (and re-saving) the
 	 * role the global default_role setting currently resolves to.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 *
 	 * @return string The stored role slug, or "default" when none is stored.
 	 */

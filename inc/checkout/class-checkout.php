@@ -805,13 +805,13 @@ class Checkout {
 		 * step with no products creates a user, customer, membership
 		 * (plan_id 0) and a zero payment through the free gateway.
 		 *
-		 * @since 2.18.1
+		 * @since 2.19.0
 		 */
 		if ('new' === $this->type && ! $cart->has_plan()) {
 			/**
 			 * Filters whether a new checkout may proceed without a plan.
 			 *
-			 * @since 2.18.1
+			 * @since 2.19.0
 			 * @param bool     $allow    Whether to allow the plan-less checkout. Default false.
 			 * @param Cart     $cart     The cart being processed.
 			 * @param Checkout $checkout The checkout instance.
@@ -2830,7 +2830,7 @@ class Checkout {
 	 * setup_checkout() does for the submitted step, so each step keeps the
 	 * same required semantics it has when submitted on its own.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @return array
 	 */
 	protected function get_required_rule_fields() {
