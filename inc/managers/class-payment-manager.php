@@ -233,7 +233,7 @@ class Payment_Manager extends Base_Manager {
 	 * Used by flows that confirm a payment outside a gateway callback, such as
 	 * manual payment confirmation and deferred free signups after email verification.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 *
 	 * @param \WP_Ultimo\Models\Payment         $payment    The payment.
 	 * @param \WP_Ultimo\Models\Membership|null $membership The membership, if known.

@@ -39,7 +39,7 @@ class Invoice {
 	 * every invoice PDF larger. WordPress picks the smallest generated size at
 	 * least this wide, and falls back to the original when none is.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 */
 	const LOGO_IMAGE_SIZE = [300, 0];
 

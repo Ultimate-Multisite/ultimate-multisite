@@ -58,6 +58,8 @@
     "precleancss": "node scripts/clean-css.js",
     "cleancss": "node scripts/cleancss.js",
     "makepot": "node scripts/makepot.js",
+    "since": "bash bin/replace-next-version.sh",
+    "since:check": "bash bin/replace-next-version.sh --check",
     "test": "vendor/bin/phpunit",
     "test:coverage": "php -d zend_extension=xdebug -d xdebug.mode=coverage vendor/bin/phpunit --coverage-html=coverage-html --coverage-clover=coverage.xml --coverage-text",
     "test:watch": "echo 'PHPUnit --watch is not supported in this project (PHPUnit 9). Use: vendor/bin/phpunit --filter ClassName' && exit 1",
