@@ -133,7 +133,7 @@ class Site_Duplicator {
 	 *
 	 * The clone completed, but these tables may be missing or incomplete.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @param int $site_id Destination blog ID.
 	 * @return array<string,string> MySQL error keyed by table name.
 	 */

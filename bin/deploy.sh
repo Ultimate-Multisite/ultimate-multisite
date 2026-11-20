@@ -9,6 +9,8 @@ set -euo pipefail
 # This script:
 # 1) Updates versions in plugin header, WP_Ultimo::VERSION, composer.json, package.json
 #    (and readme.txt Stable tag for stable releases only)
+#    For stable releases, also replaces `@since n.e.x.t` placeholders (and the other
+#    forms handled by bin/replace-next-version.sh) with the release version
 # 2) For stable releases: ensures changelog entry exists; replaces XX-XX date; syncs to README.md
 #    For pre-releases: skips changelog sync
 # 3) Commits and pushes to main
@@ -129,7 +131,20 @@ update_versions() {
   # package.json version
   sed -i.bak -E '0,/"version"[[:space:]]*:[[:space:]]*"[^"]+"/ s//"version": '"\"$VERSION\""'/' package.json
 
+  # VERSION file
+  if [[ -f VERSION ]]; then
+    printf '%s\n' "$VERSION" > VERSION
+  fi
+
   rm -f readme.txt.bak ultimate-multisite.php.bak inc/class-wp-ultimo.php.bak composer.json.bak package.json.bak
+
+  # `@since n.e.x.t` -> `@since $VERSION`. Pre-releases keep the placeholder:
+  # the code ships in the final X.Y.Z, not in the beta.
+  if [[ "$IS_PRERELEASE" == "false" ]]; then
+    bash "$PLUGIN_DIR/bin/replace-next-version.sh" "$VERSION"
+  else
+    echo "    Skipping n.e.x.t placeholder replacement (pre-release)"
+  fi
 }
 
 sync_changelog_and_date() {
@@ -192,11 +207,9 @@ sync_changelog_and_date() {
 
 commit_and_push() {
   echo "==> Committing and pushing changes to main"
-  if [[ "$IS_PRERELEASE" == "true" ]]; then
-    git add ultimate-multisite.php inc/class-wp-ultimo.php composer.json package.json
-  else
-    git add readme.txt README.md ultimate-multisite.php inc/class-wp-ultimo.php composer.json package.json
-  fi
+  # ensure_clean_git guarantees every tracked change is from this release
+  # (version files, changelog, and n.e.x.t replacements across the codebase).
+  git add -u
   git commit -m "chore(release): v$VERSION" || true
   git push origin main
 }
@@ -242,6 +255,13 @@ generate_release_notes() {
   local changelog_ver="$VERSION"
   if [[ "$IS_PRERELEASE" == "true" ]]; then
     changelog_ver="${VERSION%%-*}"
+
+    # Pre-releases keep the unreleased `Version [n.e.x.t]` heading; use it
+    # when no numeric heading for the base version exists yet.
+    if ! grep -qF "Version [$changelog_ver] - Released on" readme.txt \
+      && grep -qF "Version [n.e.x.t] - Released on" readme.txt; then
+      changelog_ver="n.e.x.t"
+    fi
   fi
 
   {

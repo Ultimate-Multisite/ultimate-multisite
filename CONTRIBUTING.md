@@ -327,9 +327,42 @@ ultimate-multisite/
 Releases are automated via GitHub Actions:
 
 1. Update version numbers in plugin files
-2. Update CHANGELOG
-3. Create and push version tag: `git tag v2.x.x && git push origin v2.x.x`
-4. GitHub Action builds and creates release
+2. Stable releases only: replace `n.e.x.t` version placeholders with `pnpm run since 2.x.x` (see below)
+3. Update the changelog in `readme.txt`
+4. Create and push version tag: `git tag v2.x.x && git push origin v2.x.x`
+5. GitHub Action builds and creates release
+
+`bin/deploy.sh 2.x.x` does steps 1, 2 and 4. The step 3 changelog entry must already exist.
+Pre-releases (`2.x.x-beta.1`) skip step 2: placeholders stay until the stable release,
+and the script rejects pre-release versions.
+
+### Versioning unreleased code (`n.e.x.t`)
+
+Don't guess the version that new code will ship in. Use the `n.e.x.t` placeholder,
+following the WordPress Performance Lab convention:
+
+```php
+/**
+ * Does something new.
+ *
+ * @since n.e.x.t
+ */
+function wu_do_something_new() {}
+
+/**
+ * @deprecated n.e.x.t Use wu_do_something_new().
+ */
+function wu_do_something_old() {
+	_deprecated_function(__FUNCTION__, 'n.e.x.t', 'wu_do_something_new()');
+}
+```
+
+At release, `bin/replace-next-version.sh <version>` (run by `bin/deploy.sh`, or
+manually with `pnpm run since <version>`) rewrites every `@since n.e.x.t`,
+`@deprecated n.e.x.t`, and `'n.e.x.t'` string in tracked PHP and JS files. It also
+fills in a `Version [n.e.x.t]` changelog heading in `readme.txt`. The release
+workflow refuses to build a stable release while placeholders remain
+(`pnpm run since:check`).
 
 ## Getting Help
 

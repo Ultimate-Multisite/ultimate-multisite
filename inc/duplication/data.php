@@ -47,7 +47,7 @@ if ( ! class_exists('MUCD_Data') ) {
 		/**
 		 * Table whose failure made the last copy fatal.
 		 *
-		 * @since 2.18.1
+		 * @since 2.19.0
 		 * @return string Full table name, or an empty string when the failure was not table-specific.
 		 */
 		public static function get_copy_error_table() {
@@ -60,7 +60,7 @@ if ( ! class_exists('MUCD_Data') ) {
 		 * The clone completes despite these, so the site is usable, but the named
 		 * tables may be missing or incomplete on the destination.
 		 *
-		 * @since 2.18.1
+		 * @since 2.19.0
 		 * @return array<string,string> MySQL error keyed by table name.
 		 */
 		public static function get_copy_warnings() {
@@ -94,7 +94,7 @@ if ( ! class_exists('MUCD_Data') ) {
 		/**
 		 * Record what the copy is doing so SQL failures can be classified.
 		 *
-		 * @since 2.18.1
+		 * @since 2.19.0
 		 * @param string $phase           'list' (reading the template's tables), 'copy' (creating and filling a table), 'update' (URL replacement) or '' (outside a copy).
 		 * @param string $table           Full table name.
 		 * @param string $table_base_name Table name without the blog prefix.
@@ -117,7 +117,7 @@ if ( ! class_exists('MUCD_Data') ) {
 		 * the URL replacement pass are recorded as warnings and the clone completes.
 		 * Failures outside a classified phase stay fatal, as before.
 		 *
-		 * @since 2.18.1
+		 * @since 2.19.0
 		 * @param string $sql_error MySQL error message.
 		 * @return bool Whether the failure is fatal.
 		 */
@@ -146,7 +146,7 @@ if ( ! class_exists('MUCD_Data') ) {
 			 * Return true to make a plugin table required (the clone fails and the
 			 * site stays archived), or false to let the clone complete with a warning.
 			 *
-			 * @since 2.18.1
+			 * @since 2.19.0
 			 *
 			 * @param bool   $fatal           Whether the failure is fatal.
 			 * @param string $table           Full table name, empty when not table-specific.
@@ -160,7 +160,7 @@ if ( ! class_exists('MUCD_Data') ) {
 		/**
 		 * Record a SQL failure of the current copy as fatal or as a warning.
 		 *
-		 * @since 2.18.1
+		 * @since 2.19.0
 		 * @param string $sql_error MySQL error message.
 		 * @return void
 		 */
@@ -335,7 +335,7 @@ if ( ! class_exists('MUCD_Data') ) {
 		 * the site prefix replaced, which also renames any column whose name contains
 		 * the prefix. Destination column names get the same replacement so they match.
 		 *
-		 * @since 2.18.1
+		 * @since 2.19.0
 		 *
 		 * @param string $table       Source table name.
 		 * @param string $table_name  Destination table name.
@@ -828,7 +828,7 @@ if ( ! class_exists('MUCD_Data') ) {
 		 * wu_mucd_copy_error_is_fatal override records them in get_copy_error()
 		 * instead, which the caller must check afterwards.
 		 *
-		 * @since 2.18.1
+		 * @since 2.19.0
 		 * @param string $table           Full table name.
 		 * @param array  $fields          Fields to update.
 		 * @param string $from_string     Original string to replace.
