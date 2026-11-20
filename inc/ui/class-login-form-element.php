@@ -807,17 +807,25 @@ class Login_Form_Element extends Base_Element {
 			}
 
 			$passwordless_auth = \WP_Ultimo\Auth\Passwordless_Auth_Manager::get_instance();
+			$is_passwordless   = $passwordless_auth->is_enabled() && ! $passwordless_auth->is_password_fallback();
 
-			if ($passwordless_auth->is_enabled() && ! $passwordless_auth->is_password_fallback()) {
+			// A narrow, bordered card on front-end pages only; dashboards keep their widget layout.
+			if ($is_passwordless && ! is_admin()) {
+				$atts['className'] = trim(wu_get_isset($atts, 'className', '') . ' wu-login-card');
+			}
+
+			if ($is_passwordless) {
 				$fields = [
 					'passwordless_login' => [
 						'type'            => 'html',
 						'content'         => $passwordless_auth->get_login_form_markup(
 							[
-								'context'       => 'login-form',
-								'redirect_to'   => $redirect_to,
-								'redirect_type' => $atts['redirect_type'],
-								'fallback_url'  => $this->get_passwordless_fallback_url($redirect_to),
+								'context'           => 'login-form',
+								'redirect_to'       => $redirect_to,
+								'redirect_type'     => $atts['redirect_type'],
+								'fallback_url'      => $this->get_passwordless_fallback_url($redirect_to),
+								// Shown with the password option once an email has been entered.
+								'lost_password_url' => wp_lostpassword_url(),
 							]
 						),
 						'classes'         => '',
@@ -880,12 +888,24 @@ class Login_Form_Element extends Base_Element {
 			 *
 			 * @see https://github.com/Ultimate-Multisite/ultimate-multisite/issues/291
 			 */
-			$fields['lost-password'] = [
-				'type'            => 'html',
-				'content'         => sprintf('<a class="wu-text-xs wu-block wu-text-center wu--mt-4" href="%s">%s</a>', esc_url(wp_lostpassword_url()), __('Lost your password?')), // phpcs:ignore WordPress.WP.I18n.MissingArgDomain
-				'classes'         => '',
-				'wrapper_classes' => 'wu-items-end wu-bg-none',
-			];
+			if ( ! $is_passwordless) {
+				$fields['lost-password'] = [
+					'type'            => 'html',
+					'content'         => sprintf('<a class="wu-text-xs wu-block wu-text-center wu--mt-4" href="%s">%s</a>', esc_url(wp_lostpassword_url()), __('Lost your password?')), // phpcs:ignore WordPress.WP.I18n.MissingArgDomain
+					'classes'         => '',
+					'wrapper_classes' => 'wu-items-end wu-bg-none',
+				];
+			}
+
+			// Password mode was chosen explicitly: offer a way back to the email code login.
+			if ($passwordless_auth->is_enabled() && ! $is_passwordless) {
+				$fields['passwordless-switch'] = [
+					'type'            => 'html',
+					'content'         => sprintf('<a class="wu-text-xs wu-block wu-text-center" href="%s">%s</a>', esc_url(remove_query_arg('wu_password_fallback', wu_get_current_url())), esc_html__('Email me a login code instead', 'ultimate-multisite')),
+					'classes'         => '',
+					'wrapper_classes' => 'wu-items-end wu-bg-none',
+				];
+			}
 		}
 
 		/*

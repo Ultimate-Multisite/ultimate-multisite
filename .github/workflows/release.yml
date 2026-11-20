@@ -87,6 +87,10 @@ jobs:
             echo "All version numbers match: ${{ env.VERSION }}"
           fi
 
+      - name: Verify no n.e.x.t version placeholders remain
+        if: env.IS_PRERELEASE == 'false'
+        run: bash bin/replace-next-version.sh --check
+
       - name: Run build process
         run: pnpm run build
         env:

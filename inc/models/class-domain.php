@@ -438,17 +438,41 @@ class Domain extends Base_Model {
 		}
 
 		$network_ip_address = Helper::get_network_public_ip();
+		$dns_target         = trim((string) wu_get_setting('domain_mapping_dns_target', ''));
 
 		$results = \WP_Ultimo\Managers\Domain_Manager::dns_get_record($domain_url);
 
-		$domains_and_ips = array_column($results, 'data');
+		$domains_and_ips = array_map(
+			fn($value) => strtolower(rtrim((string) $value, '.')),
+			array_column($results, 'data')
+		);
 
-		if (in_array($current_site->domain, $domains_and_ips, true)) {
+		$network_domain = strtolower(rtrim((string) $current_site->domain, '.'));
+		$network_ip     = strtolower(rtrim((string) $network_ip_address, '.'));
+		$dns_target     = strtolower(rtrim($dns_target, '.'));
+
+		if (in_array($network_domain, $domains_and_ips, true)) {
 			return true;
 		}
 
-		if (in_array($network_ip_address, $domains_and_ips, true)) {
+		if (in_array($network_ip, $domains_and_ips, true)) {
 			return true;
+		}
+
+		if ('' !== $dns_target) {
+			if (in_array($dns_target, $domains_and_ips, true)) {
+				return true;
+			}
+
+			$target_results = \WP_Ultimo\Managers\Domain_Manager::dns_get_record($dns_target);
+			$target_values  = array_map(
+				fn($value) => strtolower(rtrim((string) $value, '.')),
+				array_column($target_results, 'data')
+			);
+
+			if (array_intersect($domains_and_ips, $target_values)) {
+				return true;
+			}
 		}
 
 		$result = false;

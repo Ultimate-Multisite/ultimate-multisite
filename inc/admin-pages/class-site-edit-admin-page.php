@@ -164,7 +164,7 @@ class Site_Edit_Admin_Page extends Edit_Admin_Page {
 	 * before handing the site over. Worded neutrally: initialization can still
 	 * fail after the warnings are recorded, which the failed-clone state reports.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @return void
 	 */
 	public function add_clone_warnings_notice(): void {
@@ -239,7 +239,7 @@ class Site_Edit_Admin_Page extends Edit_Admin_Page {
 	 * notice tells the admin so they do not build on it, and offers the
 	 * explicit retry, which is never run implicitly by a save.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @return void
 	 */
 	public function add_failed_clone_notice(): void {
@@ -273,7 +273,7 @@ class Site_Edit_Admin_Page extends Edit_Admin_Page {
 	/**
 	 * Renders the confirmation form to retry a failed template copy.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @return void
 	 */
 	public function render_retry_site_clone_modal(): void {
@@ -334,7 +334,7 @@ class Site_Edit_Admin_Page extends Edit_Admin_Page {
 	/**
 	 * Handles the explicit retry of a failed template copy.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @return void
 	 */
 	public function handle_retry_site_clone_modal(): void {

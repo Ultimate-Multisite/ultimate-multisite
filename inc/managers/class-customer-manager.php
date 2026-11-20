@@ -238,7 +238,7 @@ class Customer_Manager extends Base_Manager {
 	 *
 	 * Paid and manual payments are skipped: they are confirmed by their own flows.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 *
 	 * @param \WP_Ultimo\Models\Payment    $payment    The payment.
 	 * @param \WP_Ultimo\Models\Membership $membership The membership.

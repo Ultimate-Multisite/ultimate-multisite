@@ -87,7 +87,7 @@ class Email_Manager extends Base_Manager {
 	 * without a bigger PDF instead of the provider rejecting the whole message.
 	 * Filter with `wu_invoice_pdf_max_attachment_size`.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @var int
 	 */
 	const INVOICE_PDF_MAX_BYTES = 5242880;
@@ -95,7 +95,7 @@ class Email_Manager extends Base_Manager {
 	/**
 	 * The `phpmailer_init` callbacks that are waiting to attach an invoice.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @var callable[]
 	 */
 	protected $pending_invoice_attachments = [];
@@ -498,7 +498,7 @@ class Email_Manager extends Base_Manager {
 			/**
 			 * Filters the largest invoice PDF, in bytes, that is attached to an email.
 			 *
-			 * @since 2.18.1
+			 * @since 2.19.0
 			 *
 			 * @param int                       $max_bytes Maximum PDF size in bytes.
 			 * @param \WP_Ultimo\Models\Payment $payment   The payment the invoice belongs to.
@@ -531,7 +531,7 @@ class Email_Manager extends Base_Manager {
 	/**
 	 * Removes one pending invoice attachment callback.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 *
 	 * @param callable $callback The callback registered by attach_invoice_pdf().
 	 * @return void
@@ -553,7 +553,7 @@ class Email_Manager extends Base_Manager {
 	 *
 	 * Call it after sending, so an invoice never reaches an unrelated email.
 	 *
-	 * @since 2.18.1
+	 * @since 2.19.0
 	 * @return void
 	 */
 	public function detach_invoice_pdfs(): void {

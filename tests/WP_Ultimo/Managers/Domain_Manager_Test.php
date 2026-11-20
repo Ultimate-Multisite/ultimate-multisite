@@ -1805,7 +1805,8 @@ class Domain_Manager_Test extends WP_UnitTestCase {
 	 */
 	public function test_default_domain_mapping_instructions_has_placeholder(): void {
 		$instructions = $this->domain_manager->default_domain_mapping_instructions();
-		$this->assertStringContainsString('%NETWORK_DOMAIN%', $instructions);
+		$this->assertStringContainsString('%DNS_TARGET%', $instructions);
+		$this->assertStringContainsString('%NETWORK_IP%', $instructions);
 	}
 
 	// ----------------------------------------------------------------
