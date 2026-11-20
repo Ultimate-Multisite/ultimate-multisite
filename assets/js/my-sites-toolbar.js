@@ -235,8 +235,18 @@
 				return;
 			}
 
+			let ownsFocus = Boolean(keepFocus);
+
+			function cancelFocusRestore() {
+				ownsFocus = false;
+			}
+
 			state.loading = true;
 			setStatus(labels.loading || 'Loading sites…');
+
+			if (ownsFocus) {
+				document.addEventListener('focusin', cancelFocusRestore, true);
+			}
 
 			const request = new window.URLSearchParams({
 				action: config.action,
@@ -285,7 +295,9 @@
 				setStatus((data.sites || []).length ? '' : (labels.empty || 'No additional sites are available.'));
 				addLoadMore();
 
-				if (keepFocus) {
+				if (ownsFocus) {
+					document.removeEventListener('focusin', cancelFocusRestore, true);
+					ownsFocus = false;
 					restoreFocus(firstNew);
 				}
 
@@ -293,12 +305,15 @@
 
 				setStatus(labels.failed || 'Sites could not be loaded.', true);
 
-				if (keepFocus) {
+				if (ownsFocus) {
+					document.removeEventListener('focusin', cancelFocusRestore, true);
+					ownsFocus = false;
 					restoreFocus(status);
 				}
 
 			}).finally(function () {
 
+				document.removeEventListener('focusin', cancelFocusRestore, true);
 				state.loading = false;
 
 			});

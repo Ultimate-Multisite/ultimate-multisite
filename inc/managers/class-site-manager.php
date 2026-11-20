@@ -1188,7 +1188,11 @@ class Site_Manager extends Base_Manager {
 			$primary_sites = $this->get_primary_site_for_my_sites_toolbar($user_id, true);
 
 			if ( ! empty($primary_sites)) {
-				return apply_filters('get_blogs_of_user', $primary_sites, $user_id, $all); // phpcs:ignore
+				$primary_sites = apply_filters('get_blogs_of_user', $primary_sites, $user_id, $all); // phpcs:ignore
+
+				if ( ! empty($primary_sites)) {
+					return $primary_sites;
+				}
 			}
 		}
 
@@ -1641,7 +1645,10 @@ class Site_Manager extends Base_Manager {
 				continue;
 			}
 
-			$item = $this->get_my_sites_toolbar_item((int) $site->userblog_id);
+			$item = $this->get_my_sites_toolbar_item(
+				(int) $site->userblog_id,
+				(string) ($site->blogname ?? '')
+			);
 
 			if ($item) {
 				$items[] = $item;
@@ -1671,7 +1678,7 @@ class Site_Manager extends Base_Manager {
 
 		foreach (array_keys($keys) as $key) {
 			if ($wpdb->base_prefix . 'capabilities' === $key && defined('MULTISITE')) {
-				$site_ids[] = wu_get_main_site_id();
+				$site_ids[] = 1;
 
 				continue;
 			}
@@ -1697,10 +1704,11 @@ class Site_Manager extends Base_Manager {
 	 * Builds the links which WordPress normally creates after switching to a site.
 	 *
 	 * @since 2.19.1
-	 * @param int $site_id Site ID.
+	 * @param int    $site_id Site ID.
+	 * @param string $blogname Filtered site name.
 	 * @return array<string, mixed>|false
 	 */
-	protected function get_my_sites_toolbar_item($site_id) {
+	protected function get_my_sites_toolbar_item($site_id, $blogname = '') {
 
 		$site = get_site($site_id);
 
@@ -1712,7 +1720,10 @@ class Site_Manager extends Base_Manager {
 
 		try {
 			$can_read = current_user_can('read');
-			$blogname = get_bloginfo('name');
+
+			if ( ! $blogname) {
+				$blogname = get_bloginfo('name');
+			}
 
 			if ( ! $blogname) {
 				$blogname = preg_replace('#^(https?://)?(www\\.)?#', '', get_home_url());
