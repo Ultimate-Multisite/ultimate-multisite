@@ -401,7 +401,7 @@ class Base_List_Table extends \WP_List_Table {
 	 * Avatar and thumbnail columns precede the name on several tables, but cannot
 	 * identify a row or expose its actions when all other columns are collapsed.
 	 *
-	 * @since 2.18.0
+	 * @since n.e.x.t
 	 * @return string
 	 */
 	protected function get_default_primary_column_name() {
