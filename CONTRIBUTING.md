@@ -327,12 +327,14 @@ ultimate-multisite/
 Releases are automated via GitHub Actions:
 
 1. Update version numbers in plugin files
-2. Replace `n.e.x.t` version placeholders: `pnpm run since 2.x.x` (see below)
+2. Stable releases only: replace `n.e.x.t` version placeholders with `pnpm run since 2.x.x` (see below)
 3. Update the changelog in `readme.txt`
 4. Create and push version tag: `git tag v2.x.x && git push origin v2.x.x`
 5. GitHub Action builds and creates release
 
-`bin/deploy.sh 2.x.x` does steps 1–4 in one go.
+`bin/deploy.sh 2.x.x` does steps 1, 2 and 4. The step 3 changelog entry must already exist.
+Pre-releases (`2.x.x-beta.1`) skip step 2: placeholders stay until the stable release,
+and the script rejects pre-release versions.
 
 ### Versioning unreleased code (`n.e.x.t`)
 

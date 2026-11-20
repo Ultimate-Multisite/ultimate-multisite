@@ -127,8 +127,8 @@ assets/                  # JS, CSS, images, fonts
   Applies to PHP and JS. **Never guess the next version number** (`2.18.1`, `2.20.0`, …):
   the next release may be a minor rather than a patch, and guessed tags ship wrong (the
   guessed `2.18.1` tags shipped in 2.19.0). Leave existing released versions unchanged.
-  At release, `bin/deploy.sh` (or `pnpm run since <version>` in a manual release-prep
-  PR) replaces every placeholder. The release workflow fails if any remain
+  At a stable release, `bin/deploy.sh` (or `pnpm run since <version>` in a manual release-prep
+  PR) replaces every placeholder; pre-releases keep them. The release workflow fails if any remain
   (`pnpm run since:check`). Unreleased readme.txt changelog heading:
   `Version [n.e.x.t] - Released on 2026-XX-XX` (`bin/deploy.sh` fills in the version and date).
 - **Security guard**: Every PHP file starts with `defined('ABSPATH') || exit;`.

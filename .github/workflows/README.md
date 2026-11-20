@@ -27,10 +27,11 @@ To create a new release (`bin/deploy.sh <version>` automates steps 1–4):
    - `package.json` (the `version` field)
    - `VERSION`
 
-2. Replace `n.e.x.t` placeholders (`@since n.e.x.t`, `@deprecated n.e.x.t`, `'n.e.x.t'`) with the version:
+2. Stable releases only: replace `n.e.x.t` placeholders (`@since n.e.x.t`, `@deprecated n.e.x.t`, `'n.e.x.t'`) with the version:
    ```
    pnpm run since 1.2.3
    ```
+   Skip this for pre-releases (`1.2.3-beta.1`): the placeholders stay until the stable release, and the script rejects pre-release versions.
 
 3. Commit these changes
 

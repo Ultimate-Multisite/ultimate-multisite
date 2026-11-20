@@ -255,6 +255,13 @@ generate_release_notes() {
   local changelog_ver="$VERSION"
   if [[ "$IS_PRERELEASE" == "true" ]]; then
     changelog_ver="${VERSION%%-*}"
+
+    # Pre-releases keep the unreleased `Version [n.e.x.t]` heading; use it
+    # when no numeric heading for the base version exists yet.
+    if ! grep -qF "Version [$changelog_ver] - Released on" readme.txt \
+      && grep -qF "Version [n.e.x.t] - Released on" readme.txt; then
+      changelog_ver="n.e.x.t"
+    fi
   fi
 
   {

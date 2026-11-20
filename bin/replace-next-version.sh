@@ -16,7 +16,7 @@
 #   Version [n.e.x.t] - Released on ...  -> Version [2.20.0] - Released on ...
 #
 # Usage:
-#   bin/replace-next-version.sh 2.20.0   Replace placeholders with 2.20.0
+#   bin/replace-next-version.sh 2.20.0   Replace placeholders with 2.20.0 (stable versions only)
 #   bin/replace-next-version.sh --check  List remaining placeholders; exit 1 if any
 
 set -euo pipefail
@@ -47,10 +47,27 @@ usage() {
 	return 0
 }
 
+# Runs git grep over PATHSPECS. Exit 1 means "no match" and counts as success;
+# any other failure (unreadable index, bad pathspec) is propagated so the
+# release gate never passes an incomplete scan.
+grep_placeholders() {
+	local mode="$1"
+	local status=0
+
+	git -C "$ROOT_DIR" grep "$mode" -E "$PLACEHOLDER_REGEX" -- "${PATHSPECS[@]}" || status=$?
+
+	if [[ $status -gt 1 ]]; then
+		echo "Error: git grep failed with exit code $status" >&2
+		return 1
+	fi
+
+	return 0
+}
+
 check_placeholders() {
 	local matches
 
-	matches=$(git -C "$ROOT_DIR" grep -n -E "$PLACEHOLDER_REGEX" -- "${PATHSPECS[@]}" || true)
+	matches=$(grep_placeholders -n) || return 1
 
 	if [[ -n "$matches" ]]; then
 		echo "Error: unreplaced n.e.x.t version placeholders found:"
@@ -83,14 +100,17 @@ replace_in_file() {
 replace_placeholders() {
 	local version="$1"
 	local count=0
+	local files
 	local file
+
+	files=$(grep_placeholders -l) || return 1
 
 	while IFS= read -r file; do
 		[[ -z "$file" ]] && continue
 		replace_in_file "$ROOT_DIR/$file" "$version"
 		echo "  updated $file"
 		count=$((count + 1))
-	done < <(git -C "$ROOT_DIR" grep -l -E "$PLACEHOLDER_REGEX" -- "${PATHSPECS[@]}" || true)
+	done <<<"$files"
 
 	echo "Replaced n.e.x.t with $version in $count file(s)."
 
@@ -114,8 +134,10 @@ main() {
 			;;
 	esac
 
-	if [[ ! "$arg" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc|dev|preview)\.[0-9]+)?$ ]]; then
-		echo "Error: version must be in form X.Y.Z or X.Y.Z-beta.N (got '$arg')"
+	# Stable versions only: a pre-release would permanently stamp its suffix
+	# (e.g. 2.20.0-beta.1) on code that ships in 2.20.0.
+	if [[ ! "$arg" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+		echo "Error: version must be a stable X.Y.Z (got '$arg'). Pre-releases keep n.e.x.t."
 		return 1
 	fi
 
