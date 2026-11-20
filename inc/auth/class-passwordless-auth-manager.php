@@ -102,9 +102,9 @@ class Passwordless_Auth_Manager {
 	protected function register_ajax_hooks() {
 
 		$public_actions = [
-			'wu_passwordless_start'          => 'ajax_start',
-			'wu_passwordless_verify_otp'     => 'ajax_verify_otp',
-			'wu_passwordless_verify_passkey' => 'ajax_verify_passkey',
+			'wu_passwordless_start'           => 'ajax_start',
+			'wu_passwordless_verify_otp'      => 'ajax_verify_otp',
+			'wu_passwordless_verify_passkey'  => 'ajax_verify_passkey',
 			'wu_passwordless_passkey_options' => 'ajax_passkey_options',
 		];
 
