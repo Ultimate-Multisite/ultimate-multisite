@@ -552,13 +552,10 @@ class Settings_Test extends WP_UnitTestCase {
 		$this->assertSame(0, $defaults['optimize_frontend_my_sites_toolbar']);
 	}
 
-	public function test_sites_section_has_frontend_my_sites_toolbar_optimization_field() {
+	public function test_sites_section_omits_obsolete_my_sites_toolbar_toggle() {
 		$section = $this->settings->get_section('sites');
-		$field   = $section['fields']['optimize_frontend_my_sites_toolbar'];
 
-		$this->assertSame('toggle', $field['type']);
-		$this->assertSame(0, $field['default']);
-		$this->assertStringContainsString('My Sites administration page', $field['desc']);
+		$this->assertArrayNotHasKey('optimize_frontend_my_sites_toolbar', $section['fields']);
 	}
 
 	// ------------------------------------------------------------------
