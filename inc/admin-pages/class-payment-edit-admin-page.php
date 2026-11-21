@@ -1559,7 +1559,7 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 	 * An add-on cart holds only the extras to add to a membership. Paying for it
 	 * is not a billing cycle of the membership's plan.
 	 *
-	 * @since n.e.x.t
+	 * @since 2.20.0
 	 *
 	 * @param \WP_Ultimo\Models\Payment $payment The payment.
 	 * @return bool
