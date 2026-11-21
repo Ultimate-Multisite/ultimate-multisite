@@ -1186,10 +1186,11 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 					'confirm_membership'       => [
 						'type'              => 'toggle',
 						'title'             => __('Activate Membership?', 'ultimate-multisite'),
-						'desc'              => __('This payment belongs to a pending or on-hold membership. Enable this option to activate or renew the membership when confirming the payment. Any pending sites will also be published automatically.', 'ultimate-multisite'),
+						'desc'              => __('This payment belongs to a membership that is not active yet. Enable this option to activate, renew or reactivate it when confirming the payment. Any pending sites will also be published automatically.', 'ultimate-multisite'),
 						'value'             => 0,
 						'wrapper_html_attr' => [
-							'v-if'    => 'status !== original_status && status === "completed" && (membership_status === "pending" || membership_status === "on-hold")',
+							// Mirrors handle_save(): only a pending payment being completed can confirm a membership.
+							'v-if'    => 'original_status === "pending" && status === "completed" && membership_status !== "active" && membership_status !== "trialing"',
 							'v-cloak' => '1',
 						],
 					],
@@ -1487,6 +1488,18 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 				if ($is_initial_payment) {
 					$membership->set_status(Membership_Status::ACTIVE);
 					$membership_saved = $membership->save();
+				} elseif (in_array($membership->get_status(), [Membership_Status::CANCELLED, Membership_Status::EXPIRED], true)) {
+					/*
+					 * A paid reactivation. Like the Stripe and PayPal gateways, use
+					 * reactivate() so the cancellation date clears and the reactivation
+					 * hooks fire. Cancelling clears the gateway: record how this
+					 * membership was paid so the account page shows it.
+					 */
+					if ( ! $membership->get_gateway() && $payment->get_gateway()) {
+						$membership->set_gateway($payment->get_gateway());
+					}
+
+					$membership_saved = $membership->reactivate(false);
 				} else {
 					$membership_saved = $membership->renew(false, Membership_Status::ACTIVE);
 				}

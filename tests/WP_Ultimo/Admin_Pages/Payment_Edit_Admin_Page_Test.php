@@ -764,7 +764,7 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$this->assertNotWPError($product);
 		// Keep the day low so adding one month cannot overflow a short month.
 		$expiration = gmdate('Y-m-09 23:59:59', strtotime('+1 year'));
-		$membership = wu_create_membership([
+		$membership_args = [
 			'customer_id'     => $customer->get_id(),
 			'plan_id'         => $product->get_id(),
 			'status'          => $status,
@@ -774,7 +774,11 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			'duration_unit'   => 'month',
 			'times_billed'    => $times_billed,
 			'date_expiration' => $expiration,
-		]);
+		];
+		if ('cancelled' === $status) {
+			$membership_args['date_cancellation'] = gmdate('Y-m-d H:i:s', strtotime('-1 week'));
+		}
+		$membership = wu_create_membership($membership_args);
 		$this->assertNotWPError($membership);
 		$payment = wu_create_payment([
 			'customer_id'   => $customer->get_id(),
@@ -822,9 +826,17 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 				$this->page->object = wu_get_payment($payment->get_id());
 			}
 
+			$reactivated_before = did_action('wu_membership_post_reactivate');
+
 			$this->assertTrue($this->page->handle_save());
 			$membership = wu_get_membership($membership->get_id());
 			$this->assertSame('active', $membership->get_status());
+			if ('cancelled' === $status) {
+				// A paid reactivation clears the cancellation, records how it was paid and fires the hooks once.
+				$this->assertEmpty($membership->get_date_cancellation());
+				$this->assertSame('manual', $membership->get_gateway());
+				$this->assertSame($reactivated_before + 1, did_action('wu_membership_post_reactivate'));
+			}
 			$this->assertSame($expected_expiration, $membership->get_date_expiration());
 			$this->assertSame($times_billed + 1, $membership->get_times_billed());
 			$this->assertSame(Payment_Status::COMPLETED, wu_get_payment($payment->get_id())->get_status());
@@ -851,6 +863,7 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			'active renewal'         => ['active', 1, true],
 			'pending billed renewal' => ['pending', 1, true],
 			'expired renewal'        => ['expired', 1, true],
+			'cancelled reactivation' => ['cancelled', 1, true],
 			'initial save retry'     => ['pending', 0, false, true],
 			'renewal save retry'     => ['active', 1, true, true],
 		];

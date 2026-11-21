@@ -820,14 +820,38 @@ class Base_Stripe_Gateway extends Base_Gateway {
 			return null;
 		}
 
+		$current_url = wu_get_current_url();
+
 		return add_query_arg(
 			[
 				'wu-stripe-portal' => true,
 				'membership'       => $membership->get_hash(),
-				'redirect_url'     => wu_request('redirect_url', wu_get_current_url()),
+				// Encoded: the page has its own query string, which must not leak into this link.
+				'redirect_url'     => rawurlencode(wp_validate_redirect($this->get_requested_return_url(), $current_url)),
 			],
 			home_url('/')
 		);
+	}
+
+	/**
+	 * Reads the page to return to after the Billing Portal from the request.
+	 *
+	 * Not wu_request(): it sanitizes with sanitize_text_field(), which strips
+	 * percent-encoded octets such as those in non-ASCII slugs. esc_url_raw()
+	 * keeps them. Callers must still validate the result with wp_validate_redirect().
+	 *
+	 * @since n.e.x.t
+	 * @return string The requested URL, or an empty string.
+	 */
+	private function get_requested_return_url(): string {
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Navigation target only; validated by the caller.
+		if ( ! isset($_REQUEST['redirect_url']) || ! is_string($_REQUEST['redirect_url'])) {
+			return '';
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Navigation target only; validated by the caller.
+		return esc_url_raw(wp_unslash($_REQUEST['redirect_url']));
 	}
 
 	/**
@@ -854,8 +878,12 @@ class Base_Stripe_Gateway extends Base_Gateway {
 
 			$pm = $subscription->default_payment_method;
 
-			// Portal updates may clear the subscription override to use the customer default.
-			if ( ! $pm) {
+			/*
+			 * Portal updates may clear the subscription override to use the customer
+			 * default. A legacy default_source takes precedence over that default
+			 * when Stripe charges, so show no card rather than a different one.
+			 */
+			if ( ! $pm && empty($subscription->default_source)) {
 				$pm = $subscription->customer->invoice_settings->default_payment_method ?? null;
 			}
 
@@ -912,7 +940,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 		$s_customer_id = $membership->get_gateway_customer_id();
 
 		$stored_redirect = get_user_meta(get_current_user_id(), '_wu_change_payment_redirect', true);
-		$redirect_url    = wu_request('redirect_url', $stored_redirect);
+		$redirect_url    = $this->get_requested_return_url() ?: $stored_redirect;
 		$fallback_url    = remove_query_arg(['wu-stripe-portal', 'redirect_url'], wu_get_current_url());
 
 		if ($redirect_url && is_string($redirect_url)) {

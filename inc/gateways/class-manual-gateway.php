@@ -160,7 +160,7 @@ class Manual_Gateway extends Base_Gateway {
 	 * @param \WP_Ultimo\Models\Membership $membership The membership.
 	 * @param \WP_Ultimo\Models\Customer   $customer The customer checking out.
 	 * @param \WP_Ultimo\Checkout\Cart     $cart The cart object.
-	 * @param string                       $type The checkout type. Can be 'new', 'retry', 'upgrade', 'downgrade', 'addon'.
+	 * @param string                       $type The checkout type. Can be 'new', 'retry', 'upgrade', 'downgrade', 'addon', 'reactivation'.
 	 *
 	 * @throws \Exception When saving a membership fails.
 	 */
@@ -190,6 +190,10 @@ class Manual_Gateway extends Base_Gateway {
 		 * - downgrade: @see upgrade.
 		 * - retry:     This cart is created when a customer tries to settle a pending or failed payment.
 		 * - addon:     Contains only services or packages that should be added to the membership in question.
+		 * - reactivation: A cancelled or expired membership being paid for again. Nothing changes
+		 *              here on purpose: on-hold counts as active, so moving the membership there
+		 *              would restore access before the payment is confirmed. The administrator's
+		 *              confirmation reactivates it (Payment_Edit_Admin_Page::handle_save()).
 		 */
 		$status = true;
 
@@ -232,7 +236,7 @@ class Manual_Gateway extends Base_Gateway {
 			 * Saves the membership with the changes.
 			 */
 			$status = $membership->save();
-		} elseif (in_array($type, ['upgrade', 'addon', 'reactivation'], true)) {
+		} elseif ('upgrade' === $type || 'addon' === $type) {
 			/*
 			* After everything is said and done,
 			* we need to swap the membership to the new products
@@ -248,12 +252,18 @@ class Manual_Gateway extends Base_Gateway {
 			* It doesn't save the membership, though, so
 			* you'll have to do that manually (example below).
 			*/
-			if ('reactivation' !== $type) {
-				$membership->swap($cart);
-			}
+			$membership->swap($cart);
 
-			$membership->set_gateway($this->get_id());
-			$membership->set_auto_renew(false);
+			/*
+			 * A manually paid plan change is invoiced manually from now on, so the
+			 * membership must use this gateway and stop auto-renewing elsewhere.
+			 * Add-ons are extra items on the existing subscription: they keep its
+			 * recurring gateway and renewal setting.
+			 */
+			if ('upgrade' === $type) {
+				$membership->set_gateway($this->get_id());
+				$membership->set_auto_renew(false);
+			}
 
 			/*
 			 * Mark the membership as pending, as we need to
