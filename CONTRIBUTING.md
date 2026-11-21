@@ -326,7 +326,14 @@ ultimate-multisite/
 
 Releases are automated via GitHub Actions:
 
-1. Update version numbers in plugin files
+1. Update version numbers in every location: the plugin header `Version:` and `@version` in
+   `ultimate-multisite.php`, `define('WP_ULTIMO_VERSION', ...)` in `ultimate-multisite.php`,
+   `WP_Ultimo::VERSION` in `inc/class-wp-ultimo.php`, `package.json`, `composer.json`, `VERSION`
+   and the `readme.txt` `Stable tag` (stable releases only). Also run
+   `bin/replace-next-version.sh --check-guessed --allow 2.x.x` to list guessed numeric
+   `@since` / `@deprecated` tags (versions that are not a release tag) added since the last
+   release, and fix them before tagging. The release workflow verifies all of these versions
+   except `composer.json` and `VERSION`.
 2. Stable releases only: replace `n.e.x.t` version placeholders with `pnpm run since 2.x.x` (see below)
 3. Update the changelog in `readme.txt`
 4. Create and push version tag: `git tag v2.x.x && git push origin v2.x.x`

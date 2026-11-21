@@ -18,6 +18,10 @@
 # Usage:
 #   bin/replace-next-version.sh 2.20.0   Replace placeholders with 2.20.0 (stable versions only)
 #   bin/replace-next-version.sh --check  List remaining placeholders; exit 1 if any
+#   bin/replace-next-version.sh --check-guessed [<base-ref>] [--allow X.Y.Z]
+#       List numeric @since/@deprecated tags added since <base-ref> (default: latest
+#       v* tag) whose version is not an existing release tag or an --allow version;
+#       exit 1 if any. Catches guessed versions on unreleased code.
 
 set -euo pipefail
 
@@ -44,6 +48,9 @@ PLACEHOLDER_REGEX="@(since|deprecated)[[:space:]]+n\.e\.x\.t|'[^']*n\.e\.x\.t'|^
 usage() {
 	echo "Usage: $(basename "$0") <version>   Replace n.e.x.t placeholders with <version>"
 	echo "       $(basename "$0") --check     List remaining n.e.x.t placeholders"
+	echo "       $(basename "$0") --check-guessed [<base-ref>] [--allow X.Y.Z]..."
+	echo "                                    List numeric @since/@deprecated tags added since <base-ref>"
+	echo "                                    (default: latest v* tag) that are not release tags"
 	return 0
 }
 
@@ -77,6 +84,81 @@ check_placeholders() {
 	fi
 
 	echo "No n.e.x.t version placeholders found."
+	return 0
+}
+
+# Prints the latest stable release tag (vX.Y.Z), or nothing when none exists.
+latest_release_tag() {
+	git -C "$ROOT_DIR" tag -l 'v*' --sort=-v:refname | grep -E -m1 '^v[0-9]+\.[0-9]+\.[0-9]+$' || true
+	return 0
+}
+
+# Lists @since / @deprecated tags with a numeric version on lines added since
+# <base-ref> whose version is neither an existing release tag nor allowed via
+# --allow. Guessed versions ship wrong; unreleased code must use n.e.x.t.
+# Output lines: file:line: text. Exit 1 when any are found.
+check_guessed() {
+	local base="$1"
+	shift
+	local allowed=("$@")
+	local found=0
+	local diff_output
+	local file lineno version text
+
+	if [[ -z "$base" ]]; then
+		base=$(latest_release_tag)
+	fi
+
+	if [[ -z "$base" ]] || ! git -C "$ROOT_DIR" rev-parse --verify --quiet "$base^{commit}" >/dev/null; then
+		echo "Error: base ref '${base:-<none>}' not found; pass one: --check-guessed <base-ref>" >&2
+		return 2
+	fi
+
+	diff_output=$(git -C "$ROOT_DIR" diff --unified=0 --no-color --no-ext-diff "$base" -- "${PATHSPECS[@]}") || return 2
+
+	while IFS=$'\t' read -r file lineno version text; do
+		[[ -z "$file" ]] && continue
+
+		if [[ -n "$(git -C "$ROOT_DIR" tag -l "v$version")" ]]; then
+			continue
+		fi
+
+		if [[ ${#allowed[@]} -gt 0 ]] && printf '%s\n' "${allowed[@]}" | grep -qxF "$version"; then
+			continue
+		fi
+
+		if [[ $found -eq 0 ]]; then
+			echo "Guessed @since/@deprecated versions (not a release tag) added since $base:"
+		fi
+		echo "$file:$lineno: $text"
+		found=$((found + 1))
+	done < <(awk '
+		/^\+\+\+ / { file = ($2 == "/dev/null") ? "" : substr($2, 3); next }
+		/^@@ / {
+			split($3, parts, ",")
+			line = substr(parts[1], 2) + 0
+			next
+		}
+		/^\+/ && file != "" {
+			text = substr($0, 2)
+			rest = text
+			while (match(rest, /@(since|deprecated)[ \t]+v?[0-9]+(\.[0-9]+)+/)) {
+				tag = substr(rest, RSTART, RLENGTH)
+				sub(/^@(since|deprecated)[ \t]+v?/, "", tag)
+				gsub(/\t/, " ", text)
+				printf "%s\t%d\t%s\t%s\n", file, line, tag, text
+				rest = substr(rest, RSTART + RLENGTH)
+			}
+			line++
+		}
+	' <<<"$diff_output")
+
+	if [[ $found -gt 0 ]]; then
+		echo "Use n.e.x.t for unreleased code (see CONTRIBUTING.md), or correct the version."
+		return 1
+	fi
+
+	echo "No guessed @since/@deprecated versions found since $base."
 	return 0
 }
 
@@ -125,6 +207,27 @@ main() {
 	case "$arg" in
 		--check)
 			check_placeholders
+			return $?
+			;;
+		--check-guessed)
+			shift
+			local base=""
+			local allow=()
+			if [[ $# -gt 0 && "$1" != --* ]]; then
+				base="$1"
+				shift
+			fi
+			while [[ $# -gt 0 ]]; do
+				if [[ "$1" == "--allow" && $# -ge 2 ]]; then
+					allow+=("$2")
+					shift 2
+				else
+					echo "Error: unexpected argument '$1'" >&2
+					usage >&2
+					return 1
+				fi
+			done
+			check_guessed "$base" ${allow[@]+"${allow[@]}"}
 			return $?
 			;;
 		'' | -h | --help)
