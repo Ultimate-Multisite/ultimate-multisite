@@ -573,10 +573,15 @@ abstract class Base_Element {
 			 */
 			$block_content = parse_blocks($content);
 
-			foreach ($block_content as $block) {
+			while ($block_content) {
+				$block = array_shift($block_content);
+
 				if ($this->get_id() === $block['blockName']) {
 					return $block['attrs'];
 				}
+
+				// Groups and Columns are normal account-page layout containers.
+				$block_content = array_merge($block['innerBlocks'] ?? [], $block_content);
 			}
 
 			return false;

@@ -215,13 +215,7 @@ class Manual_Gateway extends Base_Gateway {
 		 * simply throw a exception and Ultimate Multisite will
 		 * catch it and rollback any changes.
 		 */
-		if ('new' === $type) {
-
-			// Your logic here.
-		} elseif ('renewal' === $type) {
-
-			// Your logic here.
-		} elseif ('downgrade' === $type) {
+		if ('downgrade' === $type) {
 			/*
 			 * When downgrading, we need to schedule a swap for the end of the
 			 * current expiration date.
@@ -238,7 +232,7 @@ class Manual_Gateway extends Base_Gateway {
 			 * Saves the membership with the changes.
 			 */
 			$status = $membership->save();
-		} elseif ('upgrade' === $type || 'addon' === $type) {
+		} elseif (in_array($type, ['upgrade', 'addon', 'reactivation'], true)) {
 			/*
 			* After everything is said and done,
 			* we need to swap the membership to the new products
@@ -254,7 +248,12 @@ class Manual_Gateway extends Base_Gateway {
 			* It doesn't save the membership, though, so
 			* you'll have to do that manually (example below).
 			*/
-			$membership->swap($cart);
+			if ('reactivation' !== $type) {
+				$membership->swap($cart);
+			}
+
+			$membership->set_gateway($this->get_id());
+			$membership->set_auto_renew(false);
 
 			/*
 			 * Mark the membership as pending, as we need to
@@ -333,7 +332,8 @@ class Manual_Gateway extends Base_Gateway {
 	 * @param \WP_Ultimo\Models\Payment    $payment The payment associated with the checkout.
 	 * @param \WP_Ultimo\Models\Membership $membership The membership.
 	 * @param \WP_Ultimo\Models\Customer   $customer The customer checking out.
-	 * @return void|bool
+	 * @throws \Exception When the refund fails.
+	 * @return void
 	 */
 	public function process_refund($amount, $payment, $membership, $customer): void {
 

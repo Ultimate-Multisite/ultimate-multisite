@@ -384,7 +384,7 @@ class Current_Site_Element extends Base_Element {
 
 		$my_sites_id = $atts['breadcrumbs_my_sites_page'];
 
-		$my_sites_url = empty($my_sites_id) ? remove_query_arg('site') : get_page_link($my_sites_id);
+		$my_sites_url = empty($my_sites_id) ? get_permalink() : get_page_link($my_sites_id);
 
 		$atts['my_sites_url'] = is_admin() ? admin_url('admin.php?page=sites') : $my_sites_url;
 
