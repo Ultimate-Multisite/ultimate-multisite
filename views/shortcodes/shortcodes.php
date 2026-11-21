@@ -40,7 +40,7 @@ defined('ABSPATH') || exit;
 					</div>
 				</div>
 
-				<div class="wu-w-full">
+				<div class="wu-w-full wu-shortcode-attributes" role="region" tabindex="0" aria-label="<?php esc_attr_e('Shortcode parameters', 'ultimate-multisite'); ?>">
 					<table class="wu-table-auto striped wu-w-full">
 					<tr>
 						<th class="wu-px-4 wu-py-2 wu-w-3/12 wu-text-left">

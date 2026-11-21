@@ -75,3 +75,31 @@ screen. Explain token permissions, legacy-key migration, SSL contact email,
 resource IDs, extra domains and wildcard limitations beside the relevant form.
 Reuse the existing stacked, wrapping layout on desktop and mobile; no new styles
 or wizard steps are needed. Keep the access token in a password field.
+
+## Mobile admin lists and detail widgets
+
+Use WordPress's 782px mobile admin breakpoint. Keep status filters wrapping in
+normal flow, give live search its own full-width row, and keep view-switch controls
+at least 44px square. Search remains usable when the current query has no results;
+each input has a unique label target and a description of live filtering.
+
+List tables retain WordPress's expandable mobile rows, but their primary column
+must identify the record (customer/product name or site URL), never just an avatar
+or thumbnail. Hide the preceding decorative column on mobile and show row actions
+without requiring hover. Do not apply uppercase column-heading typography to row
+headers. Long identifiers and addresses wrap rather than widen the page.
+
+Embedded detail rows are not desktop data grids: constrain their single responsive
+cell to the widget width, allow its flex content to shrink, and wrap the title and
+status onto separate lines when needed. Preserve the desktop layout and existing
+navigation. See `views/base/filter.php`, `views/base/responsive-table-row.php`,
+`inc/list-tables/class-base-list-table.php`, and the mobile block in
+`assets/css/admin.css`.
+
+Constrain the settings search dropdown to its input width on mobile; unlike the
+desktop max-content menu, long result titles must wrap. Diagnostic tables and job
+hooks wrap long values. The four-column shortcode reference instead keeps its
+column relationships in a labelled, keyboard-scrollable region, never a
+page-wide horizontal scrollbar (`views/shortcodes/shortcodes.php`). Full-screen
+mobile dialogs reserve space for their title bar and scroll only the remaining
+content area so the final form controls stay reachable.
