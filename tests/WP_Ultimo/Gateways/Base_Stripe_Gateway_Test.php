@@ -633,6 +633,51 @@ class Base_Stripe_Gateway_Test extends \WP_UnitTestCase {
 		$this->assertStringContainsString('abc123hash', $result);
 	}
 
+	/**
+	 * The portal link returns to the page that built it, whole.
+	 *
+	 * Without a requested return URL it falls back to the current page. With one,
+	 * the URL's own query string must survive: add_query_arg() does not encode
+	 * values, so the URL has to be encoded before it is nested in the link.
+	 */
+	public function test_get_change_payment_method_url_keeps_the_return_url(): void {
+		wu_save_setting('stripe_enable_portal', 1);
+
+		$membership_mock = $this->getMockBuilder(\WP_Ultimo\Models\Membership::class)
+			->disableOriginalConstructor()
+			->onlyMethods(['get_gateway_subscription_id', 'get_hash'])
+			->getMock();
+
+		$membership_mock->method('get_gateway_subscription_id')->willReturn('sub_test123');
+		$membership_mock->method('get_hash')->willReturn('abc123hash');
+
+		$server = $_SERVER;
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Fixture: saves the incoming request to restore it.
+		$request = $_REQUEST;
+
+		try {
+			$_SERVER['HTTP_HOST']   = 'example.org';
+			$_SERVER['REQUEST_URI'] = '/account/?tab=billing';
+
+			unset($_REQUEST['redirect_url']);
+
+			parse_str((string) wp_parse_url($this->gateway->get_change_payment_method_url($membership_mock), PHP_URL_QUERY), $query);
+
+			$this->assertSame('http://example.org/account/?tab=billing', $query['redirect_url'], 'Without a requested return URL the link returns to the current page.');
+
+			$_REQUEST['redirect_url'] = 'http://example.org/account/?tab=billing&utm=a%26b';
+
+			parse_str((string) wp_parse_url($this->gateway->get_change_payment_method_url($membership_mock), PHP_URL_QUERY), $query);
+
+			$this->assertSame('http://example.org/account/?tab=billing&utm=a%26b', $query['redirect_url']);
+			$this->assertSame('abc123hash', $query['membership']);
+			$this->assertArrayNotHasKey('utm', $query, 'The return URL\'s own query string must not leak into the link.');
+		} finally {
+			$_SERVER  = $server;
+			$_REQUEST = $request;
+		}
+	}
+
 	// =========================================================================
 	// get_payment_method_display
 	// =========================================================================

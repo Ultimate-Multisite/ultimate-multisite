@@ -206,6 +206,135 @@ class Manual_Gateway_Checkout_Process_Test extends \WP_UnitTestCase {
 		$second_product->delete();
 	}
 
+	/**
+	 * Builds a membership, a pending manual payment and a cart for one scenario.
+	 *
+	 * @param string $slug            Unique plan slug.
+	 * @param string $cart_type       Cart type to build.
+	 * @param array  $membership_args Membership attributes.
+	 * @return array{0: \WP_Ultimo\Models\Membership, 1: \WP_Ultimo\Models\Payment, 2: \WP_Ultimo\Checkout\Cart}
+	 */
+	private function build_checkout(string $slug, string $cart_type, array $membership_args): array {
+
+		$customer = self::$customer;
+
+		wp_set_current_user($customer->get_user_id(), $customer->get_username());
+
+		$product = wu_create_product(
+			[
+				'name'          => $slug,
+				'slug'          => $slug,
+				'amount'        => 50.00,
+				'recurring'     => true,
+				'duration'      => 1,
+				'duration_unit' => 'month',
+				'type'          => 'plan',
+				'pricing_type'  => 'paid',
+				'active'        => true,
+			]
+		);
+
+		$membership = wu_create_membership(
+			array_merge(
+				[
+					'customer_id' => $customer->get_id(),
+					'plan_id'     => $product->get_id(),
+					'recurring'   => true,
+				],
+				$membership_args
+			)
+		);
+
+		$this->assertNotWPError($membership);
+
+		$cart = new \WP_Ultimo\Checkout\Cart(
+			[
+				'cart_type'     => $cart_type,
+				'products'      => [$product->get_id()],
+				'duration'      => 1,
+				'duration_unit' => 'month',
+				'membership_id' => $membership->get_id(),
+				'currency'      => 'USD',
+				'country'       => 'US',
+			]
+		);
+
+		$payment = wu_create_payment(
+			[
+				'customer_id'   => $customer->get_id(),
+				'membership_id' => $membership->get_id(),
+				'gateway'       => 'manual',
+				'status'        => Payment_Status::PENDING,
+				'total'         => 50.00,
+			]
+		);
+
+		return [$membership, $payment, $cart];
+	}
+
+	/**
+	 * On-hold counts as active, so a reactivation must not restore access
+	 * before an administrator confirms the payment.
+	 */
+	public function test_reactivation_keeps_the_membership_inactive_until_payment_is_confirmed(): void {
+
+		[$membership, $payment, $cart] = $this->build_checkout(
+			'manual-reactivation-plan',
+			'upgrade',
+			['status' => Membership_Status::CANCELLED]
+		);
+
+		$this->gateway->process_checkout($payment, $membership, self::$customer, $cart, 'reactivation');
+
+		$reloaded = wu_get_membership($membership->get_id());
+
+		$this->assertSame(Membership_Status::CANCELLED, $reloaded->get_status());
+		$this->assertFalse($reloaded->is_active(), 'Access must wait for the payment confirmation.');
+		$this->assertSame(Payment_Status::PENDING, $payment->get_status());
+	}
+
+	/**
+	 * An add-on is an extra item on the existing subscription: paying for it
+	 * manually must not move the membership off its recurring gateway.
+	 */
+	public function test_addon_keeps_the_existing_recurring_gateway(): void {
+
+		[$membership, $payment, $cart] = $this->build_checkout(
+			'manual-addon-plan',
+			'addon',
+			[
+				'status'  => Membership_Status::ACTIVE,
+				'gateway' => 'free',
+			]
+		);
+
+		$this->gateway->process_checkout($payment, $membership, self::$customer, $cart, 'addon');
+
+		$this->assertSame('free', wu_get_membership($membership->get_id())->get_gateway());
+	}
+
+	/**
+	 * A manually paid plan change is invoiced manually from now on.
+	 */
+	public function test_upgrade_moves_the_membership_to_the_manual_gateway(): void {
+
+		[$membership, $payment, $cart] = $this->build_checkout(
+			'manual-upgrade-plan',
+			'upgrade',
+			[
+				'status'  => Membership_Status::ACTIVE,
+				'gateway' => 'free',
+			]
+		);
+
+		$this->gateway->process_checkout($payment, $membership, self::$customer, $cart, 'upgrade');
+
+		$reloaded = wu_get_membership($membership->get_id());
+
+		$this->assertSame('manual', $reloaded->get_gateway());
+		$this->assertFalse($reloaded->should_auto_renew());
+	}
+
 	public function tearDown(): void {
 
 		parent::tearDown();

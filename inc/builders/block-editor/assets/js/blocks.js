@@ -109,7 +109,25 @@
 
 						const obj = {};
 
-						obj[ field_slug ] = value;
+						if (field.type === 'number') {
+
+							// NumberControl emits strings, and '' while cleared; the block schema requires integers.
+							const number = parseInt(value, 10);
+
+							// Keep the last valid number rather than saving an invalid one mid-edit.
+							if (Number.isNaN(number)) {
+
+								return;
+
+							}
+
+							obj[ field_slug ] = number;
+
+						} else {
+
+							obj[ field_slug ] = value;
+
+						}
 
 						props.setAttributes(obj);
 

@@ -160,7 +160,7 @@ class Manual_Gateway extends Base_Gateway {
 	 * @param \WP_Ultimo\Models\Membership $membership The membership.
 	 * @param \WP_Ultimo\Models\Customer   $customer The customer checking out.
 	 * @param \WP_Ultimo\Checkout\Cart     $cart The cart object.
-	 * @param string                       $type The checkout type. Can be 'new', 'retry', 'upgrade', 'downgrade', 'addon'.
+	 * @param string                       $type The checkout type. Can be 'new', 'retry', 'upgrade', 'downgrade', 'addon', 'reactivation'.
 	 *
 	 * @throws \Exception When saving a membership fails.
 	 */
@@ -190,6 +190,10 @@ class Manual_Gateway extends Base_Gateway {
 		 * - downgrade: @see upgrade.
 		 * - retry:     This cart is created when a customer tries to settle a pending or failed payment.
 		 * - addon:     Contains only services or packages that should be added to the membership in question.
+		 * - reactivation: A cancelled or expired membership being paid for again. Nothing changes
+		 *              here on purpose: on-hold counts as active, so moving the membership there
+		 *              would restore access before the payment is confirmed. The administrator's
+		 *              confirmation reactivates it (Payment_Edit_Admin_Page::handle_save()).
 		 */
 		$status = true;
 
@@ -215,13 +219,7 @@ class Manual_Gateway extends Base_Gateway {
 		 * simply throw a exception and Ultimate Multisite will
 		 * catch it and rollback any changes.
 		 */
-		if ('new' === $type) {
-
-			// Your logic here.
-		} elseif ('renewal' === $type) {
-
-			// Your logic here.
-		} elseif ('downgrade' === $type) {
+		if ('downgrade' === $type) {
 			/*
 			 * When downgrading, we need to schedule a swap for the end of the
 			 * current expiration date.
@@ -255,6 +253,17 @@ class Manual_Gateway extends Base_Gateway {
 			* you'll have to do that manually (example below).
 			*/
 			$membership->swap($cart);
+
+			/*
+			 * A manually paid plan change is invoiced manually from now on, so the
+			 * membership must use this gateway and stop auto-renewing elsewhere.
+			 * Add-ons are extra items on the existing subscription: they keep its
+			 * recurring gateway and renewal setting.
+			 */
+			if ('upgrade' === $type) {
+				$membership->set_gateway($this->get_id());
+				$membership->set_auto_renew(false);
+			}
 
 			/*
 			 * Mark the membership as pending, as we need to
@@ -333,7 +342,8 @@ class Manual_Gateway extends Base_Gateway {
 	 * @param \WP_Ultimo\Models\Payment    $payment The payment associated with the checkout.
 	 * @param \WP_Ultimo\Models\Membership $membership The membership.
 	 * @param \WP_Ultimo\Models\Customer   $customer The customer checking out.
-	 * @return void|bool
+	 * @throws \Exception When the refund fails.
+	 * @return void
 	 */
 	public function process_refund($amount, $payment, $membership, $customer): void {
 

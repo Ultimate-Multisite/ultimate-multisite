@@ -444,7 +444,7 @@ class Site_Actions_Element extends Base_Element {
 						'change_payment_method',
 						[
 							'membership'   => $this->membership->get_hash(),
-							'redirect_url' => wu_get_current_url(),
+							'redirect_url' => $this->get_encoded_current_url(),
 						]
 					),
 				];
@@ -452,6 +452,21 @@ class Site_Actions_Element extends Base_Element {
 		}
 
 		return apply_filters('wu_element_get_site_actions', $actions, $atts, $this->site, $this->membership);
+	}
+
+	/**
+	 * Returns the current page URL, encoded to travel inside a form link.
+	 *
+	 * Form links are built with add_query_arg(), which does not encode values.
+	 * A page with its own query string would otherwise leak that string into
+	 * the form link and lose everything after the first "&" on the way back.
+	 *
+	 * @since n.e.x.t
+	 * @return string
+	 */
+	private function get_encoded_current_url(): string {
+
+		return rawurlencode(wu_get_current_url());
 	}
 
 	/**
@@ -476,7 +491,7 @@ class Site_Actions_Element extends Base_Element {
 							'delete_site',
 							[
 								'site'         => $this->site->get_hash(),
-								'redirect_url' => ! $atts['redirect_after_delete'] ? false : get_page_link($atts['redirect_after_delete']),
+								'redirect_url' => $atts['redirect_after_delete'] ? get_page_link($atts['redirect_after_delete']) : (is_admin() ? user_admin_url() : get_permalink()),
 							]
 						),
 					],
@@ -496,7 +511,7 @@ class Site_Actions_Element extends Base_Element {
 							'cancel_membership',
 							[
 								'membership'   => $this->membership->get_hash(),
-								'redirect_url' => wu_get_current_url(),
+								'redirect_url' => $this->get_encoded_current_url(),
 							]
 						),
 					],
@@ -516,7 +531,7 @@ class Site_Actions_Element extends Base_Element {
 							'resubscribe_membership',
 							[
 								'membership'   => $this->membership->get_hash(),
-								'redirect_url' => wu_get_current_url(),
+								'redirect_url' => $this->get_encoded_current_url(),
 							]
 						),
 					],
@@ -546,7 +561,8 @@ class Site_Actions_Element extends Base_Element {
 
 		$customer = wu_get_current_customer();
 
-		if ( ! $customer || $customer->get_id() !== $site->get_customer_id()) {
+		// A missing site has no owner to compare against.
+		if ( ! $error && (! $customer || $customer->get_id() !== $site->get_customer_id())) {
 			$error = __('You are not allowed to do this.', 'ultimate-multisite');
 		}
 
@@ -917,13 +933,7 @@ class Site_Actions_Element extends Base_Element {
 			wp_send_json_error($user_id);
 		}
 
-		// Update customer email if exists.
-		$customer = wu_get_current_customer();
-
-		if ($customer) {
-			$customer->set_email_address($new_email);
-			$customer->save();
-		}
+		// Customer::get_email_address() reads the linked WordPress user's email.
 
 		$referer = isset($_SERVER['HTTP_REFERER']) ? sanitize_url(wp_unslash($_SERVER['HTTP_REFERER'])) : '';
 
@@ -1005,6 +1015,12 @@ class Site_Actions_Element extends Base_Element {
 	public function handle_change_default_site(): void {
 
 		$new_primary_site = wu_request('new_primary_site');
+
+		if ( ! is_scalar($new_primary_site) || ! ctype_digit((string) $new_primary_site) || ! isset(get_blogs_of_user(get_current_user_id())[ (int) $new_primary_site ])) {
+			wp_send_json_error(new \WP_Error('invalid-site', __('Please select a site from your account.', 'ultimate-multisite')));
+
+			return;
+		}
 
 		if ($new_primary_site) {
 			update_user_meta(get_current_user_id(), 'primary_blog', $new_primary_site);
@@ -1156,7 +1172,8 @@ class Site_Actions_Element extends Base_Element {
 
 		$customer = wu_get_current_customer();
 
-		if ( ! is_super_admin() && (! $customer || $customer->get_id() !== $membership->get_customer_id())) {
+		// A missing membership has no owner to compare against.
+		if ( ! $error && ! is_super_admin() && (! $customer || $customer->get_id() !== $membership->get_customer_id())) {
 			$error = __('You are not allowed to do this.', 'ultimate-multisite');
 		}
 
@@ -1317,7 +1334,21 @@ class Site_Actions_Element extends Base_Element {
 			'other'            => wu_request('cancellation_explanation'),
 		];
 
-		$reason = wu_get_isset($cancellation_options, wu_request('cancellation_reason'), '');
+		if (__('CANCEL', 'ultimate-multisite') !== wu_request('confirm')) {
+			wp_send_json_error(new \WP_Error('not-confirmed', __('Please type CANCEL to confirm the membership cancellation.', 'ultimate-multisite')));
+
+			return;
+		}
+
+		$reason_key = wu_request('cancellation_reason', '');
+
+		if ( ! is_string($reason_key) || ! array_key_exists($reason_key, $cancellation_options)) {
+			wp_send_json_error(new \WP_Error('invalid-reason', __('Please select a cancellation reason.', 'ultimate-multisite')));
+
+			return;
+		}
+
+		$reason = $cancellation_options[ $reason_key ];
 		try {
 			/*
 			 * Cancel the subscription on the payment gateway before
@@ -1383,7 +1414,8 @@ class Site_Actions_Element extends Base_Element {
 
 		$customer = wu_get_current_customer();
 
-		if ( ! is_super_admin() && (! $customer || $customer->get_id() !== $membership->get_customer_id())) {
+		// A missing membership has no owner to compare against.
+		if ( ! $error && ! is_super_admin() && (! $customer || $customer->get_id() !== $membership->get_customer_id())) {
 			$error = __('You are not allowed to do this.', 'ultimate-multisite');
 		}
 
@@ -1493,14 +1525,21 @@ class Site_Actions_Element extends Base_Element {
 		}
 
 		/*
-		 * Build the checkout URL pre-filled with the customer's previous plan.
-		 * The products[] query parameter pre-selects the plan on the checkout form.
+		 * Reuse the existing membership, rather than starting a new site signup.
+		 * Reactivation carts restore the original products themselves. Passing
+		 * product slugs in GET conflicts with the form's product IDs in POST.
 		 */
-		$checkout_url = wu_get_registration_url();
+		$checkout_url = wu_get_membership_update_url($membership);
+
+		// Preselect the required product field without conflicting GET products.
+		$session            = wu_get_session('signup');
+		$signup             = (array) $session->get('signup');
+		$signup['products'] = [$plan->get_id()];
+		$session->set('signup', $signup);
+		$session->commit();
 
 		$checkout_url = add_query_arg(
 			[
-				'products[]'     => $plan->get_slug(),
 				'wu_resubscribe' => $membership->get_hash(),
 			],
 			$checkout_url

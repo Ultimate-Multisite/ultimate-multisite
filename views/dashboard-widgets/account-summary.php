@@ -6,8 +6,9 @@
  */
 defined('ABSPATH') || exit;
 
+// phpcs:disable WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase -- className is the shared block/template attribute.
 ?>
-<div class="wu-styling <?php echo esc_attr($className); ?>">
+<div id="wu-summary-<?php echo esc_attr($site->get_hash()); ?>" tabindex="-1" style="scroll-margin-top: 3rem;" class="wu-styling <?php echo esc_attr($className); ?>">
 
 	<div class="<?php echo esc_attr(wu_env_picker('', 'wu-widget-inset')); ?>">
 
@@ -24,7 +25,7 @@ defined('ABSPATH') || exit;
 
 		<?php endif; ?>
 
-		<?php if (wu_request('page') !== 'account') : ?>
+		<?php if (wu_request('page') !== 'account' && empty($hide_manage_link)) : ?>
 
 		<div class="wu-ml-auto">
 
