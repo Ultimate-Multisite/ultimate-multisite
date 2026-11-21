@@ -1347,7 +1347,7 @@ class Site_Manager extends Base_Manager {
 	 * When that site is a valid, active membership, the primary site alone gives the
 	 * same result without enumerating every site.
 	 *
-	 * @since 2.19.1
+	 * @since 2.20.0
 	 * @param array|null $backtrace Call stack override used by tests.
 	 * @return bool
 	 */
@@ -1374,7 +1374,7 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Checks whether the request can render an authenticated toolbar.
 	 *
-	 * @since 2.19.1
+	 * @since 2.20.0
 	 * @return bool
 	 */
 	protected function is_my_sites_toolbar_render_context() {
@@ -1392,7 +1392,7 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Checks whether a backtrace frame is WP_Admin_Bar::initialize().
 	 *
-	 * @since 2.19.1
+	 * @since 2.20.0
 	 * @param array $frame Backtrace frame.
 	 * @return bool
 	 */
@@ -1415,7 +1415,7 @@ class Site_Manager extends Base_Manager {
 	 * unless the primary site is a valid, active membership, so WordPress can still
 	 * repair an invalid primary_blog value from the complete list.
 	 *
-	 * @since 2.19.1
+	 * @since 2.20.0
 	 * @param int  $user_id User ID.
 	 * @param bool $primary_only Whether to use only the primary site.
 	 * @return object[]
@@ -1465,7 +1465,7 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Formats a site like an entry returned by get_blogs_of_user().
 	 *
-	 * @since 2.19.1
+	 * @since 2.20.0
 	 * @param \WP_Site $site Site object.
 	 * @return object
 	 */
@@ -1492,7 +1492,7 @@ class Site_Manager extends Base_Manager {
 	 * This retains its current-site navigation while the controller fetches bounded
 	 * pages only after the user opens the menu.
 	 *
-	 * @since 2.19.1
+	 * @since 2.20.0
 	 * @param \WP_Admin_Bar $wp_admin_bar The admin bar instance.
 	 * @return void
 	 */
@@ -1521,7 +1521,7 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Enqueue the controller only on requests which render an authenticated toolbar.
 	 *
-	 * @since 2.19.1
+	 * @since 2.20.0
 	 * @return void
 	 */
 	public function enqueue_my_sites_toolbar_script(): void {
@@ -1563,7 +1563,7 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Returns a bounded, authorized page of My Sites toolbar entries.
 	 *
-	 * @since 2.19.1
+	 * @since 2.20.0
 	 * @return void
 	 */
 	public function get_my_sites_toolbar_page(): void {
@@ -1584,7 +1584,7 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Gets a bounded page of sites and the toolbar links allowed for each site.
 	 *
-	 * @since 2.19.1
+	 * @since 2.20.0
 	 * @param int $user_id The authenticated user ID.
 	 * @param int $page The one-based page number.
 	 * @return array{sites: array<int, array<string, mixed>>, has_more: bool, next_page: int}
@@ -1665,7 +1665,7 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Extracts the site IDs from the user's multisite capability metadata.
 	 *
-	 * @since 2.19.1
+	 * @since 2.20.0
 	 * @param int $user_id User ID.
 	 * @return int[]
 	 */
@@ -1703,7 +1703,7 @@ class Site_Manager extends Base_Manager {
 	/**
 	 * Builds the links which WordPress normally creates after switching to a site.
 	 *
-	 * @since 2.19.1
+	 * @since 2.20.0
 	 * @param int    $site_id Site ID.
 	 * @param string $blogname Filtered site name.
 	 * @return array<string, mixed>|false
