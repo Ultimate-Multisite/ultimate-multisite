@@ -5,7 +5,7 @@ Tags: multisite, domain mapping, wordpress multisite, multisite saas, waas
 Requires at least: 5.3
 Requires PHP: 8.2
 Tested up to: 7.1
-Stable tag: 2.19.0
+Stable tag: 2.20.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -251,6 +251,19 @@ Data collected includes:
 No personal data, domains, IP addresses, or payment information are collected.
 
 == Changelog ==
+
+= 2.20.0 =
+Version [2.20.0] - Released on 2026-11-21
+- New: Domain mapping instructions cover root and www records, conflicting records, Cloudflare, and DNS and SSL propagation, and a new Recommended DNS Target setting with a %DNS_TARGET% placeholder sets the hostname customers point their domains to.
+- Fix: Billing address and edit site forms in the customer account check that the customer owns the record before showing its details.
+- Fix: Stale or mistyped cancel, resubscribe, and delete site links show a message instead of a critical error.
+- Fix: Confirming a manual payment reactivates a cancelled or expired membership properly, clearing its cancellation date, and a manually paid upgrade moves the membership to the Manual gateway.
+- Fix: Confirming a manual add-on payment activates the membership without extending the plan's billing period or bill count, and the Activate Membership option only appears when it can take effect.
+- Fix: Change payment method, cancel, and resubscribe links keep the account page's own query string, and the Stripe Billing Portal returns customers to the page they came from.
+- Fix: WooCommerce Subscriptions staging mode is reset after a new site finishes initializing instead of before its tables exist.
+- Improved: The front-end account shortcodes and blocks work together on a main-site customer account page, with sign-in, site selection, and recovery states in the account summary, reliable email changes, validated primary site choices, and a Resubscribe link that opens the existing membership's checkout with the previous plan selected.
+- Improved: The My Sites toolbar loads your sites when the menu is opened instead of preparing every site on each request, so the "Optimize the front-end My Sites toolbar" setting is removed.
+- Improved: The email login code step is clearer, and the login page is simpler, with a narrow bordered card and password links after the email field.
 
 = 2.19.0 =
 Version [2.19.0] - Released on 2026-11-19
