@@ -265,6 +265,75 @@ class Cloudflare_Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->module->on_remove_subdomain('sub.example.com', 1);
 	}
 
+	/**
+	 * Runs $callback with the network domain set to $domain, then restores it.
+	 */
+	private function with_network_domain(string $domain, callable $callback): void {
+
+		global $current_site;
+
+		$original             = $current_site->domain;
+		$current_site->domain = $domain;
+
+		try {
+			$callback();
+		} finally {
+			$current_site->domain = $original;
+		}
+	}
+
+	public function test_on_add_subdomain_creates_record_on_www_network(): void {
+
+		$this->integration->method('get_credential')
+			->willReturnCallback(function (string $key) {
+				return 'WU_CLOUDFLARE_ZONE_ID' === $key ? 'zone123' : '';
+			});
+		wu_save_setting('auto_create_www_subdomain', 'never');
+
+		$names = [];
+
+		$this->integration->expects($this->once())
+			->method('cloudflare_api_call')
+			->willReturnCallback(function ($endpoint, $method, $data) use (&$names) {
+				$names[] = $data['name'];
+
+				return (object) ['result' => (object) ['id' => 'rec']];
+			});
+
+		$this->with_network_domain('www.example.com', function () {
+			$this->module->on_add_subdomain('sub.example.com', 1);
+		});
+
+		$this->assertSame(['sub'], $names);
+	}
+
+	public function test_on_remove_subdomain_deletes_record_on_www_network(): void {
+
+		$this->integration->method('get_credential')
+			->willReturnCallback(function (string $key) {
+				return 'WU_CLOUDFLARE_ZONE_ID' === $key ? 'zone123' : '';
+			});
+
+		$calls = [];
+
+		$this->integration->method('cloudflare_api_call')
+			->willReturnCallback(function ($endpoint, $method, $data = []) use (&$calls) {
+				$calls[] = $method . ' ' . ($data['name'] ?? $endpoint);
+
+				if ('GET' === $method) {
+					return (object) ['result' => 'sub.example.com' === $data['name'] ? [(object) ['id' => 'rec']] : []];
+				}
+
+				return (object) ['result' => (object) ['id' => 'rec']];
+			});
+
+		$this->with_network_domain('www.example.com', function () {
+			$this->module->on_remove_subdomain('sub.example.com', 1);
+		});
+
+		$this->assertSame(['GET sub.example.com', 'DELETE client/v4/zones/zone123/dns_records/rec', 'GET www.sub.example.com'], $calls);
+	}
+
 	public function test_add_cloudflare_dns_entries_returns_unchanged_when_no_zone_id(): void {
 
 		$this->integration->method('get_credential')
