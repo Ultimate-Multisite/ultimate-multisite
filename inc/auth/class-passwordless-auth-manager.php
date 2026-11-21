@@ -229,7 +229,7 @@ class Passwordless_Auth_Manager {
 	 * themes), so the status notices, link-style buttons and hidden states are
 	 * styled here instead of relying on them.
 	 *
-	 * @since 2.18.1
+	 * @since 2.20.0
 	 * @return string
 	 */
 	protected function get_inline_css() {
@@ -259,7 +259,7 @@ class Passwordless_Auth_Manager {
 	 * Hides the legacy password form and sizes the fields and buttons to match
 	 * the WordPress login screen.
 	 *
-	 * @since 2.18.1
+	 * @since 2.20.0
 	 * @return string
 	 */
 	protected function get_login_inline_css() {
@@ -665,7 +665,7 @@ class Passwordless_Auth_Manager {
 	 * not reveal which addresses are registered. It still tells the visitor
 	 * where the code went, what to do next, and when it expires.
 	 *
-	 * @since 2.18.1
+	 * @since 2.20.0
 	 * @return string
 	 */
 	protected function get_code_sent_message() {

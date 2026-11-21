@@ -843,7 +843,7 @@ class Base_Stripe_Gateway extends Base_Gateway {
 	 * percent-encoded octets such as those in non-ASCII slugs. esc_url_raw()
 	 * keeps them. Callers must still validate the result with wp_validate_redirect().
 	 *
-	 * @since n.e.x.t
+	 * @since 2.20.0
 	 * @return string The requested URL, or an empty string.
 	 */
 	private function get_requested_return_url(): string {
