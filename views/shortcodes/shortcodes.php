@@ -15,6 +15,26 @@ defined('ABSPATH') || exit;
 	<div id="post-body" class="">
 		<div id="post-body-content">
 
+		<div class="postbox">
+			<div class="inside">
+				<h2><?php esc_html_e('Build a Frontend Account Area', 'ultimate-multisite'); ?></h2>
+				<p><?php esc_html_e('Create a page on the main site and combine the account components you need. There is no single all-in-one account shortcode.', 'ultimate-multisite'); ?></p>
+				<pre><code>[wu_account_summary]
+[wu_current_membership]
+[wu_billing_info]
+[wu_payment_methods]
+[wu_invoices]
+[wu_current_site]
+[wu_limits]
+[wu_site_actions]</code></pre>
+				<p><?php esc_html_e('Account Summary offers sign-in guidance and a site selector. Once a customer selects a site, it shows the plan, remaining trial time and disk usage; Current Site and Limits also need that site selection.', 'ultimate-multisite'); ?></p>
+				<p><?php esc_html_e('To keep the membership Change link on the frontend, publish another main-site page with the shortcode below and select it under Settings > Memberships > Default Membership Update Page.', 'ultimate-multisite'); ?></p>
+				<p><code>[wu_checkout slug="wu-checkout"]</code></p>
+				<p><?php esc_html_e('These frontend shortcodes are not registered on customer-owned subsites. The subsite admin Account screen is an alternative way to manage the same membership; you do not need to duplicate the frontend account page there.', 'ultimate-multisite'); ?></p>
+				<p><?php esc_html_e('Exclude account and checkout pages from full-page caching so customer-specific content is never served to another visitor.', 'ultimate-multisite'); ?></p>
+			</div>
+		</div>
+
 		<?php foreach ($data as $shortcode) { ?>
 
 			<div class="metabox-holder">

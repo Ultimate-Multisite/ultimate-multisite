@@ -194,7 +194,7 @@ class Payment_Methods_Element extends Base_Element {
 		$gateway_display = '';
 
 		if ($gateway) {
-			$gateway_display = $gateway->get_title();
+			$gateway_display = $gateway->get_public_title();
 			$payment_info    = $gateway->get_payment_method_display($this->membership);
 			$change_url      = $gateway->get_change_payment_method_url($this->membership);
 		}
