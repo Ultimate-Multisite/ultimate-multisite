@@ -75,6 +75,24 @@ class WooCommerce_Subscriptions_Compat {
 	 */
 	public function reset_staging_mode_on_primary_domain_change($domain, int $blog_id, bool $was_new): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 
+		if (function_exists('wp_is_site_initialized') && ! wp_is_site_initialized($blog_id)) {
+			/*
+			 * The site was just inserted (wp_insert_site) and its tables do not exist
+			 * yet. Defer until wp_initialize_site has created them.
+			 */
+			add_action(
+				'wp_initialize_site',
+				function ($new_site) use ($blog_id) {
+					if ((int) $new_site->blog_id === $blog_id) {
+						$this->reset_staging_mode($blog_id);
+					}
+				},
+				PHP_INT_MAX
+			);
+
+			return;
+		}
+
 		$this->reset_staging_mode($blog_id);
 	}
 
