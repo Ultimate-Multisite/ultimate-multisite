@@ -4,7 +4,7 @@
  *
  * @package WP_Ultimo
  * @subpackage Views
- * @since 2.18.0
+ * @since n.e.x.t
  */
 
 defined('ABSPATH') || exit;
