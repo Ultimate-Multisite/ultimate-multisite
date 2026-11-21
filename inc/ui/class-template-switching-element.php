@@ -721,13 +721,13 @@ class Template_Switching_Element extends Base_Element {
 			 * giving Vue a chance to bind it before the `template_id`
 			 * watcher runs. The watcher itself also defends against the
 			 * inverse ordering (see template-switching.js: it bails out
-			 * early when original_template_id <= 0).
+				 * early when original_template_id < 0).
 			 */
 			$checkout_fields['template_id'] = [
 				'type'      => 'hidden',
 				'html_attr' => [
-					'v-init:original_template_id' => $this->site->get_template_id(),
-					'v-init:template_id'          => $this->site->get_template_id(),
+					'v-init:original_template_id' => $current_template_id,
+					'v-init:template_id'          => $current_template_id,
 					'v-model'                     => 'template_id',
 				],
 			];

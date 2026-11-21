@@ -384,7 +384,7 @@ class Current_Site_Element extends Base_Element {
 
 		$my_sites_id = $atts['breadcrumbs_my_sites_page'];
 
-		$my_sites_url = empty($my_sites_id) ? remove_query_arg('site') : get_page_link($my_sites_id);
+		$my_sites_url = empty($my_sites_id) ? get_permalink() : get_page_link($my_sites_id);
 
 		$atts['my_sites_url'] = is_admin() ? admin_url('admin.php?page=sites') : $my_sites_url;
 
@@ -401,7 +401,12 @@ class Current_Site_Element extends Base_Element {
 
 		$site = wu_get_site_by_hash(wu_request('site'));
 
-		if ( ! $site) {
+		/*
+		 * The form pre-fills the site title and description, so it needs the
+		 * same ownership check as the handler. Missing and foreign records get
+		 * the same empty response, which does not reveal whether a hash exists.
+		 */
+		if ( ! $site || ! $site->is_customer_allowed()) {
 			return;
 		}
 

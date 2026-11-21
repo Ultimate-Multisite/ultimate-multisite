@@ -745,7 +745,7 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 	 *
 	 * @dataProvider manual_confirmation_periods
 	 */
-	public function test_manual_confirmation_period(string $status, int $times_billed, bool $renews, bool $fail_first = false): void {
+	public function test_manual_confirmation_period(string $status, int $times_billed, bool $renews, bool $fail_first = false, bool $addon = false): void {
 		$customer = wu_create_customer([
 			'user_id'            => self::factory()->user->create(),
 			'email_verification' => 'none',
@@ -764,17 +764,22 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$this->assertNotWPError($product);
 		// Keep the day low so adding one month cannot overflow a short month.
 		$expiration = gmdate('Y-m-09 23:59:59', strtotime('+1 year'));
-		$membership = wu_create_membership([
+		$membership_args = [
 			'customer_id'     => $customer->get_id(),
 			'plan_id'         => $product->get_id(),
-			'status'          => $status,
+			// An add-on is bought while the membership runs; the Manual gateway then puts it on hold.
+			'status'          => $addon ? 'active' : $status,
 			'amount'          => 29.99,
 			'recurring'       => true,
 			'duration'        => 1,
 			'duration_unit'   => 'month',
 			'times_billed'    => $times_billed,
 			'date_expiration' => $expiration,
-		]);
+		];
+		if ('cancelled' === $status) {
+			$membership_args['date_cancellation'] = gmdate('Y-m-d H:i:s', strtotime('-1 week'));
+		}
+		$membership = wu_create_membership($membership_args);
 		$this->assertNotWPError($membership);
 		$payment = wu_create_payment([
 			'customer_id'   => $customer->get_id(),
@@ -784,6 +789,36 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			'total'         => 128.99,
 		]);
 		$this->assertNotWPError($payment);
+
+		if ($addon) {
+			$extra = wu_create_product([
+				'name'          => 'Manual Confirmation Add-on',
+				'slug'          => 'manual-confirmation-addon-' . wp_generate_password(8, false),
+				'type'          => 'service',
+				'pricing_type'  => 'paid',
+				'amount'        => 5.00,
+				'recurring'     => true,
+				'duration'      => 1,
+				'duration_unit' => 'month',
+				'active'        => true,
+			]);
+			$this->assertNotWPError($extra);
+
+			// A cart only builds for the membership's own customer. One with only extras keeps that membership's plan, which makes it an add-on cart.
+			wp_set_current_user($customer->get_user_id());
+			$cart = new \WP_Ultimo\Checkout\Cart([
+				'products'      => [$extra->get_id()],
+				'membership_id' => $membership->get_id(),
+				'currency'      => 'USD',
+				'country'       => 'US',
+			]);
+			wp_set_current_user(0);
+			$this->assertSame('addon', $cart->get_cart_type());
+			$payment->update_meta(Payment::META_ORIGINAL_CART, $cart);
+
+			$membership->set_status($status);
+			$this->assertNotWPError($membership->save());
+		}
 
 		$membership->create_pending_site([
 			'title'         => 'Manual Confirmation Site',
@@ -801,6 +836,8 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 		$_POST['status']                = Payment_Status::COMPLETED;
 		$_REQUEST['status']             = Payment_Status::COMPLETED;
 		$expected_expiration            = $renews ? gmdate('Y-m-d H:i:s', strtotime('+1 month', strtotime($expiration))) : $expiration;
+		// An add-on payment is not a billing cycle of the plan.
+		$expected_billed                = $addon ? $times_billed : $times_billed + 1;
 
 		try {
 			if ($fail_first) {
@@ -822,11 +859,19 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 				$this->page->object = wu_get_payment($payment->get_id());
 			}
 
+			$reactivated_before = did_action('wu_membership_post_reactivate');
+
 			$this->assertTrue($this->page->handle_save());
 			$membership = wu_get_membership($membership->get_id());
 			$this->assertSame('active', $membership->get_status());
+			if ('cancelled' === $status) {
+				// A paid reactivation clears the cancellation, records how it was paid and fires the hooks once.
+				$this->assertEmpty($membership->get_date_cancellation());
+				$this->assertSame('manual', $membership->get_gateway());
+				$this->assertSame($reactivated_before + 1, did_action('wu_membership_post_reactivate'));
+			}
 			$this->assertSame($expected_expiration, $membership->get_date_expiration());
-			$this->assertSame($times_billed + 1, $membership->get_times_billed());
+			$this->assertSame($expected_billed, $membership->get_times_billed());
 			$this->assertSame(Payment_Status::COMPLETED, wu_get_payment($payment->get_id())->get_status());
 			if ('pending' === $status) {
 				$this->assertEmpty($membership->get_pending_site());
@@ -838,7 +883,7 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			$this->assertTrue($this->page->handle_save());
 			$membership = wu_get_membership($membership->get_id());
 			$this->assertSame($expected_expiration, $membership->get_date_expiration());
-			$this->assertSame($times_billed + 1, $membership->get_times_billed());
+			$this->assertSame($expected_billed, $membership->get_times_billed());
 		} finally {
 			remove_filter('wp_redirect', '__return_false');
 			wu_save_setting('force_publish_sites_sync', $force_sync);
@@ -851,6 +896,9 @@ class Payment_Edit_Admin_Page_Test extends WP_UnitTestCase {
 			'active renewal'         => ['active', 1, true],
 			'pending billed renewal' => ['pending', 1, true],
 			'expired renewal'        => ['expired', 1, true],
+			'cancelled reactivation' => ['cancelled', 1, true],
+			'on-hold renewal'        => ['on-hold', 1, true],
+			'on-hold add-on'         => ['on-hold', 1, false, false, true],
 			'initial save retry'     => ['pending', 0, false, true],
 			'renewal save retry'     => ['active', 1, true, true],
 		];
