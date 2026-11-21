@@ -461,7 +461,7 @@ class Site_Actions_Element extends Base_Element {
 	 * A page with its own query string would otherwise leak that string into
 	 * the form link and lose everything after the first "&" on the way back.
 	 *
-	 * @since n.e.x.t
+	 * @since 2.20.0
 	 * @return string
 	 */
 	private function get_encoded_current_url(): string {
