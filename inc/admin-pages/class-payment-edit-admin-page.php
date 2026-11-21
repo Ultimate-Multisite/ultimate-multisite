@@ -1186,10 +1186,11 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 					'confirm_membership'       => [
 						'type'              => 'toggle',
 						'title'             => __('Activate Membership?', 'ultimate-multisite'),
-						'desc'              => __('This payment belongs to a pending membership. If you toggle this option, this change in status will also apply to the membership. If any sites are pending, they are also going to be published automatically.', 'ultimate-multisite'),
+						'desc'              => __('This payment belongs to a membership that is not active yet. Enable this option to activate, renew or reactivate it when confirming the payment. Any pending sites will also be published automatically.', 'ultimate-multisite'),
 						'value'             => 0,
 						'wrapper_html_attr' => [
-							'v-if'    => 'status !== original_status && status === "completed" && membership_status === "pending"',
+							// Mirrors handle_save(): only a pending payment being completed can confirm a membership.
+							'v-if'    => 'original_status === "pending" && status === "completed" && membership_status !== "active" && membership_status !== "trialing"',
 							'v-cloak' => '1',
 						],
 					],
@@ -1480,13 +1481,35 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 			if ($should_confirm_membership && $membership) {
 				$is_initial_payment = Membership_Status::PENDING === $membership->get_status()
 					&& 0 === $membership->get_times_billed();
+				$is_addon_payment   = $this->is_addon_payment($payment);
 
-				// The initial payment counts as a bill, but checkout already set its period.
-				$membership->add_to_times_billed(1);
+				if ( ! $is_addon_payment) {
+					// The initial payment counts as a bill, but checkout already set its period.
+					$membership->add_to_times_billed(1);
+				}
 
 				if ($is_initial_payment) {
 					$membership->set_status(Membership_Status::ACTIVE);
 					$membership_saved = $membership->save();
+				} elseif ($is_addon_payment) {
+					/*
+					 * Add-ons are extras on the plan, not one of its billing cycles: lift
+					 * the hold without moving the plan's period or its bill count.
+					 */
+					$membership->set_status(Membership_Status::ACTIVE);
+					$membership_saved = $membership->save();
+				} elseif (in_array($membership->get_status(), [Membership_Status::CANCELLED, Membership_Status::EXPIRED], true)) {
+					/*
+					 * A paid reactivation. Like the Stripe and PayPal gateways, use
+					 * reactivate() so the cancellation date clears and the reactivation
+					 * hooks fire. Cancelling clears the gateway: record how this
+					 * membership was paid so the account page shows it.
+					 */
+					if ( ! $membership->get_gateway() && $payment->get_gateway()) {
+						$membership->set_gateway($payment->get_gateway());
+					}
+
+					$membership_saved = $membership->reactivate(false);
 				} else {
 					$membership_saved = $membership->renew(false, Membership_Status::ACTIVE);
 				}
@@ -1528,5 +1551,23 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 		}
 
 		return $saved;
+	}
+
+	/**
+	 * Checks whether a payment came from an add-on checkout.
+	 *
+	 * An add-on cart holds only the extras to add to a membership. Paying for it
+	 * is not a billing cycle of the membership's plan.
+	 *
+	 * @since n.e.x.t
+	 *
+	 * @param \WP_Ultimo\Models\Payment $payment The payment.
+	 * @return bool
+	 */
+	private function is_addon_payment($payment): bool {
+
+		$cart = $payment->get_meta(Payment::META_ORIGINAL_CART);
+
+		return $cart instanceof \WP_Ultimo\Checkout\Cart && 'addon' === $cart->get_cart_type();
 	}
 }
