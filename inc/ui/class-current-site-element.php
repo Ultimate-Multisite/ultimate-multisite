@@ -401,7 +401,12 @@ class Current_Site_Element extends Base_Element {
 
 		$site = wu_get_site_by_hash(wu_request('site'));
 
-		if ( ! $site) {
+		/*
+		 * The form pre-fills the site title and description, so it needs the
+		 * same ownership check as the handler. Missing and foreign records get
+		 * the same empty response, which does not reveal whether a hash exists.
+		 */
+		if ( ! $site || ! $site->is_customer_allowed()) {
 			return;
 		}
 

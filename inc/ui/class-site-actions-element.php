@@ -546,7 +546,8 @@ class Site_Actions_Element extends Base_Element {
 
 		$customer = wu_get_current_customer();
 
-		if ( ! $customer || $customer->get_id() !== $site->get_customer_id()) {
+		// A missing site has no owner to compare against.
+		if ( ! $error && (! $customer || $customer->get_id() !== $site->get_customer_id())) {
 			$error = __('You are not allowed to do this.', 'ultimate-multisite');
 		}
 
@@ -1156,7 +1157,8 @@ class Site_Actions_Element extends Base_Element {
 
 		$customer = wu_get_current_customer();
 
-		if ( ! is_super_admin() && (! $customer || $customer->get_id() !== $membership->get_customer_id())) {
+		// A missing membership has no owner to compare against.
+		if ( ! $error && ! is_super_admin() && (! $customer || $customer->get_id() !== $membership->get_customer_id())) {
 			$error = __('You are not allowed to do this.', 'ultimate-multisite');
 		}
 
@@ -1397,7 +1399,8 @@ class Site_Actions_Element extends Base_Element {
 
 		$customer = wu_get_current_customer();
 
-		if ( ! is_super_admin() && (! $customer || $customer->get_id() !== $membership->get_customer_id())) {
+		// A missing membership has no owner to compare against.
+		if ( ! $error && ! is_super_admin() && (! $customer || $customer->get_id() !== $membership->get_customer_id())) {
 			$error = __('You are not allowed to do this.', 'ultimate-multisite');
 		}
 

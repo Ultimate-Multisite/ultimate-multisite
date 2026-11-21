@@ -323,7 +323,12 @@ class Billing_Info_Element extends Base_Element {
 
 		$membership = wu_get_membership_by_hash(wu_request('membership'));
 
-		if ( ! $membership) {
+		/*
+		 * The form pre-fills the saved billing address, so it needs the same
+		 * ownership check as the handler. Missing and foreign records get the
+		 * same empty response, which does not reveal whether a hash exists.
+		 */
+		if ( ! $membership || ! $membership->is_customer_allowed()) {
 			return;
 		}
 
