@@ -1481,11 +1481,21 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 			if ($should_confirm_membership && $membership) {
 				$is_initial_payment = Membership_Status::PENDING === $membership->get_status()
 					&& 0 === $membership->get_times_billed();
+				$is_addon_payment   = $this->is_addon_payment($payment);
 
-				// The initial payment counts as a bill, but checkout already set its period.
-				$membership->add_to_times_billed(1);
+				if ( ! $is_addon_payment) {
+					// The initial payment counts as a bill, but checkout already set its period.
+					$membership->add_to_times_billed(1);
+				}
 
 				if ($is_initial_payment) {
+					$membership->set_status(Membership_Status::ACTIVE);
+					$membership_saved = $membership->save();
+				} elseif ($is_addon_payment) {
+					/*
+					 * Add-ons are extras on the plan, not one of its billing cycles: lift
+					 * the hold without moving the plan's period or its bill count.
+					 */
 					$membership->set_status(Membership_Status::ACTIVE);
 					$membership_saved = $membership->save();
 				} elseif (in_array($membership->get_status(), [Membership_Status::CANCELLED, Membership_Status::EXPIRED], true)) {
@@ -1541,5 +1551,23 @@ class Payment_Edit_Admin_Page extends Edit_Admin_Page {
 		}
 
 		return $saved;
+	}
+
+	/**
+	 * Checks whether a payment came from an add-on checkout.
+	 *
+	 * An add-on cart holds only the extras to add to a membership. Paying for it
+	 * is not a billing cycle of the membership's plan.
+	 *
+	 * @since n.e.x.t
+	 *
+	 * @param \WP_Ultimo\Models\Payment $payment The payment.
+	 * @return bool
+	 */
+	private function is_addon_payment($payment): bool {
+
+		$cart = $payment->get_meta(Payment::META_ORIGINAL_CART);
+
+		return $cart instanceof \WP_Ultimo\Checkout\Cart && 'addon' === $cart->get_cart_type();
 	}
 }

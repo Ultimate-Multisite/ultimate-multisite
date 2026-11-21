@@ -822,12 +822,15 @@ class Base_Stripe_Gateway extends Base_Gateway {
 
 		$current_url = wu_get_current_url();
 
+		// Return to the page that asked for it, or to this one when the request names none.
+		$return_url = $this->get_requested_return_url() ?: $current_url;
+
 		return add_query_arg(
 			[
 				'wu-stripe-portal' => true,
 				'membership'       => $membership->get_hash(),
 				// Encoded: the page has its own query string, which must not leak into this link.
-				'redirect_url'     => rawurlencode(wp_validate_redirect($this->get_requested_return_url(), $current_url)),
+				'redirect_url'     => rawurlencode(wp_validate_redirect($return_url, $current_url)),
 			],
 			home_url('/')
 		);
