@@ -444,7 +444,7 @@ class Site_Actions_Element extends Base_Element {
 						'change_payment_method',
 						[
 							'membership'   => $this->membership->get_hash(),
-							'redirect_url' => wu_get_current_url(),
+							'redirect_url' => $this->get_encoded_current_url(),
 						]
 					),
 				];
@@ -452,6 +452,21 @@ class Site_Actions_Element extends Base_Element {
 		}
 
 		return apply_filters('wu_element_get_site_actions', $actions, $atts, $this->site, $this->membership);
+	}
+
+	/**
+	 * Returns the current page URL, encoded to travel inside a form link.
+	 *
+	 * Form links are built with add_query_arg(), which does not encode values.
+	 * A page with its own query string would otherwise leak that string into
+	 * the form link and lose everything after the first "&" on the way back.
+	 *
+	 * @since n.e.x.t
+	 * @return string
+	 */
+	private function get_encoded_current_url(): string {
+
+		return rawurlencode(wu_get_current_url());
 	}
 
 	/**
@@ -496,7 +511,7 @@ class Site_Actions_Element extends Base_Element {
 							'cancel_membership',
 							[
 								'membership'   => $this->membership->get_hash(),
-								'redirect_url' => wu_get_current_url(),
+								'redirect_url' => $this->get_encoded_current_url(),
 							]
 						),
 					],
@@ -516,7 +531,7 @@ class Site_Actions_Element extends Base_Element {
 							'resubscribe_membership',
 							[
 								'membership'   => $this->membership->get_hash(),
-								'redirect_url' => wu_get_current_url(),
+								'redirect_url' => $this->get_encoded_current_url(),
 							]
 						),
 					],
