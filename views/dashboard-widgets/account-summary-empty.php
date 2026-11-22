@@ -21,7 +21,7 @@ defined('ABSPATH') || exit;
 			<ul class="wu-list-none wu-m-0 wu-p-0">
 				<?php foreach ($sites as $customer_site) : ?>
 					<li class="wu-my-2">
-						<a href="<?php echo esc_url($element->get_manage_url($customer_site->get_id())); ?>"><?php echo esc_html($customer_site->get_title()); ?></a>
+						<a href="<?php echo esc_url($element->get_select_url($customer_site->get_id())); ?>"><?php echo esc_html($customer_site->get_title()); ?></a>
 					</li>
 				<?php endforeach; ?>
 			</ul>
