@@ -342,7 +342,8 @@ class My_Sites_Element extends Base_Element {
 			$pending_sites = \WP_Ultimo\Models\Site::get_all_by_type('pending', ['customer_id' => $this->customer->get_id()]);
 
 			$customer_sites = array_reduce(
-				$this->customer->get_sites(),
+				// 'number' => 0 lifts BerlinDB's default LIMIT 100 (-1 would return one row).
+				$this->customer->get_sites(['number' => 0]),
 				function ($customer_sites, $site) {
 					$customer_sites[ $site->get_id() ] = $site;
 					return $customer_sites;
