@@ -96,6 +96,11 @@ permalink. Successful frontend deletion returns to the account landing page,
 unless an explicit destination is configured; never retain a deleted-site URL.
 Sites without a template initialize the selector to numeric zero so their first
 selection exposes the same destructive-action confirmation as template changes.
+Site chooser links stay on the page: they use the unfiltered
+`Current::get_context_url()`, so an integration that redirects Manage through
+`wu_current_site_get_manage_url` cannot hijack site selection, and a static front
+page uses the plain `?site=` form because the pretty `/site/<hash>` route needs
+a page slug.
 
 Payment-method changes must return from Stripe Billing Portal to the originating
 account page, using a validated local destination. Show the subscription's card
