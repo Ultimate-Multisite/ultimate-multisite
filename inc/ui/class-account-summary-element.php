@@ -351,4 +351,21 @@ class Account_Summary_Element extends Base_Element {
 
 		return is_admin() ? add_query_arg('page', 'account', $base_url . '/admin.php') : $base_url;
 	}
+
+	/**
+	 * Returns the URL that selects a site on the current account page.
+	 *
+	 * It skips the wu_current_site_get_manage_url filter on purpose: the
+	 * selector has to reload this page with the site chosen, not hand the
+	 * customer over to an integration's dashboard.
+	 *
+	 * @since n.e.x.t
+	 *
+	 * @param int $site_id A Site ID.
+	 * @return string
+	 */
+	public function get_select_url($site_id) {
+
+		return \WP_Ultimo\Current::get_context_url($site_id, 'site');
+	}
 }
