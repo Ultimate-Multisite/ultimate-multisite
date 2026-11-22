@@ -415,6 +415,62 @@ class Current_Test extends \WP_UnitTestCase {
 		$this->assertEquals('unknown', Current::param_key('unknown'));
 	}
 
+	/** In-page selectors must not follow integrations that redirect the manage URL. */
+	public function test_get_context_url_ignores_the_manage_url_filter(): void {
+
+		$this->set_permalink_structure('/%postname%/');
+
+		$page_id = self::factory()->post->create(
+			[
+				'post_type' => 'page',
+				'post_name' => 'account',
+			]
+		);
+		$hash    = \WP_Ultimo\Helpers\Hash::encode(7, 'site');
+		$filter  = static fn() => 'https://integration.example/dashboard';
+
+		$this->go_to(get_permalink($page_id));
+
+		add_filter('wu_current_site_get_manage_url', $filter);
+
+		$this->assertSame('https://integration.example/dashboard', Current::get_manage_url(7, 'site'));
+		$this->assertSame(home_url('/account/site/' . $hash), Current::get_context_url(7, 'site'));
+
+		remove_filter('wu_current_site_get_manage_url', $filter);
+
+		$this->assertSame(home_url('/account/site/' . $hash), Current::get_manage_url(7, 'site'));
+	}
+
+	/** The pretty form cannot route from the home path, so a static front page uses the plain form. */
+	public function test_get_context_url_uses_the_plain_form_on_a_static_front_page(): void {
+
+		$this->set_permalink_structure('/%postname%/');
+
+		$front_page = self::factory()->post->create(['post_type' => 'page']);
+		$hash       = \WP_Ultimo\Helpers\Hash::encode(7, 'site');
+
+		update_option('show_on_front', 'page');
+		update_option('page_on_front', $front_page);
+
+		$this->go_to(home_url('/'));
+
+		$this->assertSame(home_url('/') . '?site=' . $hash, Current::get_context_url(7, 'site'));
+	}
+
+	/** A subdirectory install's home path counts as the home path too. */
+	public function test_get_context_url_treats_a_subdirectory_home_as_the_home_path(): void {
+
+		$this->set_permalink_structure('/%postname%/');
+
+		add_filter('pre_option_home', static fn() => 'http://example.org/sub');
+
+		$this->go_to('/sub/');
+
+		$hash = \WP_Ultimo\Helpers\Hash::encode(7, 'site');
+
+		$this->assertSame('http://example.org/sub/?site=' . $hash, Current::get_context_url(7, 'site'));
+	}
+
 	/**
 	 * Test load_currents skips re-run during AJAX in admin.
 	 */
