@@ -231,6 +231,37 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 		// Uses hash instead of the ID.
 		$site_hash = \WP_Ultimo\Helpers\Hash::encode($id, $type);
 
+		/**
+		 * Allow developers to modify the manage site URL parameters.
+		 *
+		 * @since 2.0.9
+		 *
+		 * @param string $manage_site_url The manage site URL.
+		 * @param int $id The site ID.
+		 * @param string $site_hash The site hash.
+		 * @return string The modified manage URL.
+		 */
+		return apply_filters("wu_current_{$type}_get_manage_url", self::get_context_url($id, $type), $id, $site_hash);
+	}
+
+	/**
+	 * Returns the URL that selects a site/customer, before the manage URL filter.
+	 *
+	 * On the front-end this is the current page with the site/customer selected,
+	 * so in-page selectors keep the customer where they are, whatever an
+	 * integration does to get_manage_url(). In the admin it is the site's admin URL.
+	 *
+	 * @since n.e.x.t
+	 *
+	 * @param int    $id The site ID.
+	 * @param string $type The type. Can be either site or customer.
+	 * @return string
+	 */
+	public static function get_context_url($id, $type = 'site') {
+
+		// Uses hash instead of the ID.
+		$site_hash = \WP_Ultimo\Helpers\Hash::encode($id, $type);
+
 		if ( ! is_admin()) {
 			$url_param = self::param_key($type);
 			$remove    = 'site' === $type ? [$url_param, self::param_key('membership')] : [$url_param];
@@ -262,22 +293,19 @@ class Current implements \WP_Ultimo\Interfaces\Singleton {
 
 			$plain_url = add_query_arg($url_param, $site_hash, preg_replace('/#.*$/', '', $url)) . $fragment;
 
-			$manage_site_url = get_option('permalink_structure') ? $pretty_url : $plain_url;
+			/*
+			 * The pretty rewrite rule needs a page slug in front of the context, so
+			 * on the home path (a static front page, or /?page_id=N) use the plain form.
+			 */
+			$home_path = untrailingslashit((string) wp_parse_url(home_url('/'), PHP_URL_PATH));
+			$is_home   = untrailingslashit((string) ($parts['path'] ?? '')) === $home_path;
+
+			$context_url = get_option('permalink_structure') && ! $is_home ? $pretty_url : $plain_url;
 		} else {
-			$manage_site_url = get_admin_url($id);
+			$context_url = get_admin_url($id);
 		}
 
-		/**
-		 * Allow developers to modify the manage site URL parameters.
-		 *
-		 * @since 2.0.9
-		 *
-		 * @param string $manage_site_url The manage site URL.
-		 * @param int $id The site ID.
-		 * @param string $site_hash The site hash.
-		 * @return string The modified manage URL.
-		 */
-		return apply_filters("wu_current_{$type}_get_manage_url", $manage_site_url, $id, $site_hash);
+		return $context_url;
 	}
 
 	/**
