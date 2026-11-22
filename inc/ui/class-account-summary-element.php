@@ -316,7 +316,7 @@ class Account_Summary_Element extends Base_Element {
 			if ( ! is_admin()) {
 				$customer = WP_Ultimo()->currents->get_customer();
 
-				$atts['sites'] = $customer ? $customer->get_sites() : [];
+				$atts['sites'] = $customer ? $customer->get_sites(['number' => 0]) : []; // 0 lifts BerlinDB's default LIMIT 100.
 
 				wu_get_template('dashboard-widgets/account-summary-empty', $atts);
 			}
