@@ -747,13 +747,31 @@ class Domain_Mapping {
 		 * When admin access is forced to the network domain, admin and login
 		 * links to other sites must stay on the network domain as well.
 		 */
-		if (in_array($orig_scheme, ['admin', 'login', 'login_post'], true) && 'force_network' === $this->get_admin_redirect_setting()) {
+		$is_admin_url = in_array($orig_scheme, ['admin', 'login', 'login_post'], true)
+			|| (is_string($path) && 1 === preg_match('#^/?wp-admin(?:/|$)#', $path));
+
+		if ($is_admin_url && 'force_network' === $this->get_admin_redirect_setting()) {
 			return $url;
 		}
 
 		$primary_mapping = $this->get_primary_mapping_for_site($site_id);
 
 		if ( ! $primary_mapping) {
+			return $url;
+		}
+
+		/**
+		 * Determine whether the cross-site primary mapping should be used.
+		 *
+		 * @since n.e.x.t
+		 *
+		 * @param bool   $is_active Whether the mapping should be treated as active.
+		 * @param Domain $mapping   Mapping being inspected.
+		 * @param string $domain    Mapped domain being considered.
+		 */
+		$is_active = apply_filters('wu_use_domain_mapping', $primary_mapping->is_active(), $primary_mapping, $primary_mapping->get_domain());
+
+		if ( ! $is_active) {
 			return $url;
 		}
 

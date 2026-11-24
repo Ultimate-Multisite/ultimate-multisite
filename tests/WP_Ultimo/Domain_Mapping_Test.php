@@ -655,6 +655,32 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test mangle_url honors wu_use_domain_mapping for cross-site mappings.
+	 */
+	public function test_mangle_url_honors_use_domain_mapping_filter_for_different_site(): void {
+
+		$domain = $this->create_db_domain('filtered-primary-dm-test.example.com', 1, true);
+
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+
+		$this->domain_mapping->current_mapping = $this->make_request_mapping(99999);
+
+		add_filter('wu_use_domain_mapping', '__return_false', 99);
+
+		try {
+			$result = $this->domain_mapping->mangle_url('http://example.org/', '/', '', 1);
+		} finally {
+			remove_filter('wu_use_domain_mapping', '__return_false', 99);
+		}
+
+		$this->assertSame('http://example.org/', $result);
+
+		$domain->delete();
+		wp_cache_delete('primary-domain:site-1', 'domain_mappings');
+		$this->domain_mapping->current_mapping = null;
+	}
+
+	/**
 	 * The requested site on an unmapped host keeps its own URLs.
 	 *
 	 * Mapping them would move wp-admin, AJAX, REST and login requests off the
@@ -735,6 +761,7 @@ class Domain_Mapping_Test extends WP_UnitTestCase {
 		$this->domain_mapping->current_mapping = $this->make_request_mapping(99999);
 
 		$this->assertSame('http://example.org/wp-admin/', $this->domain_mapping->mangle_url('http://example.org/wp-admin/', 'wp-admin/', 'admin', 1));
+		$this->assertSame('https://example.org/wp-admin/', $this->domain_mapping->mangle_url('https://example.org/wp-admin/', 'wp-admin/', 'https', 1));
 		$this->assertSame('http://example.org/wp-login.php', $this->domain_mapping->mangle_url('http://example.org/wp-login.php', 'wp-login.php', 'login', 1));
 		$this->assertSame('http://force-network-dm-test.example.com/', $this->domain_mapping->mangle_url('http://example.org/', '/', null, 1));
 
