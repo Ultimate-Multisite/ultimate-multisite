@@ -937,7 +937,11 @@ class Domain_Mapping {
 	public function fix_srcset($sources) {
 
 		// Check if we have a valid mapping
-		if (empty($this->current_mapping) || ! $this->current_mapping->get_site()) {
+		if (
+			empty($this->current_mapping)
+			|| get_current_blog_id() !== $this->current_mapping->get_blog_id()
+			|| ! $this->current_mapping->get_site()
+		) {
 			return $sources;
 		}
 
