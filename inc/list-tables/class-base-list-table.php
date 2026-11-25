@@ -405,9 +405,10 @@ class Base_List_Table extends \WP_List_Table {
 	 * @return string
 	 */
 	protected function get_default_primary_column_name() {
+		$hidden_columns = get_hidden_columns($this->screen);
 
 		foreach ($this->get_columns() as $column => $label) {
-			if ('cb' !== $column && '' !== trim(wp_strip_all_tags($label))) {
+			if ('cb' !== $column && ! in_array($column, $hidden_columns, true) && '' !== trim(wp_strip_all_tags($label))) {
 				return $column;
 			}
 		}
@@ -524,8 +525,9 @@ class Base_List_Table extends \WP_List_Table {
 	 */
 	public function display(): void {
 		$has_active_filter = '' !== (string) wu_request('s', '');
+		$views             = apply_filters("wu_{$this->id}_get_views", $this->get_views());
 
-		foreach ($this->get_views() as $view) {
+		foreach ($views as $view) {
 			if (isset($view['field']) && 'all' !== wu_request($view['field'], 'all')) {
 				$has_active_filter = true;
 				break;
@@ -808,11 +810,29 @@ class Base_List_Table extends \WP_List_Table {
 		$pagination_bottom = ob_get_clean();
 
 		/**
+		 * Get the bulk action controls into variables.
+		 */
+		$bulk_actions = [];
+
+		foreach (['top', 'bottom'] as $which) {
+			ob_start();
+
+			if ($this->has_items()) {
+				echo '<div class="alignleft actions bulkactions">';
+				$this->bulk_actions($which);
+				echo '</div>';
+			}
+
+			$bulk_actions[ $which ] = ob_get_clean();
+		}
+
+		/**
 		 * Build the response
 		 */
 		$response                         = ['rows' => $rows];
 		$response['pagination']['top']    = $pagination_top;
 		$response['pagination']['bottom'] = $pagination_bottom;
+		$response['bulk_actions']         = $bulk_actions;
 		$response['column_headers']       = $headers;
 		$response['count']                = $this->record_count();
 		$response['type']                 = wu_request('type', 'all');
