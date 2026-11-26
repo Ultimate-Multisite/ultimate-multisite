@@ -46,7 +46,7 @@ $enhanced = ! empty($provisioning_enabled);
 		<ul class="wu-thank-you-info wu-grid wu-grid-cols-1 sm:wu-grid-cols-3 wu-gap-4 wu-m-0 wu-px-4 wu-py-6 wu-list-none">
 
 			<!-- Info Item -->
-			<li>
+			<li class="wu-min-w-0">
 
 			<span class="wu-uppercase wu-text-sm wu-block">
 
@@ -70,7 +70,7 @@ $enhanced = ! empty($provisioning_enabled);
 			<!-- Info Item - End -->
 
 			<!-- Info Item -->
-			<li>
+			<li class="wu-min-w-0">
 
 			<span class="wu-uppercase wu-text-sm wu-block">
 
@@ -78,7 +78,7 @@ $enhanced = ! empty($provisioning_enabled);
 
 			</span>
 
-			<span class="wu-text-md wu-font-bold wu-block wu-break-all">
+			<span class="wu-text-md wu-font-bold wu-block" style="overflow-wrap: anywhere; word-break: break-word;">
 
 				<?php echo esc_html($customer->get_email_address()); ?>
 
@@ -88,7 +88,7 @@ $enhanced = ! empty($provisioning_enabled);
 			<!-- Info Item - End -->
 
 			<!-- Info Item -->
-			<li>
+			<li class="wu-min-w-0">
 
 			<span class="wu-uppercase wu-text-sm wu-block">
 
@@ -142,7 +142,7 @@ $enhanced = ! empty($provisioning_enabled);
 		<ul class="wu-thank-you-info wu-grid wu-grid-cols-1 sm:wu-grid-cols-2 wu-gap-4 wu-m-0 wu-px-4 wu-py-6 wu-list-none">
 
 			<!-- Info Item -->
-			<li>
+			<li class="wu-min-w-0">
 
 			<span class="wu-uppercase wu-text-sm wu-block">
 
@@ -160,7 +160,7 @@ $enhanced = ! empty($provisioning_enabled);
 			<!-- Info Item - End -->
 
 			<!-- Info Item -->
-			<li>
+			<li class="wu-min-w-0">
 
 			<span class="wu-uppercase wu-text-sm wu-block">
 
@@ -178,7 +178,7 @@ $enhanced = ! empty($provisioning_enabled);
 			<!-- Info Item - End -->
 
 			<!-- Info Item -->
-			<li>
+			<li class="wu-min-w-0">
 
 			<span class="wu-uppercase wu-text-sm wu-block">
 
@@ -186,7 +186,7 @@ $enhanced = ! empty($provisioning_enabled);
 
 			</span>
 
-			<span class="wu-text-md wu-font-bold wu-block wu-break-all">
+			<span class="wu-text-md wu-font-bold wu-block" style="overflow-wrap: anywhere; word-break: break-word;">
 
 				<?php echo esc_html($customer->get_email_address()); ?>
 
@@ -196,7 +196,7 @@ $enhanced = ! empty($provisioning_enabled);
 			<!-- Info Item - End -->
 
 			<!-- Info Item -->
-			<li>
+			<li class="wu-min-w-0">
 
 			<span class="wu-uppercase wu-text-sm wu-block">
 
