@@ -7,7 +7,7 @@ set -euo pipefail
 #        bin/deploy.sh 2.4.6-beta.1   (pre-release)
 #
 # This script:
-# 1) Updates versions in plugin header, WP_Ultimo::VERSION, composer.json, package.json
+# 1) Updates versions in plugin header, WP_Ultimo::VERSION, package.json
 #    (and readme.txt Stable tag for stable releases only)
 #    For stable releases, also replaces `@since n.e.x.t` placeholders (and the other
 #    forms handled by bin/replace-next-version.sh) with the release version
@@ -125,9 +125,6 @@ update_versions() {
   # WP_Ultimo const VERSION
   sed -i.bak -E "s/(const VERSION = ')[^']+(';)/\\1$VERSION\\2/" inc/class-wp-ultimo.php
 
-  # composer.json version
-  sed -i.bak -E '0,/"version"[[:space:]]*:[[:space:]]*"[^"]+"/ s//"version": '"\"$VERSION\""'/' composer.json
-
   # package.json version
   sed -i.bak -E '0,/"version"[[:space:]]*:[[:space:]]*"[^"]+"/ s//"version": '"\"$VERSION\""'/' package.json
 
@@ -136,7 +133,7 @@ update_versions() {
     printf '%s\n' "$VERSION" > VERSION
   fi
 
-  rm -f readme.txt.bak ultimate-multisite.php.bak inc/class-wp-ultimo.php.bak composer.json.bak package.json.bak
+  rm -f readme.txt.bak ultimate-multisite.php.bak inc/class-wp-ultimo.php.bak package.json.bak
 
   # `@since n.e.x.t` -> `@since $VERSION`. Pre-releases keep the placeholder:
   # the code ships in the final X.Y.Z, not in the beta.
