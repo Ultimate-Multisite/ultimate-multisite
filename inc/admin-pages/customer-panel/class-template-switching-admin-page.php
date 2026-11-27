@@ -135,6 +135,20 @@ class Template_Switching_Admin_Page extends \WP_Ultimo\Admin_Pages\Base_Customer
 	 * @return void
 	 */
 	public function page_loaded(): void {
+		/*
+		 * Enforce the "Allow Template Switching" setting on the page itself,
+		 * not only where the Site Actions link is rendered.
+		 */
+		if ( ! wu_get_setting('allow_template_switching', true)) {
+			wp_die(
+				esc_html__('Template switching is disabled.', 'ultimate-multisite'),
+				'',
+				[
+					'response'  => 403,
+					'back_link' => true,
+				]
+			);
+		}
 
 		do_action('wu_template_switching_admin_page', null);
 
