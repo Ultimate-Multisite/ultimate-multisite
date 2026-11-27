@@ -65,6 +65,12 @@ jobs:
           PKG_VERSION=$(node -p "require('./package.json').version")
           CLASS_VERSION=$(grep -oP "const VERSION = '\K[^']+" inc/class-wp-ultimo.php)
 
+          # Composer drops VCS tags whose composer.json "version" disagrees with the tag (GH#2158).
+          if jq -e 'has("version")' composer.json > /dev/null; then
+            echo "Error: composer.json must not declare a version key; Composer derives it from the tag."
+            exit 1
+          fi
+
           echo "Tag version: ${{ env.VERSION }}"
           echo "Plugin header: $WP_VERSION"
           echo "readme.txt Stable tag: $README_VERSION"
