@@ -209,6 +209,31 @@ class Site_Duplicator {
 	}
 
 	/**
+	 * Copy the offloaded media of the template into the clone's own storage location.
+	 *
+	 * A failure is logged and never fails the duplication: the clone stays
+	 * usable and the copier can be run again for the same site.
+	 *
+	 * @since n.e.x.t
+	 * @param int $from_site_id Template blog ID.
+	 * @param int $site_id      Destination blog ID.
+	 * @return void
+	 */
+	private static function copy_offloaded_media(int $from_site_id, int $site_id): void {
+
+		try {
+			// The copier logs the failed attachments itself.
+			\WP_Ultimo\Duplication\Media_Offload_Copier::get_instance()->copy_media($from_site_id, $site_id);
+		} catch (\Throwable $exception) {
+			wu_log_add(
+				'site-duplication',
+				sprintf('Site %d: copying offloaded media of template %d stopped: %s', $site_id, $from_site_id, $exception->getMessage()),
+				LogLevel::WARNING
+			);
+		}
+	}
+
+	/**
 	 * Static-only class.
 	 */
 	private function __construct() {}
@@ -797,6 +822,27 @@ class Site_Duplicator {
 
 			// Includes failures of the URL rewrite above, which are warnings by default.
 			self::record_copy_warnings((int) $args->to_site_id, (int) $args->from_site_id, \MUCD_Data::get_copy_warnings());
+
+			/*
+			* Give the clone its own copy of offloaded media.
+			*
+			* copy_files() only copies the template's local uploads, so cloned
+			* attachments of an offloaded template still point at the template's
+			* remote objects. Adapters registered on wu_duplicate_media_adapters
+			* copy them; with none registered this does nothing. Never fatal.
+			*
+			* @since n.e.x.t
+			*/
+			if ($args->copy_files) {
+				$profile_stage = microtime(true);
+				self::copy_offloaded_media($template_site_id, (int) $args->to_site_id);
+				self::profile_sovereign_provisioning_stage(
+				(int) $args->to_site_id,
+				'um_duplicator.copy_offloaded_media',
+				microtime(true) - $profile_stage,
+				array('template_site_id' => (int) $template_site_id)
+				);
+			}
 
 			/*
 			* Verify Kit integrity after backfill.
