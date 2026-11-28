@@ -158,6 +158,25 @@ class SSO {
 	 * @return mixed
 	 */
 	public function input($key, $default_content = false) {
+		/*
+		 * URL parameters must not go through sanitize_text_field() (used by
+		 * wu_request()), which strips every percent-encoded octet (%d8%b2…).
+		 * That turned non-Latin return URLs such as /%d8%b2%d9%8a%d8%aa/ into
+		 * /----/ on a visitor's first SSO round trip and ended on a 404.
+		 * esc_url_raw() keeps valid percent-encoding and multibyte characters
+		 * while still rejecting unsafe protocols.
+		 */
+		if (in_array($key, ['return_url', 'redirect_to'], true)) {
+			// phpcs:ignore WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized by esc_url_raw() below.
+			$raw = isset($_REQUEST[ $key ]) ? wp_unslash($_REQUEST[ $key ]) : null;
+
+			if (is_string($raw)) {
+				return esc_url_raw($raw);
+			}
+
+			return $default_content;
+		}
+
 		$value = wu_request($key, $default_content);
 
 		return is_array($value) ? $default_content : $value;
