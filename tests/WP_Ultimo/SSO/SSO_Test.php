@@ -370,6 +370,29 @@ class SSO_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Test percent-encoded (non-Latin) URL parameters are not stripped.
+	 *
+	 * The sanitize_text_field() function removes %xx octets, which turned an
+	 * Arabic slug into /----/ on the first SSO round trip.
+	 */
+	public function test_input_preserves_percent_encoded_url_parameters(): void {
+		$sso         = SSO::get_instance();
+		$return_url  = 'https://customer.example.com/%d8%b2%d9%8a%d8%aa-%d8%b2%d9%8a%d8%aa/?a=1&b=2';
+		$redirect_to = 'https://customer.example.com/%D9%85%D8%B1%D8%AD%D8%A8%D8%A7/';
+
+		$_REQUEST['return_url']  = $return_url;
+		$_REQUEST['redirect_to'] = $redirect_to;
+
+		$this->assertSame($return_url, $sso->input('return_url'));
+		$this->assertSame($redirect_to, $sso->input('redirect_to'));
+		$this->assertSame('fallback', $sso->input('missing_key', 'fallback'));
+
+		unset($_REQUEST['return_url'], $_REQUEST['redirect_to']);
+
+		$this->assertSame('fallback', $sso->input('return_url', 'fallback'));
+	}
+
+	/**
 	 * Test same-domain SSO login redirects honour the requested admin URL directly.
 	 */
 	public function test_handle_login_redirect_uses_redirect_to_when_return_url_is_same_domain(): void {
