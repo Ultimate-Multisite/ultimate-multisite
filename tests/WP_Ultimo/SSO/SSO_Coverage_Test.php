@@ -2303,6 +2303,35 @@ class SSO_Coverage_Test extends \WP_UnitTestCase {
 	}
 
 	/**
+	 * Network admins get no magic link access for customer-mapped domains; members keep it.
+	 */
+	public function test_magic_link_access_denied_for_super_admin_on_customer_mapped_domain(): void {
+		$admin_id  = self::factory()->user->create();
+		$member_id = self::factory()->user->create();
+		grant_super_admin($admin_id);
+
+		[$blog_id, $domain] = $this->create_customer_mapped_site('magic-customer.example.net');
+
+		add_user_to_blog($blog_id, $member_id, 'subscriber');
+		add_user_to_blog($blog_id, $admin_id, 'subscriber');
+
+		$magic = Magic_Link::get_instance();
+		$ref   = new \ReflectionMethod($magic, 'verify_user_site_access');
+
+		if (PHP_VERSION_ID < 80100) {
+			$ref->setAccessible(true);
+		}
+
+		try {
+			$this->assertFalse($ref->invoke($magic, $admin_id, $blog_id));
+			$this->assertTrue($ref->invoke($magic, $member_id, $blog_id));
+		} finally {
+			revoke_super_admin($admin_id);
+			$this->delete_customer_mapped_site($domain);
+		}
+	}
+
+	/**
 	 * Deletes a mapped domain fixture and its lookup cache.
 	 *
 	 * @param \WP_Ultimo\Models\Domain $domain Domain fixture.
