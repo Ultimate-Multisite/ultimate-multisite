@@ -202,7 +202,10 @@ class PayPal_Webhook_Handler {
 			return false;
 		}
 
-		// Build verification request
+		// Build verification request. The signature covers the exact bytes PayPal
+		// sent, so the raw event must be embedded as-is. Decoding and re-encoding
+		// it (empty objects become [], number formatting and key escaping change)
+		// makes PayPal return FAILURE for genuine webhooks.
 		$verify_data = [
 			'auth_algo'         => $auth_algo,
 			'cert_url'          => $cert_url,
@@ -210,8 +213,16 @@ class PayPal_Webhook_Handler {
 			'transmission_sig'  => $transmission_sig,
 			'transmission_time' => $transmission_time,
 			'webhook_id'        => $webhook_id,
-			'webhook_event'     => json_decode($raw_body, true),
 		];
+
+		$verify_json = wp_json_encode($verify_data);
+
+		if (! is_string($verify_json)) {
+			$this->log('Failed to encode webhook verification request', LogLevel::ERROR);
+			return false;
+		}
+
+		$verify_json = substr($verify_json, 0, -1) . ',"webhook_event":' . trim($raw_body) . '}';
 
 		// Get client credentials
 		$client_id     = wu_get_setting("paypal_rest_{$mode_prefix}_client_id", '');
@@ -256,7 +267,7 @@ class PayPal_Webhook_Handler {
 					'Authorization' => 'Bearer ' . $access_token,
 					'Content-Type'  => 'application/json',
 				],
-				'body'    => wp_json_encode($verify_data),
+				'body'    => $verify_json,
 				'timeout' => 30,
 			]
 		);
