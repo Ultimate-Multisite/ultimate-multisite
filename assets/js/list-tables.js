@@ -491,6 +491,36 @@
 
 						} // end if;
 
+						// Restore or remove bulk actions when a search changes whether rows exist.
+						if (typeof response.bulk_actions !== 'undefined') {
+
+							[ 'top', 'bottom' ].forEach(function(position) {
+
+								const $navigation = $table_parent.find('.tablenav.' + position);
+								const $bulk_actions = $navigation.find('.bulkactions');
+
+								if (response.bulk_actions[ position ].length) {
+
+									if ($bulk_actions.length) {
+
+										$bulk_actions.replaceWith(response.bulk_actions[ position ]);
+
+									} else {
+
+										$navigation.prepend(response.bulk_actions[ position ]);
+
+									} // end if;
+
+								} else {
+
+									$bulk_actions.remove();
+
+								} // end if;
+
+							});
+
+						} // end if;
+
 						hooks.doAction('wu_list_table_update', response, form_data, $table_parent);
 
 						// Init back our event handlers
