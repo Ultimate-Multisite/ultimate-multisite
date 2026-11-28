@@ -64,6 +64,7 @@ jobs:
           README_VERSION=$(grep -m 1 "Stable tag: " readme.txt | awk -F' ' '{print $3}')
           PKG_VERSION=$(node -p "require('./package.json').version")
           CLASS_VERSION=$(grep -oP "const VERSION = '\K[^']+" inc/class-wp-ultimo.php)
+          CONSTANT_VERSION=$(grep -oP "define\('WP_ULTIMO_VERSION', '\K[^']+" ultimate-multisite.php)
 
           # Composer drops VCS tags whose composer.json "version" disagrees with the tag (GH#2158).
           if jq -e 'has("version")' composer.json > /dev/null; then
@@ -76,17 +77,18 @@ jobs:
           echo "readme.txt Stable tag: $README_VERSION"
           echo "package.json: $PKG_VERSION"
           echo "WP_Ultimo::VERSION: $CLASS_VERSION"
+          echo "WP_ULTIMO_VERSION: $CONSTANT_VERSION"
 
-          # For pre-releases, only check plugin header, class constant, and package.json
+          # For pre-releases, only check plugin header, class constants, and package.json
           # (readme.txt Stable tag stays at the last stable version)
           if [ "${{ env.IS_PRERELEASE }}" = "true" ]; then
-            if [ "$WP_VERSION" != "${{ env.VERSION }}" ] || [ "$PKG_VERSION" != "${{ env.VERSION }}" ] || [ "$CLASS_VERSION" != "${{ env.VERSION }}" ]; then
+            if [ "$WP_VERSION" != "${{ env.VERSION }}" ] || [ "$PKG_VERSION" != "${{ env.VERSION }}" ] || [ "$CLASS_VERSION" != "${{ env.VERSION }}" ] || [ "$CONSTANT_VERSION" != "${{ env.VERSION }}" ]; then
               echo "Error: Version mismatch detected!"
               exit 1
             fi
             echo "Pre-release version numbers match: ${{ env.VERSION }}"
           else
-            if [ "$WP_VERSION" != "${{ env.VERSION }}" ] || [ "$README_VERSION" != "${{ env.VERSION }}" ] || [ "$PKG_VERSION" != "${{ env.VERSION }}" ] || [ "$CLASS_VERSION" != "${{ env.VERSION }}" ]; then
+            if [ "$WP_VERSION" != "${{ env.VERSION }}" ] || [ "$README_VERSION" != "${{ env.VERSION }}" ] || [ "$PKG_VERSION" != "${{ env.VERSION }}" ] || [ "$CLASS_VERSION" != "${{ env.VERSION }}" ] || [ "$CONSTANT_VERSION" != "${{ env.VERSION }}" ]; then
               echo "Error: Version mismatch detected!"
               exit 1
             fi

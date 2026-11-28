@@ -122,6 +122,9 @@ update_versions() {
   sed -i.bak -E "s/^( \* Version:[[:space:]]*).*/\\1$VERSION/" ultimate-multisite.php
   sed -i.bak -E "s/^( \* @version).*/\\1 $VERSION/" ultimate-multisite.php
 
+  # WP_ULTIMO_VERSION constant (read by the site exporter)
+  sed -i.bak -E "s/(define\\('WP_ULTIMO_VERSION', ')[^']+('\\);)/\\1$VERSION\\2/" ultimate-multisite.php
+
   # WP_Ultimo const VERSION
   sed -i.bak -E "s/(const VERSION = ')[^']+(';)/\\1$VERSION\\2/" inc/class-wp-ultimo.php
 
@@ -369,8 +372,16 @@ deploy_to_wporg_svn() {
   echo "SVN deployment complete."
 }
 
+warn_guessed_since_tags() {
+  echo "==> Checking for guessed @since/@deprecated version tags"
+  if ! bash "$PLUGIN_DIR/bin/replace-next-version.sh" --check-guessed --allow "${VERSION%%-*}"; then
+    echo "Warning: guessed version tags found (listed above). Replace them with n.e.x.t or the correct released version before shipping."
+  fi
+}
+
 main() {
   ensure_clean_git
+  warn_guessed_since_tags
   update_versions
   sync_changelog_and_date
   commit_and_push
