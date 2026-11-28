@@ -368,6 +368,17 @@ class Template_Switching_Element extends Base_Element {
 			return;
 		}
 
+		/*
+		 * The "Allow Template Switching" setting must be enforced here, not only
+		 * where the Site Actions link is rendered. Otherwise a customer who
+		 * calls the handler directly can overwrite their site while switching
+		 * is disabled network-wide.
+		 */
+		if ( ! wu_get_setting('allow_template_switching', true)) {
+			wp_send_json_error(new \WP_Error('template_switching_disabled', __('Template switching is disabled.', 'ultimate-multisite')));
+			return;
+		}
+
 		$template_id = (int) wu_request('template_id', '');
 
 		// false means MODE_DEFAULT (no restriction) — all templates are allowed.
