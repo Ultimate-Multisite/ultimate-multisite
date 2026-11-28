@@ -22,7 +22,7 @@ defined('ABSPATH') || exit;
  * the template attachment's ID.
  *
  * Adapters must never delete or modify objects at the source location, and must
- * never put credentials in the errors they return: messages are logged.
+ * never put secrets (keys, tokens) in the errors they return: messages are logged.
  *
  * @since n.e.x.t
  */

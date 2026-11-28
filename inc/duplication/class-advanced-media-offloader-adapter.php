@@ -108,7 +108,7 @@ class Advanced_Media_Offloader_Adapter implements Media_Offload_Adapter {
 			 * Copies one remote object, server side, from the template's location to the new site's.
 			 *
 			 * Must only read the source key. Return true on success or a WP_Error;
-			 * null means no handler is registered. Never put credentials in the error.
+			 * null means no handler is registered. Never put secrets (keys, tokens) in the error.
 			 *
 			 * @since n.e.x.t
 			 * @param true|\WP_Error|null $result          Copy result.
